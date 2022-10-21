@@ -1,0 +1,14 @@
+
+# Ignore the python cache
+
+__pycache__
+
+# Ignore grafic files
+
+*.svg
+
+# Ignore data folder and stored numpy tensor
+
+data/
+plots/
+*.npy
