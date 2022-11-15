@@ -109,8 +109,8 @@ for iterations in set_nums:  # change here later on
     # *********************************************************************************
 
     # epoch the eeg data to trial length (for merged sets)
-    lrp_epochs_train, lrp_epochs_obj_train, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
-    lrp_epochs_test_val, lrp_epochs_obj_test_val, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
+    lrp_epochs_train, time_axis_eeg_batch, remaining_eeg_channel_names, lrp_epochs_obj_train = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
+    lrp_epochs_test_val, time_axis_eeg_batch, remaining_eeg_channel_names, lrp_epochs_obj_test_val = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
 
 
     # fit scaler only on train data 

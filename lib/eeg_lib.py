@@ -26,7 +26,7 @@ def loadBrainproductsData(dataset_list):
     return raw
 
 # !!! not tested yet !!!
-def create_acticap_montage(plot_montage, set_montage, mne_obj): 
+def create_acticap_montage(plot_montage): 
     
     montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
     #show easy cap Montage  
@@ -71,21 +71,22 @@ def create_acticap_montage(plot_montage, set_montage, mne_obj):
     if(plot_montage == True): 
         acti_cap_montage.plot()
 
-    if(set_montage): 
-        mne_obj.set_montage(acti_cap_montage) # set montage 
         
     return acti_cap_montage
 
-# !!! not tested yet !!!
-def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, epoch_start_idx, epoch_step, title_str, min_val, max_val): 
+
+def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, title_str, min_val, max_val, f_samp_eeg): 
     
     #topoplot at different times 
     n,m = mean_epochs.shape
-    # !!!!!!!!!!!!!! use time instead of index for chosing the topoplots !!!!!!!!!!! 
-    indices_of_topoplot = np.arange(epoch_start_idx, m, step = epoch_step) # 22 er steps 
+    start_idx = (start_time/1000)*f_samp_eeg
+    step_idx = (step_time/1000)* f_samp_eeg
+
+    indices_of_topoplot = np.arange(start_idx, m, step = step_idx).astype(int) # 22 er steps 
+    mean_epochs.astype(float)
 
     count = 0
-    fig, ax = plt.subplots(nrows=len(indices_of_topoplot), figsize=(12, 26), gridspec_kw=dict(top=0.9),sharex=True, sharey=True)
+    fig, ax = plt.subplots(nrows=len(indices_of_topoplot), figsize=(8, 20), gridspec_kw=dict(top=0.9),sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.5)
     for index in indices_of_topoplot: 
         cmap = 'bwr'
@@ -95,7 +96,8 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, epoch_start_idx, epoch_s
         cbar =fig.colorbar(im, ax = ax[count], orientation="vertical", pad = 0.15)
         cbar.set_label("in uV")
         count = count+1
-    plt.show(im)
+    plt.show()
+
     
 
 def getPredictionResults(model, epochs, n_samp_features): 
@@ -120,7 +122,7 @@ def getPredictionResults(model, epochs, n_samp_features):
     return predicted_labels, true_labels
 
 
-def rereferencingEpoching(raw, onset_number, error_number,channel_exclude_list, reref_channels, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg): 
+def rereferencingEpoching(raw, onset_number, error_number,channel_exclude_list, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
     # rereferencing 
     rereferenced_eeg_raw = raw.copy()
     rereferenced_eeg_raw = rereferenced_eeg_raw.drop_channels(['x_dir', 'y_dir', 'z_dir'])
@@ -170,14 +172,14 @@ def rereferencingEpoching(raw, onset_number, error_number,channel_exclude_list, 
     #eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
     if not(channel_exclude_list): 
         if(apply_baseline_correction): 
-            eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=(-1.5, -1), tmax=t2, preload=True, reject_by_annotation = True)
+            eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
         else: 
             eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
             
     else: #drop specified channels if given 
         filtered_eeg_rereferenced.drop_channels(channel_exclude_list)
         if(apply_baseline_correction): 
-            eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(-1.5, -1), preload=True, reject_by_annotation = True)
+            eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
         else: 
             eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
     

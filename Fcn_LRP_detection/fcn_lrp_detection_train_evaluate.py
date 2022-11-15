@@ -23,14 +23,15 @@ results_path = proj_path+"/results/"
 subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_fixed_win_performance_325_samp(original)"
+result_file_name = "fcn_fixed_win_performance_200_train_325_label_no_weight"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
 continues_prediction = True # if True sampels for nolrp class are used from each part which has not been labeled to lrp
 
 #machine learning params 
-n_samp_features = 325 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize 
+n_samp_features = 200 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize 
+n_samp_lrp_label = 325 # label defs for window wise evaluation
 # lrp definition and data starts -n_samp_features to 0 
 input_dim = 34 # input dim of the network (feature dim)
 first_layer_units = 4 # neurons of first layer 
@@ -40,8 +41,8 @@ n_epochs = 20 # training epochs
 n_batch_size = 64 # batch size 
 dropout_rate = 0.1 # dropout rate of every layer of the network 
 shuffle_data = True # shuffle all data for training, validation and testing 
-weight_no_lrp_class = 0.6 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
-weight_lrp_class = 0.4 
+weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
+weight_lrp_class = 0.5
 show_training_results = False
 validation_rate = 0.2
 multiprocessing_cpus = 16 
@@ -186,7 +187,7 @@ for subject in subject_names:
         # *********************************************************************************
 
         wind_arr_metrics, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(predicted_labels_test, f_samp_eeg, window_size, window_step, with_channel_dim) # currently only with channel dim False is supported!
-        tnr_wind_test, tpr_wind_test, acc_wind_test, ba_wind_test, window_predictions, window_true_labels = eeg_lib.calcWindowMetrics(wind_arr_metrics, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features)
+        tnr_wind_test, tpr_wind_test, acc_wind_test, ba_wind_test, window_predictions, window_true_labels = eeg_lib.calcWindowMetrics(wind_arr_metrics, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_lrp_label)
 
         print("")
         print("Metrics single trial data (window evaluation, fixed label):")
@@ -200,6 +201,6 @@ for subject in subject_names:
 
 
 perf_results_total = np.array(perf_results_total)
-np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f")
+np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f", )
 print("all done")
 
