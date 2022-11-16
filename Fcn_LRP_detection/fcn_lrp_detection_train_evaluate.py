@@ -23,7 +23,7 @@ results_path = proj_path+"/results/"
 subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp"
+result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_drop_C1_FC1_CP1_CZ"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
@@ -75,9 +75,9 @@ for subject in subject_names:
         # *********************************************************************************
 
         # load each individual train, val and test sets (preprocessed)
-        lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+"_train_"+str(iteration)+".npy")
-        lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+"_test_"+str(iteration)+".npy")
-        lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+"_val_"+str(iteration)+".npy")
+        lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_train_"+str(iteration)+".npy")
+        lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_test_"+str(iteration)+".npy")
+        lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_val_"+str(iteration)+".npy")
 
 
         # *********************************************************************************
@@ -163,7 +163,7 @@ for subject in subject_names:
         # *********************************************************************************
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
-        
+
         predicted_labels_train, true_labels_train = eeg_lib.getPredictionResults(model, lrp_epochs_train_scaled, n_samp_features)
         tnr_train, tpr_train, acc_train, ba_train = eeg_lib.calcTestAccAndRates(predicted_labels_train.flatten(), true_labels_train.flatten())
 
@@ -197,7 +197,7 @@ for subject in subject_names:
         print("TPR: ",np.round(tpr_wind_test, 3)) 
         print("BA: ", np.round(ba_wind_test, 3)) 
         print("")
-
+        
         perf_results = np.array([np.round(ba_wind_test, 3), np.round(tpr_wind_test, 3), np.round(tnr_wind_test, 3)])
         perf_results_total.append(perf_results)
 
@@ -206,9 +206,9 @@ perf_results_total = np.array(perf_results_total)
 np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f", )
 print("all done")
 
-print("Predicted labels")
-print(window_predictions[0:3, :])
-print("")
-print("True labels")
-print(window_true_labels[0:3, :])
+# print("Predicted labels")
+# print(window_predictions[0:3, :])
+# print("")
+# print("True labels")
+# print(window_true_labels[0:3, :])
 
