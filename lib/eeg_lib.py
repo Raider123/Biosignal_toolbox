@@ -25,7 +25,6 @@ def loadBrainproductsData(dataset_list):
 
     return raw
 
-# !!! not tested yet !!!
 def create_acticap_montage(plot_montage): 
     
     montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
@@ -70,7 +69,6 @@ def create_acticap_montage(plot_montage):
     acti_cap_montage = mne.channels.DigMontage(dev_head_t=dev_head ,dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
     if(plot_montage == True): 
         acti_cap_montage.plot()
-
         
     return acti_cap_montage
 
@@ -98,7 +96,6 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, t
         count = count+1
     plt.show()
 
-    
 
 def getPredictionResults(model, epochs, n_samp_features): 
     true_labels = []
@@ -244,7 +241,43 @@ def calcTestAccAndRates(prediction_labels, true_labels):
     ba = (tnr+tpr)/2
     return tnr, tpr, acc, ba
 
-def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features): 
+def applyRelabelling(predicted_labels, determine_labels, searching_bounds): 
+
+    new_true_labels = np.zeros(predicted_labels.shape)
+    new_true_labels[:, -1] = 1.0 # last label has to be positive class 
+
+    #predicted_labels_cut = predicted_labels[:, searching_bounds[0]:searching_bounds[1]] # cut to searching bounds where the label change point is searched 
+    
+    trial = 0 
+
+    for predicted_trial_label in predicted_labels: 
+        # reset for every trial 
+        neg_class_counter = 0
+        index =  searching_bounds[1]-1 # do this like that for now but change afterwards,  upper bound could lay in the middle ! 
+
+        while index > searching_bounds[0]: # go from the back to front until the minimum point 
+            # count number of neg classes 
+            if (predicted_trial_label[index] == 0): 
+                neg_class_counter = neg_class_counter+1
+            else: 
+                neg_class_counter = 0
+            
+            if(neg_class_counter >= determine_labels): 
+                new_true_labels[trial, index+determine_labels:] = 1.0 # set true labels after label change point
+                break # stop when change point was found
+            
+            index = index -1
+
+        # no consecutive determine label numbers of neg class found 
+        if(index <= searching_bounds[0] and neg_class_counter < determine_labels): 
+            new_true_labels[trial, searching_bounds[0]:] = 1.0
+
+        trial = trial +1
+
+    return new_true_labels
+
+
+def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features, use_relabelling, determine_labels, searching_bounds): 
 
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
     evaluation_samp_per_window = int((evaluation_time_per_window/1000) * f_samp_eeg) 
@@ -261,7 +294,12 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
         window_eval_true_labels[trial_nr, :] = trial_lrp_label
 
     #get metrics for window evaluation 
-    tnr, tpr, acc, ba = calcTestAccAndRates(window_predictions.flatten(), window_eval_true_labels.flatten())
+    if (use_relabelling == False): 
+        tnr, tpr, acc, ba = calcTestAccAndRates(window_predictions.flatten(), window_eval_true_labels.flatten())
+    else: 
+        relabelled_true_labels = applyRelabelling(window_predictions, determine_labels, searching_bounds)
+        tnr, tpr, acc, ba = calcTestAccAndRates(window_predictions.flatten(), relabelled_true_labels.flatten())
+        window_eval_true_labels = relabelled_true_labels # return the relabelled true labels instead 
 
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
