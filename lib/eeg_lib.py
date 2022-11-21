@@ -119,7 +119,7 @@ def getPredictionResults(model, epochs, n_samp_features):
     return predicted_labels, true_labels
 
 
-def rereferencingEpoching(raw, onset_number, error_number,channel_exclude_list, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
+def rereferencingEpoching(raw, onset_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
     # rereferencing 
     rereferenced_eeg_raw = raw.copy()
     rereferenced_eeg_raw = rereferenced_eeg_raw.drop_channels(['x_dir', 'y_dir', 'z_dir'])
@@ -167,14 +167,20 @@ def rereferencingEpoching(raw, onset_number, error_number,channel_exclude_list, 
     used_plot_events = plot_events[plot_onset_indices_correct,:]
 
     #eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
-    if not(channel_exclude_list): 
+    if not(channel_list): 
         if(apply_baseline_correction): 
             eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
         else: 
             eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
             
-    else: #drop specified channels if given 
-        filtered_eeg_rereferenced.drop_channels(channel_exclude_list)
+    else: #drop specified channels if False 
+
+        # keep or drop specified channels 
+        if(inverse_keep_channel == True): 
+            filtered_eeg_rereferenced.drop_channels(channel_list)
+        else: 
+            filtered_eeg_rereferenced.pick_channels(channel_list)
+
         if(apply_baseline_correction): 
             eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
         else: 
@@ -304,7 +310,7 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
-def prepareEpochsForNetwork(lrp_epochs, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1, t2): 
+def prepareEpochsForNetwork(lrp_epochs, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1_time, t2_time): 
     tensor_shape = lrp_epochs.shape # shape is (trials, channel, sampels)
 
     n_start = n_samp_features # number of samples to use as features 
@@ -312,9 +318,30 @@ def prepareEpochsForNetwork(lrp_epochs, time_axis_eeg_batch, n_samp_features, co
     lrp_idx_1 = tensor_shape[2]-n_start-1
     lrp_idx_2 = tensor_shape[2]-n_end
     no_lrp_idx_1 = n_start
-    
-    print("lrp indizes are: ", lrp_idx_1, lrp_idx_2)
-    print("no_lrp indizes are: ", t1, no_lrp_idx_1+t1)
+
+    # convert from ms to seconds 
+    t1_time = t1_time/1000
+    t2_time = t2_time/1000
+
+    if (t1_time < 0): 
+        for index in range(0, len(time_axis_eeg_batch)): 
+            if(time_axis_eeg_batch[index] <= t1_time and time_axis_eeg_batch[index+1] >= t1_time): 
+                print("t1 set")
+                t1 = index 
+                break
+
+    if (t2_time < 0): 
+        for index in range(0, len(time_axis_eeg_batch)): 
+            if(time_axis_eeg_batch[index] <= t2_time and time_axis_eeg_batch[index+1] >= t2_time): 
+                t2 = index 
+                break
+
+
+    print("t1: ", t1)
+    print("t2: ", t2)
+
+    # print("lrp indizes are: ", lrp_idx_1, lrp_idx_2)
+    # print("no_lrp indizes are: ", t1, no_lrp_idx_1+t1)
     
     #seperate the samples of both classes 
     if(continues_prediction): # here no lrp sampels are cut out at even spaced steps to LRP class

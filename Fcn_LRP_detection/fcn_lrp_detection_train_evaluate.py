@@ -5,15 +5,21 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Dense
+from time import perf_counter
 import sys 
+#import os 
 
 # own libs 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 sys.path.append(proj_path+"/lib") # path to lib folder 
 import eeg_lib
+
+# disable GPU for testing 
+tf.config.set_visible_devices([], 'GPU')
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -23,29 +29,31 @@ results_path = proj_path+"/results/"
 subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_drop_C1_FC1_CP1_CZ"
+result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_34ch_weight_3"
+preprocessed_data_filename_end = ""
+
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
-continues_prediction = True # if True sampels for nolrp class are used from each part which has not been labeled to lrp
+continues_selection = True # if True sampels for nolrp class are used from each part which has not been labeled to lrp
 
 #machine learning params 
 n_samp_features = 50 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize 
 n_samp_lrp_label = 50 # label defs for window wise evaluation
 # lrp definition and data starts -n_samp_features to 0 
-input_dim = 34 # input dim of the network (feature dim)
 first_layer_units = 4 # neurons of first layer 
 second_layer_units = 4 # neurons of second layer 
 third_layer_units = 4 # neurons of third layer 
-n_epochs = 20 # training epochs 
-n_batch_size = 64 # batch size 
+n_epochs = 20 # training epochs (max since early stopping is used) 
+n_batch_size = 64 # batch size # 64 seems to work nice 
 dropout_rate = 0.1 # dropout rate of every layer of the network 
 shuffle_data = True # shuffle all data for training, validation and testing 
-weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
-weight_lrp_class = 0.5
+weight_no_lrp_class = 0.6 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
+weight_lrp_class = 0.4
 show_training_results = False
 validation_rate = 0.2
 multiprocessing_cpus = 16 
+#early_stopping_patience = 3
 
 # window wise metric evaluation 
 window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
@@ -57,15 +65,25 @@ use_relabelling = True # should the metrics be calculated with relabelling after
 determine_labels = 3 
 searching_bounds = [61, 81] # boundaries where the "label change point" is determined, values are the numbers of the windows (see wind_names param for which windows are selected as bounds)
 
+
+# times in seconds where to get the train data from epoched signals 
+t1_noLRP = -5000 # in ms 
+t2_noLRP = -980
+
+
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
 # *********************************************************************************
 
 # init performance results list 
 perf_results_total = []
+max_val_indices = []
 
 # load the time axis of the epoched data 
 time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
+
+# measure execution time 
+time_start = perf_counter()
 
 for subject in subject_names: 
     for iteration in interations: 
@@ -75,9 +93,9 @@ for subject in subject_names:
         # *********************************************************************************
 
         # load each individual train, val and test sets (preprocessed)
-        lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_train_"+str(iteration)+".npy")
-        lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_test_"+str(iteration)+".npy")
-        lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+"_4_channel_rmv"+"_val_"+str(iteration)+".npy")
+        lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
+        lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
+        lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")
 
 
         # *********************************************************************************
@@ -85,13 +103,11 @@ for subject in subject_names:
         # *********************************************************************************
 
         # preparing trainin, validation and test data 
-        # times in seconds where to get the train data from epoched signals 
-        t1 = 0 
-        t2 = 2000
+
         # split prepared data into train, validation and test  
-        x_train, y_train = eeg_lib.prepareEpochsForNetwork(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1, t2)
-        x_val, y_val = eeg_lib.prepareEpochsForNetwork(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1, t2)
-        x_test, y_test = eeg_lib.prepareEpochsForNetwork(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1, t2)
+        x_train, y_train = eeg_lib.prepareEpochsForNetwork(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_val, y_val = eeg_lib.prepareEpochsForNetwork(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_test, y_test = eeg_lib.prepareEpochsForNetwork(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
 
         print("Shape of train data: ", x_train.shape)
         print("Shape of test data: ", x_test.shape)
@@ -118,6 +134,9 @@ for subject in subject_names:
         # ********************* Compile and train model  ***********************************
         # *********************************************************************************
 
+        # early stopping callback 
+        #callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=early_stopping_patience, verbose=0, mode="auto", baseline=None, restore_best_weights=True)
+        
         model.compile(loss="binary_crossentropy", optimizer="adam", metrics="accuracy")
         history = model.fit(x_train, 
                             y_train, 
@@ -128,6 +147,7 @@ for subject in subject_names:
                             class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
                             use_multiprocessing=True,
                             validation_data = (x_val, y_val))
+                            #callbacks = [callback])
 
         # *********************************************************************************
         # ********************* Get and show training results   ***************************
@@ -151,6 +171,7 @@ for subject in subject_names:
 
             acc_values = history_dict["accuracy"]
             val_acc_values = history_dict["val_accuracy"]
+            
             ax2.plot(num_of_epochs, acc_values, "bo", label="Training accuracy")
             ax2.plot(num_of_epochs, val_acc_values, "b", label="Validation accuracy")
             ax2.set_xlabel("Epochs")
@@ -160,6 +181,9 @@ for subject in subject_names:
 
             plt.show()
 
+        val_acc_values = history_dict["val_accuracy"]
+        max_val_idx = np.argmax(val_acc_values)
+        max_val_indices.append(max_val_idx)
         # *********************************************************************************
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
@@ -197,7 +221,7 @@ for subject in subject_names:
         print("TPR: ",np.round(tpr_wind_test, 3)) 
         print("BA: ", np.round(ba_wind_test, 3)) 
         print("")
-        
+
         perf_results = np.array([np.round(ba_wind_test, 3), np.round(tpr_wind_test, 3), np.round(tnr_wind_test, 3)])
         perf_results_total.append(perf_results)
 
@@ -205,6 +229,9 @@ for subject in subject_names:
 perf_results_total = np.array(perf_results_total)
 np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f", )
 print("all done")
+print("")
+print("execution time: ")
+print(perf_counter()-time_start)
 
 # print("Predicted labels")
 # print(window_predictions[0:3, :])
@@ -212,3 +239,8 @@ print("all done")
 # print("True labels")
 # print(window_true_labels[0:3, :])
 
+print("")
+print(max_val_indices)
+
+max_val_indices = np.array(max_val_indices) 
+print("mean max validation index: ", np.mean(max_val_indices))

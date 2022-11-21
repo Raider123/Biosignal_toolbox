@@ -55,7 +55,7 @@ t1_baseline = -1
 
 # topoplot params 
 plot_montage = False 
-min_val = -6e-06
+min_val = -6e-06 # Voltage values for colour scale 
 max_val = 6e-06
 
 # topoplot params 
@@ -66,8 +66,9 @@ topoplot_title_str = "time to movement "
 # select channel name for visualizing it 
 channel_to_evaluate = "C1"
 
-# eeg channel that are excluded from further evaluation (getting dropped, specify [] to not drop channels)
-channel_exclude_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+# eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
+inverse_keep_channel = True 
+channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
 
 
 # *********************************************************************************
@@ -81,8 +82,9 @@ raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts fo
 # *********************************************************************************
 
 # epoch the eeg data to trial length (for merged sets)
-erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, raw_filtered = eeg_lib.rereferencingEpoching(raw, marker_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, raw_filtered = eeg_lib.rereferencingEpoching(raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 #erp_epochs has shape (trials, eeg-channels, sampels)
+
 
 average_erp_epochs = np.mean(erp_epochs, axis = 0) # average the trials (average analysis), has now shape(channel, sampels) 
 

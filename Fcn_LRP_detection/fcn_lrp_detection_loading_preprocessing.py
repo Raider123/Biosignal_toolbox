@@ -35,23 +35,26 @@ set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_3Hz"
 
 
 # Channelnumbers with EEG Data from Dataset
 eeg_channel_start_number = 0 
 eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
+
 # Filtering Params for EEG data 
 f_highpass = 0.1 # in Hz 
-f_lowpass = 4.0 # in Hz 
+f_lowpass = 3.0 # in Hz 
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
 reref_channel = []
 
 # should baseline correction be applied ? (standard -1.5 to -1 seconds)
-apply_baseline_correction = False #TODO: specify parameters for baseline correction 
+apply_baseline_correction = False 
+t0_baseline = 0 # not used
+t1_baseline = 0
 
 f_samp_eeg = 500 #sample Frequency of eeg
 marker_number = 100 # onset markernumber (Qualisys)
@@ -66,8 +69,10 @@ epoching_time_before_onset = -5.0 # time in seconds (start epoch)
 epoching_time_after_onset = 0 # time in seconds (0 = movement onset)
 
 
-# eeg channel that are excluded from the hole evaluation (getting dropped)
-channel_exclude_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+# eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
+inverse_keep_channel = True
+channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7", "C1", "CP1", "C1", "CZ"]
+
 
 # just remap the parameters (need to be adapted)
 t1 = epoching_time_before_onset
@@ -102,20 +107,20 @@ for iterations in set_nums:  # change here later on
         test_list = [dataset[1]]
         raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
-
+    
 
     # *********************************************************************************
     # *********** EEG preprocessing, epoching and train, test split *******************
     # *********************************************************************************
 
     # epoch the eeg data to trial length (for merged sets)
-    lrp_epochs_train, time_axis_eeg_batch, remaining_eeg_channel_names, lrp_epochs_obj_train = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
-    lrp_epochs_test_val, time_axis_eeg_batch, remaining_eeg_channel_names, lrp_epochs_obj_test_val = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number, channel_exclude_list, reref_channel, apply_filter, f_highpass, f_lowpass, apply_baseline_correction, event_id_used, t1, t2, f_samp_eeg)
+    lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+    lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 
 
     # fit scaler only on train data 
     # train test permutation 1 
-    scaler = mne.decoding.Scaler(info=lrp_epochs_obj_train.info)  #(n_epochs, n_channels, n_times) scaler requires this shape
+    scaler = mne.decoding.Scaler(info=raw_train_obj.info)  #(n_epochs, n_channels, n_times) scaler requires this shape
     scaler.fit(lrp_epochs_train) # fit to epochs data (keep in mind that fit an ALL data right now !, not online compatible)
     lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
     lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
