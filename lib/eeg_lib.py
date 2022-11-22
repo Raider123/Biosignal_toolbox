@@ -122,7 +122,6 @@ def getPredictionResults(model, epochs, n_samp_features):
 def rereferencingEpoching(raw, onset_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
     # rereferencing 
     rereferenced_eeg_raw = raw.copy()
-    rereferenced_eeg_raw = rereferenced_eeg_raw.drop_channels(['x_dir', 'y_dir', 'z_dir'])
     
     if not (reref_channels):
         print("no reref channels specified, using original ref")
