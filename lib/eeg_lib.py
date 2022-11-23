@@ -133,7 +133,7 @@ def rereferencingEpoching(raw, onset_number, error_number,channel_list, inverse_
             rereferenced_eeg_raw, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw, ref_channels='average' ,copy=True)
         else:
             print("using custom electrodes for rereferencing")
-            rereferenced_EEG_raw, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw, ref_channels=reref_channels ,copy=True)
+            rereferenced_eeg_raw, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw, ref_channels=reref_channels ,copy=True)
     
     raw_eeg_rereferenced = rereferenced_eeg_raw.copy()
     #drop channel
