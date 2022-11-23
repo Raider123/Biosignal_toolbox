@@ -89,11 +89,11 @@ erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, r
 average_erp_epochs = np.mean(erp_epochs, axis = 0) # average the trials (average analysis), has now shape(channel, sampels) 
 
 # create an acticap montage 
-acticap_montage = eeg_lib.create_acticap_montage(plot_montage)
-raw_filtered.set_montage(acticap_montage) # set created montage 
+#acticap_montage = eeg_lib.create_acticap_montage(plot_montage)
+#raw_filtered.set_montage(acticap_montage) # set created montage 
 
 # make a topoplot 
-eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topo_start_time, topo_time_step, topoplot_title_str, min_val, max_val, f_samp_eeg)
+#eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topo_start_time, topo_time_step, topoplot_title_str, min_val, max_val, f_samp_eeg)
 
 # show average erp signal selected channel 
 channel_index = remaining_eeg_channel_names.index(channel_to_evaluate)
