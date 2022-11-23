@@ -29,7 +29,7 @@ results_path = proj_path+"/results/"
 subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_34ch_weight_3"
+result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_34ch_weight"
 preprocessed_data_filename_end = ""
 
 
