@@ -11,7 +11,6 @@ from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Dense
 from time import perf_counter
 import sys 
-#import os 
 
 # own libs 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
@@ -26,8 +25,8 @@ tf.config.set_visible_devices([], 'GPU')
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
-interations = [0, 1, 2] # the evaluation numbers which train test permutations are used 
+subject_names = ["RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
+interations = [0] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
 result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_34ch_weight"
 preprocessed_data_filename_end = ""
@@ -62,7 +61,7 @@ evaluation_time_per_window = 200 # the time in ms used at the end of each window
 with_channel_dim = False # metrics has no channel dim 
 use_relabelling = True # should the metrics be calculated with relabelling after training the classifier ? --> be careful when setting to True since youre changing the actual labels
 # specify params for metric evaluation with method "relabelling", otherwise the parameters are not relevant if use_relabelling = False  
-determine_labels = 3 
+determine_labels = 3
 searching_bounds = [61, 81] # boundaries where the "label change point" is determined, values are the numbers of the windows (see wind_names param for which windows are selected as bounds)
 
 
@@ -81,6 +80,7 @@ max_val_indices = []
 
 # load the time axis of the epoched data 
 time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
+channel_names = np.load(data_path+"remaining_eeg_channel_names.npy")
 
 # measure execution time 
 time_start = perf_counter()
@@ -188,10 +188,10 @@ for subject in subject_names:
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
 
-        predicted_labels_train, true_labels_train = eeg_lib.getPredictionResults(model, lrp_epochs_train_scaled, n_samp_features)
+        predicted_labels_train, true_labels_train, trial_prediction_train = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_train_scaled, n_samp_features)
         tnr_train, tpr_train, acc_train, ba_train = eeg_lib.calcTestAccAndRates(predicted_labels_train.flatten(), true_labels_train.flatten())
 
-        predicted_labels_test, true_labels_test = eeg_lib.getPredictionResults(model, lrp_epochs_test_scaled, n_samp_features)
+        predicted_labels_test, true_labels_test, trial_prediction_test = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_test_scaled, n_samp_features)
         tnr_test, tpr_test, acc_test, ba_test = eeg_lib.calcTestAccAndRates(predicted_labels_test.flatten(), true_labels_test.flatten())
 
         print("")
@@ -212,11 +212,13 @@ for subject in subject_names:
         # ********************* Window wise evaluation of performance   *******************
         # *********************************************************************************
 
-        wind_arr_metrics, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(predicted_labels_test, f_samp_eeg, window_size, window_step, with_channel_dim) # currently only with channel dim False is supported!
+
+        wind_arr_metrics, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(predicted_labels_test, f_samp_eeg, window_size, window_step) # currently only with channel dim False is supported!
         tnr_wind_test, tpr_wind_test, acc_wind_test, ba_wind_test, window_predictions, window_true_labels = eeg_lib.calcWindowMetrics(wind_arr_metrics, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_lrp_label, use_relabelling, determine_labels, searching_bounds)
 
+
         print("")
-        print("Metrics single trial data (window evaluation, fixed label):")
+        print("Metrics single trial data (window evaluation, relabelling):")
         print("TNR: ",np.round(tnr_wind_test, 3))
         print("TPR: ",np.round(tpr_wind_test, 3)) 
         print("BA: ", np.round(ba_wind_test, 3)) 
@@ -226,6 +228,12 @@ for subject in subject_names:
         perf_results_total.append(perf_results)
 
 
+        # show single trial predictions of windows 
+        # for n_trial in range (0, trial_prediction_test.shape[0]): 
+        #     plt.figure()
+        #     plt.plot(trial_prediction_test[n_trial, :, 0])
+
+
 perf_results_total = np.array(perf_results_total)
 np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f", )
 print("all done")
@@ -233,14 +241,6 @@ print("")
 print("execution time: ")
 print(perf_counter()-time_start)
 
-# print("Predicted labels")
-# print(window_predictions[0:3, :])
-# print("")
-# print("True labels")
-# print(window_true_labels[0:3, :])
+#plt.show()
 
-print("")
-print(max_val_indices)
-
-max_val_indices = np.array(max_val_indices) 
-print("mean max validation index: ", np.mean(max_val_indices))
+print("EEG channel names: ", channel_names.shape)

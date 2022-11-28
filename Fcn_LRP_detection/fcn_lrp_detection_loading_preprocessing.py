@@ -28,7 +28,7 @@ data_str_uni_JD68 = np.array([data_path+"20220105_r_JD68_intentional_unilateral_
 data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_set1.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set2.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set3.vhdr"])
 
 #choose a dataset of a subject 
-dataset = data_str_uni_QS70
+dataset = data_str_uni_RA12
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -45,7 +45,7 @@ eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically r
 
 # Filtering Params for EEG data 
 f_highpass = 0.1 # in Hz 
-f_lowpass = 3.0 # in Hz 
+f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
@@ -71,7 +71,7 @@ epoching_time_after_onset = 0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True
-channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7", "C1", "CP1", "C1", "CZ"]
+channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
 
 
 # just remap the parameters (need to be adapted)
@@ -120,10 +120,13 @@ for iterations in set_nums:  # change here later on
 
     # fit scaler only on train data 
     # train test permutation 1 
+    print("channel len:", len(raw_train_obj.ch_names))
     scaler = mne.decoding.Scaler(info=raw_train_obj.info)  #(n_epochs, n_channels, n_times) scaler requires this shape
-    scaler.fit(lrp_epochs_train) # fit to epochs data (keep in mind that fit an ALL data right now !, not online compatible)
+    scaler.fit(lrp_epochs_train) # fit to epochs data
     lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
     lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
+
+    print(lrp_epochs_train_scaled.shape)
 
     # seperate test and validation
     test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 
