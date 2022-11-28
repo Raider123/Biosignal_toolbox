@@ -35,7 +35,7 @@ set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_3Hz"
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch"
 
 
 # Channelnumbers with EEG Data from Dataset
@@ -45,7 +45,7 @@ eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically r
 
 # Filtering Params for EEG data 
 f_highpass = 0.1 # in Hz 
-f_lowpass = 3.0 # in Hz 
+f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
@@ -71,7 +71,7 @@ epoching_time_after_onset = 0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True
-channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7", "C1", "CP1", "C1", "CZ"]
+channel_list = ["x_dir", "y_dir", "z_dir" ,"FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
 
 
 # just remap the parameters (need to be adapted)
@@ -112,6 +112,8 @@ for iterations in set_nums:  # change here later on
     # *********************************************************************************
     # *********** EEG preprocessing, epoching and train, test split *******************
     # *********************************************************************************
+
+    print(raw_train.ch_names)
 
     # epoch the eeg data to trial length (for merged sets)
     lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
