@@ -26,10 +26,10 @@ tf.config.set_visible_devices([], 'GPU')
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 subject_names = ["RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated 
-interations = [0] # the evaluation numbers which train test permutations are used 
+interations = [1] # the evaluation numbers which train test permutations are used 
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_with_relabelling_bounds_61_81_features_50_samp_34ch_weight"
-preprocessed_data_filename_end = ""
+result_file_name = "fcn_network_results_relabelling_100_samp_34ch_3art_50_50_1"
+preprocessed_data_filename_end = "_34ch_3art"
 
 
 f_samp_eeg = 500 #sample Frequency of eeg
@@ -40,15 +40,15 @@ continues_selection = True # if True sampels for nolrp class are used from each 
 n_samp_features = 50 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize 
 n_samp_lrp_label = 50 # label defs for window wise evaluation
 # lrp definition and data starts -n_samp_features to 0 
-first_layer_units = 4 # neurons of first layer 
+first_layer_units = 6 # neurons of first layer 
 second_layer_units = 4 # neurons of second layer 
 third_layer_units = 4 # neurons of third layer 
 n_epochs = 20 # training epochs (max since early stopping is used) 
 n_batch_size = 64 # batch size # 64 seems to work nice 
 dropout_rate = 0.1 # dropout rate of every layer of the network 
 shuffle_data = True # shuffle all data for training, validation and testing 
-weight_no_lrp_class = 0.6 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
-weight_lrp_class = 0.4
+weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
+weight_lrp_class = 0.5
 show_training_results = False
 validation_rate = 0.2
 multiprocessing_cpus = 16 
@@ -80,7 +80,6 @@ max_val_indices = []
 
 # load the time axis of the epoched data 
 time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
-channel_names = np.load(data_path+"remaining_eeg_channel_names.npy")
 
 # measure execution time 
 time_start = perf_counter()
@@ -105,9 +104,10 @@ for subject in subject_names:
         # preparing trainin, validation and test data 
 
         # split prepared data into train, validation and test  
-        x_train, y_train = eeg_lib.prepareEpochsForNetwork(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_val, y_val = eeg_lib.prepareEpochsForNetwork(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_test, y_test = eeg_lib.prepareEpochsForNetwork(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_train, y_train = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_val, y_val = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_test, y_test = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+
 
         print("Shape of train data: ", x_train.shape)
         print("Shape of test data: ", x_test.shape)
@@ -214,9 +214,10 @@ for subject in subject_names:
 
 
         wind_arr_metrics, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(predicted_labels_test, f_samp_eeg, window_size, window_step) # currently only with channel dim False is supported!
+        print(wind_arr_metrics.shape)
         tnr_wind_test, tpr_wind_test, acc_wind_test, ba_wind_test, window_predictions, window_true_labels = eeg_lib.calcWindowMetrics(wind_arr_metrics, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_lrp_label, use_relabelling, determine_labels, searching_bounds)
 
-
+        
         print("")
         print("Metrics single trial data (window evaluation, relabelling):")
         print("TNR: ",np.round(tnr_wind_test, 3))
@@ -228,10 +229,11 @@ for subject in subject_names:
         perf_results_total.append(perf_results)
 
 
-        # show single trial predictions of windows 
-        # for n_trial in range (0, trial_prediction_test.shape[0]): 
-        #     plt.figure()
-        #     plt.plot(trial_prediction_test[n_trial, :, 0])
+        #show single trial predictions of windows 
+        for n_trial in range (0, trial_prediction_test.shape[0]): 
+            plt.figure()
+            plt.plot(trial_prediction_test[n_trial, :, 0])
+            plt.ylim(0, 1)
 
 
 perf_results_total = np.array(perf_results_total)
@@ -243,4 +245,3 @@ print(perf_counter()-time_start)
 
 #plt.show()
 
-print("EEG channel names: ", channel_names.shape)

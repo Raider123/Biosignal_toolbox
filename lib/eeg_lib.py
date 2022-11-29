@@ -450,14 +450,26 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     Calculate Metrics of a window wise classification output. 
 
     Arguments:
-        wind_arr: 
+        wind_arr: The windowed class predictions as numpy array with shape (n_trials, n_sampels, n_windows). 
+        evaluation_time_per_window: The time in ms at the end of each window for which the window metric is calculated (-evaluation_time_per_window to 0 ms are used). 
+        window_step: The sliding step size of the windows in ms (standard 50 ms). 
+        f_samp_eeg: The sampling rate of the EEG-data in Hz. 
+        n_samp_features: The number of sampels that are used as features (-n_samp_features:0 of each epoch). 
+        use_relabelling: If this flag is set to True, the relabelling method is applied to calculate the metrics. This method should be treated with care since it effects the classification performance!
+        determine_labels: The number of consecutive negative classes that are counted when estimating the label change point of both classes. 
+        searching_bounds: A list of the lower and upper bound of window numbers ([lower bound, upper bound]) where the label change point is searched. 
 
     Returns:
-        new_true_labels: A numpy array (shape: (n_trials, n_sampels)) containing the new ground truth labels (0.0 neg class; 1.0 pos class). 
+        tnr: True negative rate 
+        tpr: True positive rate 
+        acc: Accuracy 
+        ba: Balanced accuracy 
+        window_predictions: The prediction values (0 - 1) for all windows and trials 
+        window_eval_true_labels: The true labels that are specified or the new true labels when relabelling is used. 
 
     Meta information: 
         Author: Niklas Kueper 
-        Last changed: 28.11.2022 (by Niklas Kueper)
+        Last changed: 29.11.2022 (by Niklas Kueper)
     """ 
 
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
@@ -486,7 +498,27 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
-def prepareEpochsForNetwork(erp_epochs, time_axis_eeg_batch, n_samp_features, continues_prediction, shuffle_data, t1_time, t2_time): 
+def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
+
+    """
+    This function 
+    Arguments:
+        erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples). 
+        time_axis_eeg_batch: The time axis of the EEG-epochs as one dimensional numpy array. 
+        n_samp_features: The number of sampels that are used as features (-n_samp_features:0 of each epoch). 
+        use_continues_sampels: If boolean flag is set to True, continous sampels with a stepsize are extracted from the specified negative class (t1_time to t2_time, balanced). If False, all sampels between t1_time and t2_time are used as features for the negative class. 
+        shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
+        t1_time: The start time where sampels of the negative class are extracted as features from EEG epochs. 
+        t2_time: The end time where sampels of the negative class are extracted as features from EEG epochs. 
+        
+    Returns:
+        x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
+        y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 29.11.2022 (by Niklas Kueper)
+    """
     tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
 
     n_start = n_samp_features # number of samples to use as features 
@@ -520,7 +552,7 @@ def prepareEpochsForNetwork(erp_epochs, time_axis_eeg_batch, n_samp_features, co
     # print("no_erp indizes are: ", t1, no_erp_idx_1+t1)
     
     #seperate the samples of both classes 
-    if(continues_prediction): # here no erp sampels are cut out at even spaced steps to erp class
+    if(use_continues_sampels): # here no erp sampels are cut out at even spaced steps to erp class
         erp_sampels = erp_epochs[:, :, erp_idx_1:erp_idx_2] # shape (trials, channel, sampels)
         num_erp_samps = erp_sampels.shape[2]
         #print((erp_idx_1/num_erp_samps))
@@ -536,7 +568,7 @@ def prepareEpochsForNetwork(erp_epochs, time_axis_eeg_batch, n_samp_features, co
     #output the time values of the cutted slices: 
     
     erp_times = np.array([time_axis_eeg_batch[erp_idx_1] *1000,time_axis_eeg_batch[erp_idx_2]*1000])
-    if(continues_prediction):
+    if(use_continues_sampels):
         no_erp_times = np.array([time_axis_eeg_batch[no_erp_indices[0]]*1000,time_axis_eeg_batch[no_erp_indices[-1]]*1000])
     else: 
         no_erp_times = np.array([time_axis_eeg_batch[t1]*1000,time_axis_eeg_batch[no_erp_idx_1+t1]*1000])
@@ -544,7 +576,7 @@ def prepareEpochsForNetwork(erp_epochs, time_axis_eeg_batch, n_samp_features, co
     print("erp times in ms: ", (erp_times).astype(dtype=np.int32))
     print("no_erp times in ms: ", (no_erp_times.astype(dtype=np.int32)))
 
-    if(continues_prediction): 
+    if(use_continues_sampels): 
         print("stepsize for no erp is (samples): ", stepsize_no_erp)
 
     # init arrays for both classes 
