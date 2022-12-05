@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 from sklearn.utils import shuffle
+from scipy import signal as sig
 
 
 # *********************************************************************************
@@ -38,7 +39,31 @@ def loadBrainproductsData(dataset_list):
 
     return raw
 
-def create_acticap_montage(plot_montage): 
+def applyButterLowpassFilter(signal, f_lowpass, f_samp, N): 
+
+    """
+    This function filters a signal with a simple digital butterworth lowpass filter with order N. 
+    Arguments:
+        signal: The signal to be filtered as onedimensional numpy array. 
+        f_lowpass: The cutoff frequency of the lowpass filter. 
+        f_samp: The sampling rate of the signal in Hz. 
+        N: The order of the butterworth filter. 
+
+    Returns:
+        filtered_signal: The lowpass-filtered signal as numpy array. 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 29.11.2022 (by Niklas Kueper)
+    """
+
+    b, a = sig.butter(N, f_lowpass, 'low', analog=False, fs = f_samp)
+    filtered_signal = sig.filtfilt(b, a, signal) 
+
+    return filtered_signal
+
+
+def createActicapMontage(plot_montage): 
 
     """
     This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -121,7 +146,6 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, t
         Author: Niklas Kueper 
         Last changed: 28.11.2022 (by Niklas Kueper)
     """
-
     
     #topoplot at different times 
     n,m = mean_epochs.shape
@@ -188,6 +212,21 @@ def getKerasPredictionResultsLRP(model, epochs, n_samp_features):
 
     return predicted_labels, true_labels, prediction_scores
 
+
+def calcMovingAveragePredictionScores(trial_prediction_test, n_samp): 
+    processed_trial_predictions = np.zeros(trial_prediction_test.shape)
+
+    trial_idx = 0
+    for trial in trial_prediction_test: 
+        for index in range(0, len(trial)): 
+            if(index < n_samp): 
+                processed_trial_predictions[trial_idx, index] = 0 # what to to when buffer not full ? 
+            else: 
+                processed_trial_predictions[trial_idx, index] = np.mean(trial[index-n_samp:index])
+
+        trial_idx = trial_idx +1
+
+    return processed_trial_predictions
 
 def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
     
@@ -378,7 +417,7 @@ def calcTestAccAndRates(prediction_labels, true_labels):
     
     n = len(true_labels)
     tps= 0 
-    tns = 0
+    tns = 0 
     for index in range(0, n): 
         if (prediction_labels[index] == 0 and true_labels[index] == 0):
             tns = tns+1
@@ -390,6 +429,143 @@ def calcTestAccAndRates(prediction_labels, true_labels):
     ba = (tnr+tpr)/2
 
     return tnr, tpr, acc, ba
+
+
+def onlineWindowPredictionPostprocessing_v1(window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+            mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
+            mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
+            mean_short_time_detections = np.mean(current_predicts[short_sampels:])
+
+            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+            if((mean_long_time_detections > long_tresh) or (mean_short_time_detections > short_tresh) or (mean_mid_time_detections > mid_tresh)): 
+                classified_windows[trial_idx, window_idx] = 1.0 
+            else: 
+                classified_windows[trial_idx, window_idx] = 0.0
+
+    return classified_windows
+
+
+def onlineWindowPredictionPostprocessing_v2(window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+
+            tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
+            #print("sampel range", tested_sampel_range)
+            tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
+            tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
+            #print("Tresh range", tested_tresh_range)
+
+            for index in range(0, len(tested_sampel_range)): 
+                mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
+
+                if (mean_val > tested_tresh_range[index]): 
+                    classified_windows[trial_idx, window_idx] = 1.0
+                    break
+
+    return classified_windows
+
+def calcTrialMetric(predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
+    pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
+    tns = 0 
+    tps = 0 
+    fns = 0 
+    fps = 0
+
+    for trial in predict_scores: 
+        # seperate the predictions of both classes 
+        pos_class_predicts = trial[pos_class_start_samp:]
+        neg_class_predicts = trial[0:len(trial)+pos_class_start_samp]
+
+        # calc the number of times the score is over the decision bound  
+        pos_class_predicts_over_bound = np.sum(pos_class_predicts > decision_bound) 
+        neg_class_predicts_over_bound = np.sum(neg_class_predicts > decision_bound) 
+
+        # calc metrics on numbers of times 
+        if(pos_class_predicts_over_bound > num_class_instances): # at leat one pos class instance detected = true prediction 
+            tps = tps +1  
+        else: 
+            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
+
+        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
+            tns = tns +1
+        else: 
+            fps = fps +1 # wrongly detected positive class 
+
+        # calc rates and metric 
+        tnr = tns/(tns+fps) 
+        tpr = tps/(tps+fns)
+        ba = (tnr+tpr)/2
+
+    return ba, tnr, tpr 
+
+def calcEEGWindowOnset(window_predicts, num_pos_windows): 
+
+    onset_window_predicts = np.zeros(window_predicts.shape)
+    trial_idx = 0
+
+    for trial in window_predicts:
+        count_pos_windows = 0 
+
+        for wind_idx in range(0, window_predicts.shape[1]): 
+            if(trial[wind_idx] > 0.5): # window has pos label 
+                count_pos_windows = count_pos_windows+1
+            
+            if (count_pos_windows >= num_pos_windows): 
+                onset_window_predicts[trial_idx, wind_idx] = 1.0 
+                count_pos_windows = 0
+                break
+
+        trial_idx = trial_idx+1
+
+    return onset_window_predicts
+
+def calcTrialMetricWindows(predict_labels, bounds, num_class_instances): 
+    tns = 0 
+    tps = 0 
+    fns = 0 
+    fps = 0
+
+    for trial in predict_labels: 
+        # seperate the predictions of both classes 
+        pos_class_predicts = trial[bounds[0]:bounds[1]]
+        neg_class_predicts = trial[0:bounds[0]]
+        
+        # calc the number of times the score is over the decision bound  
+        pos_class_predicts_over_bound = np.sum(pos_class_predicts) 
+        neg_class_predicts_over_bound = np.sum(neg_class_predicts) 
+
+        # calc metrics on numbers of times 
+        if(pos_class_predicts_over_bound >= num_class_instances): # at leat one pos class instance detected = true prediction 
+            tps = tps +1  
+        else: 
+            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
+
+        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
+            tns = tns +1
+        else: 
+            fps = fps +1 # wrongly detected positive class 
+
+        # calc rates and metric 
+        tnr = tns/(tns+fps) 
+        tpr = tps/(tps+fns)
+        ba = (tnr+tpr)/2
+
+    return ba, tnr, tpr 
+
 
 def applyRelabelling(predicted_labels, determine_labels, searching_bounds):
 

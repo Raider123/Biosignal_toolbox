@@ -28,14 +28,14 @@ data_str_uni_JD68 = np.array([data_path+"20220105_r_JD68_intentional_unilateral_
 data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_set1.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set2.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set3.vhdr"])
 
 #choose a dataset of a subject 
-dataset = data_str_uni_XP01
+dataset = data_str_uni_RA12
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_3art"
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch"
 
 
 # Channelnumbers with EEG Data from Dataset
@@ -71,7 +71,7 @@ epoching_time_after_onset = 0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True
-channel_list = ["x_dir", "y_dir", "z_dir","FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 
 
 # just remap the parameters (need to be adapted)
@@ -87,23 +87,23 @@ for iterations in set_nums:  # change here later on
     if(iterations == 0): 
         
         train_list = [dataset[0], dataset[1]]
-        #test_list = [dataset[2]]
-        test_list = [dataset[3], dataset[2]] # use for XP01 
+        test_list = [dataset[2]]
+        #test_list = [dataset[3], dataset[2]] # use for XP01 
         raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     elif(iterations == 1): 
 
-        #train_list = [dataset[1], dataset[2]]
-        train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
+        train_list = [dataset[1], dataset[2]]
+        #train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
         test_list = [dataset[0]]
 
         raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     else: 
-        #train_list = [dataset[0], dataset[2]]
-        train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
+        train_list = [dataset[0], dataset[2]]
+        #train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
         test_list = [dataset[1]]
         raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
@@ -131,22 +131,22 @@ for iterations in set_nums:  # change here later on
 
 
     # add artificial channels 
-    c1_c2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C2"), :]
-    fc1_fc2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("FC1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("FC2"), :]
-    cp1_cp2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("CP1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("CP2"), :]
+    # c1_c2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C2"), :]
+    # fc1_fc2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("FC1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("FC2"), :]
+    # cp1_cp2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("CP1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("CP2"), :]
 
-    added_channel_train = np.stack((c1_c2_diff_train, fc1_fc2_diff_train, cp1_cp2_diff_train), axis = 1)
+    # added_channel_train = np.stack((c1_c2_diff_train, fc1_fc2_diff_train, cp1_cp2_diff_train), axis = 1)
 
-    lrp_epochs_train_scaled_stack = np.concatenate((lrp_epochs_train_scaled, added_channel_train), axis = 1)
+    lrp_epochs_train_scaled_stack = lrp_epochs_train_scaled# np.concatenate((lrp_epochs_train_scaled, added_channel_train), axis = 1)
 
     # for testsets 
-    c1_c2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("C1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("C2"), :]
-    fc1_fc2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("FC1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("FC2"), :]
-    cp1_cp2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("CP1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("CP2"), :]
+    # c1_c2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("C1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("C2"), :]
+    # fc1_fc2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("FC1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("FC2"), :]
+    # cp1_cp2_diff_test = lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("CP1"), :] - lrp_epochs_test_val_scaled[:, remaining_eeg_channel_names.index("CP2"), :]
     
-    added_channel_test = np.stack((c1_c2_diff_test, fc1_fc2_diff_test, cp1_cp2_diff_test), axis = 1)
-    lrp_epochs_test_scaled_stack = np.concatenate((lrp_epochs_test_val_scaled, added_channel_test), axis = 1)
-    
+    #added_channel_test = np.stack((c1_c2_diff_test, fc1_fc2_diff_test, cp1_cp2_diff_test), axis = 1)
+    #lrp_epochs_test_scaled_stack = np.concatenate((lrp_epochs_test_val_scaled, added_channel_test), axis = 1)
+    lrp_epochs_test_scaled_stack = lrp_epochs_test_val_scaled
 
     # seperate test and validation
     test_val_idx = int(lrp_epochs_test_scaled_stack.shape[0]*validation_rate) 
