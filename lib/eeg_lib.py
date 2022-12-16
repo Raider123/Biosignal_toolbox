@@ -449,7 +449,7 @@ def onlineWindowPredictionPostprocessing_v1(window_wise_predicts, short_tresh, m
                 classified_windows[trial_idx, window_idx] = 1.0 
             else: 
                 classified_windows[trial_idx, window_idx] = 0.0
-
+            
     return classified_windows
 
 
@@ -477,6 +477,28 @@ def onlineWindowPredictionPostprocessing_v2(window_wise_predicts, high_tresh, lo
                     break
 
     return classified_windows
+
+
+def onlineWindowPredictionPostprocessing_v3(window_wise_predicts, thresh, start_samp): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+
+            mean_detections = np.mean(current_predicts[start_samp:]) 
+
+            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+            if(mean_detections > thresh): 
+                classified_windows[trial_idx, window_idx] = 1.0 
+            else: 
+                classified_windows[trial_idx, window_idx] = 0.0
+
+    return classified_windows
+
 
 def calcTrialMetric(predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
     pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
@@ -651,10 +673,11 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
     evaluation_samp_per_window = int((evaluation_time_per_window/1000) * f_samp_eeg) 
     window_predictions_samp = np.sum(wind_arr[:, -evaluation_samp_per_window:, :], axis = 1)
-
+    
     # convert the label of each sampels to windowwise labels 
     window_predictions = (window_predictions_samp > evaluation_samp_per_window/2).astype(float)
 
+    
     window_eval_true_labels = np.zeros(window_predictions.shape)
     num_erp_windows = int(np.round(n_samp_features/window_step_samp)) 
     trial_erp_label = window_eval_true_labels[0, :] 

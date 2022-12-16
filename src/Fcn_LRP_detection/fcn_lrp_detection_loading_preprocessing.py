@@ -12,6 +12,7 @@ proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_mach
 sys.path.append(proj_path+"/lib") # path to lib folder 
 import eeg_lib
 
+
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
@@ -28,14 +29,14 @@ data_str_uni_JD68 = np.array([data_path+"20220105_r_JD68_intentional_unilateral_
 data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_set1.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set2.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set3.vhdr"])
 
 #choose a dataset of a subject 
-dataset = data_str_uni_RA12
+dataset = data_str_uni_QS70
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch"
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_norm"
 
 
 # Channelnumbers with EEG Data from Dataset
@@ -93,7 +94,7 @@ for iterations in set_nums:  # change here later on
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     elif(iterations == 1): 
-
+        
         train_list = [dataset[1], dataset[2]]
         #train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
         test_list = [dataset[0]]
@@ -118,17 +119,21 @@ for iterations in set_nums:  # change here later on
     lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 
 
-
-
     # fit scaler only on train data 
     # train test permutation 1 
-    scaler = mne.decoding.Scaler(info=raw_train_obj.info)  #(n_epochs, n_channels, n_times) scaler requires this shape
+    scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
     scaler.fit(lrp_epochs_train) # fit to epochs data
 
 
     lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
     lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
 
+    #print(lrp_epochs_test_val_scaled.shape)
+
+    # print(np.mean(lrp_epochs_train_scaled[10, 3, :]))
+    # print(np.std(lrp_epochs_train_scaled[10, 3, :]))
+    # print(np.max(lrp_epochs_train_scaled[10, 3, :]))
+    # print(np.min(lrp_epochs_train_scaled[10, 3, :]))
 
     # add artificial channels 
     # c1_c2_diff_train = lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C1"), :] - lrp_epochs_train_scaled[:, remaining_eeg_channel_names.index("C2"), :]
