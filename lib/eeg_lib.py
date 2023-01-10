@@ -63,7 +63,7 @@ def applyButterLowpassFilter(signal, f_lowpass, f_samp, N):
     return filtered_signal
 
 
-def createActicapMontage(plot_montage): 
+def createActicapMontage(plot_montage, rename_channels): 
 
     """
     This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -81,13 +81,15 @@ def createActicapMontage(plot_montage):
     montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
     #show easy cap Montage  
 
-    montage.rename_channels({'Cz' : 'CZ','Pz' : 'PZ','Fz' : 'FZ','CPz' : 'CPZ', 'Fp1': 'FP1','Fp2': 'FP2','Oz': 'OZ','POz': 'POZ'}, allow_duplicates=False) # maybe change this ? 
+    if (rename_channels):
+        montage.rename_channels({'Cz' : 'CZ','Pz' : 'PZ','Fz' : 'FZ','CPz' : 'CPZ', 'Fp1': 'FP1','Fp2': 'FP2','Oz': 'OZ','POz': 'POZ'}, allow_duplicates=False) # maybe change this ? 
+    
     exclude_list = np.array(['O10','Fpz', 'Iz', 'F9', 'F10', 'P9', 'P10', 'O9', 'FCz', 'AFz']) # may change this ? 
     
     # get params of structure 
     easy_cap_ch_names = montage.ch_names
     easy_cap_dig = montage.dig
-    dev_head = montage.dev_head_t
+    #dev_head = montage.dev_head_t
 
     # find indizes to remove channels not in ActiCap 
     indizes_to_removing_channel = []
@@ -117,7 +119,7 @@ def createActicapMontage(plot_montage):
 
     #create Montage 
     #PlotMontage = True
-    acti_cap_montage = mne.channels.DigMontage(dev_head_t=dev_head ,dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
+    acti_cap_montage = mne.channels.DigMontage(dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
     if(plot_montage == True): 
         acti_cap_montage.plot()
         
@@ -160,7 +162,7 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, t
     fig.subplots_adjust(hspace=0.5)
     for index in indices_of_topoplot: 
         cmap = 'bwr'
-        im, cn = mne.viz.plot_topomap(mean_epochs[:,index], mne_obj.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'bicubic',extrapolate='local',vmin = min_val, vmax = max_val)
+        im, cn = mne.viz.plot_topomap(mean_epochs[:,index], mne_obj.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'cubic',extrapolate='local',vmin = min_val, vmax = max_val)
         str_time = str(round(time_axis_eeg_epoch[index],3))
         ax[count].set_title(title_str+str_time+" s", color='black', fontsize=12)
         cbar =fig.colorbar(im, ax = ax[count], orientation="vertical", pad = 0.15)

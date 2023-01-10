@@ -27,11 +27,11 @@ tf.config.set_visible_devices([], 'GPU')
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject_names = ["JV43"] #["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_norm_1"
-preprocessed_data_filename_end = "_34ch_norm"
+result_file_name = "fcn_network_results_emg_test"
+preprocessed_data_filename_end = "_emg"
 
 
 f_samp_eeg = 500 #sample Frequency of eeg
@@ -275,7 +275,7 @@ for subject in subject_names:
 
 
         #perf_results = np.array([np.round(ba_train, 3), np.round(tpr_train, 3), np.round(tnr_train, 3)])
-        perf_results = np.array([np.round(ba_val, 3), np.round(tpr_val, 3), np.round(tnr_val, 3)])
+        perf_results = np.array([np.round(ba_trial, 3), np.round(tpr_trial, 3), np.round(tnr_trial, 3)])
         perf_results_total.append(perf_results)
 
 

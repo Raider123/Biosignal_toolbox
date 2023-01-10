@@ -5,7 +5,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal as sig
-import matplotlib as mpl
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -66,6 +65,7 @@ def channelSelection(emg_data, ch_names, selected_channels, inverse):
 
     return remaining_emg_data, remaining_emg_channels
 
+
 def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg): 
     
     down_factor = int(fsamp_emg/target_frequency)
@@ -74,7 +74,14 @@ def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg):
         emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
 
         for channel_idx in range(0, emg_data.shape[1]): 
-            emg_decimated[:, channel_idx] = sig.decimate(emg_data[:, channel_idx], down_factor)
+            emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
+
+            # check for length differences 
+            if (len(emg_dec) == emg_decimated.shape[0]):
+                emg_decimated[:, channel_idx] = emg_dec
+            else: 
+                emg_decimated[:, channel_idx] = emg_dec[1:]
+
         
         dec_emg_data = emg_decimated
     else: 
@@ -86,3 +93,47 @@ def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg):
 
     return dec_emg_data, new_time_axis
 
+ 
+def applyVarianceFilter(signal, n_var):
+    # signal init 
+    emg_filtered = np.zeros(signal.shape)
+
+    if(emg_filtered.ndim > 1): 
+    
+        for channel in range(0, emg_filtered.shape[1]): 
+
+            for index in range(0, emg_filtered.shape[0]): 
+
+                if (index < n_var): 
+                    emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
+                else: 
+                    emg_filtered[index, channel] = np.var(signal[index-n_var:index, channel])
+
+    else: 
+         for index in range(0, emg_filtered.shape[0]): 
+
+                if (index < n_var): 
+                    emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
+                else: 
+                    emg_filtered[index] = np.var(signal[index-n_var:index])
+
+    return emg_filtered
+
+
+def epocheEMGData(emg_data, marker_indices, fsamp, t_start, t_stop): 
+
+    start_samp = int(t_start)*fsamp # convert and then times sample rate 
+    stop_samp = int(t_stop)*fsamp # convert and then times sample rate
+    len_of_epoch = start_samp-stop_samp
+
+    # init array 
+    emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
+
+    for marker_idx in range(0, len(marker_indices)): 
+        for channel_idx in range(0, emg_data.shape[1]):
+            start_idx = marker_indices[marker_idx]+start_samp
+            stop_idx = marker_indices[marker_idx]+stop_samp
+
+            emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
+
+    return emg_epochs

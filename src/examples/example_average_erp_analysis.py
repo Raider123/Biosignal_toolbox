@@ -12,25 +12,22 @@ proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_mach
 sys.path.append(proj_path+"/lib") # path to lib folder 
 import eeg_lib
 
+import mne 
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
 
+
 data_path = proj_path+"/data/"
 
 # Create an array with dataset file names 
-data_str_arr = np.array([data_path+"20211210_r_JV43_intentional_unilateral_set1.vhdr", data_path+"20211210_r_JV43_intentional_unilateral_set2.vhdr", data_path+"20211210_r_JV43_intentional_unilateral_set3.vhdr"])
+data_str_arr = np.array([data_path+"20211210_r_JV43_intentional_unilateral_set1.vhdr"])# data_path+"20211210_r_JV43_intentional_unilateral_set2.vhdr", data_path+"20211210_r_JV43_intentional_unilateral_set3.vhdr"])
+#data_str_arr = np.array([data_path+"221220_PP01_curls_with_pause_set2.vhdr"])
 
-# name pattern of current subject and paradigm 
-subject_paradigm_name = data_str_arr[0].split("_r_")[1].split("_set")[0]
-
-# Channelnumbers with EEG Data from Dataset
-eeg_channel_start_number = 0 
-eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 # in Hz 
+f_highpass = 0.5 # in Hz 
 f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the filtering 
 
@@ -68,8 +65,8 @@ channel_to_evaluate = "C1"
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True 
-channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
-
+channel_list = ["x_dir", "y_dir", "z_dir"]#"x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+rename_channels = True 
 
 # *********************************************************************************
 # ***************** Load and concatenate a dataset *********
@@ -87,14 +84,17 @@ erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, r
 
 average_erp_epochs = np.mean(erp_epochs, axis = 0) # average the trials (average analysis), has now shape(channel, sampels) 
 
+
 # create an acticap montage 
-#acticap_montage = eeg_lib.create_acticap_montage(plot_montage)
-#raw_filtered.set_montage(acticap_montage) # set created montage 
+acticap_montage = eeg_lib.createActicapMontage(plot_montage, rename_channels)
+raw_filtered.set_montage(acticap_montage) # set created montage 
+
 
 # make a topoplot 
-#eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topo_start_time, topo_time_step, topoplot_title_str, min_val, max_val, f_samp_eeg)
+eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topo_start_time, topo_time_step, topoplot_title_str, min_val, max_val, f_samp_eeg)
 
 # show average erp signal selected channel 
+print(remaining_eeg_channel_names)
 channel_index = remaining_eeg_channel_names.index(channel_to_evaluate)
 average_eeg_selected_channel = average_erp_epochs[channel_index, :]
 

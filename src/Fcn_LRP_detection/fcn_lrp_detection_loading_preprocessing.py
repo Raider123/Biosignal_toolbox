@@ -29,23 +29,18 @@ data_str_uni_JD68 = np.array([data_path+"20220105_r_JD68_intentional_unilateral_
 data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_set1.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set2.vhdr", data_path+"20220107_r_QS70_intentional_unilateral_set3.vhdr"])
 
 #choose a dataset of a subject 
-dataset = data_str_uni_QS70
+dataset = data_str_uni_JV43
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_norm"
-
-
-# Channelnumbers with EEG Data from Dataset
-eeg_channel_start_number = 0 
-eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_1_4Hz"
 
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 # in Hz 
+f_highpass = 1.0 # in Hz 
 f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the 
 
@@ -108,7 +103,7 @@ for iterations in set_nums:  # change here later on
         test_list = [dataset[1]]
         raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
-    
+        
 
     # *********************************************************************************
     # *********** EEG preprocessing, epoching and train, test split *******************
@@ -173,4 +168,4 @@ for iterations in set_nums:  # change here later on
     print("")
     print("Done storing preprocessed data")
 
-    
+    print(lrp_epochs_train_scaled_stack.shape)
