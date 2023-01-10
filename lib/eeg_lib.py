@@ -315,6 +315,7 @@ def windowEEGEpochs(epochs, f_samp_eeg, window_size = 1000, window_step = 50, wi
         epochs: The EEG-epochs as numpy array with shape: (n_epochs, n_channel, n_samples) or for postprocessing (with_channel_dim = False) with shape:(n_trials, n_sampels). 
         window_size: The size of the windows in ms to be cutout (default: 1000). 
         window_step: The stepsize of the sliding window (sliding step) in ms (default: 50)
+        with_channel_dim: If True (default) the epochs numpy array contains a channel dimension (standard when epoching in mne), otherwise set to False when windowing is used for other purposes e.g. postprocessing by windowing. 
 
     Returns:
         wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_channel, n_sampels, n_windows) if with_channel_dim = True or (n_trials, n_sampels, n_windows) for postprocessing (no channel dim)
