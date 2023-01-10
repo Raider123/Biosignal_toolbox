@@ -306,46 +306,68 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
     return erp_epochs, erp_epoch_obj, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced # shape of epochs: (epochs, channel, samples)
 
 
-def windowEEGEpochs(epochs, f_samp_eeg, window_size, window_step): 
+def windowEEGEpochs(epochs, f_samp_eeg, window_size = 1000, window_step = 50, with_channel_dim = True): 
 
     """
     This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
 
     Arguments:
-        epochs: The EEG-epochs as numpy array, currently only available for postprocessing with shape:(n_trials, n_sampels) without channel dimension!. 
-        f_samp_eeg: The sampling rate in Hz of the EEG-data. 
-        window_size: The size of the windows in ms to be cutout (standard: 1000). 
-        window_step: The stepsize of the sliding window (sliding step) in ms (standard: 25)
+        epochs: The EEG-epochs as numpy array with shape: (n_epochs, n_channel, n_samples) or for postprocessing (with_channel_dim = False) with shape:(n_trials, n_sampels). 
+        window_size: The size of the windows in ms to be cutout (default: 1000). 
+        window_step: The stepsize of the sliding window (sliding step) in ms (default: 50)
 
     Returns:
-        wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_sampels, n_windows). 
+        wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_channel, n_sampels, n_windows) if with_channel_dim = True or (n_trials, n_sampels, n_windows) for postprocessing (no channel dim)
         num_of_windows: The total number of windows that are created. 
         wind_names: A list of the window names according to the pySPACE naming of window definitions.  
     
     Meta information: 
         Author: Niklas Kueper 
-        Last changed: 28.11.2022 (by Niklas Kueper)
+        Last changed: 10.01.2023 (by Niklas Kueper)
     """
 
-    #if (with_channel_dim == False): 
     window_size_samp = int((window_size/1000) * f_samp_eeg) 
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
-    epochs_arr_cut = epochs[:, 1:]
-    num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
 
-    #init window arrays with shape (trials, sampel of window, windownumber)
-    wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
-    wind_names = []
+    if (with_channel_dim == False): 
 
-    for win_nr in range(0, num_of_windows): 
-        wind_start_idx = win_nr*window_step_samp
-        wind_end_idx = window_size_samp+wind_start_idx
-        wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/f_samp_eeg) *1000))
+        epochs_arr_cut = epochs[:, 1:]
+        num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
+
+        #init window arrays with shape (trials, sampel of window, windownumber)
+        wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
+        wind_names = []
+
+        for win_nr in range(0, num_of_windows): 
+            wind_start_idx = win_nr*window_step_samp
+            wind_end_idx = window_size_samp+wind_start_idx
+            wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/f_samp_eeg) *1000))
+            
+            wind_names.append(wind_name) # a list of all window names
+            #create arrays with cutted 
+            wind_arr[:, :, win_nr] = win_nr
+            wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
+
+    else: # with channel dimension  (n_epochs, n_channel, n_samples)
         
-        wind_names.append(wind_name) # a list of all window names
-        #create arrays with cutted 
-        wind_arr[:, :, win_nr] = win_nr
-        wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
+        epochs_arr_cut = epochs[:, :, 1:]
+        num_of_windows =  int((epochs_arr_cut.shape[2]-window_size_samp)/window_step_samp)+1
+
+        #init window arrays with shape (trials, channel sampels of window, windownumber)
+        wind_arr = np.zeros((epochs_arr_cut.shape[0], epochs_arr_cut.shape[1], window_size_samp, num_of_windows))
+        wind_names = []
+
+
+        for win_nr in range(0, num_of_windows): 
+
+            wind_start_idx = win_nr*window_step_samp
+            wind_end_idx = window_size_samp+wind_start_idx
+            wind_name = "bis"+str(int((((epochs_arr_cut.shape[2]-wind_end_idx)*-1)/f_samp_eeg) *1000))
+            
+            wind_names.append(wind_name) # a list of all window names
+            #create arrays with cutted 
+            wind_arr[:, :, :, win_nr] = win_nr
+            wind_arr[:, :, :, win_nr] = epochs_arr_cut[:, :, wind_start_idx:wind_end_idx]
 
     return wind_arr, num_of_windows, wind_names
 
