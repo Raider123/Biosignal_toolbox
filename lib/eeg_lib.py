@@ -345,7 +345,7 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
 
     #return everything needed for further processing 
     return erp_epochs, erp_epoch_obj, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced # shape of epochs: (epochs, channel, samples)
-
+    
 
 def windowEEGEpochs(epochs, f_samp_eeg, window_size, window_step): 
 
