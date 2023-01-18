@@ -306,6 +306,48 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
     return erp_epochs, erp_epoch_obj, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced # shape of epochs: (epochs, channel, samples)
 
 
+def onlineLRPWindowPredictionPostprocessing(window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+
+    """
+    Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
+
+    Arguments:  
+        Missing ... 
+
+
+    Returns:
+        Missing ...  
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 18.01.2023 (by Niklas Kueper)
+    """
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+
+            tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
+            #print("sampel range", tested_sampel_range)
+            tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
+            tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
+            #print("Tresh range", tested_tresh_range)
+
+            for index in range(0, len(tested_sampel_range)): 
+                mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
+
+                if (mean_val > tested_tresh_range[index]): 
+                    classified_windows[trial_idx, window_idx] = 1.0
+                    break
+
+    return classified_windows
+
+
+
 def windowEEGEpochs(epochs, f_samp_eeg, window_size = 1000, window_step = 50, with_channel_dim = True): 
 
     """
@@ -519,6 +561,57 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
         window_eval_true_labels = relabelled_true_labels # return the relabelled true labels instead 
 
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
+
+
+def calcTrialMetricWindows(predict_labels, bounds, num_class_instances): 
+
+    """
+    Calculate Metrics for each single trial to simulate a real online application. 
+
+    Arguments:
+        Missing ... 
+
+    Returns:
+        Missing ... 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 18.01.2023 (by Niklas Kueper)
+    """ 
+
+    tns = 0 
+    tps = 0 
+    fns = 0 
+    fps = 0
+
+    for trial in predict_labels: 
+        # seperate the predictions of both classes 
+        pos_class_predicts = trial[bounds[0]:bounds[1]]
+        neg_class_predicts = trial[0:bounds[0]]
+        
+        # calc the number of times the score is over the decision bound  
+        pos_class_predicts_over_bound = np.sum(pos_class_predicts) 
+        neg_class_predicts_over_bound = np.sum(neg_class_predicts) 
+
+        # calc metrics on numbers of times 
+        if(pos_class_predicts_over_bound >= num_class_instances): # at leat one pos class instance detected = true prediction 
+            tps = tps +1  
+        else: 
+            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
+
+        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
+            tns = tns +1
+        else: 
+            fps = fps +1 # wrongly detected positive class 
+
+        # calc rates and metric 
+        tnr = tns/(tns+fps) 
+        tpr = tps/(tps+fns)
+        ba = (tnr+tpr)/2
+
+    return ba, tnr, tpr 
+
+
 
 
 def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 

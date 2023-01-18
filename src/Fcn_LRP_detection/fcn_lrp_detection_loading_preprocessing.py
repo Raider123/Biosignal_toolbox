@@ -44,7 +44,7 @@ eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically r
 
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 # in Hz 
+f_highpass = 0.5 # in Hz 
 f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the 
 
