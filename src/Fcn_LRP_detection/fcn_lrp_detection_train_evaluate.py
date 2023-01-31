@@ -74,10 +74,10 @@ t2_noLRP = -1000
 
 # postprocessing params 
 short_tresh = 0.85
-mid_tresh = 0.7
+#mid_tresh = 0.7
 long_tresh = 0.6
 short_sampels = -75
-mid_sampels = -250
+#mid_sampels = -250
 long_sampels = -500
 num_class_instances = 1
 
