@@ -1,16 +1,16 @@
-# MNE_machine_learning
+# Biosignal_toolbox
 
 ## General remarks
 
 ### Project structure
-This project contains all files for mne EEG- and EMG based analysis and machine learning flows in python. 
+This project contains all files for biosignal analysis (especially EMG and EEG) as well as machine learning flows in python. 
 Single scripts or jupyter notebooks can be directly pushed to this repository. If you work on a project or evaluation containing more than one file, please create a new folder for the multiple files. If you created a machine learning flow, please consider structuring the evaluation in seperate files (e.g. loading, preprocessing, train_model, prediction). 
-This repository should **ONLY** contain python scripts and no datasets, created plots or other file formats. For the storage of data that should be analysed or evaluated, a data folder should be created containing all the files from experiments. The data folder will be ignored when adding and commiting the changes you made. If you are new to git, please have a look at the git documentation (https://www.git-scm.com/doc). 
+This repository should **ONLY** contain python scripts and no datasets, plots or other file formats. For the storage of data that should be analysed or evaluated, a data folder should be created containing all the files from experiments. The data folder will be ignored when adding and commiting the changes you made. If you are new to git, please have a look at the git documentation (https://www.git-scm.com/doc). 
 
 ### Coding Conventions
 This section describes the general coding guidelines to follow during development process.
 - **Programming Language** <br />
-In this project, Python is used as the primary programming Language.
+In this project, Python is used as the primary programming language.
 - **Documentation** <br />
 For the purpose of better readability and re-usability, it is essential that every script, attribute or method be well documented. In this project, the Google Style Python Docstrings should be used. (Refer : [Google Style](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html) for more information). 
 - **Defining a class** <br />
