@@ -296,8 +296,9 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
     plot_onset_indices = np.where(plot_events[:,2] == marker_number)[0] # S100 marker is leaving plate 
     exclude_indices = np.where(plot_events[:,2] == error_number)[0] # S3 marker should be excluded 
     
-    plot_onset_indices = plot_onset_indices[0:-1] # cut of last movement, might be after experiment
+    #plot_onset_indices = plot_onset_indices[0:-1] # cut of last movement , might be after experiment --> not used anymore, leads to confusion ! 
     include_mask = np.ones(plot_onset_indices.shape)
+
 
     #search for correct indizes without S3 errors 
     for i in range(0, len(plot_onset_indices)): 

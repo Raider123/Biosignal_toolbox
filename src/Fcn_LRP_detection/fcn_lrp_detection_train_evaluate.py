@@ -27,20 +27,21 @@ tf.config.set_visible_devices([], 'GPU')
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43"] #["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_emg_test"
-preprocessed_data_filename_end = "_emg"
+result_file_name = "fcn_network_results_eeg_no_shift"
+preprocessed_data_filename_end = "_34ch_05_4Hz"
 
+preprocessed_emg_file_name_end = "_emg" 
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
 continues_selection = True # if True sampels for nolrp class are used from each part which has not been labeled to lrp
-
+fuse_emg_eeg = False
 
 #machine learning params
-n_samp_features = 50 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize
+n_samp_features = 50 # corresponds to 100 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize
 n_samp_lrp_label = 50 # label defs for window wise evaluation
 # lrp definition and data starts -n_samp_features to 0
 first_layer_units = 8 # neurons of first layer
@@ -121,6 +122,23 @@ for subject in subject_names:
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
         lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")
 
+        # fuse eeg and emg data on data level 
+        if (fuse_emg_eeg): 
+            emg_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_emg_file_name_end+"_train_"+str(iteration)+".npy")
+            emg_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_emg_file_name_end+"_test_"+str(iteration)+".npy")
+            emg_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_emg_file_name_end+"_val_"+str(iteration)+".npy")
+
+            epochs_train_scaled = np.concatenate((emg_epochs_train_scaled, lrp_epochs_train_scaled), axis = 1)
+            epochs_val_scaled = np.concatenate((emg_epochs_val_scaled, lrp_epochs_val_scaled), axis = 1)
+            epochs_test_scaled = np.concatenate((emg_epochs_test_scaled, lrp_epochs_test_scaled), axis = 1)
+
+            print("shape merged: ", epochs_train_scaled.shape)
+        else: 
+            
+            epochs_train_scaled = lrp_epochs_train_scaled
+            epochs_val_scaled = lrp_epochs_val_scaled
+            epochs_test_scaled = lrp_epochs_test_scaled
+
 
         # *********************************************************************************
         # ********************* Prepare data for network **********************************
@@ -129,9 +147,9 @@ for subject in subject_names:
         # preparing training, validation and test data
 
         # split prepared data into train, validation and test
-        x_train, y_train = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_val, y_val = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_test, y_test = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_train, y_train = eeg_lib.timeDomainFeaturesFromEpochs(epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_val, y_val = eeg_lib.timeDomainFeaturesFromEpochs(epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        x_test, y_test = eeg_lib.timeDomainFeaturesFromEpochs(epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
 
 
         print("Shape of train data: ", x_train.shape)
@@ -218,11 +236,11 @@ for subject in subject_names:
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
 
-        predicted_labels_train, true_labels_train, trial_prediction_train = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_train_scaled, n_samp_features)
+        predicted_labels_train, true_labels_train, trial_prediction_train = eeg_lib.getKerasPredictionResultsLRP(model, epochs_train_scaled, n_samp_features)
         tnr_train, tpr_train, acc_train, ba_train = eeg_lib.calcTestAccAndRates(predicted_labels_train.flatten(), true_labels_train.flatten())
 
 
-        predicted_labels_val, true_labels_val, trial_prediction_val = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_val_scaled, n_samp_lrp_label)
+        predicted_labels_val, true_labels_val, trial_prediction_val = eeg_lib.getKerasPredictionResultsLRP(model, epochs_val_scaled, n_samp_lrp_label)
         tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(predicted_labels_val.flatten(), true_labels_val.flatten())
 
         
@@ -274,8 +292,11 @@ for subject in subject_names:
         print("")
 
 
+        # which results to save 
+
         #perf_results = np.array([np.round(ba_train, 3), np.round(tpr_train, 3), np.round(tnr_train, 3)])
-        perf_results = np.array([np.round(ba_trial, 3), np.round(tpr_trial, 3), np.round(tnr_trial, 3)])
+        perf_results = np.array([np.round(ba_val, 3), np.round(tpr_val, 3), np.round(tnr_val, 3)])
+        #perf_results = np.array([np.round(ba_trial, 3), np.round(tpr_trial, 3), np.round(tnr_trial, 3)])
         perf_results_total.append(perf_results)
 
 
