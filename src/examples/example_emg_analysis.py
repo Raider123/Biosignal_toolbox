@@ -54,12 +54,12 @@ emg_data_select, emg_ch_names_select = emg_lib.channelSelection(emg_data, emg_ch
 #emg_lib.showEMGData(emg_data_select, emg_time_axis, emg_ch_names_select)
 
 # downsampling to target frequency 
-emg_data_down, time_axis_down = emg_lib.decimateEMGData(emg_data_select, emg_time_axis, target_frequency, fsamp_emg)
+# emg_data_down, time_axis_down = emg_lib.decimateEMGData(emg_data_select, emg_time_axis, target_frequency, fsamp_emg)
 
-#emg_lib.showEMGData(emg_data_down, time_axis_down, emg_ch_names_select)
+# #emg_lib.showEMGData(emg_data_down, time_axis_down, emg_ch_names_select)
 
-n_var = int(680/4)
-emg_data_filtered = emg_lib.applyVarianceFilter(emg_data_down, n_var)
+# n_var = int(680/4)
+# emg_data_filtered = emg_lib.applyVarianceFilter(emg_data_down, n_var)
 
-emg_lib.showEMGData(emg_data_filtered, time_axis_down, emg_ch_names_select)
+# emg_lib.showEMGData(emg_data_filtered, time_axis_down, emg_ch_names_select)
 

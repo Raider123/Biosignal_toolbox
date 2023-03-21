@@ -21,12 +21,12 @@ import eeg_lib
 data_path = proj_path+"/data/"
 
 # Create an array with dataset file names 
-data_str_arr = np.array([data_path+"20220104_r_ZS27_intentional_unilateral_set1.vhdr", data_path+"20220104_r_ZS27_intentional_unilateral_set2.vhdr", data_path+"20220104_r_ZS27_intentional_unilateral_set3.vhdr"])
-#data_str_arr = np.array([data_path+"221220_PP01_curls_with_pause_set2.vhdr"])
+#data_str_arr = np.array([data_path+"20220105_r_JD68_intentional_unilateral_set1.vhdr", data_path+"20220105_r_JD68_intentional_unilateral_set2.vhdr", data_path+"20220105_r_JD68_intentional_unilateral_set3.vhdr"])
+data_str_arr = np.array([data_path+"16032023_BS34D_unilateral_set3.vhdr"])
 
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 # in Hz 
+f_highpass = 0.5 # in Hz 
 f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the filtering 
 
@@ -34,7 +34,7 @@ apply_filter = True # setting to False will ignore the filtering
 reref_channel = ["average"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
-marker_number = 100 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
+marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
 # specifying marker type and give it a name (event that is used for epoching)
@@ -42,7 +42,7 @@ event_id_used = {"movement_onset": marker_number}
 
 # time selection for epoching of the data 
 epoching_time_before_onset = -1.5 # time in seconds (start epoch)
-epoching_time_after_onset = 0.2 # time in seconds (0 = movement onset)
+epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # should baseline correction be applied ? (standard -1.5 to -1 seconds)
 apply_baseline_correction = True 
@@ -51,8 +51,8 @@ t1_baseline = -1
 
 # topoplot params 
 plot_montage = False 
-min_val = -8e-06 # Voltage values for colour scale 
-max_val = 8e-06
+min_val = -6e-06 # Voltage values for colour scale 
+max_val = 6e-06
 
 # topoplot params 
 topo_start_time = 1000 # time in ms in relation to the event (e.g before movement onset to show)
