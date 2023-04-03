@@ -37,7 +37,33 @@ def loadCometaEMGData(file_str):
     emg_data_channel = emg_data[:, 1:] # channel dimensions 
     emg_time_axis = emg_data[:, 0] # time axis 
 
-    return emg_data_channel,emg_time_axis, channel_names
+    return emg_data_channel, emg_time_axis, channel_names
+
+
+def loadMiniANTEMGData(file_str, f_samp): 
+
+    """ TODO: No sampling rate given in the data 
+    This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
+    Arguments:
+        file_str: The file to load given as String. 
+
+    Returns: 
+        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
+        emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
+        channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 31.01.2023 (by Niklas Kueper)
+    """
+
+    #seperate between data, meta and channel names 
+    emg_data_raw = np.loadtxt(file_str) # at least th
+    emg_data = emg_data_raw[:-1, :-2]
+    time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
+
+
+    return emg_data, time_axis
     
 
 def showEMGData(emg_data, time_axis, ch_names): 
@@ -94,10 +120,12 @@ def channelSelection(emg_data, ch_names, selected_channels, inverse):
         Author: Niklas Kueper 
         Last changed: 31.01.2023 (by Niklas Kueper)
     """
-
+    
     ch_indices = []
+    ch_names = np.array(ch_names) # just to be sure that it is np array
 
     for selected_names in selected_channels: 
+ 
         ch_indices.append(np.where(ch_names == selected_names)[0][0])
 
     if(inverse == True): 
@@ -233,3 +261,36 @@ def epocheEMGData(emg_data, marker_indices, fsamp, t_start, t_stop):
             emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
 
     return emg_epochs
+
+
+def applyBPFilterRectifying(f_samp, f_high, f_low, emg_data):
+
+    """
+    This function... to be written !
+       
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 23.03.2023 (by Niklas Kueper)
+    """
+    #Calc filtercoeff.  
+    b1, a1 = sig.butter(8, f_high, 'high', analog=False, fs = f_samp)
+    b2, a2 = sig.butter(8, f_low, 'low', analog=False, fs = f_samp)
+
+    if (emg_data.ndim > 1): 
+        (sampels, channels) = emg_data.shape
+        emg_data_processed = np.zeros((sampels, channels))
+        for channel_idx in range(0, channels): 
+
+            filtered_emg_1 = sig.filtfilt(b2, a2, emg_data[:, channel_idx])
+            filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+
+            emg_data_processed[:, channel_idx] = filtered_emg
+
+    else: 
+        filtered_emg_1 = sig.filtfilt(b2, a2, emg_data)
+        filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+
+        emg_data_processed = filtered_emg
+
+    return emg_data_processed
