@@ -20,10 +20,10 @@ import eeg_lib
 data_path = proj_path+"/data/"
 
 # Create an array with dataset file names 
-data_str_arr = np.array([data_path+"20211210_r_JV43_intentional_unilateral_set1.vhdr", data_path+"20211210_r_JV43_intentional_unilateral_set2.vhdr", data_path+"20211210_r_JV43_intentional_unilateral_set3.vhdr"])
+data_str_arr = np.array([data_path+"20032023_AF64D_unilateral_set1.vhdr", data_path+"20032023_AF64D_unilateral_set2.vhdr", data_path+"20032023_AF64D_unilateral_set3.vhdr"])
 
 # name pattern of current subject and paradigm 
-subject_paradigm_name = data_str_arr[0].split("_r_")[1].split("_set")[0]
+subject_paradigm_name = "unilateral"
 
 # Channelnumbers with EEG Data from Dataset
 eeg_channel_start_number = 0 
@@ -38,7 +38,7 @@ apply_filter = True # setting to False will ignore the filtering
 reref_channel = ["average"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
-marker_number = 100 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
+marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
 # specifying marker type and give it a name (event that is used for epoching)
@@ -59,8 +59,7 @@ min_val = -6e-06 # Voltage values for colour scale
 max_val = 6e-06
 
 # topoplot params 
-topo_start_time = 1000 # time in ms in relation to the event (e.g before movement onset to show)
-topo_time_step = 100 # time resolution of the topopot in ms 
+topoplot_times =  [-1000, -500, -200, 0] # times in ms to the event after epoching 
 topoplot_title_str = "time to movement "
 
 # select channel name for visualizing it 
@@ -68,7 +67,8 @@ channel_to_evaluate = "C1"
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True 
-channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+channel_list = ["x_dir", "y_dir", "z_dir"]#"x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+rename_channels = True 
 
 
 # *********************************************************************************
@@ -76,6 +76,7 @@ channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9"
 # *********************************************************************************
 
 raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
+
 
 # *********************************************************************************
 # **************** Make EEG average analysis **************************************
@@ -88,11 +89,11 @@ erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, r
 average_erp_epochs = np.mean(erp_epochs, axis = 0) # average the trials (average analysis), has now shape(channel, sampels) 
 
 # create an acticap montage 
-#acticap_montage = eeg_lib.create_acticap_montage(plot_montage)
-#raw_filtered.set_montage(acticap_montage) # set created montage 
+acticap_montage = eeg_lib.createActicapMontage(plot_montage, rename_channels)
+raw_filtered.set_montage(acticap_montage) # set created montage 
 
-# make a topoplot 
-#eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topo_start_time, topo_time_step, topoplot_title_str, min_val, max_val, f_samp_eeg)
+# # make a topoplot 
+eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
 
 # show average erp signal selected channel 
 channel_index = remaining_eeg_channel_names.index(channel_to_evaluate)

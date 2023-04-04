@@ -38,7 +38,7 @@ def loadBrainproductsData(dataset_list):
 
     return raw
 
-def create_acticap_montage(plot_montage): 
+def createActicapMontage(plot_montage, rename_channels): 
 
     """
     This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -56,13 +56,15 @@ def create_acticap_montage(plot_montage):
     montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
     #show easy cap Montage  
 
-    montage.rename_channels({'Cz' : 'CZ','Pz' : 'PZ','Fz' : 'FZ','CPz' : 'CPZ', 'Fp1': 'FP1','Fp2': 'FP2','Oz': 'OZ','POz': 'POZ'}, allow_duplicates=False) # maybe change this ? 
+    if (rename_channels):
+        montage.rename_channels({'Cz' : 'CZ','Pz' : 'PZ','Fz' : 'FZ','CPz' : 'CPZ', 'Fp1': 'FP1','Fp2': 'FP2','Oz': 'OZ','POz': 'POZ'}, allow_duplicates=False) # maybe change this ? 
+    
     exclude_list = np.array(['O10','Fpz', 'Iz', 'F9', 'F10', 'P9', 'P10', 'O9', 'FCz', 'AFz']) # may change this ? 
     
     # get params of structure 
     easy_cap_ch_names = montage.ch_names
     easy_cap_dig = montage.dig
-    dev_head = montage.dev_head_t
+    #dev_head = montage.dev_head_t
 
     # find indizes to remove channels not in ActiCap 
     indizes_to_removing_channel = []
@@ -92,14 +94,14 @@ def create_acticap_montage(plot_montage):
 
     #create Montage 
     #PlotMontage = True
-    acti_cap_montage = mne.channels.DigMontage(dev_head_t=dev_head ,dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
+    acti_cap_montage = mne.channels.DigMontage(dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
     if(plot_montage == True): 
         acti_cap_montage.plot()
         
     return acti_cap_montage
 
 
-def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, title_str, min_val, max_val, f_samp_eeg): 
+def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, times, title_str, min_val, max_val, f_samp_eeg): 
 
     """
     This function creates and showes an topoplot at different points in time. 
@@ -107,8 +109,7 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, t
         mean_epochs: The average epochs over all trials in numpy format. Shape should be (channel, sampels). 
         time_axis_eeg_epoch: The time axis of the EEG-epochs as one dimensional numpy array. 
         mne_obj: The mne object of the dataset from which the information is used for the plot (e.g. channel names). 
-        start_time: The timepoint of the first topoplot in ms. 
-        step_time: The timestep between each generated topoplots, i.e the time resolution of the plots. 
+        times: A list of times in ms at which the topolot should be created. 
         title_str: The title of the plot as string. 
         min_val: The minimum Voltage in the color scale. 
         max_val: The maximum Voltage in the color scale. 
@@ -119,26 +120,33 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, start_time, step_time, t
     
     Meta information: 
         Author: Niklas Kueper 
-        Last changed: 28.11.2022 (by Niklas Kueper)
+        Last changed: 04.04.2023 (by Niklas Kueper)
     """
 
     
     #topoplot at different times 
     n,m = mean_epochs.shape
-    start_idx = (start_time/1000)*f_samp_eeg
-    step_idx = (step_time/1000)* f_samp_eeg
+    #start_idx = (start_time/1000)*f_samp_eeg
+    #step_idx = (step_time/1000)* f_samp_eeg
+    time_idx = (np.array(times)).astype(int)
+    time_axis_eeg_epoch_ms = (time_axis_eeg_epoch*1000).astype(int) # make time axis in ms for the analysis 
 
-    indices_of_topoplot = np.arange(start_idx, m, step = step_idx).astype(int) # 22 er steps 
+
+    #indices_of_topoplot = np.arange(start_idx, m, step = step_idx).astype(int) # 22 er steps 
     mean_epochs.astype(float)
-
+    
     count = 0
-    fig, ax = plt.subplots(nrows=len(indices_of_topoplot), figsize=(8, 20), gridspec_kw=dict(top=0.9),sharex=True, sharey=True)
+    fig, ax = plt.subplots(nrows=len(time_idx), figsize=(8, 20), gridspec_kw=dict(top=0.9),sharex=True, sharey=True)
     fig.subplots_adjust(hspace=0.5)
-    for index in indices_of_topoplot: 
+    for t_index in time_idx: 
+        index = np.array(np.where(time_axis_eeg_epoch_ms == t_index))
+        if (index.size == 0): # index not found 
+            index = np.array(np.where(time_axis_eeg_epoch_ms == t_index+1))
+        index = index[0][0] # numpy array to int value 
         cmap = 'bwr'
-        im, cn = mne.viz.plot_topomap(mean_epochs[:,index], mne_obj.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'bicubic',extrapolate='local',vmin = min_val, vmax = max_val)
-        str_time = str(round(time_axis_eeg_epoch[index],3))
-        ax[count].set_title(title_str+str_time+" s", color='black', fontsize=12)
+        im, cn = mne.viz.plot_topomap(mean_epochs[:,index], mne_obj.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'cubic',extrapolate='local',vlim = [min_val, max_val])
+        str_time = str(t_index)+" ms"
+        ax[count].set_title(title_str+str_time, color='black', fontsize=12)
         cbar =fig.colorbar(im, ax = ax[count], orientation="vertical", pad = 0.15)
         cbar.set_label("in uV")
         count = count+1
