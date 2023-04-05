@@ -82,6 +82,7 @@ raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts fo
 # **************** Make EEG average analysis **************************************
 # *********************************************************************************
 
+
 # epoch the eeg data to trial length (for merged sets)
 erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, raw_filtered = eeg_lib.rereferencingEpoching(raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 #erp_epochs has shape (trials, eeg-channels, sampels)
