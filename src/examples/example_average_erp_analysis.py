@@ -6,21 +6,27 @@
 import numpy as np
 import sys 
 import matplotlib.pyplot as plt
+import os 
+
+
+# project path settings 
+current_path = os.getcwd() # project path 
+project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
+data_path = os.path.join(project_path, 'data') # path where the data lays 
+lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
+sys.path.append(lib_path) # append own libs to path 
+
 
 # own libs 
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder 
 import eeg_lib
-
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
 
-data_path = proj_path+"/data/"
+#filenames 
+filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr"]
 
-# Create an array with dataset file names 
-data_str_arr = np.array([data_path+"20032023_AF64D_unilateral_set1.vhdr", data_path+"20032023_AF64D_unilateral_set2.vhdr", data_path+"20032023_AF64D_unilateral_set3.vhdr"])
 
 # name pattern of current subject and paradigm 
 subject_paradigm_name = "unilateral"
@@ -74,6 +80,12 @@ rename_channels = True
 # *********************************************************************************
 # ***************** Load and concatenate a dataset *********
 # *********************************************************************************
+
+#create numpy array with file names 
+data_str_arr = []
+for files_str in filenames: 
+    data_str_arr.append(os.path.join(data_path, files_str)) 
+data_str_arr = np.array(data_str_arr)
 
 raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
 
