@@ -25,7 +25,13 @@ import eeg_lib
 # *********************************************************************************
 
 #filenames 
-filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr"]
+filenames = ["20032023_AF64D_unilateral_set1","20032023_AF64D_unilateral_set2", "20032023_AF64D_unilateral_set3",
+             "17032023_AW98D_unilateral_set1", "17032023_AW98D_unilateral_set2", "17032023_AW98D_unilateral_set3",
+             "16032023_BS34D_unilateral_set1", "16032023_BS34D_unilateral_set2", "16032023_BS34D_unilateral_set3",
+             "15032023_BR39D_unilateral_set1", "15032023_BR39D_unilateral_set2", "15032023_BR39D_unilateral_set3",
+             "14032023_AU12D_unilateral_set1", "14032023_AU12D_unilateral_set2", "14032023_AU12D_unilateral_set3", 
+             "13032023_BZ29D_unilateral_set1", "13032023_BZ29D_unilateral_set2", "13032023_BZ29D_unilateral_set3"]
+
 
 
 # name pattern of current subject and paradigm 
@@ -36,9 +42,10 @@ eeg_channel_start_number = 0
 eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 # in Hz 
+f_highpass = 0.5 # in Hz 
 f_lowpass = 4.0 # in Hz 
 apply_filter = True # setting to False will ignore the filtering 
+
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
 reref_channel = ["average"]
@@ -65,7 +72,7 @@ min_val = -6e-06 # Voltage values for colour scale
 max_val = 6e-06
 
 # topoplot params 
-topoplot_times =  [-1000, -500, -200, 0] # times in ms to the event after epoching 
+topoplot_times =  [-1000, -500, -200, -100, 0] # times in ms to the event after epoching 
 topoplot_title_str = "time to movement "
 
 # select channel name for visualizing it 

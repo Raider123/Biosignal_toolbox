@@ -17,7 +17,7 @@ def loadBrainproductsData(dataset_list):
     """
     This function can be used for loading one or more datasets in brainproducts format.
     Arguments:
-        dataset_list: A list of strings with filenames of the datasets to be loaded.
+        dataset_list: A list of strings with filenames of the datasets to be loaded (file extension must not be given).
 
     Returns:
         raw: An mne object with the loaded (concatenated) dataset(s). 
@@ -30,7 +30,7 @@ def loadBrainproductsData(dataset_list):
     if (len(dataset_list) > 1): 
         raw_list = []
         for dataset in dataset_list: 
-            raw1 = mne.io.read_raw_brainvision(dataset, preload = True, verbose = False)
+            raw1 = mne.io.read_raw_brainvision(dataset+".vhdr", preload = True, verbose = False)
             raw_list.append(raw1)
         raw = mne.concatenate_raws(raw_list)
     else: 
