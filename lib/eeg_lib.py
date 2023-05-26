@@ -679,7 +679,7 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     
     # convert the label of each sampels to windowwise labels 
     window_predictions = (window_predictions_samp > evaluation_samp_per_window/2).astype(float)
-
+    
     
     window_eval_true_labels = np.zeros(window_predictions.shape)
     num_erp_windows = int(np.round(n_samp_features/window_step_samp)) 
@@ -698,6 +698,34 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
         window_eval_true_labels = relabelled_true_labels # return the relabelled true labels instead 
 
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
+
+
+def convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data): 
+
+    # init arrays for both classes 
+    erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
+    no_erp_shaped = np.zeros((no_erp_sampels.shape[0]*no_erp_sampels.shape[2], no_erp_sampels.shape[1]))
+
+    # flatten sampels and trials to one dim 
+    for channel in range(0, tensor_shape[1]): 
+        erp_shaped[:, channel] = erp_sampels[:,channel,:].flatten()
+        no_erp_shaped[:, channel] = no_erp_sampels[:,channel,:].flatten()
+
+    #merge data together 
+    x = np.concatenate((erp_shaped, no_erp_shaped), axis=0).astype(dtype = np.float64)
+
+    #create label encoding 
+    y = np.zeros((x.shape[0],1)).astype(dtype=np.float64)
+    y[0:erp_shaped.shape[0]] = 1.0
+    
+    #concatenate data for shuffling 
+    if (shuffle_data): 
+        x_y_concat = np.concatenate((x, y), axis=1)
+        x_y_concat_shuffle = shuffle(x_y_concat)
+        x = x_y_concat_shuffle[:, 0:x_y_concat_shuffle.shape[1]-1]
+        y = x_y_concat_shuffle[:, x_y_concat_shuffle.shape[1]-1]
+    
+    return x, y
 
 
 def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
@@ -745,7 +773,7 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
             if(time_axis_eeg_batch[index] <= t2_time and time_axis_eeg_batch[index+1] >= t2_time): 
                 t2 = index 
                 break
-
+    
 
     print("t1: ", t1)
     print("t2: ", t2)
@@ -781,27 +809,63 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
     if(use_continues_sampels): 
         print("stepsize for no erp is (samples): ", stepsize_no_erp)
 
-    # init arrays for both classes 
-    erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
-    no_erp_shaped = np.zeros((no_erp_sampels.shape[0]*no_erp_sampels.shape[2], no_erp_sampels.shape[1]))
-
-    # flatten sampels and trials to one dim 
-    for channel in range(0, tensor_shape[1]): 
-        erp_shaped[:, channel] = erp_sampels[:,channel,:].flatten()
-        no_erp_shaped[:, channel] = no_erp_sampels[:,channel,:].flatten()
-
-    #merge data together 
-    x = np.concatenate((erp_shaped, no_erp_shaped), axis=0).astype(dtype = np.float64)
-
-    #create label encoding 
-    y = np.zeros((x.shape[0],1)).astype(dtype=np.float64)
-    y[0:erp_shaped.shape[0]] = 1.0
-    
-    #concatenate data for shuffling 
-    if (shuffle_data): 
-        x_y_concat = np.concatenate((x, y), axis=1)
-        x_y_concat_shuffle = shuffle(x_y_concat)
-        x = x_y_concat_shuffle[:, 0:x_y_concat_shuffle.shape[1]-1]
-        y = x_y_concat_shuffle[:, x_y_concat_shuffle.shape[1]-1]
+    x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
     
     return x, y
+
+
+def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows): 
+
+    """
+    This function 
+    Arguments:
+        erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples). 
+        time_axis_eeg_batch: The time axis of the EEG-epochs as one dimensional numpy array. 
+        shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
+        pos_class_windows: The window definitions of the positive class to be used as features and specified as a list of tuples (e.g windows = [(-1000, -100), (-1100, -100)]).
+        neg_class_windows: The window definitions of the negative class to be used as features and specified as a list of tuples (e.g windows = [(-3000, -2000), (-3500, -2500)]).
+        
+    Returns:
+        x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
+        y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 26.05.2022 (by Niklas Kueper)
+    """
+    tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
+    print(tensor_shape)
+    #print(time_axis_eeg_batch)
+
+    time_axis_eeg_batch_us = (time_axis_eeg_batch *1000000).astype(int) # convert this to us to compare with windows and dont loose resolution 
+
+    pos_class_indices = []
+
+    # get indices of the samples from the pos class window definitions 
+    for pos_train_wins in pos_class_windows: 
+        start_ind_win = np.where(time_axis_eeg_batch_us == int(pos_train_wins[0]*1000))[0][0]
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int(pos_train_wins[1]*1000))[0][0]
+        pos_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
+
+    pos_class_indices = np.array(pos_class_indices).flatten()
+
+    neg_class_indices = []
+
+    # get indices of the samples from the neg class window definitions 
+    for neg_train_wins in neg_class_windows: 
+        start_ind_win = np.where(time_axis_eeg_batch_us == int(neg_train_wins[0]*1000))[0][0]
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int(neg_train_wins[1]*1000))[0][0]
+        neg_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
+
+    neg_class_indices = np.array(neg_class_indices).flatten()
+
+    erp_sampels = erp_epochs[:, :, pos_class_indices] # shape (trials, channel, sampels)
+    no_erp_sampels = erp_epochs[:, :, neg_class_indices]
+    
+    # #output the time values of the cutted slices: 
+    
+    x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
+    
+    return x, y
+
+
