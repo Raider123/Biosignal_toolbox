@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 from sklearn.utils import shuffle
+from scipy import signal as sig
 
 
 # *********************************************************************************
@@ -17,7 +18,7 @@ def loadBrainproductsData(dataset_list):
     """
     This function can be used for loading one or more datasets in brainproducts format.
     Arguments:
-        dataset_list: A list of strings with filenames of the datasets to be loaded (file extension must not be given).
+        dataset_list: A list of strings with filenames of the datasets to be loaded.
 
     Returns:
         raw: An mne object with the loaded (concatenated) dataset(s). 
@@ -30,13 +31,37 @@ def loadBrainproductsData(dataset_list):
     if (len(dataset_list) > 1): 
         raw_list = []
         for dataset in dataset_list: 
-            raw1 = mne.io.read_raw_brainvision(dataset+".vhdr", preload = True, verbose = False)
+            raw1 = mne.io.read_raw_brainvision(dataset, preload = True, verbose = False)
             raw_list.append(raw1)
         raw = mne.concatenate_raws(raw_list)
     else: 
         raw = mne.io.read_raw_brainvision(dataset_list[0], preload = True, verbose = False)
 
     return raw
+
+def applyButterLowpassFilter(signal, f_lowpass, f_samp, N): 
+
+    """
+    This function filters a signal with a simple digital butterworth lowpass filter with order N. 
+    Arguments:
+        signal: The signal to be filtered as onedimensional numpy array. 
+        f_lowpass: The cutoff frequency of the lowpass filter. 
+        f_samp: The sampling rate of the signal in Hz. 
+        N: The order of the butterworth filter. 
+
+    Returns:
+        filtered_signal: The lowpass-filtered signal as numpy array. 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 29.11.2022 (by Niklas Kueper)
+    """
+
+    b, a = sig.butter(N, f_lowpass, 'low', analog=False, fs = f_samp)
+    filtered_signal = sig.filtfilt(b, a, signal) 
+
+    return filtered_signal
+
 
 def createActicapMontage(plot_montage, rename_channels): 
 
@@ -197,6 +222,21 @@ def getKerasPredictionResultsLRP(model, epochs, n_samp_features):
     return predicted_labels, true_labels, prediction_scores
 
 
+def calcMovingAveragePredictionScores(trial_prediction_test, n_samp): 
+    processed_trial_predictions = np.zeros(trial_prediction_test.shape)
+
+    trial_idx = 0
+    for trial in trial_prediction_test: 
+        for index in range(0, len(trial)): 
+            if(index < n_samp): 
+                processed_trial_predictions[trial_idx, index] = 0 # what to to when buffer not full ? 
+            else: 
+                processed_trial_predictions[trial_idx, index] = np.mean(trial[index-n_samp:index])
+
+        trial_idx = trial_idx +1
+
+    return processed_trial_predictions
+
 def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
     
     """
@@ -263,7 +303,7 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
     plot_onset_indices = np.where(plot_events[:,2] == marker_number)[0] # S100 marker is leaving plate 
     exclude_indices = np.where(plot_events[:,2] == error_number)[0] # S3 marker should be excluded 
     
-    plot_onset_indices = plot_onset_indices[0:-1] # cut of last movement, might be after experiment
+    #plot_onset_indices = plot_onset_indices[0:-1] # cut of last movement , might be after experiment --> not used anymore, leads to confusion ! 
     include_mask = np.ones(plot_onset_indices.shape)
 
     #search for correct indizes without S3 errors 
@@ -377,48 +417,46 @@ def windowEEGEpochs(epochs, f_samp_eeg, window_size = 1000, window_step = 50, wi
         Last changed: 10.01.2023 (by Niklas Kueper)
     """
 
+def windowEEGEpochs(epochs, f_samp_eeg, window_size, window_step): 
+
+    """
+    This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
+
+    Arguments:
+        epochs: The EEG-epochs as numpy array, currently only available for postprocessing with shape:(n_trials, n_sampels) without channel dimension!. 
+        f_samp_eeg: The sampling rate in Hz of the EEG-data. 
+        window_size: The size of the windows in ms to be cutout (standard: 1000). 
+        window_step: The stepsize of the sliding window (sliding step) in ms (standard: 25)
+
+    Returns:
+        wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_sampels, n_windows). 
+        num_of_windows: The total number of windows that are created. 
+        wind_names: A list of the window names according to the pySPACE naming of window definitions.  
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 28.11.2022 (by Niklas Kueper)
+    """
+
+    #if (with_channel_dim == False): 
     window_size_samp = int((window_size/1000) * f_samp_eeg) 
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
+    epochs_arr_cut = epochs[:, 1:]
+    num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
 
-    if (with_channel_dim == False): 
+    #init window arrays with shape (trials, sampel of window, windownumber)
+    wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
+    wind_names = []
 
-        epochs_arr_cut = epochs[:, 1:]
-        num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
-
-        #init window arrays with shape (trials, sampel of window, windownumber)
-        wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
-        wind_names = []
-
-        for win_nr in range(0, num_of_windows): 
-            wind_start_idx = win_nr*window_step_samp
-            wind_end_idx = window_size_samp+wind_start_idx
-            wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/f_samp_eeg) *1000))
-            
-            wind_names.append(wind_name) # a list of all window names
-            #create arrays with cutted 
-            wind_arr[:, :, win_nr] = win_nr
-            wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
-
-    else: # with channel dimension  (n_epochs, n_channel, n_samples)
+    for win_nr in range(0, num_of_windows): 
+        wind_start_idx = win_nr*window_step_samp
+        wind_end_idx = window_size_samp+wind_start_idx
+        wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/f_samp_eeg) *1000))
         
-        epochs_arr_cut = epochs[:, :, 1:]
-        num_of_windows =  int((epochs_arr_cut.shape[2]-window_size_samp)/window_step_samp)+1
-
-        #init window arrays with shape (trials, channel sampels of window, windownumber)
-        wind_arr = np.zeros((epochs_arr_cut.shape[0], epochs_arr_cut.shape[1], window_size_samp, num_of_windows))
-        wind_names = []
-
-
-        for win_nr in range(0, num_of_windows): 
-
-            wind_start_idx = win_nr*window_step_samp
-            wind_end_idx = window_size_samp+wind_start_idx
-            wind_name = "bis"+str(int((((epochs_arr_cut.shape[2]-wind_end_idx)*-1)/f_samp_eeg) *1000))
-            
-            wind_names.append(wind_name) # a list of all window names
-            #create arrays with cutted 
-            wind_arr[:, :, :, win_nr] = win_nr
-            wind_arr[:, :, :, win_nr] = epochs_arr_cut[:, :, wind_start_idx:wind_end_idx]
+        wind_names.append(wind_name) # a list of all window names
+        #create arrays with cutted 
+        wind_arr[:, :, win_nr] = win_nr
+        wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
 
     return wind_arr, num_of_windows, wind_names
 
@@ -463,6 +501,165 @@ def calcTestAccAndRates(prediction_labels, true_labels):
     ba = (tnr+tpr)/2
 
     return tnr, tpr, acc, ba
+
+
+def onlineWindowPredictionPostprocessing_v1(window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+            mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
+            mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
+            mean_short_time_detections = np.mean(current_predicts[short_sampels:])
+
+            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+            if((mean_long_time_detections > long_tresh) or (mean_short_time_detections > short_tresh) or (mean_mid_time_detections > mid_tresh)): 
+                classified_windows[trial_idx, window_idx] = 1.0 
+            else: 
+                classified_windows[trial_idx, window_idx] = 0.0
+            
+    return classified_windows
+
+
+def onlineWindowPredictionPostprocessing_v2(window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+
+            tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
+            #print("sampel range", tested_sampel_range)
+            tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
+            tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
+            #print("Tresh range", tested_tresh_range)
+
+            for index in range(0, len(tested_sampel_range)): 
+                mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
+
+                if (mean_val > tested_tresh_range[index]): 
+                    classified_windows[trial_idx, window_idx] = 1.0
+                    break
+
+    return classified_windows
+
+
+def onlineWindowPredictionPostprocessing_v3(window_wise_predicts, thresh, start_samp): 
+
+    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+
+    for trial_idx in range(0, window_wise_predicts.shape[0]): 
+        for window_idx in range(0, window_wise_predicts.shape[2]): 
+            
+            # get prediction scores of current trial and window 
+            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+
+            mean_detections = np.mean(current_predicts[start_samp:]) 
+
+            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+            if(mean_detections > thresh): 
+                classified_windows[trial_idx, window_idx] = 1.0 
+            else: 
+                classified_windows[trial_idx, window_idx] = 0.0
+
+    return classified_windows
+
+
+def calcTrialMetric(predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
+    pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
+    tns = 0 
+    tps = 0 
+    fns = 0 
+    fps = 0
+
+    for trial in predict_scores: 
+        # seperate the predictions of both classes 
+        pos_class_predicts = trial[pos_class_start_samp:]
+        neg_class_predicts = trial[0:len(trial)+pos_class_start_samp]
+
+        # calc the number of times the score is over the decision bound  
+        pos_class_predicts_over_bound = np.sum(pos_class_predicts > decision_bound) 
+        neg_class_predicts_over_bound = np.sum(neg_class_predicts > decision_bound) 
+
+        # calc metrics on numbers of times 
+        if(pos_class_predicts_over_bound > num_class_instances): # at leat one pos class instance detected = true prediction 
+            tps = tps +1  
+        else: 
+            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
+
+        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
+            tns = tns +1
+        else: 
+            fps = fps +1 # wrongly detected positive class 
+
+        # calc rates and metric 
+        tnr = tns/(tns+fps) 
+        tpr = tps/(tps+fns)
+        ba = (tnr+tpr)/2
+
+    return ba, tnr, tpr 
+
+def calcEEGWindowOnset(window_predicts, num_pos_windows): 
+
+    onset_window_predicts = np.zeros(window_predicts.shape)
+    trial_idx = 0
+
+    for trial in window_predicts:
+        count_pos_windows = 0 
+
+        for wind_idx in range(0, window_predicts.shape[1]): 
+            if(trial[wind_idx] > 0.5): # window has pos label 
+                count_pos_windows = count_pos_windows+1
+            
+            if (count_pos_windows >= num_pos_windows): 
+                onset_window_predicts[trial_idx, wind_idx] = 1.0 
+                count_pos_windows = 0
+                break
+
+        trial_idx = trial_idx+1
+
+    return onset_window_predicts
+
+def calcTrialMetricWindows(predict_labels, bounds, num_class_instances): 
+    tns = 0 
+    tps = 0 
+    fns = 0 
+    fps = 0
+
+    for trial in predict_labels: 
+        # seperate the predictions of both classes 
+        pos_class_predicts = trial[bounds[0]:bounds[1]]
+        neg_class_predicts = trial[0:bounds[0]]
+        
+        # calc the number of times the score is over the decision bound  
+        pos_class_predicts_over_bound = np.sum(pos_class_predicts) 
+        neg_class_predicts_over_bound = np.sum(neg_class_predicts) 
+
+        # calc metrics on numbers of times 
+        if(pos_class_predicts_over_bound >= num_class_instances): # at leat one pos class instance detected = true prediction 
+            tps = tps +1  
+        else: 
+            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
+
+        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
+            tns = tns +1
+        else: 
+            fps = fps +1 # wrongly detected positive class 
+
+        # calc rates and metric 
+        tnr = tns/(tns+fps) 
+        tpr = tps/(tps+fns)
+        ba = (tnr+tpr)/2
+
+    return ba, tnr, tpr 
+
 
 def applyRelabelling(predicted_labels, determine_labels, searching_bounds):
 
@@ -548,10 +745,11 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     window_step_samp = int((window_step/1000) * f_samp_eeg) 
     evaluation_samp_per_window = int((evaluation_time_per_window/1000) * f_samp_eeg) 
     window_predictions_samp = np.sum(wind_arr[:, -evaluation_samp_per_window:, :], axis = 1)
-
+    
     # convert the label of each sampels to windowwise labels 
     window_predictions = (window_predictions_samp > evaluation_samp_per_window/2).astype(float)
-
+    
+    
     window_eval_true_labels = np.zeros(window_predictions.shape)
     num_erp_windows = int(np.round(n_samp_features/window_step_samp)) 
     trial_erp_label = window_eval_true_labels[0, :] 
@@ -571,55 +769,32 @@ def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_
     return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
-def calcTrialMetricWindows(predict_labels, bounds, num_class_instances): 
+def convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data): 
 
-    """
-    Calculate Metrics for each single trial to simulate a real online application. 
+    # init arrays for both classes 
+    erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
+    no_erp_shaped = np.zeros((no_erp_sampels.shape[0]*no_erp_sampels.shape[2], no_erp_sampels.shape[1]))
 
-    Arguments:
-        Missing ... 
+    # flatten sampels and trials to one dim 
+    for channel in range(0, tensor_shape[1]): 
+        erp_shaped[:, channel] = erp_sampels[:,channel,:].flatten()
+        no_erp_shaped[:, channel] = no_erp_sampels[:,channel,:].flatten()
 
-    Returns:
-        Missing ... 
+    #merge data together 
+    x = np.concatenate((erp_shaped, no_erp_shaped), axis=0).astype(dtype = np.float64)
 
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 18.01.2023 (by Niklas Kueper)
-    """ 
-
-    tns = 0 
-    tps = 0 
-    fns = 0 
-    fps = 0
-
-    for trial in predict_labels: 
-        # seperate the predictions of both classes 
-        pos_class_predicts = trial[bounds[0]:bounds[1]]
-        neg_class_predicts = trial[0:bounds[0]]
-        
-        # calc the number of times the score is over the decision bound  
-        pos_class_predicts_over_bound = np.sum(pos_class_predicts) 
-        neg_class_predicts_over_bound = np.sum(neg_class_predicts) 
-
-        # calc metrics on numbers of times 
-        if(pos_class_predicts_over_bound >= num_class_instances): # at leat one pos class instance detected = true prediction 
-            tps = tps +1  
-        else: 
-            fns = fns+1 # no pos class instance detected = falsely predicted negative class 
-
-        if(neg_class_predicts_over_bound < num_class_instances): # no pos class detected, all true 
-            tns = tns +1
-        else: 
-            fps = fps +1 # wrongly detected positive class 
-
-        # calc rates and metric 
-        tnr = tns/(tns+fps) 
-        tpr = tps/(tps+fns)
-        ba = (tnr+tpr)/2
-
-    return ba, tnr, tpr 
-
-
+    #create label encoding 
+    y = np.zeros((x.shape[0],1)).astype(dtype=np.float64)
+    y[0:erp_shaped.shape[0]] = 1.0
+    
+    #concatenate data for shuffling 
+    if (shuffle_data): 
+        x_y_concat = np.concatenate((x, y), axis=1)
+        x_y_concat_shuffle = shuffle(x_y_concat)
+        x = x_y_concat_shuffle[:, 0:x_y_concat_shuffle.shape[1]-1]
+        y = x_y_concat_shuffle[:, x_y_concat_shuffle.shape[1]-1]
+    
+    return x, y
 
 
 def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
@@ -667,7 +842,7 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
             if(time_axis_eeg_batch[index] <= t2_time and time_axis_eeg_batch[index+1] >= t2_time): 
                 t2 = index 
                 break
-
+    
 
     print("t1: ", t1)
     print("t2: ", t2)
@@ -703,27 +878,75 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
     if(use_continues_sampels): 
         print("stepsize for no erp is (samples): ", stepsize_no_erp)
 
-    # init arrays for both classes 
-    erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
-    no_erp_shaped = np.zeros((no_erp_sampels.shape[0]*no_erp_sampels.shape[2], no_erp_sampels.shape[1]))
+    x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
+    
+    return x, y
 
     # flatten sampels and trials to one dim 
     for channel in range(0, tensor_shape[1]): 
-        erp_shaped[:, channel] = erp_sampels[:,channel,:].flatten()
-        no_erp_shaped[:, channel] = no_erp_sampels[:,channel,:].flatten()
+        lrp_shaped[:, channel] = lrp_sampels[:,channel,:].flatten()
+        no_lrp_shaped[:, channel] = no_lrp_sampels[:,channel,:].flatten()
 
-    #merge data together 
-    x = np.concatenate((erp_shaped, no_erp_shaped), axis=0).astype(dtype = np.float64)
+def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows): 
 
-    #create label encoding 
-    y = np.zeros((x.shape[0],1)).astype(dtype=np.float64)
-    y[0:erp_shaped.shape[0]] = 1.0
+    """
+    This function 
+    Arguments:
+        erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples). 
+        time_axis_eeg_batch: The time axis of the EEG-epochs as one dimensional numpy array. 
+        shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
+        pos_class_windows: The window definitions of the positive class to be used as features and specified as a list of tuples (e.g windows = [(-1000, -100), (-1100, -100)]).
+        neg_class_windows: The window definitions of the negative class to be used as features and specified as a list of tuples (e.g windows = [(-3000, -2000), (-3500, -2500)]).
+        feature_times_windows: The time range (tuple in ms) that is used as features inside the training and testing windows. The times refer to the time frame of the window (e.g. 0 is the first point of the window). 
+        
+
+    Returns:
+        x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
+        y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
     
-    #concatenate data for shuffling 
-    if (shuffle_data): 
-        x_y_concat = np.concatenate((x, y), axis=1)
-        x_y_concat_shuffle = shuffle(x_y_concat)
-        x = x_y_concat_shuffle[:, 0:x_y_concat_shuffle.shape[1]-1]
-        y = x_y_concat_shuffle[:, x_y_concat_shuffle.shape[1]-1]
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 26.05.2022 (by Niklas Kueper)
+    """
+    tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
+
+    # calc offset in windows where 
+
+
+    time_axis_eeg_batch_us = (time_axis_eeg_batch *1000000).astype(int) # convert this to us to compare with windows and dont loose resolution 
+
+    pos_class_indices = []
+
+    end_offset = 0 
+    # get indices of the samples from the pos class window definitions 
+    for pos_train_wins in pos_class_windows: 
+        end_offset =  feature_times_windows[1] - (pos_train_wins[1]-pos_train_wins[0]) 
+        start_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[0]+feature_times_windows[0])*1000))[0][0]
+
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[1]+end_offset)*1000))[0][0]
+
+
+        pos_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
+
+    pos_class_indices = np.array(pos_class_indices).flatten()
+
+    neg_class_indices = []
+
+    # get indices of the samples from the neg class window definitions 
+    for neg_train_wins in neg_class_windows: 
+        end_offset =  (pos_train_wins[1]-pos_train_wins[0]) - feature_times_windows[1]
+        start_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[0]+feature_times_windows[0])*1000))[0][0]
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[1]+end_offset)*1000))[0][0]
+        neg_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
+
+    neg_class_indices = np.array(neg_class_indices).flatten()
+
+
+    erp_sampels = erp_epochs[:, :, pos_class_indices] # shape (trials, channel, sampels)
+    no_erp_sampels = erp_epochs[:, :, neg_class_indices]
+    
+    # #output the time values of the cutted slices: 
+    
+    x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
     
     return x, y

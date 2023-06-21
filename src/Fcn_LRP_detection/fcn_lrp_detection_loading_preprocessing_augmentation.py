@@ -30,7 +30,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "_05_4Hz_bad_ch"
+filename_end = "_34ch_05_4Hz_aug_20t"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -63,9 +63,9 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
-inverse_keep_channel = False # standard: True 
-channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
-#["x_dir", "y_dir", "z_dir"]
+inverse_keep_channel = True # standard: True 
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+
 
 # just remap the parameters (need to be adapted)
 t1 = epoching_time_before_onset
@@ -124,12 +124,54 @@ for dataset in datasets:
         # *********** EEG preprocessing, epoching and train, test split *******************
         # *********************************************************************************
         
+
         # epoch the eeg data to trial length (for merged sets)
         lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
         lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 
+        lrp_epochs_train = lrp_epochs_train[0:20, :, : ]
+        #print(lrp_epochs_train.shape)
+        def dataAugmentationEpocheAveraging(lrp_epochs_train): 
+            # shape lrp_epochs_train: (trials, channels, sampels)
+            # for all available trials average 2 trials to generate a new one (all combinations)
+
+            num_artificial_trials = 0 #lrp_epochs_train
+            l = lrp_epochs_train.shape[0]
+            for i in range(1, l): 
+                current_num = l-i 
+                #print(current_num)
+                num_artificial_trials = num_artificial_trials+ current_num
+
+            print("num art trials", num_artificial_trials)
+
+            artificial_trials = np.zeros((num_artificial_trials, lrp_epochs_train.shape[1], lrp_epochs_train.shape[2]))
+            
+            index = 0
+            for first_avg_trial_idx in range(0, l): 
+                for second_avg_trial_idx in range(int(first_avg_trial_idx)+1, l): 
+
+                    #print("first ind:", first_avg_trial_idx)
+                    #print("second ind:", second_avg_trial_idx)
+                    current_art_trial = np.mean(np.stack((lrp_epochs_train[int(first_avg_trial_idx), :, :], lrp_epochs_train[int(second_avg_trial_idx), :, :])), axis = 0)
+
+                    artificial_trials[index, :, :] = current_art_trial
+                    index = index +1
+
+            print("max index trials", index)
+
+            return artificial_trials
+
+
+         #   return augmented_train_epochs
+
+        lrp_epochs_artificial = dataAugmentationEpocheAveraging(lrp_epochs_train)
+
+        lrp_epochs_train = np.concatenate((lrp_epochs_artificial, lrp_epochs_train))
+
+        print("shape train data after augment: ", lrp_epochs_train.shape)
+
         # fit scaler only on train data 
-        # train test permutation 1 
+        # train test permutatiot 1 
         scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
         scaler.fit(lrp_epochs_train) # fit to epochs data
 

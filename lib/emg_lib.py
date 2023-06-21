@@ -12,76 +12,20 @@ from scipy import signal as sig
 
 def loadCometaEMGData(file_str): 
 
-    """
-    This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
-    Arguments:
-        file_str: The file to load given as String. 
-
-    Returns: 
-        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-        channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
-
     #seperate between data, meta and channel names 
     emg_data = np.loadtxt(file_str, dtype = float, delimiter=None, skiprows=5)
 
     # extract EMG channel names 
     channel_names = np.loadtxt(file_str, dtype = str, delimiter=':', max_rows=1, skiprows=4)
-    channel_names = channel_names[1:-1] # cut off last and first values since they are not EMG channel names 
+    channel_names = channel_names[1:]
     
     emg_data_channel = emg_data[:, 1:] # channel dimensions 
     emg_time_axis = emg_data[:, 0] # time axis 
 
-    return emg_data_channel, emg_time_axis, channel_names
-
-
-def loadMiniANTEMGData(file_str, f_samp): 
-
-    """ TODO: No sampling rate given in the data 
-    This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
-    Arguments:
-        file_str: The file to load given as String. 
-
-    Returns: 
-        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-        channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
-
-    #seperate between data, meta and channel names 
-    emg_data_raw = np.loadtxt(file_str) # at least th
-    emg_data = emg_data_raw[:-1, :-2]
-    time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
-
-
-    return emg_data, time_axis
+    return emg_data_channel,emg_time_axis, channel_names
     
 
 def showEMGData(emg_data, time_axis, ch_names): 
-
-    """
-    This function shows the EMG signals. For each channel one figure is created. 
-    Arguments:
-        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)).
-        ch_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
-
-    Returns:
-        -
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
 
     if (emg_data.ndim > 1): 
         num_channels = emg_data.shape[1]
@@ -104,28 +48,9 @@ def showEMGData(emg_data, time_axis, ch_names):
 
 def channelSelection(emg_data, ch_names, selected_channels, inverse): 
 
-    """
-    This function can be used to specify EMG channels that are either kept or removed from the data. 
-    Arguments:
-        emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        ch_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
-        selected_channels: A list of EMG channel names (list of Strings) that are kept if inverse = False, otherwise the channels are dropped. 
-        inverse: If False, the specified channels are kept in the EMG data, otherwise the channels are dropped. 
-
-    Returns:
-        remaining_emg_data: The selected (remaining) EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        remaining_emg_channels: The remaining EMG channel names as numpy array (shape: (n_channels,)). 
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
-    
     ch_indices = []
-    ch_names = np.array(ch_names) # just to be sure that it is np array
 
     for selected_names in selected_channels: 
- 
         ch_indices.append(np.where(ch_names == selected_names)[0][0])
 
     if(inverse == True): 
@@ -143,23 +68,6 @@ def channelSelection(emg_data, ch_names, selected_channels, inverse):
 
 def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg): 
     
-    """
-    This function decimates the EMG data to a specified target frequency (uses scipy.signal.decimate() to do this).   
-    Arguments:
-        emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)).
-        target_frequency: The target frequency for the decimation specified in Hz. 
-        fsamp_emg: The sampling rate of the EMG data in Hz. 
-
-    Returns:
-        dec_emg_data: The decimated EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        new_time_axis: The new time axis of the decimated EMG data as numpy array (shape: (n_sampels,)).
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
-
     down_factor = int(fsamp_emg/target_frequency)
 
     if(emg_data.ndim >1):
@@ -187,21 +95,6 @@ def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg):
 
  
 def applyVarianceFilter(signal, n_var):
-
-    """
-    This function applies a variance filter of length n for preprocessing the EMG signals of one or multiple channels. 
-    Arguments:
-        signal: The EMG signal as numpy array (shape: (n_sampel, n_channel)). 
-        n_var: The length (in sampels) of the variance filter. 
-
-    Returns:
-        emg_filtered: The filtered EMG signals as numpy array (shape: (n_sampel, n_channel)). The first n_var values are currently set to zero, consider e.g. padding if this is an issue. 
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    """
-
     # signal init 
     emg_filtered = np.zeros(signal.shape)
 
@@ -261,36 +154,3 @@ def epocheEMGData(emg_data, marker_indices, fsamp, t_start, t_stop):
             emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
 
     return emg_epochs
-
-
-def applyBPFilterRectifying(f_samp, f_high, f_low, emg_data):
-
-    """
-    This function... to be written !
-       
-
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 23.03.2023 (by Niklas Kueper)
-    """
-    #Calc filtercoeff.  
-    b1, a1 = sig.butter(8, f_high, 'high', analog=False, fs = f_samp)
-    b2, a2 = sig.butter(8, f_low, 'low', analog=False, fs = f_samp)
-
-    if (emg_data.ndim > 1): 
-        (sampels, channels) = emg_data.shape
-        emg_data_processed = np.zeros((sampels, channels))
-        for channel_idx in range(0, channels): 
-
-            filtered_emg_1 = sig.filtfilt(b2, a2, emg_data[:, channel_idx])
-            filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
-
-            emg_data_processed[:, channel_idx] = filtered_emg
-
-    else: 
-        filtered_emg_1 = sig.filtfilt(b2, a2, emg_data)
-        filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
-
-        emg_data_processed = filtered_emg
-
-    return emg_data_processed
