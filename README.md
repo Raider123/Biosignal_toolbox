@@ -3,7 +3,7 @@
 ## General remarks
 
 ### Project structure
-This project contains all files for biosignal analysis (especially EMG and EEG) as well as machine learning flows in python. 
+This project contains all files for biosignal analysis (especially EMG and EEG) as well as machine learning flows in python. The src folder contains all the source files and includes project folders for a specific analysis or evaluation. You can find basic examples for biosignal processing and classification in the examples folder (under src). The lib folder contains the libraries containing methods for data processing for the biosignals. 
 Single scripts or jupyter notebooks can be directly pushed to this repository. If you work on a project or evaluation containing more than one file, please create a new folder for the multiple files. If you created a machine learning flow, please consider structuring the evaluation in seperate files (e.g. loading, preprocessing, train_model, prediction). 
 This repository should **ONLY** contain python scripts and no datasets, plots or other file formats. For the storage of data that should be analysed or evaluated, a data folder should be created containing all the files from experiments. The data folder will be ignored when adding and commiting the changes you made. If you are new to git, please have a look at the git documentation (https://www.git-scm.com/doc). 
 
@@ -30,9 +30,11 @@ The code will apply a bandpass filter to the data and extract all the events. Af
 At the end there are some visualizations. At first there are all epochs visualized. Second the averaged epochs from one event over the whole set. At least there are the different accuracies visualized with matplotlib.pyplot.pcolormesh.
 
 ### EEGNet_LRP_detection 
-This folder contains all files for the LRP prediction by using the EEGNet architecture (CNN-Net approach). Neural network librarys like tensorflow and keras as well as the mne library for loading and processing of EEG-data are used. For further information have a look at the README in this folder. 
+This folder contains all files for the prediction of movement intentions by using the EEGNet architecture (CNN-Net approach). Neural network librarys like tensorflow and keras as well as the mne library for loading and processing of EEG-data are used. The machine learning flow is currently not up to date ! (TO BE UPDATED) 
 
 
+### Fcn_LRP_detection
+This folder contains the implementation of a fully connected neural network that is used for the classification of movement intentions based on the LRP and MRCPs. The model is implemented in keras and several methods for data processing and classification are integrated in the eeg library. 
 
-
-
+### Boxplots_results.py 
+This Python file creates boxplots of classification results that are stored in a results folder. The boxplots are created with seaborn. 
