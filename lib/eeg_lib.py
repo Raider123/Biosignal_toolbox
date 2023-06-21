@@ -31,7 +31,7 @@ def loadBrainproductsData(dataset_list):
     if (len(dataset_list) > 1): 
         raw_list = []
         for dataset in dataset_list: 
-            raw1 = mne.io.read_raw_brainvision(dataset+".vhdr", preload = True, verbose = False)
+            raw1 = mne.io.read_raw_brainvision(dataset, preload = True, verbose = False)
             raw_list.append(raw1)
         raw = mne.concatenate_raws(raw_list)
     else: 

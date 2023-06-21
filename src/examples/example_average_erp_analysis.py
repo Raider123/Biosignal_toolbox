@@ -28,12 +28,12 @@ import eeg_lib
 # *********************************************************************************
 
 #filenames 
-filenames = ["20032023_AF64D_unilateral_set1","20032023_AF64D_unilateral_set2", "20032023_AF64D_unilateral_set3",
-             "17032023_AW98D_unilateral_set1", "17032023_AW98D_unilateral_set2", "17032023_AW98D_unilateral_set3",
-             "16032023_BS34D_unilateral_set1", "16032023_BS34D_unilateral_set2", "16032023_BS34D_unilateral_set3",
-             "15032023_BR39D_unilateral_set1", "15032023_BR39D_unilateral_set2", "15032023_BR39D_unilateral_set3",
-             "14032023_AU12D_unilateral_set1", "14032023_AU12D_unilateral_set2", "14032023_AU12D_unilateral_set3", 
-             "13032023_BZ29D_unilateral_set1", "13032023_BZ29D_unilateral_set2", "13032023_BZ29D_unilateral_set3"]
+filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr",
+             "17032023_AW98D_unilateral_set1.vhdr", "17032023_AW98D_unilateral_set2.vhdr", "17032023_AW98D_unilateral_set3.vhdr",
+             "16032023_BS34D_unilateral_set1.vhdr", "16032023_BS34D_unilateral_set2.vhdr", "16032023_BS34D_unilateral_set3.vhdr",
+             "15032023_BR39D_unilateral_set1.vhdr", "15032023_BR39D_unilateral_set2.vhdr", "15032023_BR39D_unilateral_set3.vhdr",
+             "14032023_AU12D_unilateral_set1.vhdr", "14032023_AU12D_unilateral_set2.vhdr", "14032023_AU12D_unilateral_set3.vhdr", 
+             "13032023_BZ29D_unilateral_set1.vhdr", "13032023_BZ29D_unilateral_set2.vhdr", "13032023_BZ29D_unilateral_set3.vhdr"]
 
 
 
