@@ -27,7 +27,7 @@ import emg_lib
 
 
 # Create an string with dataset file name (ANT and Cometa)
-file_str = "example.txt"
+file_str = "channel_null.txt"
 
 
 # *** channel selection params (comment in for channel selection) ***
