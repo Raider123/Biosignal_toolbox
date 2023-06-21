@@ -30,8 +30,8 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_eeg_no_shift"
-preprocessed_data_filename_end = "_34ch_05_4Hz"
+result_file_name = "fcn_network_results_10_aug"
+preprocessed_data_filename_end = "_34ch_05_4Hz_aug"
 
 preprocessed_emg_file_name_end = "_emg" 
 
@@ -47,7 +47,7 @@ n_samp_lrp_label = 50 # label defs for window wise evaluation
 first_layer_units = 8 # neurons of first layer
 second_layer_units = 8 # neurons of second layer
 third_layer_units = 8 # neurons of third layer
-n_epochs = 30 #20 training epochs (max since early stopping is used)
+n_epochs = 50 #30 training epochs (max since early stopping is used)
 n_batch_size = 64 # batch size # 64 seems to work nice
 dropout_rate = 0.1 # dropout rate of every layer of the network
 shuffle_data = True # shuffle all data for training, validation and testing
@@ -56,7 +56,7 @@ weight_lrp_class = 0.4
 show_training_results = False
 validation_rate = 0.2
 multiprocessing_cpus = 16
-early_stopping_patience = 3
+early_stopping_patience = 15 # 3
 leaky_alpha = 0.5
 
 
@@ -135,9 +135,10 @@ for subject in subject_names:
             print("shape merged: ", epochs_train_scaled.shape)
         else: 
             
-            epochs_train_scaled = lrp_epochs_train_scaled
+            epochs_train_scaled = lrp_epochs_train_scaled[0:31, :, :] # use 30 trials
             epochs_val_scaled = lrp_epochs_val_scaled
             epochs_test_scaled = lrp_epochs_test_scaled
+
 
 
         # *********************************************************************************

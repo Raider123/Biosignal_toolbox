@@ -814,7 +814,7 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
     return x, y
 
 
-def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows): 
+def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows): 
 
     """
     This function 
@@ -824,7 +824,9 @@ def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data,
         shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
         pos_class_windows: The window definitions of the positive class to be used as features and specified as a list of tuples (e.g windows = [(-1000, -100), (-1100, -100)]).
         neg_class_windows: The window definitions of the negative class to be used as features and specified as a list of tuples (e.g windows = [(-3000, -2000), (-3500, -2500)]).
+        feature_times_windows: The time range (tuple in ms) that is used as features inside the training and testing windows. The times refer to the time frame of the window (e.g. 0 is the first point of the window). 
         
+
     Returns:
         x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
         y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
@@ -834,17 +836,23 @@ def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data,
         Last changed: 26.05.2022 (by Niklas Kueper)
     """
     tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
-    print(tensor_shape)
-    #print(time_axis_eeg_batch)
+
+    # calc offset in windows where 
+
 
     time_axis_eeg_batch_us = (time_axis_eeg_batch *1000000).astype(int) # convert this to us to compare with windows and dont loose resolution 
 
     pos_class_indices = []
 
+    end_offset = 0 
     # get indices of the samples from the pos class window definitions 
     for pos_train_wins in pos_class_windows: 
-        start_ind_win = np.where(time_axis_eeg_batch_us == int(pos_train_wins[0]*1000))[0][0]
-        stop_ind_win = np.where(time_axis_eeg_batch_us == int(pos_train_wins[1]*1000))[0][0]
+        end_offset =  feature_times_windows[1] - (pos_train_wins[1]-pos_train_wins[0]) 
+        start_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[0]+feature_times_windows[0])*1000))[0][0]
+
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[1]+end_offset)*1000))[0][0]
+
+
         pos_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
 
     pos_class_indices = np.array(pos_class_indices).flatten()
@@ -853,11 +861,13 @@ def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data,
 
     # get indices of the samples from the neg class window definitions 
     for neg_train_wins in neg_class_windows: 
-        start_ind_win = np.where(time_axis_eeg_batch_us == int(neg_train_wins[0]*1000))[0][0]
-        stop_ind_win = np.where(time_axis_eeg_batch_us == int(neg_train_wins[1]*1000))[0][0]
+        end_offset =  (pos_train_wins[1]-pos_train_wins[0]) - feature_times_windows[1]
+        start_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[0]+feature_times_windows[0])*1000))[0][0]
+        stop_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[1]+end_offset)*1000))[0][0]
         neg_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
 
     neg_class_indices = np.array(neg_class_indices).flatten()
+
 
     erp_sampels = erp_epochs[:, :, pos_class_indices] # shape (trials, channel, sampels)
     no_erp_sampels = erp_epochs[:, :, neg_class_indices]
