@@ -395,28 +395,6 @@ def onlineLRPWindowPredictionPostprocessing(window_wise_predicts, high_tresh, lo
     return classified_windows
 
 
-
-def windowEEGEpochs(epochs, f_samp_eeg, window_size = 1000, window_step = 50, with_channel_dim = True): 
-
-    """
-    This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
-
-    Arguments:
-        epochs: The EEG-epochs as numpy array with shape: (n_epochs, n_channel, n_samples) or for postprocessing (with_channel_dim = False) with shape:(n_trials, n_sampels). 
-        window_size: The size of the windows in ms to be cutout (default: 1000). 
-        window_step: The stepsize of the sliding window (sliding step) in ms (default: 50)
-        with_channel_dim: If True (default) the epochs numpy array contains a channel dimension (standard when epoching in mne), otherwise set to False when windowing is used for other purposes e.g. postprocessing by windowing. 
-
-    Returns:
-        wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_channel, n_sampels, n_windows) if with_channel_dim = True or (n_trials, n_sampels, n_windows) for postprocessing (no channel dim)
-        num_of_windows: The total number of windows that are created. 
-        wind_names: A list of the window names according to the pySPACE naming of window definitions.  
-    
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 10.01.2023 (by Niklas Kueper)
-    """
-
 def windowEEGEpochs(epochs, f_samp_eeg, window_size, window_step): 
 
     """

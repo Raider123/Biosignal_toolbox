@@ -244,7 +244,7 @@ for subject in subject_names:
 
         
         #window the smoothed prediction scores 
-        wind_arr_scores, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(trial_prediction_val, f_samp_eeg, window_size, window_step, with_channel_dim) # currently only with channel dim False is supported!
+        wind_arr_scores, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(trial_prediction_val, f_samp_eeg, window_size, window_step) # currently only with channel dim False is supported!
 
         #window postprocessing: long and short criteriums 
 
