@@ -154,3 +154,37 @@ def epocheEMGData(emg_data, marker_indices, fsamp, t_start, t_stop):
             emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
 
     return emg_epochs
+
+
+def applyBPFilterRectifying(f_samp, f_high, f_low, emg_data):
+
+    """
+    This function... to be written !
+       
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 23.03.2023 (by Niklas Kueper)
+    """
+    #Calc filtercoeff.  
+    b1, a1 = sig.butter(8, f_high, 'high', analog=False, fs = f_samp)
+    b2, a2 = sig.butter(8, f_low, 'low', analog=False, fs = f_samp)
+
+    if (emg_data.ndim > 1): 
+        (sampels, channels) = emg_data.shape
+        emg_data_processed = np.zeros((sampels, channels))
+        for channel_idx in range(0, channels): 
+
+            filtered_emg_1 = sig.filtfilt(b2, a2, emg_data[:, channel_idx])
+            filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+
+            emg_data_processed[:, channel_idx] = filtered_emg
+
+    else: 
+        filtered_emg_1 = sig.filtfilt(b2, a2, emg_data)
+        filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+
+        emg_data_processed = filtered_emg
+
+    return emg_data_processed
+
