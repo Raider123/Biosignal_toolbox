@@ -32,33 +32,28 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 #choose a dataset of a subject 
 dataset = data_str_uni_XP01
 
-dataset_pool = np.concatenate((data_str_uni_JV43, data_str_uni_RA12, data_str_uni_AV82, data_str_uni_UP28, data_str_uni_XP01, data_str_uni_ZS27,data_str_uni_JD68))
+dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_JV43, data_str_uni_RA12, data_str_uni_AV82, data_str_uni_QS70, data_str_uni_UP28, data_str_uni_ZS27))
+include_test_sub_in_train = False
+
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.2 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
-<<<<<<< HEAD:src/Fcn_LRP_detection/fcn_lrp_detection_loading_preprocessing.py
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch"
-
 
 # Channelnumbers with EEG Data from Dataset
 eeg_channel_start_number = 0 
 eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
-
-# Filtering Params for EEG data 
-f_highpass = 0.5 # in Hz 
-f_lowpass = 4.0 # in Hz 
-=======
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_01_40Hz_pooling"
+# name pattern of current subject and paradigm
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_05_4Hz_pooling_finetuning"
 
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 #0.5 # in Hz 
 f_lowpass = 4.0 # 4.0 in Hz 
->>>>>>> fcn_testing:src/Fcn_LRP_detection/fcn_lrp_detection_loading_preprocessing_pooling.py
+
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
@@ -84,11 +79,7 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True
-<<<<<<< HEAD:src/Fcn_LRP_detection/fcn_lrp_detection_loading_preprocessing.py
 channel_list = ["x_dir", "y_dir", "z_dir" ,"FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
-=======
-channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
->>>>>>> fcn_testing:src/Fcn_LRP_detection/fcn_lrp_detection_loading_preprocessing_pooling.py
 
 
 # just remap the parameters (need to be adapted)
@@ -103,26 +94,54 @@ t2 = epoching_time_after_onset
 for iterations in set_nums:  # change here later on 
     if(iterations == 0): 
         
-        train_list = [dataset[0], dataset[1]]+ list(dataset_pool)
+        if (include_test_sub_in_train): 
+            train_list = [dataset[0], dataset[1]]+ list(dataset_pool)
+        else: 
+            train_list = list(dataset_pool)
+            train_list_tuning = [dataset[0], dataset[1]]
+            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+
         test_list = [dataset[2]]
+
         test_list = [dataset[3], dataset[2]] # use for XP01 
+
         raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     elif(iterations == 1): 
         
-        train_list = [dataset[1], dataset[2]] + list(dataset_pool)
-        train_list = [dataset[1], dataset[2], dataset[3]] +list(dataset_pool) # use for XP01 
+        if (include_test_sub_in_train): 
+            train_list = [dataset[1], dataset[2]] + list(dataset_pool)
+        else: 
+            train_list = list(dataset_pool) 
+            train_list_tuning = [dataset[1], dataset[2]] 
+            train_list_tuning = [dataset[1], dataset[2], dataset[3]] # use for XP01
+            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+        
+
+        #train_list = [dataset[1], dataset[2], dataset[3]] +list(dataset_pool) # use for XP01 
         test_list = [dataset[0]]
 
-        raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
+
+        raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     else: 
-        train_list = [dataset[0], dataset[2]] + list(dataset_pool)
-        train_list = [dataset[0], dataset[2], dataset[3]] + list(dataset_pool)# use for XP01 
+
+        if (include_test_sub_in_train): 
+            train_list = [dataset[0], dataset[2]] + list(dataset_pool)
+
+        else: 
+            train_list = list(dataset_pool) 
+            train_list_tuning = [dataset[0], dataset[2]]
+            train_list_tuning = [dataset[0], dataset[2], dataset[3]] # use for XP01 
+            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+        
+        #train_list = [dataset[0], dataset[2], dataset[3]] + list(dataset_pool)# use for XP01 
         test_list = [dataset[1]]
-        raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
+
+
+        raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
         
 
@@ -135,6 +154,7 @@ for iterations in set_nums:  # change here later on
     # epoch the eeg data to trial length (for merged sets)
     lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
     lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+    
 
     # fit scaler only on train data 
     # train test permutation 1 
@@ -149,6 +169,17 @@ for iterations in set_nums:  # change here later on
     lrp_epochs_val_scaled = lrp_epochs_test_val_scaled[0:test_val_idx, :, :]
     lrp_epochs_test_scaled = lrp_epochs_test_val_scaled[test_val_idx:, :, :]
 
+    lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
+    
+
+    if(include_test_sub_in_train == False): 
+        lrp_epochs_train_tune, lrp_epochs_train_obj_tune, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj_tune = eeg_lib.rereferencingEpoching(raw_train_tuning, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        scaler_tune = mne.decoding.Scaler(info=raw_train_obj_tune.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
+        scaler_tune.fit(lrp_epochs_train_tune) # fit to epochs data
+        lrp_epochs_train_tune_scaled= scaler_tune.transform(lrp_epochs_train_tune) # transform train data (unit variance and zero mean)
+
+
+    
 
     # *********************************************************************************
     # *********************** Save preprocessed EEG data ******************************
@@ -160,6 +191,11 @@ for iterations in set_nums:  # change here later on
     np.save(data_path+subject_paradigm_name+"_val_"+str(iterations), lrp_epochs_val_scaled)
     np.save(data_path+"time_axis_eeg_epochs", time_axis_eeg_batch)
     np.save(data_path+"remaining_eeg_channel_names", remaining_eeg_channel_names)
+
+    # save tuning data seperately 
+    if(include_test_sub_in_train == False): 
+        np.save(data_path+subject_paradigm_name+"_trainTune_"+str(iterations), lrp_epochs_train_tune_scaled)
+
 
     print("shape train data: ", lrp_epochs_train_scaled.shape)
 

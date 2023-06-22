@@ -29,8 +29,9 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_window_selected_05_4Hz_aug_20t"
-preprocessed_data_filename_end = "_34ch_05_4Hz_aug_20t"
+result_file_name = "fcn_network_results_standard_within"
+preprocessed_data_filename_end = "_34ch_05_4Hz"
+use_fine_tuning = False
 
 preprocessed_emg_file_name_end = "_emg" 
 
@@ -130,6 +131,9 @@ for subject in subject_names:
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
         lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")
 
+        if(use_fine_tuning): 
+             lrp_epochs_train_tune_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_trainTune_"+str(iteration)+".npy")
+
         # fuse eeg and emg data on data level 
         if (fuse_emg_eeg): 
             emg_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_emg_file_name_end+"_train_"+str(iteration)+".npy")
@@ -146,6 +150,9 @@ for subject in subject_names:
             epochs_train_scaled = lrp_epochs_train_scaled
             epochs_val_scaled = lrp_epochs_val_scaled
             epochs_test_scaled = lrp_epochs_test_scaled
+            
+            if(use_fine_tuning): 
+                epochs_train_tune_scaled = lrp_epochs_train_tune_scaled
 
 
         # *********************************************************************************
@@ -161,15 +168,16 @@ for subject in subject_names:
         x_val, y_val = eeg_lib.timeDomainFeaturesFromWindows(epochs_val_scaled, time_axis_eeg_batch, shuffle_data, pos_class_train_windows, neg_class_train_windows, feature_times_windows)
         x_test, y_test = eeg_lib.timeDomainFeaturesFromWindows(epochs_test_scaled, time_axis_eeg_batch, shuffle_data, pos_class_train_windows, neg_class_train_windows, feature_times_windows)
 
-
-        # x_train, y_train = eeg_lib.timeDomainFeaturesFromEpochs(epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        # x_val, y_val = eeg_lib.timeDomainFeaturesFromEpochs(epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        # x_test, y_test = eeg_lib.timeDomainFeaturesFromEpochs(epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+        if(use_fine_tuning): 
+            x_train_tune, y_train_tune = eeg_lib.timeDomainFeaturesFromWindows(epochs_train_tune_scaled, time_axis_eeg_batch, shuffle_data, pos_class_train_windows, neg_class_train_windows, feature_times_windows)
 
 
         print("Shape of train data: ", x_train.shape)
         print("Shape of test data: ", x_test.shape)
         print("Shape of validation data: ", x_val.shape)
+
+        if(use_fine_tuning): 
+            print("Shape of train tune data: ", x_train_tune.shape)
 
 
         # *********************************************************************************
@@ -210,6 +218,27 @@ for subject in subject_names:
                             use_multiprocessing=True,
                             validation_data = (x_val, y_val),
                             callbacks = [early_callback])
+        
+        print("********")
+        print("Training done")
+        print("********")
+
+        # train the trained model again with tuning data
+        if(use_fine_tuning): 
+            history_tune = model.fit(x_train_tune,
+                                    y_train_tune,
+                                    epochs  = n_epochs,
+                                    batch_size= n_batch_size,
+                                    shuffle = True,
+                                    workers=multiprocessing_cpus,
+                                    class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
+                                    use_multiprocessing=True,
+                                    validation_data = (x_val, y_val),
+                                    callbacks = [early_callback])
+            print("********")
+            print("Tuning done")
+            print("********")
+
 
         # *********************************************************************************
         # ********************* Get and show training results   ***************************
