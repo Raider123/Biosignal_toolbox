@@ -7,6 +7,7 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
+from ...lib.emg_lib import EMGData
 
 
 # project path settings 
@@ -18,7 +19,7 @@ sys.path.append(lib_path) # append own libs to path
 
 
 # own libs 
-import emg_lib
+#import EMGData
 
 
 # *********************************************************************************
@@ -57,11 +58,11 @@ fsamp_emg = 2000 # in Hz
 
 # loading emg data (Cometa)
 file_str = os.path.join(data_path, file_str)
-emg_data, emg_time_axis, emg_ch_names = emg_lib.loadCometaEMGData(file_str)
+emg_data, emg_time_axis, emg_ch_names = EMGData.loadCometaEMGData(file_str)
 # (data, channels)
 
 # load EMG data ANT
-#emg_data, emg_time_axis = emg_lib.loadMiniANTEMGData(file_str, fsamp_emg)
+#emg_data, emg_time_axis = EMGData.loadMiniANTEMGData(file_str, fsamp_emg)
 
 # *********************************************************************************
 # ************************* Process EMG data  *************************************
@@ -70,28 +71,28 @@ emg_data, emg_time_axis, emg_ch_names = emg_lib.loadCometaEMGData(file_str)
 # *** Just comment in what should be used for processing *** 
 
 # channel selection, if inverse = False all channels specified are kept 
-#emg_data_select, emg_ch_names_select = emg_lib.channelSelection(emg_data, emg_ch_names, selected_channels, inverse)
+#emg_data_select, emg_ch_names_select = EMGData.channelSelection(emg_data, emg_ch_names, selected_channels, inverse)
 
 
 # apply bandpass filter 
-emg_data_filtered = emg_lib.applyBPFilterRectifying(fsamp_emg, 20, 200, emg_data)
+emg_data_filtered = EMGData.applyBPFilterRectifying(fsamp_emg, 20, 200, emg_data)
 
 # show all EMG channels
-emg_lib.showEMGData(emg_data, emg_time_axis, emg_ch_names)
+EMGData.showEMGData(emg_data, emg_time_axis, emg_ch_names)
 
 # show selected EMG channels
-#emg_lib.showEMGData(emg_data_filtered, emg_time_axis, emg_ch_names_select)
+#EMGData.showEMGData(emg_data_filtered, emg_time_axis, emg_ch_names_select)
 
 
 
 # downsampling to target frequency 
-#emg_data_down, time_axis_down = emg_lib.decimateEMGData(emg_data_select, emg_time_axis, target_frequency, fsamp_emg)
+#emg_data_down, time_axis_down = EMGData.decimateEMGData(emg_data_select, emg_time_axis, target_frequency, fsamp_emg)
 
-#emg_lib.showEMGData(emg_data_down, time_axis_down, emg_ch_names_select)
+#EMGData.showEMGData(emg_data_down, time_axis_down, emg_ch_names_select)
 
 #apply variance filter to EMG signals  
-#emg_data_filtered = emg_lib.applyVarianceFilter(emg_data_down, n_var)
+#emg_data_filtered = EMGData.applyVarianceFilter(emg_data_down, n_var)
 
 # show EMG signals in plots 
-#emg_lib.showEMGData(emg_data_filtered, time_axis_down, emg_ch_names_select)
+#EMGData.showEMGData(emg_data_filtered, time_axis_down, emg_ch_names_select)
 

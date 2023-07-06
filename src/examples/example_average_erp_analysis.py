@@ -7,6 +7,7 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
+from ...lib.eeg_lib import EEGData
 
 
 # project path settings 
@@ -17,10 +18,10 @@ lib_path = os.path.join(project_path, 'lib') # path were the additional library 
 sys.path.append(lib_path) # append own libs to path 
 
 
-# own libs 
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder 
-import eeg_lib
+# # own libs 
+# proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
+# sys.path.append(proj_path+"/lib") # path to lib folder 
+#import EEGData
 
 
 # *********************************************************************************
@@ -97,7 +98,7 @@ for files_str in filenames:
     data_str_arr.append(os.path.join(data_path, files_str)) 
 data_str_arr = np.array(data_str_arr)
 
-raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
+raw= EEGData.loadBrainproductsData(data_str_arr) # read data in brainproducts format
 
 
 # *********************************************************************************
@@ -106,18 +107,18 @@ raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts fo
 
 
 # epoch the eeg data to trial length (for merged sets)
-erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, raw_filtered = eeg_lib.rereferencingEpoching(raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+erp_epochs, erp_epochs_obj, time_axis_eeg_epochs, remaining_eeg_channel_names, raw_filtered = EEGData.rereferencingEpoching(raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 #erp_epochs has shape (trials, eeg-channels, sampels)
 
 
 average_erp_epochs = np.mean(erp_epochs, axis = 0) # average the trials (average analysis), has now shape(channel, sampels) 
 
 # create an acticap montage 
-acticap_montage = eeg_lib.createActicapMontage(plot_montage, rename_channels)
+acticap_montage = EEGData.createActicapMontage(plot_montage, rename_channels)
 raw_filtered.set_montage(acticap_montage) # set created montage 
 
 # # make a topoplot 
-eeg_lib.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
+EEGData.topoplot(average_erp_epochs, time_axis_eeg_epochs, raw_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
 
 # show average erp signal selected channel 
 channel_index = remaining_eeg_channel_names.index(channel_to_evaluate)
