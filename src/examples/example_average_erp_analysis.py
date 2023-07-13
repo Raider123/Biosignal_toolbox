@@ -30,7 +30,7 @@ from eeg_lib import EEGData
 # *********************************************************************************
 
 #filenames 
-filenames = ["21032023_AJ80D_curls_with_pause_set1, 21032023_AJ80D_curls_with_pause_set2, 21032023_AJ80D_curls_with_pause_set3"]
+filenames = ["21032023_AJ80D_curls_with_pause_set1.vhdr", "21032023_AJ80D_curls_with_pause_set2.vhdr", "21032023_AJ80D_curls_with_pause_set3.vhdr"]
 
 
 

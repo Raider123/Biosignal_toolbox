@@ -17,7 +17,7 @@ class EEGData:
     def __init__(self):
         pass
 
-    def loadBrainproductsData(dataset_list): 
+    def loadBrainproductsData(self, dataset_list): 
 
         """
         This function can be used for loading one or more datasets in brainproducts format.
@@ -35,7 +35,7 @@ class EEGData:
         if (len(dataset_list) > 1): 
             raw_list = []
             for dataset in dataset_list: 
-                raw1 = mne.io.read_raw_brainvision('./data/'+dataset, preload = True, verbose = False)
+                raw1 = mne.io.read_raw_brainvision(dataset, preload = True, verbose = False)
                 raw_list.append(raw1)
             raw = mne.concatenate_raws(raw_list)
         else: 
@@ -44,7 +44,7 @@ class EEGData:
         return raw
         
 
-    def applyButterLowpassFilter(signal, f_lowpass, f_samp, N): 
+    def applyButterLowpassFilter(self, signal, f_lowpass, f_samp, N): 
 
         """
         This function filters a signal with a simple digital butterworth lowpass filter with order N. 
@@ -68,7 +68,7 @@ class EEGData:
         return filtered_signal
 
 
-    def createActicapMontage(plot_montage, rename_channels): 
+    def createActicapMontage(self, plot_montage, rename_channels): 
 
         """
         This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -131,7 +131,7 @@ class EEGData:
         return acti_cap_montage
 
 
-    def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, times, title_str, min_val, max_val, f_samp_eeg): 
+    def topoplot(self, mean_epochs, time_axis_eeg_epoch, mne_obj, times, title_str, min_val, max_val, f_samp_eeg): 
 
         """
         This function creates and showes an topoplot at different points in time. 
@@ -183,7 +183,7 @@ class EEGData:
         plt.show()
 
 
-    def getKerasPredictionResultsLRP(model, epochs, n_samp_features): 
+    def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
 
         """
         This function creates and showes an topoplot at different points in time. 
@@ -227,7 +227,7 @@ class EEGData:
         return predicted_labels, true_labels, prediction_scores
 
 
-    def calcMovingAveragePredictionScores(trial_prediction_test, n_samp): 
+    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp): 
         processed_trial_predictions = np.zeros(trial_prediction_test.shape)
 
         trial_idx = 0
@@ -242,7 +242,7 @@ class EEGData:
 
         return processed_trial_predictions
 
-    def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
+    def rereferencingEpoching(self, raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
         
         """
         Apply rereferencing and epoching with given parameters and filters to an raw mne instance. 
@@ -359,7 +359,7 @@ class EEGData:
         return erp_epochs, erp_epoch_obj, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced # shape of epochs: (epochs, channel, samples)
 
 
-    def onlineLRPWindowPredictionPostprocessing(window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+    def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 
         """
         Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
@@ -400,7 +400,7 @@ class EEGData:
         return classified_windows
 
 
-    def windowEEGEpochs(epochs, f_samp_eeg, window_size, window_step): 
+    def windowEEGEpochs(self, epochs, f_samp_eeg, window_size, window_step): 
 
         """
         This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
@@ -444,7 +444,7 @@ class EEGData:
         return wind_arr, num_of_windows, wind_names
 
 
-    def calcTestAccAndRates(prediction_labels, true_labels):
+    def calcTestAccAndRates(self, prediction_labels, true_labels):
 
         """
         Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
@@ -486,7 +486,7 @@ class EEGData:
         return tnr, tpr, acc, ba
 
 
-    def onlineWindowPredictionPostprocessing_v1(window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels): 
+    def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels): 
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
@@ -508,7 +508,7 @@ class EEGData:
         return classified_windows
 
 
-    def onlineWindowPredictionPostprocessing_v2(window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+    def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
@@ -534,7 +534,7 @@ class EEGData:
         return classified_windows
 
 
-    def onlineWindowPredictionPostprocessing_v3(window_wise_predicts, thresh, start_samp): 
+    def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp): 
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
@@ -555,7 +555,7 @@ class EEGData:
         return classified_windows
 
 
-    def calcTrialMetric(predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
+    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
         pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
         tns = 0 
         tps = 0 
@@ -589,7 +589,7 @@ class EEGData:
 
         return ba, tnr, tpr 
 
-    def calcEEGWindowOnset(window_predicts, num_pos_windows): 
+    def calcEEGWindowOnset(self, window_predicts, num_pos_windows): 
 
         onset_window_predicts = np.zeros(window_predicts.shape)
         trial_idx = 0
@@ -610,7 +610,7 @@ class EEGData:
 
         return onset_window_predicts
 
-    def calcTrialMetricWindows(predict_labels, bounds, num_class_instances): 
+    def calcTrialMetricWindows(self, predict_labels, bounds, num_class_instances): 
         tns = 0 
         tps = 0 
         fns = 0 
@@ -644,7 +644,7 @@ class EEGData:
         return ba, tnr, tpr 
 
 
-    def applyRelabelling(predicted_labels, determine_labels, searching_bounds):
+    def applyRelabelling(self, predicted_labels, determine_labels, searching_bounds):
 
         """
         Apply the relabelling method to the classification output in order to get the "true ground truth" labels. This function should be carefully used since it creates new ground truth labels for the evaluation of the classifier! 
@@ -697,7 +697,7 @@ class EEGData:
         return new_true_labels
 
 
-    def calcWindowMetrics(wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features, use_relabelling, determine_labels, searching_bounds): 
+    def calcWindowMetrics(self, wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features, use_relabelling, determine_labels, searching_bounds): 
 
         """
         Calculate Metrics of a window wise classification output. 
@@ -752,7 +752,7 @@ class EEGData:
         return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
-    def convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data): 
+    def convertSamplesToLabelledData(self, erp_sampels, no_erp_sampels, tensor_shape, shuffle_data): 
 
         # init arrays for both classes 
         erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
@@ -780,7 +780,7 @@ class EEGData:
         return x, y
 
 
-    def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
+    def timeDomainFeaturesFromEpochs(self, erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
 
         """
         This function 
@@ -870,7 +870,7 @@ class EEGData:
             lrp_shaped[:, channel] = lrp_sampels[:,channel,:].flatten()
             no_lrp_shaped[:, channel] = no_lrp_sampels[:,channel,:].flatten()
 
-    def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows): 
+    def timeDomainFeaturesFromWindows(self, erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows): 
 
         """
         This function 
