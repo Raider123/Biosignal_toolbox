@@ -7,8 +7,6 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
-from ...lib.emg_lib import EMGData
-
 
 # project path settings 
 current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
@@ -18,10 +16,8 @@ lib_path = os.path.join(project_path, 'lib') # path were the additional library 
 sys.path.append(lib_path) # append own libs to path 
 
 
-# own libs 
+# own libs / classes 
 from emg_lib import EMGData
-from timeseries_data import TimeseriesData
-
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -29,7 +25,7 @@ from timeseries_data import TimeseriesData
 
 
 # Create an string with dataset file name (ANT and Cometa)
-file_str = "channel_null.txt"
+file_str = "21032023_AJ80D_curls_with_pause_set1.txt"
 
 
 # *** channel selection params (comment in for channel selection) ***
@@ -38,14 +34,14 @@ file_str = "channel_null.txt"
 
 
 # for ANT Systems 
-#emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
+emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
 #selected_channels = ["EMG2"]
 
 
 # EMG sampling rate (Cometa default)
-fsamp_emg = 2000 # in Hz
+#fsamp_emg = 2000 # in Hz
 
-#fsamp_emg = 500 # for ANT
+fsamp_emg = 500 # for ANT
 
 # *** processing parameters (if used comment in) *** 
 #target_frequency = 500 # target frequency after downsampling (Cometa)
@@ -57,13 +53,15 @@ fsamp_emg = 2000 # in Hz
 # ************************* Load EMG data  ****************************************
 # *********************************************************************************
 
+emg_data_obj = EMGData() #creating emg_data object
+
 # loading emg data (Cometa)
-file_str = os.path.join(data_path, file_str)
-emg_data, emg_time_axis, emg_ch_names = TimeseriesData.loadCometaEMGData(file_str)
+#file_str = os.path.join(data_path, file_str)
+#emg_data, emg_time_axis, emg_ch_names = EMGData.loadCometaEMGData(file_str)
 # (data, channels)
 
 # load EMG data ANT
-#emg_data, emg_time_axis = TimeseriesData.loadMiniANTEMGData(file_str, fsamp_emg)
+emg_data, emg_time_axis = emg_data_obj.loadMiniANTEMGData(file_str, fsamp_emg)
 
 # *********************************************************************************
 # ************************* Process EMG data  *************************************
@@ -76,10 +74,10 @@ emg_data, emg_time_axis, emg_ch_names = TimeseriesData.loadCometaEMGData(file_st
 
 
 # apply bandpass filter 
-emg_data_filtered = EMGData.applyBPFilterRectifying(fsamp_emg, 20, 200, emg_data)
+emg_data_filtered = emg_data_obj.applyBPFilterRectifying(fsamp_emg, 20, 200, emg_data)
 
 # show all EMG channels
-EMGData.showEMGData(emg_data, emg_time_axis, emg_ch_names)
+emg_data_obj.showEMGData(emg_data, emg_time_axis, emg_ch_names)
 
 # show selected EMG channels
 #EMGData.showEMGData(emg_data_filtered, emg_time_axis, emg_ch_names_select)
