@@ -11,7 +11,7 @@ from ...lib.emg_lib import EMGData
 
 
 # project path settings 
-current_path = os.getcwd() # project path 
+current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
 project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
 data_path = os.path.join(project_path, 'data') # path where the data lays 
 lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
@@ -19,7 +19,8 @@ sys.path.append(lib_path) # append own libs to path
 
 
 # own libs 
-#import EMGData
+from emg_lib import EMGData
+from timeseries_data import TimeseriesData
 
 
 # *********************************************************************************
@@ -58,11 +59,11 @@ fsamp_emg = 2000 # in Hz
 
 # loading emg data (Cometa)
 file_str = os.path.join(data_path, file_str)
-emg_data, emg_time_axis, emg_ch_names = EMGData.loadCometaEMGData(file_str)
+emg_data, emg_time_axis, emg_ch_names = TimeseriesData.loadCometaEMGData(file_str)
 # (data, channels)
 
 # load EMG data ANT
-#emg_data, emg_time_axis = EMGData.loadMiniANTEMGData(file_str, fsamp_emg)
+#emg_data, emg_time_axis = TimeseriesData.loadMiniANTEMGData(file_str, fsamp_emg)
 
 # *********************************************************************************
 # ************************* Process EMG data  *************************************

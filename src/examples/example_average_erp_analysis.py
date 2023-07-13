@@ -7,11 +7,10 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
-from ...lib.eeg_lib import EEGData
 
 
 # project path settings 
-current_path = os.getcwd() # project path 
+current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
 project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
 data_path = os.path.join(project_path, 'data') # path where the data lays 
 lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
@@ -19,9 +18,12 @@ sys.path.append(lib_path) # append own libs to path
 
 
 # # own libs 
+from eeg_lib import EEGData
+from timeseries_data import TimeseriesData
+
 # proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 # sys.path.append(proj_path+"/lib") # path to lib folder 
-#import EEGData
+#import eeg_lib
 
 
 # *********************************************************************************
@@ -29,12 +31,7 @@ sys.path.append(lib_path) # append own libs to path
 # *********************************************************************************
 
 #filenames 
-filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr",
-             "17032023_AW98D_unilateral_set1.vhdr", "17032023_AW98D_unilateral_set2.vhdr", "17032023_AW98D_unilateral_set3.vhdr",
-             "16032023_BS34D_unilateral_set1.vhdr", "16032023_BS34D_unilateral_set2.vhdr", "16032023_BS34D_unilateral_set3.vhdr",
-             "15032023_BR39D_unilateral_set1.vhdr", "15032023_BR39D_unilateral_set2.vhdr", "15032023_BR39D_unilateral_set3.vhdr",
-             "14032023_AU12D_unilateral_set1.vhdr", "14032023_AU12D_unilateral_set2.vhdr", "14032023_AU12D_unilateral_set3.vhdr", 
-             "13032023_BZ29D_unilateral_set1.vhdr", "13032023_BZ29D_unilateral_set2.vhdr", "13032023_BZ29D_unilateral_set3.vhdr"]
+filenames = ["21032023_AJ80D_curls_with_pause_set1, 21032023_AJ80D_curls_with_pause_set2, 21032023_AJ80D_curls_with_pause_set3"]
 
 
 
@@ -55,7 +52,7 @@ apply_filter = True # setting to False will ignore the filtering
 reref_channel = ["average"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
-marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
+marker_number = 20 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
 # specifying marker type and give it a name (event that is used for epoching)
@@ -98,7 +95,7 @@ for files_str in filenames:
     data_str_arr.append(os.path.join(data_path, files_str)) 
 data_str_arr = np.array(data_str_arr)
 
-raw= EEGData.loadBrainproductsData(data_str_arr) # read data in brainproducts format
+raw= TimeseriesData.loadBrainproductsData(data_str_arr) # read data in brainproducts format
 
 
 # *********************************************************************************
