@@ -53,7 +53,10 @@ fsamp_emg = 500 # for ANT
 # ************************* Load EMG data  ****************************************
 # *********************************************************************************
 
-emg_data_obj = EMGData(1, file_str, fsamp_emg) #creating emg_data object
+# creating EMG Object and load emg_data 
+
+emg_data_obj = EMGData(1, file_str, fsamp_emg) #parse 0 for Cometa and 1 for ANT
+
 emg_data , emg_time_axis = emg_data_obj.get_raw_data()
 
 # loading emg data (Cometa)
