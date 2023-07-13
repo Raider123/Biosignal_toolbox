@@ -16,6 +16,32 @@ class EEGData:
 
     def __init__(self):
         pass
+
+    def loadBrainproductsData(dataset_list): 
+
+        """
+        This function can be used for loading one or more datasets in brainproducts format.
+        Arguments:
+            dataset_list: A list of strings with filenames of the datasets to be loaded.
+
+        Returns:
+            raw: An mne object with the loaded (concatenated) dataset(s). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 28.11.2022 (by Niklas Kueper)
+        """
+        
+        if (len(dataset_list) > 1): 
+            raw_list = []
+            for dataset in dataset_list: 
+                raw1 = mne.io.read_raw_brainvision('./data/'+dataset, preload = True, verbose = False)
+                raw_list.append(raw1)
+            raw = mne.concatenate_raws(raw_list)
+        else: 
+            raw = mne.io.read_raw_brainvision(dataset_list[0], preload = True, verbose = False)
+
+        return raw
         
 
     def applyButterLowpassFilter(signal, f_lowpass, f_samp, N): 

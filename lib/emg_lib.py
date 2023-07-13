@@ -13,9 +13,63 @@ class EMGData:
 
     def __init__(self):
         pass
- 
 
-    def showEMGData(emg_data, time_axis, ch_names): 
+    def loadCometaEMGData(self, file_str):
+
+        """
+        This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
+        Arguments:
+            file_str: The file to load given as String. 
+
+        Returns: 
+            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
+            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
+            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 31.01.2023 (by Niklas Kueper)
+        """
+
+        #seperate between data, meta and channel names 
+        emg_data = np.loadtxt(file_str, dtype = float, delimiter=None, skiprows=5)
+
+        # extract EMG channel names 
+        channel_names = np.loadtxt(file_str, dtype = str, delimiter=':', max_rows=1, skiprows=4)
+        channel_names = channel_names[1:-1] # cut off last and first values since they are not EMG channel names 
+
+        emg_data_channel = emg_data[:, 1:] # channel dimensions 
+        emg_time_axis = emg_data[:, 0] # time axis 
+
+        return emg_data_channel, emg_time_axis, channel_names
+
+    
+    def loadMiniANTEMGData(self, file_str, f_samp): 
+
+        """ TODO: No sampling rate given in the data 
+        This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
+        Arguments:
+            file_str: The file to load given as String. 
+
+        Returns: 
+            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
+            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
+            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 31.01.2023 (by Niklas Kueper)
+        """
+
+        #seperate between data, meta and channel names 
+        emg_data_raw = np.loadtxt('./data/'+file_str) # at least th
+        emg_data = emg_data_raw[:-1, :-2]
+        time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
+
+
+        return emg_data, time_axis 
+
+    def showEMGData(self, emg_data, time_axis, ch_names): 
 
         if (emg_data.ndim > 1): 
             num_channels = emg_data.shape[1]
@@ -36,7 +90,7 @@ class EMGData:
         plt.show()
 
 
-    def channelSelection(emg_data, ch_names, selected_channels, inverse): 
+    def channelSelection(self, emg_data, ch_names, selected_channels, inverse): 
 
         ch_indices = []
 
@@ -56,7 +110,7 @@ class EMGData:
         return remaining_emg_data, remaining_emg_channels
 
 
-    def decimateEMGData(emg_data, time_axis, target_frequency, fsamp_emg): 
+    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
         
         down_factor = int(fsamp_emg/target_frequency)
 
@@ -84,7 +138,7 @@ class EMGData:
         return dec_emg_data, new_time_axis
 
     
-    def applyVarianceFilter(signal, n_var):
+    def applyVarianceFilter(self, signal, n_var):
         # signal init 
         emg_filtered = np.zeros(signal.shape)
 
@@ -110,7 +164,7 @@ class EMGData:
         return emg_filtered
 
 
-    def epocheEMGData(emg_data, marker_indices, fsamp, t_start, t_stop): 
+    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
 
         """
         This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.  
@@ -146,7 +200,7 @@ class EMGData:
         return emg_epochs
 
 
-    def applyBPFilterRectifying(f_samp, f_high, f_low, emg_data):
+    def applyBPFilterRectifying(self, f_samp, f_high, f_low, emg_data):
 
         """
         This function... to be written !
