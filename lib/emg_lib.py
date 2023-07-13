@@ -11,8 +11,15 @@ from scipy import signal as sig
 # *********************************************************************************
 class EMGData:
 
-    def __init__(self):
-        pass
+    def __init__(self, load_data = None, file_str = None, f_samp = None):
+        
+        if load_data is 0:
+            self.raw = self.loadCometaEMGData(file_str)
+        elif load_data is 1:
+            self.raw = self.loadMiniANTEMGData(file_str, f_samp)
+
+    def get_raw_data(self):
+        return self.raw
 
     def loadCometaEMGData(self, file_str):
 
@@ -32,7 +39,7 @@ class EMGData:
         """
 
         #seperate between data, meta and channel names 
-        emg_data = np.loadtxt(file_str, dtype = float, delimiter=None, skiprows=5)
+        emg_data = np.loadtxt('./data/'+file_str, dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
         channel_names = np.loadtxt(file_str, dtype = str, delimiter=':', max_rows=1, skiprows=4)
