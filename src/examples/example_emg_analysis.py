@@ -53,7 +53,8 @@ fsamp_emg = 500 # for ANT
 # ************************* Load EMG data  ****************************************
 # *********************************************************************************
 
-emg_data_obj = EMGData() #creating emg_data object
+emg_data_obj = EMGData(1, file_str, fsamp_emg) #creating emg_data object
+emg_data , emg_time_axis = emg_data_obj.get_raw_data()
 
 # loading emg data (Cometa)
 #file_str = os.path.join(data_path, file_str)
@@ -61,7 +62,7 @@ emg_data_obj = EMGData() #creating emg_data object
 # (data, channels)
 
 # load EMG data ANT
-emg_data, emg_time_axis = emg_data_obj.loadMiniANTEMGData(file_str, fsamp_emg)
+#emg_data, emg_time_axis = emg_data_obj.loadMiniANTEMGData(file_str, fsamp_emg)
 
 # *********************************************************************************
 # ************************* Process EMG data  *************************************
