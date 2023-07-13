@@ -19,38 +19,115 @@ import emg_lib
 
 
 # files to load 
-# filenames = ["20230426_AJ05D_orthosisErrorIjcai_multi_set4"] 
+#filenames = ["Test_Orthosis/20230623_Test_Orthosis.vhdr"] 
+filenames = ["Test_Orthosis/26012023_ZW07D_ErrorOrthosisEEGEMG_Multi_Set3.vhdr"]
+evaluation = "Old_orthosis_ZW07D_"
 
-# #create numpy array with file names 
-# data_str_arr = []
-# for files_str in filenames: 
-#     data_str_arr.append(os.path.join(data_path, files_str)) 
+channel_to_evaluate = "P3"
+
+start_ind = 38576
+stop_ind = 108885
 
 
-# raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
-# f_samp_eeg = raw.info['sfreq'] # get sampling rate 
 
-# data = raw.get_data()
-# print(data.shape)
+#create numpy array with file names 
+data_str_arr = []
+for files_str in filenames: 
+    data_str_arr.append(os.path.join(data_path, files_str)) 
 
-# one_ch_data = data[10, :]
 
-# #print(raw.ch_names)
+raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
+raw.filter(1, 100)
 
-# names = list(raw.ch_names) 
+f_samp_eeg = raw.info['sfreq'] # get sampling rate 
 
-# print(len(names))
+EEG_data = raw.get_data()
+
+ch_names = list(raw.ch_names) 
+
+
+channel_index = ch_names.index(channel_to_evaluate)
+print("Channel: ", ch_names[channel_index])
+
+# specify time range 
+EEG_ch_selected = EEG_data[channel_index, start_ind:stop_ind]
+
+
+i = 0
+
+#for one_ch_data in EEG_ch_selected: 
+# Number of sample points
+
+N = len(EEG_ch_selected)
+
+# sample spacing
+
+dT = 1.0/f_samp_eeg
+
+x = np.linspace(0.0, N*dT, N, endpoint=False)
+
+y = EEG_ch_selected
+
+yf = fft(y)
+
+xf = fftfreq(N, dT)[:N//3]
+
+
+
+fig, axs = plt.subplots(2, 1)
+plt.subplots_adjust(hspace = 0.5)
+axs[0].plot(xf, 2.0/N * np.abs(yf[0:N//3]))
+
+axs[0].grid()
+axs[0].set_xlabel("Frequencies in Hz")
+axs[0].set_ylabel("|H|")
+axs[0].set_title(evaluation+" FFT of channel:" +ch_names[channel_index])
+
+#for one_ch_data in EEG_ch_selected: 
+# Number of sample points
+
+
+axs[1].plot(x, y)
+
+axs[1].set_xlabel("Time in seconds")
+axs[1].set_ylabel("Magnitude")
+axs[1].set_title(evaluation+" time domain:" +ch_names[channel_index])
+
+fig.savefig(evaluation+ch_names[channel_index])
+
+plt.show()
+
+# raw.plot()
+# plt.show()
+
+# EMG 
+
+# f_samp_emg = 1000 
+
+# # for ANT Systems 
+# emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
+
+
+#  # EMG data loading and processing 
+# filename_EMG = "20230426_AJ05D_orthosisErrorIjcai_multi_set7.txt"
+
+
+
+# file_str_emg = os.path.join(data_path, filename_EMG)
+# emg_data, emg_time_axis = emg_lib.loadMiniANTEMGData(file_str_emg, f_samp_emg)
+
+# emg_data_filtered = emg_lib.applyBPFilterRectifying(f_samp_emg, 20, 450, emg_data)
+
 
 # i = 0
-
-# for one_ch_data in data: 
+# for one_ch_data in emg_data_filtered.T: 
 # # Number of sample points
 
 #     N = len(one_ch_data)
 
 #     # sample spacing
 
-#     dT = 1.0/f_samp_eeg
+#     dT = 1.0/f_samp_emg
 
 #     x = np.linspace(0.0, N*dT, N, endpoint=False)
 
@@ -66,57 +143,7 @@ import emg_lib
 #     plt.grid()
 #     plt.xlabel("Frequencies in Hz")
 #     plt.ylabel("|H|")
-#     plt.title("FFT of channel:" +str(names[i]))
+#     plt.title("FFT of channel:" +str(emg_ch_names[i]))
 
 #     plt.show()
 #     i = i+1
-
-
-
-# EMG 
-
-f_samp_emg = 1000 
-
-# for ANT Systems 
-emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
-
-
- # EMG data loading and processing 
-filename_EMG = "20230426_AJ05D_orthosisErrorIjcai_multi_set7.txt"
-
-
-
-file_str_emg = os.path.join(data_path, filename_EMG)
-emg_data, emg_time_axis = emg_lib.loadMiniANTEMGData(file_str_emg, f_samp_emg)
-
-emg_data_filtered = emg_lib.applyBPFilterRectifying(f_samp_emg, 20, 450, emg_data)
-
-
-i = 0
-for one_ch_data in emg_data_filtered.T: 
-# Number of sample points
-
-    N = len(one_ch_data)
-
-    # sample spacing
-
-    dT = 1.0/f_samp_emg
-
-    x = np.linspace(0.0, N*dT, N, endpoint=False)
-
-    y = one_ch_data
-
-    yf = fft(y)
-
-    xf = fftfreq(N, dT)[:N//2]
-
-
-    plt.plot(xf, 2.0/N * np.abs(yf[0:N//2]))
-
-    plt.grid()
-    plt.xlabel("Frequencies in Hz")
-    plt.ylabel("|H|")
-    plt.title("FFT of channel:" +str(emg_ch_names[i]))
-
-    plt.show()
-    i = i+1

@@ -29,9 +29,9 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_standard_within"
-preprocessed_data_filename_end = "_34ch_05_4Hz"
-use_fine_tuning = False
+result_file_name = "fcn_network_results_pooling_scale_ot_20t"
+preprocessed_data_filename_end = "_34ch_05_4Hz_pool_tune_adapt_scale1"
+use_fine_tuning = True
 
 preprocessed_emg_file_name_end = "_emg" 
 
@@ -131,8 +131,14 @@ for subject in subject_names:
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
         lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")
 
+        print(lrp_epochs_train_scaled.shape)
+
+        # subset of trials for training: 
+        #lrp_epochs_train_scaled = lrp_epochs_train_scaled[:, :, :] # 20 trials 
+        
         if(use_fine_tuning): 
-             lrp_epochs_train_tune_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_trainTune_"+str(iteration)+".npy")
+            lrp_epochs_train_tune_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_trainTune_"+str(iteration)+".npy")
+            lrp_epochs_train_tune_scaled = lrp_epochs_train_tune_scaled[0:20, :, :]
 
         # fuse eeg and emg data on data level 
         if (fuse_emg_eeg): 

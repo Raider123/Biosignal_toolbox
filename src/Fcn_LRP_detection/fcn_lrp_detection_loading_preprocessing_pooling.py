@@ -30,9 +30,9 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #choose a dataset of a subject 
-dataset = data_str_uni_XP01
+dataset = data_str_uni_JV43
 
-dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_JV43, data_str_uni_RA12, data_str_uni_AV82, data_str_uni_QS70, data_str_uni_UP28, data_str_uni_ZS27))
+dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_XP01, data_str_uni_RA12, data_str_uni_AV82, data_str_uni_QS70, data_str_uni_UP28, data_str_uni_ZS27))
 include_test_sub_in_train = False
 
 
@@ -47,7 +47,7 @@ eeg_channel_start_number = 0
 eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
 # name pattern of current subject and paradigm
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_05_4Hz_pooling_finetuning"
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_05_4Hz_pool_tune_adapt_scale1"
 
 
 # Filtering Params for EEG data 
@@ -103,7 +103,7 @@ for iterations in set_nums:  # change here later on
 
         test_list = [dataset[2]]
 
-        test_list = [dataset[3], dataset[2]] # use for XP01 
+        #test_list = [dataset[3], dataset[2]] # use for XP01 
 
         raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
         raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
@@ -115,7 +115,7 @@ for iterations in set_nums:  # change here later on
         else: 
             train_list = list(dataset_pool) 
             train_list_tuning = [dataset[1], dataset[2]] 
-            train_list_tuning = [dataset[1], dataset[2], dataset[3]] # use for XP01
+            #train_list_tuning = [dataset[1], dataset[2], dataset[3]] # use for XP01
             raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
         
 
@@ -134,7 +134,7 @@ for iterations in set_nums:  # change here later on
         else: 
             train_list = list(dataset_pool) 
             train_list_tuning = [dataset[0], dataset[2]]
-            train_list_tuning = [dataset[0], dataset[2], dataset[3]] # use for XP01 
+            #train_list_tuning = [dataset[0], dataset[2], dataset[3]] # use for XP01 
             raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
         
         #train_list = [dataset[0], dataset[2], dataset[3]] + list(dataset_pool)# use for XP01 
@@ -148,30 +148,20 @@ for iterations in set_nums:  # change here later on
     # *********************************************************************************
     # *********** EEG preprocessing, epoching and train, test split *******************
     # *********************************************************************************
-
+    
     print(raw_train.ch_names)
 
     # epoch the eeg data to trial length (for merged sets)
     lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
     lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-    
+
 
     # fit scaler only on train data 
     # train test permutation 1 
     scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
     scaler.fit(lrp_epochs_train) # fit to epochs data
-
-    lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
-    lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
-
-    # seperate test and validation
-    test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 
-    lrp_epochs_val_scaled = lrp_epochs_test_val_scaled[0:test_val_idx, :, :]
-    lrp_epochs_test_scaled = lrp_epochs_test_val_scaled[test_val_idx:, :, :]
-
-    lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
     
-
+    # scaler for fine tuning 
     if(include_test_sub_in_train == False): 
         lrp_epochs_train_tune, lrp_epochs_train_obj_tune, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj_tune = eeg_lib.rereferencingEpoching(raw_train_tuning, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
         scaler_tune = mne.decoding.Scaler(info=raw_train_obj_tune.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
@@ -179,6 +169,19 @@ for iterations in set_nums:  # change here later on
         lrp_epochs_train_tune_scaled= scaler_tune.transform(lrp_epochs_train_tune) # transform train data (unit variance and zero mean)
 
 
+    if(include_test_sub_in_train): 
+        lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
+        lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
+    else: 
+        # scale train and test data with actual subjects data (adapt pooling data)
+        lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
+        lrp_epochs_test_val_scaled= scaler_tune.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
+
+
+    # seperate test and validation
+    test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 
+    lrp_epochs_val_scaled = lrp_epochs_test_val_scaled[0:test_val_idx, :, :]
+    lrp_epochs_test_scaled = lrp_epochs_test_val_scaled[test_val_idx:, :, :]
     
 
     # *********************************************************************************
@@ -198,6 +201,7 @@ for iterations in set_nums:  # change here later on
 
 
     print("shape train data: ", lrp_epochs_train_scaled.shape)
+    print("shape train tune data: ", lrp_epochs_train_tune_scaled.shape)
 
     print("")
     print("Done storing preprocessed data")

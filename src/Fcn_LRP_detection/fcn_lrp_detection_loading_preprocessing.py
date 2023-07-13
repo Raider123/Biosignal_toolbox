@@ -30,7 +30,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "_05_4Hz_bad_ch"
+filename_end = "34ch_05_4Hz"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -63,8 +63,8 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
-inverse_keep_channel = False # standard: True 
-channel_list = ["FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+inverse_keep_channel = True # standard: True 
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 #["x_dir", "y_dir", "z_dir"]
 
 # just remap the parameters (need to be adapted)

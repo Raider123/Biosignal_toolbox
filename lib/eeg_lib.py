@@ -222,6 +222,52 @@ def getKerasPredictionResultsLRP(model, epochs, n_samp_features):
     return predicted_labels, true_labels, prediction_scores
 
 
+def getKerasPredictionResultsLRPWind(model, windows, true_wind_labels): 
+
+    """
+    This function creates and showes an topoplot at different points in time. 
+    Arguments:
+        model: The keras model object. 
+        windows: The EEG windows as numpy array with shape: (n_trials, n_sampels, n_windows)
+        true_wind_labels: The labels of the windows as numpy array with shape: (n_trials, n_labels(sampels))
+
+    Returns:
+        predicted_labels: The predicted labels of the classifier as float values (0.0 noerp or 1.0 erp)
+        true_labels: The true labels in respect to the number of n_samp_features as erp labels (-n_samp_features to time 0 as erp labelled points)
+        trial_prediction: The prediction scores of each classified datapoint. 
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 27.06.2023 (by Niklas Kueper)
+    """
+
+    true_labels = []
+    predicted_labels = []
+    prediction_scores = []
+
+    for trials in windows: 
+        # true labels single trial 
+
+        erp_labels = true_wind_labels[0, :] # labels should be consistent fo r
+
+        true_labels.append(erp_labels[:,])
+        # single trial predictions 
+        trial_prediction = model.predict(trials.T)
+        trial_label = [0 if score <0.5 else 1 for score in trial_prediction]
+        trial_label = np.array(trial_label)
+        predicted_labels.append(trial_label)
+        prediction_scores.append(trial_prediction)
+        
+    #flatten the trial labels
+    true_labels = np.array(true_labels)
+    predicted_labels = np.array(predicted_labels)
+    prediction_scores = np.array(prediction_scores)
+
+    return predicted_labels, true_labels, prediction_scores
+
+
+
+
 def calcMovingAveragePredictionScores(trial_prediction_test, n_samp): 
     processed_trial_predictions = np.zeros(trial_prediction_test.shape)
 
