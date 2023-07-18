@@ -2,6 +2,7 @@
 # ************************* Imports ***********************************************
 # *********************************************************************************
 
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal as sig
@@ -11,17 +12,46 @@ from scipy import signal as sig
 # *********************************************************************************
 class EMGData:
 
-    def __init__(self, load_data = None, file_str = None, f_samp = None):
+    def __init__(self, load_data = None, data_path = None, file_str = None, f_samp = None, channel_names = None, apply_var_filter = None, apply_bp_filter = None, plot_emg = None, sel_channels = None, inverse = False, target_freq = None, n_var = None):
         
         if load_data is 0:
-            self.raw = self.loadCometaEMGData(file_str)
+            self.emg_data, self.emg_time_axis, self.channel_names = self.loadCometaEMGData(data_path, file_str)
         elif load_data is 1:
-            self.raw = self.loadMiniANTEMGData(file_str, f_samp)
+            self.emg_data, self.emg_time_axis = self.loadMiniANTEMGData(data_path, file_str, f_samp)
 
-    def get_raw_data(self):
-        return self.raw
+        if apply_var_filter is 1:
+            self.channel_names = channel_names
+            self.sel_channels = sel_channels
+            self.target_freq = target_freq
+            self.n_var = n_var
+            self.emg_data_select, self.emg_ch_names_select = self.channelSelection(self.emg_data, channel_names, sel_channels, inverse)
+            self.emg_data_down, self.time_axis_down = self.decimateEMGData(self.emg_data_select, self.emg_time_axis, target_freq, f_samp)
+            self.emg_data_filtered = self.applyVarianceFilter(self.emg_data_down, n_var)
 
-    def loadCometaEMGData(self, file_str):
+        if apply_bp_filter is 1:
+            self.emg_filtered = self.applyBPFilterRectifying(f_samp, 20, 200, self.emg_data)
+
+        if plot_emg is 1:
+            self.showEMGData(self.emg_data, self.emg_time_axis, channel_names)
+        elif plot_emg is 2:
+            self.showEMGData(self.emg_filtered, self.emg_time_axis, channel_names)
+
+
+
+    def get_emg_data(self):
+        return self.emg_data, self.emg_time_axis, self.channel_names
+        
+    def get_emg_filtered(self):
+        return self.emg_filtered
+    
+    def get_sel_channels(self):
+        return self.sel_channels
+    
+    def get_time_axis_down(self):
+        return self.time_axis_down
+    
+
+    def loadCometaEMGData(self, data_path, file_str):
 
         """
         This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
@@ -39,7 +69,7 @@ class EMGData:
         """
 
         #seperate between data, meta and channel names 
-        emg_data = np.loadtxt('./data/'+file_str, dtype = float, delimiter=None, skiprows=5)
+        emg_data = np.loadtxt(os.path.join(data_path, file_str), dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
         channel_names = np.loadtxt(file_str, dtype = str, delimiter=':', max_rows=1, skiprows=4)
@@ -51,7 +81,7 @@ class EMGData:
         return emg_data_channel, emg_time_axis, channel_names
 
     
-    def loadMiniANTEMGData(self, file_str, f_samp): 
+    def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
 
         """ TODO: No sampling rate given in the data 
         This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
@@ -69,7 +99,7 @@ class EMGData:
         """
 
         #seperate between data, meta and channel names 
-        emg_data_raw = np.loadtxt('./data/'+file_str) # at least th
+        emg_data_raw = np.loadtxt(os.path.join(data_path, file_str)) # at least th
         emg_data = emg_data_raw[:-1, :-2]
         time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 
