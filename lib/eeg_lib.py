@@ -14,8 +14,14 @@ from scipy import signal as sig
 # *********************************************************************************
 class EEGData:
 
-    def __init__(self):
-        pass
+    def __init__(self, dataset_list = None, variable = None):
+        if dataset_list is not None:
+            self.raw = self.loadBrainproductsData(dataset_list)
+
+
+    def get_raw(self):
+        return self.raw
+
 
     def loadBrainproductsData(self, dataset_list): 
 
