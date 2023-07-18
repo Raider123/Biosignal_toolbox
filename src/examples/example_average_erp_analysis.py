@@ -88,15 +88,17 @@ rename_channels = True
 # ***************** Load and concatenate a dataset *********
 # *********************************************************************************
 
-eeg_data_obj = EEGData()
-
 #create numpy array with file names 
 data_str_arr = []
 for files_str in filenames: 
     data_str_arr.append(os.path.join(data_path, files_str)) 
 data_str_arr = np.array(data_str_arr)
 
-raw = eeg_data_obj.loadBrainproductsData(data_str_arr) # read data in brainproducts format
+#create EEGData object
+eeg_data_obj = EEGData(data_str_arr)
+
+#load EEG Data
+raw = eeg_data_obj.get_raw() # read data in brainproducts format
 
 
 # *********************************************************************************
