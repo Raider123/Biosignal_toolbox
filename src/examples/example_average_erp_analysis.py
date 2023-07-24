@@ -105,9 +105,6 @@ load_data = 1 # 0 -> No, 1 -> Yes
 #create EEGData object
 eeg_data_obj = EEGData(load_data, data_str_arr, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline, plot_montage, rename_channels, min_val, max_val, topoplot_times, topoplot_title_str, channel_to_evaluate)
 
-#load EEG Data
-raw = eeg_data_obj.get_raw() # read data in brainproducts format
-
 # Plot the selected channel (average)
 plt.figure()
 plt.plot(eeg_data_obj.get_time_axis_eeg_epochs(), eeg_data_obj.get_average_eeg_selected_channel())
