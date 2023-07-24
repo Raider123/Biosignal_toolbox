@@ -14,13 +14,31 @@ from scipy import signal as sig
 # *********************************************************************************
 class EEGData:
 
-    def __init__(self, dataset_list = None, variable = None):
-        if dataset_list is not None:
+    def __init__(self, load_data = None, dataset_list = None, marker_number = None, error_number = None, channel_list = None, inverse_keep_channel = None, reref_channel = None, apply_filter = None, f_highpass = None, f_lowpass = None, event_id_used = None, epoching_time_before_onset = None, epoching_time_after_onset = None, f_samp_eeg = None, apply_baseline_correction = None,  t0_baseline = None, t1_baseline = None, plot_montage = None, rename_channels = None, min_val = None, max_val = None, topoplot_times = None, topoplot_title_str = None, channel_to_evaluate = None):
+        if load_data is 1:
             self.raw = self.loadBrainproductsData(dataset_list)
+            self.erp_epochs, self.erp_epochs_obj, self.time_axis_eeg_epochs, self.remaining_eeg_channel_names, self.raw_filtered = self.rereferencingEpoching(self.raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+            self.average_erp_epochs = np.mean(self.erp_epochs, axis = 0)
+
+            self.acticap_montage = self.createActicapMontage(plot_montage, rename_channels)
+            self.raw_filtered.set_montage(self.acticap_montage)
+
+            self.topoplot(self.average_erp_epochs, self.time_axis_eeg_epochs, self.raw_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
+
+            self.channel_index = self.remaining_eeg_channel_names.index(channel_to_evaluate)
+            self.average_eeg_selected_channel = self.average_erp_epochs[self.channel_index, :]
+        
+
 
 
     def get_raw(self):
         return self.raw
+    
+    def get_time_axis_eeg_epochs(self):
+        return self.time_axis_eeg_epochs
+    
+    def get_average_eeg_selected_channel(self):
+        return self.average_eeg_selected_channel
 
 
     def loadBrainproductsData(self, dataset_list): 
