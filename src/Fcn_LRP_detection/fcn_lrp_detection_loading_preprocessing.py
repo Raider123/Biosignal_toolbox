@@ -34,7 +34,7 @@ filename_end = "34ch_05_4Hz"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
-validation_rate = 0.2 # rate to split test and validation data 
+validation_rate = 0.5 # rate to split test and validation data 
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 #0.5 # in Hz 

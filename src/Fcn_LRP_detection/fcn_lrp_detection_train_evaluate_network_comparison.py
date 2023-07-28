@@ -29,9 +29,9 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_pooling_scale_ot_20t"
-preprocessed_data_filename_end = "_34ch_05_4Hz_pool_tune_adapt_scale1"
-use_fine_tuning = True
+result_file_name = "fcn_network_results_baseline"
+preprocessed_data_filename_end = "_34ch_05_40Hz"
+use_fine_tuning = False
 
 preprocessed_emg_file_name_end = "_emg" 
 
@@ -70,18 +70,6 @@ use_relabelling = False # should the metrics be calculated with relabelling afte
 determine_labels = 3
 searching_bounds = [61, 81] # boundaries where the "label change point" is determined, values are the numbers of the windows (see wind_names param for which windows are selected as bounds)
 
-# times in seconds where to get the train data from epoched signals
-# t1_noLRP = -5000 # in ms
-# t2_noLRP = -1000
-
-# postprocessing params 
-# short_tresh = 0.85
-# mid_tresh = 0.7
-# long_tresh = 0.6
-# short_sampels = -75
-# mid_sampels = -250
-# long_sampels = -500
-# num_class_instances = 1
 
 
 # training windows 
@@ -201,7 +189,7 @@ for subject in subject_names:
         model.add(Dense(units=third_layer_units))
         model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
         model.add(Dense(units=1, activation="sigmoid"))
-
+        
         
         #show model
         #print(model.summary())
@@ -298,7 +286,7 @@ for subject in subject_names:
         # predictions scores (each sample) of testset (shape: (trials, sampels))
         trial_prediction_val = trial_prediction_val[:,:,0] # just because of shape issues 
 
-
+        
         # print("")
         # print("Single trial metrics val data (each sampel):")
         # print("TNR: ",np.round(tnr_val, 3))
@@ -338,9 +326,8 @@ for subject in subject_names:
 
         # *********************************************************************************
         # ********************* Postprocessing of performance for online use   ************
-        # *********************************************************************************
+        # ********************************************************************************* 
 
-        
 
         perf_results = np.array([np.round(ba_win_select, 3), np.round(tpr_win_select, 3), np.round(tnr_win_select, 3)]) # window evaluation 
         

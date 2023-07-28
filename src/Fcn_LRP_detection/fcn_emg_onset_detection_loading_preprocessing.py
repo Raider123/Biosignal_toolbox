@@ -51,7 +51,7 @@ inverse = False
 
 # Which sets are used 
 set_nums = [0, 1, 2]
-validation_rate = 0.2 # rate to split test and validation data 
+validation_rate = 0.5 # rate to split test and validation data 
 
 # name pattern of current subject and paradigm 
 subject_paradigm_name = dataset_EMG[0].split("_r_")[1].split("_set")[0]+"_emg"

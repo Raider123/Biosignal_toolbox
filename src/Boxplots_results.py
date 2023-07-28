@@ -14,14 +14,14 @@ import pandas as pd
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "online base"#"Training trials compare pooling"
+title = "fcn_network_results_34ch_time_frequency_features"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["base"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_EEG_Online_3wind"] #["fcn_network_results_within_80t", "fcn_network_results_within_40t","fcn_network_results_within_20t", "fcn_network_results_pooling_scale_80t", "fcn_network_results_pooling_scale_40t", "fcn_network_results_pooling_scale_20t", "fcn_network_results_pooling_scale_ot_20t"]
+xLabels = ["time", "frequency", "fusion"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_time_domain_feat", "fcn_network_results_34ch_freq_domain_feat", "fcn_network_results_34ch_time_freq_domain_feat"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
-compare_type = 'train data and trials'
+compare_type = 'features'
 #compare_type = 'number of training trials'
 ylabel = "Performance (BA)"
 

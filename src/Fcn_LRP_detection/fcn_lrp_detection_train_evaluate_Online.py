@@ -26,60 +26,54 @@ tf.config.set_visible_devices([], 'GPU')
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_EEG_base"
-preprocessed_data_filename_end = "_34ch"
-
+result_file_name = "fcn_network_results_34ch_time_freq_domain_feat"
+preprocessed_data_filename_end = "34ch_05_4Hz"
+preprocessed_data_filename_end_f = "34ch_05_40Hz"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
-continues_selection = True # if True sampels for nolrp class are used from each part which has not been labeled to lrp
-
 
 #machine learning params
-n_samp_features = 50 # corresponds to 200 ms of data for both classes, for lrp last sampels to movement and for nolrp sampels from -5000 to -1000 are used with a stepsize
-n_samp_lrp_label = 50 # label defs for window wise evaluation
 # lrp definition and data starts -n_samp_features to 0
 first_layer_units = 8 # neurons of first layer
 second_layer_units = 8 # neurons of second layer
 third_layer_units = 8 # neurons of third layer
-n_epochs = 300 #20 training epochs (max since early stopping is used)
+n_epochs = 300 #30 training epochs (max since early stopping is used)
 n_batch_size = 64 # batch size # 64 seems to work nice
-dropout_rate = 0.5 # dropout rate of every layer of the network
+dropout_rate = 0.2 # dropout rate of every layer of the network
 shuffle_data = True # shuffle all data for training, validation and testing
-weight_no_lrp_class = 0.6 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
-weight_lrp_class = 0.4
+weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
+weight_lrp_class = 0.5
 show_training_results = False
-validation_rate = 0.2
 multiprocessing_cpus = 16
-early_stopping_patience = 100 # 3
+early_stopping_patience = 100
 leaky_alpha = 0.5
 
+
+# training windows and features
+train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-100", "bis-50", "bis0"]
+test_windows = ["bis-2500", "bis-2050", "bis-100", "bis0"]
+window_labels_train = [0.0, 0.0, 0.0, 1.0, 1.0, 1.0]
+window_labels_test = [0.0, 0.0, 1.0, 1.0]
+
+feature_times_windows = (900, 1000) # time inside the windows to be used as features (last 200 ms)
+# feature types used for generating training data 
+feature_type1 = "timepoints" 
+feature_type2 = "meanfreqs"
+
+features_used = "fusion" # which features to be used for classification 
 
 # window wise metric evaluation
 window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
 window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
-evaluation_time_per_window = 200 # the time in ms used at the end of each window for the prediction (in respect to 4 sampels at 20 Hz downsampling as features!)
-with_channel_dim = False # metrics has no channel dim
-use_relabelling = True # should the metrics be calculated with relabelling after training the classifier ? --> be careful when setting to True since youre changing the actual labels
+
 # specify params for metric evaluation with method "relabelling", otherwise the parameters are not relevant if use_relabelling = False
-determine_labels = 3
 searching_bounds = [61, 81] # boundaries where the "label change point" is determined, values are the numbers of the windows (see wind_names param for which windows are selected as bounds)
 
-# times in seconds where to get the train data from epoched signals
-t1_noLRP = -5000 # in ms
-t2_noLRP = -1000
 
-# postprocessing params 
-short_tresh = 0.85
-#mid_tresh = 0.7
-long_tresh = 0.6
-short_sampels = -75
-#mid_sampels = -250
-long_sampels = -500
-num_class_instances = 1
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
@@ -107,6 +101,10 @@ early_callback = tf.keras.callbacks.EarlyStopping(
     restore_best_weights=True,
 )
 
+# checkpoint = tf.keras.callbacks.ModelCheckpoint(results_path+'model_file.h5', 
+#                     monitor="val_accuracy", mode="max", 
+#                     save_best_only=True, verbose=1)
+
 
 for subject in subject_names:
     for iteration in interations:
@@ -125,17 +123,83 @@ for subject in subject_names:
         # ********************* Prepare data for network **********************************
         # *********************************************************************************
 
-        # preparing training, validation and test data
+        
+        # windowing of the data 
+        train_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
+        val_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
+        test_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
 
-        # split prepared data into train, validation and test
-        x_train, y_train = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_train_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_val, y_val = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_val_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
-        x_test, y_test = eeg_lib.timeDomainFeaturesFromEpochs(lrp_epochs_test_scaled, time_axis_eeg_batch, n_samp_features, continues_selection, shuffle_data, t1_noLRP, t2_noLRP)
+
+        # train and test window selection 
+        train_windows_EEG_select = eeg_lib.windowSelection(train_windows_EEG, wind_names, train_windows)
+        val_windows_EEG_select = eeg_lib.windowSelection(val_windows_EEG, wind_names, test_windows)
+        test_windows_EEG_select = eeg_lib.windowSelection(test_windows_EEG, wind_names, test_windows)
+
+        # set window labels 
+        y_train = eeg_lib.setWindowLabels(train_windows_EEG_select, window_labels_train)
+        y_val = eeg_lib.setWindowLabels(val_windows_EEG_select, window_labels_test)
+        y_test = eeg_lib.setWindowLabels(test_windows_EEG_select, window_labels_test)
+
+
+        # feature extraction from windows
+        # time domain 
+        x_train_t = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+        x_val_t = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+        x_test_t = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+
+
+
+        # ***************************************************************************
+        # ************************Frequency preprocessing ***************************
+        # ***************************************************************************
+        # for now use this with different processing steps for frequency features 
+
+
+        # load each individual train, val and test sets (preprocessed)
+        lrp_epochs_train_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_train_"+str(iteration)+".npy")
+        lrp_epochs_val_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_test_"+str(iteration)+".npy")
+        lrp_epochs_test_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_val_"+str(iteration)+".npy")
+
+        
+        # windowing of the data 
+        train_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled_f, f_samp_eeg, window_size, window_step)
+        val_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled_f, f_samp_eeg, window_size, window_step)
+        test_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_test_scaled_f, f_samp_eeg, window_size, window_step)
+
+
+        # train and test window selection 
+        train_windows_EEG_select_f = eeg_lib.windowSelection(train_windows_EEG_f, wind_names, train_windows)
+        val_windows_EEG_select_f = eeg_lib.windowSelection(val_windows_EEG_f, wind_names, test_windows)
+        test_windows_EEG_select_f = eeg_lib.windowSelection(test_windows_EEG_f, wind_names, test_windows)
+
+
+        #frequency domain 
+        x_train_f = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select_f, feature_type2, f_samp_eeg)
+        x_val_f = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select_f, feature_type2, f_samp_eeg)
+        x_test_f = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select_f, feature_type2, f_samp_eeg)
+
+
+
+        # which train features should be used 
+        if(features_used == "fusion"): 
+            x_train = np.concatenate((x_train_t, x_train_f), axis = 1)
+            x_val = np.concatenate((x_val_t, x_val_f), axis = 1)
+            x_test = np.concatenate((x_test_t, x_test_f), axis = 1)
+        elif(features_used == "frequency_domain"): 
+            x_train = x_train_f
+            x_test = x_test_f
+            x_val = x_val_f
+
+        else: 
+            x_train = x_train_t
+            x_val = x_val_t
+            x_test = x_test_t
 
 
         print("Shape of train data: ", x_train.shape)
         print("Shape of test data: ", x_test.shape)
         print("Shape of validation data: ", x_val.shape)
+        
 
         # *********************************************************************************
         # ********************* Build ML model in keras  ***********************************
@@ -154,13 +218,10 @@ for subject in subject_names:
         model.add(Dense(units=1, activation="sigmoid"))
 
 
-        #show model
-        #print(model.summary())
-
         # *********************************************************************************
         # ********************* Compile and train model  ***********************************
         # *********************************************************************************
-
+        
         # early stopping callback
         #callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=early_stopping_patience, verbose=0, mode="auto", baseline=None, restore_best_weights=True)
 
@@ -175,6 +236,14 @@ for subject in subject_names:
                             use_multiprocessing=True,
                             validation_data = (x_val, y_val),
                             callbacks = [early_callback])
+#
+        #model.load_weights(results_path+'model_file.h5') # load best model weights 
+
+
+        print("*********************************")
+        print("Training basic model done")
+        print("*********************************")
+
 
         # *********************************************************************************
         # ********************* Get and show training results   ***************************
@@ -217,56 +286,24 @@ for subject in subject_names:
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
 
-        predicted_labels_train, true_labels_train, trial_prediction_train = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_train_scaled, n_samp_features)
-        tnr_train, tpr_train, acc_train, ba_train = eeg_lib.calcTestAccAndRates(predicted_labels_train.flatten(), true_labels_train.flatten())
 
-
-        predicted_labels_val, true_labels_val, trial_prediction_val = eeg_lib.getKerasPredictionResultsLRP(model, lrp_epochs_val_scaled, n_samp_lrp_label)
-        tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(predicted_labels_val.flatten(), true_labels_val.flatten())
-
-        
-        # predictions scores (each sample) of testset (shape: (trials, sampels))
-        trial_prediction_val = trial_prediction_val[:,:,0] # just because of shape issues 
+        val_predictions = model.predict(x_val)
+        val_pred_labels = np.array([0 if score <0.5 else 1 for score in val_predictions])
+        tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(val_pred_labels.flatten(), y_val.flatten())
 
 
         print("")
-        print("Single trial metrics val data (each sampel):")
+        print("Single trial metrics val data windows:")
         print("TNR: ",np.round(tnr_val, 3))
         print("TPR: ",np.round(tpr_val, 3))
-        #print("Acc: ", np.round(acc_test, 3))
+        print("Acc: ", np.round(acc_val, 3))
         print("BA: ", np.round(ba_val, 3))
-
-
-
-        # *********************************************************************************
-        # ********************* Postprocessing of performance for online use   ************
-        # *********************************************************************************
-
-        
-        #window the smoothed prediction scores 
-        wind_arr_scores, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(trial_prediction_val, f_samp_eeg, window_size, window_step, True) # currently only with channel dim False is supported!
-
-        #window postprocessing: long and short criteriums 
-
-        window_prediction_scores = eeg_lib.onlineLRPWindowPredictionPostprocessing(wind_arr_scores, short_tresh, long_tresh, short_sampels, long_sampels)
-        
-
-        # calc trial metrics
-        ba_trial, tnr_trial, tpr_trial = eeg_lib.calcTrialMetricWindows(window_prediction_scores, searching_bounds, num_class_instances)
-
-        # wind_arr_predictions shape (trials, sampels, windows)
-        
-
         print("")
-        print("Metrics of trials (with postprocessing/ long short range fit): ")
-        print("TNR: ",np.round(tnr_trial, 3))
-        print("TPR: ",np.round(tpr_trial, 3))
-        print("BA: ", np.round(ba_trial, 3))
-        print("")
+
 
 
         #perf_results = np.array([np.round(ba_train, 3), np.round(tpr_train, 3), np.round(tnr_train, 3)])
-        perf_results = np.array([np.round(ba_trial, 3), np.round(tpr_trial, 3), np.round(tnr_trial, 3)])
+        perf_results = np.array([np.round(ba_val, 3), np.round(tpr_val, 3), np.round(tnr_val, 3)])
         perf_results_total.append(perf_results)
 
 
@@ -279,3 +316,7 @@ print("all done")
 print("")
 print("execution time: ")
 print(perf_counter()-time_start)
+
+
+#show model
+print(model.summary())
