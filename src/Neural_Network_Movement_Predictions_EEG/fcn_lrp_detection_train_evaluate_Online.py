@@ -8,6 +8,7 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dropout
 from tensorflow.keras.layers import Dense
+from tensorflow.keras.utils import to_categorical
 from time import perf_counter
 import sys
 
@@ -16,6 +17,12 @@ import sys
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 sys.path.append(proj_path+"/lib") # path to lib folder
 import eeg_lib
+
+# models 
+from EEGModels import EEGNet
+
+# own model 
+from MlpErp import MLP_Model
 
 
 # disable GPU for testing
@@ -37,20 +44,33 @@ f_samp_eeg = 500 #sample Frequency of eeg
 
 
 #machine learning params
-# lrp definition and data starts -n_samp_features to 0
-first_layer_units = 8 # neurons of first layer
-second_layer_units = 8 # neurons of second layer
-third_layer_units = 8 # neurons of third layer
+
+num_classes = 2
+
+# fcn model parameter 
 n_epochs = 300 #30 training epochs (max since early stopping is used)
 n_batch_size = 64 # batch size # 64 seems to work nice
-dropout_rate = 0.2 # dropout rate of every layer of the network
 shuffle_data = True # shuffle all data for training, validation and testing
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
 show_training_results = False
 multiprocessing_cpus = 16
 early_stopping_patience = 100
-leaky_alpha = 0.5
+
+#EEGNet-parameter
+# dropoutRate = 0.5
+# kernLength = 60
+# F1 = 8
+# D = 2
+# F2 = 16
+# # make automatic or something 
+# kernels, chans, samples = 1, 34, 2500 # 
+
+
+# training params 
+loss_fcn = "binary_crossentropy"
+optimizer = "Nadam"
+metrics = "accuracy"
 
 
 # training windows and features
@@ -148,7 +168,6 @@ for subject in subject_names:
         x_test_t = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
 
 
-
         # ***************************************************************************
         # ************************Frequency preprocessing ***************************
         # ***************************************************************************
@@ -185,6 +204,7 @@ for subject in subject_names:
             x_train = np.concatenate((x_train_t, x_train_f), axis = 1)
             x_val = np.concatenate((x_val_t, x_val_f), axis = 1)
             x_test = np.concatenate((x_test_t, x_test_f), axis = 1)
+
         elif(features_used == "frequency_domain"): 
             x_train = x_train_f
             x_test = x_test_f
@@ -205,17 +225,26 @@ for subject in subject_names:
         # ********************* Build ML model in keras  ***********************************
         # *********************************************************************************
 
+
         # MLP setup
-        model = Sequential()
-        model.add(Dense(units=first_layer_units, input_shape=(x_train.shape[1],)))
-        model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
-        model.add(Dropout(dropout_rate))
-        model.add(Dense(units=second_layer_units))
-        model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
-        model.add(Dropout(dropout_rate))
-        model.add(Dense(units=third_layer_units))
-        model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
-        model.add(Dense(units=1, activation="sigmoid"))
+        model = MLP_Model(x_train)
+
+        
+        # # EEGNet setup 
+        # Y_train = to_categorical(y_train, num_classes)
+        # Y_validate = to_categorical(y_val, num_classes)
+        # Y_test = to_categorical(y_test, num_classes)
+
+        # x_train = x_train_f.reshape(x_train_f.shape[0], chans, samples, kernels)
+        # x_val = x_val_f.reshape(x_val_f.shape[0], chans, samples, kernels)
+        # X_test = x_test_f.reshape(x_test_f.shape[0], chans, samples, kernels)
+
+
+        # # EEG Net 
+        # model_EEGNet = EEGNet(nb_classes=2, Chans=chans, Samples=samples,
+        #                dropoutRate=dropoutRate, kernLength=kernLength, F1=F1, D=D, F2=F2,
+        #                dropoutType='Dropout')
+
 
 
         # *********************************************************************************
@@ -225,7 +254,8 @@ for subject in subject_names:
         # early stopping callback
         #callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=early_stopping_patience, verbose=0, mode="auto", baseline=None, restore_best_weights=True)
 
-        model.compile(loss="binary_crossentropy", optimizer="Nadam", metrics="accuracy")
+
+        model.compile(loss=loss_fcn, optimizer=optimizer, metrics=metrics)
         history = model.fit(x_train,
                             y_train,
                             epochs  = n_epochs,
@@ -238,7 +268,7 @@ for subject in subject_names:
                             callbacks = [early_callback])
 #
         #model.load_weights(results_path+'model_file.h5') # load best model weights 
-
+        
 
         print("*********************************")
         print("Training basic model done")
@@ -286,7 +316,7 @@ for subject in subject_names:
         # *********************Single trial predictions   *********************************
         # *********************************************************************************
 
-
+        
         val_predictions = model.predict(x_val)
         val_pred_labels = np.array([0 if score <0.5 else 1 for score in val_predictions])
         tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(val_pred_labels.flatten(), y_val.flatten())
@@ -299,7 +329,6 @@ for subject in subject_names:
         print("Acc: ", np.round(acc_val, 3))
         print("BA: ", np.round(ba_val, 3))
         print("")
-
 
 
         #perf_results = np.array([np.round(ba_train, 3), np.round(tpr_train, 3), np.round(tnr_train, 3)])
