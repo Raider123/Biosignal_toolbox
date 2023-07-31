@@ -17,8 +17,8 @@ result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_ma
 title = "fcn_network_results_34ch_time_frequency_features"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["time", "frequency", "fusion"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_time_domain_feat", "fcn_network_results_34ch_freq_domain_feat", "fcn_network_results_34ch_time_freq_domain_feat"]
+xLabels = ["time", "frequency", "fusion", "EEGNet"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_time_domain_feat", "fcn_network_results_34ch_freq_domain_feat", "fcn_network_results_34ch_time_freq_domain_feat", "fcn_network_results_34ch_EEGNet_test"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
 compare_type = 'features'

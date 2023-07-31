@@ -268,7 +268,6 @@ def getKerasPredictionResultsLRPWind(model, windows, true_wind_labels):
 
 
 
-
 def calcMovingAveragePredictionScores(trial_prediction_test, n_samp): 
     processed_trial_predictions = np.zeros(trial_prediction_test.shape)
 
@@ -635,7 +634,34 @@ def featureExtractionFromWindows(train_windows, feature_type, fsamp, feature_tim
 
     return x_train
 
+def reshapeWindowsForCNNnets(EEG_windows): 
 
+    """
+    Select windows and extract them from all windows segmented by specifying the windows names.  
+
+    Arguments:
+        EEG_windows: The windowed EEG data as numpy array with shape (n_trials, n_channels, n_sampels, n_windows). 
+
+    Returns: 
+        reshaped_EEG_windows: The reshaped EEG windows as numpy array with shape (n_trials * n_windows, n_channels, n_sampels, 1). 
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 31.07.2023 (by Niklas Kueper)
+    """
+
+
+    reshaped_EEG_windows= np.zeros((EEG_windows.shape[0]*EEG_windows.shape[3], EEG_windows.shape[1], EEG_windows.shape[2], 1)) # (n_trials * n_windows, n_channels, n_sampels, 1). 
+
+
+    # get the features in one dim for all trials and windows 
+    for channel_idx in range(0, EEG_windows.shape[1]):
+        for sample_idx in range(0, EEG_windows.shape[2]): 
+
+            reshaped_EEG_windows[:, channel_idx, sample_idx, 0] = EEG_windows[:, channel_idx, sample_idx, :].flatten()
+
+    
+    return reshaped_EEG_windows
 
 
 def windowSelection(window_arr, window_names, selected_windows): 
@@ -1011,7 +1037,6 @@ def convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuf
         y[0:erp_shaped.shape[0]] = 1.0
 
 
-
     
     #concatenate data for shuffling 
     if (shuffle_data): 
@@ -1108,10 +1133,6 @@ def timeDomainFeaturesFromEpochs(erp_epochs, time_axis_eeg_batch, n_samp_feature
     
     return x, y
 
-    # flatten sampels and trials to one dim 
-    for channel in range(0, tensor_shape[1]): 
-        lrp_shaped[:, channel] = lrp_sampels[:,channel,:].flatten()
-        no_lrp_shaped[:, channel] = no_lrp_sampels[:,channel,:].flatten()
 
 def timeDomainFeaturesFromWindows(erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows, include_time_axis=False): 
 

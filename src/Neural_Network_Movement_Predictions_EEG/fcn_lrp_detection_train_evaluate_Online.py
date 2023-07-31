@@ -28,6 +28,7 @@ from MlpErp import MLP_Model
 # disable GPU for testing
 tf.config.set_visible_devices([], 'GPU')
 
+
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
@@ -36,7 +37,7 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_time_freq_domain_feat"
+result_file_name = "fcn_network_results_34ch_EEGNet_test"
 preprocessed_data_filename_end = "34ch_05_4Hz"
 preprocessed_data_filename_end_f = "34ch_05_40Hz"
 
@@ -45,26 +46,28 @@ f_samp_eeg = 500 #sample Frequency of eeg
 
 #machine learning params
 
+# model selection 
+used_model = "EEGNet"
+
 num_classes = 2
 
 # fcn model parameter 
-n_epochs = 300 #30 training epochs (max since early stopping is used)
-n_batch_size = 64 # batch size # 64 seems to work nice
+n_epochs = 300 #300 training epochs (max since early stopping is used)
+n_batch_size = 16 # 16 for EEGNet, 64 for MLP
 shuffle_data = True # shuffle all data for training, validation and testing
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
 show_training_results = False
 multiprocessing_cpus = 16
-early_stopping_patience = 100
+early_stopping_patience = 100 # 100 
+
 
 #EEGNet-parameter
-# dropoutRate = 0.5
-# kernLength = 60
-# F1 = 8
-# D = 2
-# F2 = 16
-# # make automatic or something 
-# kernels, chans, samples = 1, 34, 2500 # 
+kern_length_EEGNET = 250
+F1 = 8
+D = 2 
+F2 = 16
+dropout_EEGNet = 0.5
 
 
 # training params 
@@ -161,11 +164,13 @@ for subject in subject_names:
         y_test = eeg_lib.setWindowLabels(test_windows_EEG_select, window_labels_test)
 
 
-        # feature extraction from windows
-        # time domain 
-        x_train_t = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
-        x_val_t = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
-        x_test_t = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+        if not(used_model == "EEGNet"):
+
+            # feature extraction from windows
+            # time domain 
+            x_train_t = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+            x_val_t = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+            x_test_t = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
 
 
         # ***************************************************************************
@@ -180,6 +185,7 @@ for subject in subject_names:
         lrp_epochs_test_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_val_"+str(iteration)+".npy")
 
         
+
         # windowing of the data 
         train_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled_f, f_samp_eeg, window_size, window_step)
         val_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled_f, f_samp_eeg, window_size, window_step)
@@ -198,27 +204,30 @@ for subject in subject_names:
         x_test_f = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select_f, feature_type2, f_samp_eeg)
 
 
+        
+        if not(used_model == "EEGNet"): 
 
-        # which train features should be used 
-        if(features_used == "fusion"): 
-            x_train = np.concatenate((x_train_t, x_train_f), axis = 1)
-            x_val = np.concatenate((x_val_t, x_val_f), axis = 1)
-            x_test = np.concatenate((x_test_t, x_test_f), axis = 1)
+            # which train features should be used 
+            if(features_used == "fusion"): 
+                x_train = np.concatenate((x_train_t, x_train_f), axis = 1)
+                x_val = np.concatenate((x_val_t, x_val_f), axis = 1)
+                x_test = np.concatenate((x_test_t, x_test_f), axis = 1)
 
-        elif(features_used == "frequency_domain"): 
-            x_train = x_train_f
-            x_test = x_test_f
-            x_val = x_val_f
+            elif(features_used == "frequency_domain"): 
+                x_train = x_train_f
+                x_test = x_test_f
+                x_val = x_val_f
 
-        else: 
-            x_train = x_train_t
-            x_val = x_val_t
-            x_test = x_test_t
+            else: 
+                x_train = x_train_t
+                x_val = x_val_t
+                x_test = x_test_t
 
 
-        print("Shape of train data: ", x_train.shape)
-        print("Shape of test data: ", x_test.shape)
-        print("Shape of validation data: ", x_val.shape)
+        # print("Shape of train data: ", x_train.shape)
+        # print("Shape of test data: ", x_test.shape)
+        # print("Shape of validation data: ", x_val.shape)
+
         
 
         # *********************************************************************************
@@ -226,27 +235,34 @@ for subject in subject_names:
         # *********************************************************************************
 
 
-        # MLP setup
-        model = MLP_Model(x_train)
-
-        
-        # # EEGNet setup 
-        # Y_train = to_categorical(y_train, num_classes)
-        # Y_validate = to_categorical(y_val, num_classes)
-        # Y_test = to_categorical(y_test, num_classes)
-
-        # x_train = x_train_f.reshape(x_train_f.shape[0], chans, samples, kernels)
-        # x_val = x_val_f.reshape(x_val_f.shape[0], chans, samples, kernels)
-        # X_test = x_test_f.reshape(x_test_f.shape[0], chans, samples, kernels)
 
 
-        # # EEG Net 
-        # model_EEGNet = EEGNet(nb_classes=2, Chans=chans, Samples=samples,
-        #                dropoutRate=dropoutRate, kernLength=kernLength, F1=F1, D=D, F2=F2,
-        #                dropoutType='Dropout')
+        if not(used_model == "EEGNet"): 
+            # MLP setup
+            model = MLP_Model(x_train)
+
+        else: 
+            # preprocess the windows 
+            x_train_EEG_net = eeg_lib.reshapeWindowsForCNNnets(train_windows_EEG_select_f)
+            x_val_EEG_net = eeg_lib.reshapeWindowsForCNNnets(val_windows_EEG_select_f)
+            x_test_EEG_net = eeg_lib.reshapeWindowsForCNNnets(test_windows_EEG_select_f)
 
 
+            # # EEGNet setup 
+            y_train = to_categorical(y_train, num_classes)
+            y_val = to_categorical(y_val, num_classes)
+            y_test = to_categorical(y_test, num_classes)
 
+            # x_train = x_train_f.reshape(x_train_EEG_net.shape[0], x_train_EEG_net.shape[1],  x_train_EEG_net.shape[2],  x_train_EEG_net.shape[3]) # windows, channels, sampels, kernes shapes 
+            # x_val = x_val_f.reshape(x_val_EEG_net.shape[0], x_val_EEG_net.shape[1],  x_val_EEG_net.shape[2],  x_val_EEG_net.shape[3])
+            # X_test = x_test_f.reshape(x_test_f.shape[0], chans, samples, kernels)
+
+
+            # EEG Net 
+            model_EEGNet = EEGNet(nb_classes=num_classes, Chans=x_train_EEG_net.shape[1], Samples=x_train_EEG_net.shape[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout')
+
+
+            
         # *********************************************************************************
         # ********************* Compile and train model  ***********************************
         # *********************************************************************************
@@ -254,18 +270,34 @@ for subject in subject_names:
         # early stopping callback
         #callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss", min_delta=0, patience=early_stopping_patience, verbose=0, mode="auto", baseline=None, restore_best_weights=True)
 
+        if not (used_model == "EEGNet"): 
+            model.compile(loss=loss_fcn, optimizer=optimizer, metrics=metrics)
+            history = model.fit(x_train,
+                                y_train,
+                                epochs  = n_epochs,
+                                batch_size= n_batch_size,
+                                shuffle = True,
+                                workers=multiprocessing_cpus,
+                                class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
+                                use_multiprocessing=True,
+                                validation_data = (x_val, y_val),
+                                callbacks = [early_callback])
+            
+        else: 
+            model_EEGNet.compile(loss='BinaryCrossentropy', optimizer='adam', metrics=['accuracy']) 
 
-        model.compile(loss=loss_fcn, optimizer=optimizer, metrics=metrics)
-        history = model.fit(x_train,
-                            y_train,
-                            epochs  = n_epochs,
-                            batch_size= n_batch_size,
-                            shuffle = True,
-                            workers=multiprocessing_cpus,
-                            class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
-                            use_multiprocessing=True,
-                            validation_data = (x_val, y_val),
-                            callbacks = [early_callback])
+            history = model_EEGNet.fit(x_train_EEG_net,
+                                       y_train,
+                                       epochs  = n_epochs,
+                                       batch_size= n_batch_size,
+                                       shuffle = True,
+                                       workers=multiprocessing_cpus,
+                                       class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
+                                       use_multiprocessing=True,
+                                       validation_data = (x_val_EEG_net, y_val),
+                                       callbacks = [early_callback])
+
+
 #
         #model.load_weights(results_path+'model_file.h5') # load best model weights 
         
@@ -317,7 +349,16 @@ for subject in subject_names:
         # *********************************************************************************
 
         
-        val_predictions = model.predict(x_val)
+        if not (used_model =="EEGNet"): 
+            val_predictions = model.predict(x_val)
+
+        else: 
+            val_predictions = model_EEGNet.predict(x_val_EEG_net)[:, 1]
+            y_val = y_val[:, 1]
+            #print(val_predictions)
+
+        
+
         val_pred_labels = np.array([0 if score <0.5 else 1 for score in val_predictions])
         tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(val_pred_labels.flatten(), y_val.flatten())
 
@@ -348,4 +389,4 @@ print(perf_counter()-time_start)
 
 
 #show model
-print(model.summary())
+print(model_EEGNet.summary())
