@@ -10,7 +10,7 @@ gpu = len(tf.config.list_physical_devices('GPU'))>0
 print("GPU is", "available" if gpu else "NOT AVAILABLE")
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
-#is_cuda_gpu_available = tf.test.is_gpu_available(cuda_only=True)
+is_cuda_gpu_available = tf.test.is_gpu_available(cuda_only=True)
 #print("")
 print(is_cuda_gpu_available)
 

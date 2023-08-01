@@ -63,7 +63,7 @@ early_stopping_patience = 100 # 100
 
 
 #EEGNet-parameter
-kern_length_EEGNET = 250
+kern_length_EEGNET = 100
 F1 = 8
 D = 2 
 F2 = 16

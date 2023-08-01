@@ -19,7 +19,7 @@ import eeg_lib
 
 
 # disable GPU for testing
-tf.config.set_visible_devices([], 'GPU')
+#tf.config.set_visible_devices([], 'GPU')
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -170,9 +170,9 @@ for subject in subject_names:
                             epochs  = n_epochs,
                             batch_size= n_batch_size,
                             shuffle = True,
-                            workers=multiprocessing_cpus,
+                            #workers=multiprocessing_cpus,
                             class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
-                            use_multiprocessing=True,
+                            #use_multiprocessing=True,
                             validation_data = (x_val, y_val),
                             callbacks = [early_callback])
 
