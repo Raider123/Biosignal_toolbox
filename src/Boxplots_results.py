@@ -17,8 +17,8 @@ result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_ma
 title = "fcn_network_results_34ch_time_frequency_features"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["time", "frequency", "fusion", "EEGNet"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_time_domain_feat", "fcn_network_results_34ch_freq_domain_feat", "fcn_network_results_34ch_time_freq_domain_feat", "fcn_network_results_34ch_EEGNet_test"]
+xLabels = [ "fusion", "EEGNet_base", "EEGNet_Nadam", "EEGNet_Relu", "EEGNet_LkRelu", "EEGNet_D4"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_time_freq_domain_feat", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_base", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_Nadam", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_relu", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_lkrelu", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_D4"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
 compare_type = 'features'

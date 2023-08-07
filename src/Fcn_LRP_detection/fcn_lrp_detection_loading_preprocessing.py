@@ -30,15 +30,15 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_05_4Hz"
+filename_end = "34ch_01_40Hz"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.5 # rate to split test and validation data 
 
 # Filtering Params for EEG data 
-f_highpass = 0.5 #0.5 # in Hz 
-f_lowpass = 4.0 # 4.0 in Hz 
+f_highpass = 0.1 #0.5 # in Hz 
+f_lowpass = 40.0 # 4.0 in Hz 
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))

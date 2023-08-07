@@ -576,7 +576,6 @@ def featureExtractionFromWindows(train_windows, feature_type, fsamp, feature_tim
         stop_point_index = int((feature_times_windows[1]/1000)*fsamp)
 
 
-
         x_train_features = np.zeros((train_windows.shape[0], train_windows.shape[3], int(np.abs(stop_point_index-start_point_index)*train_windows.shape[1]))) # shape: trials, windows, features
 
         #print(x_train_features.shape)
@@ -1302,3 +1301,4 @@ def freqDomainFeaturesFromWindows(epochs, time_axis_eeg_batch, shuffle_data, pos
     x, y = convertSamplesToLabelledData(pos_class_sampels, neg_class_sampels, tensor_shape, shuffle_data)
 
     return x, y 
+
