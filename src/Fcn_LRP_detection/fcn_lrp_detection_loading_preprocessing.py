@@ -30,15 +30,15 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_01_40Hz"
+filename_end = "32ch_05_4Hz"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.5 # rate to split test and validation data 
 
 # Filtering Params for EEG data 
-f_highpass = 0.1 #0.5 # in Hz 
-f_lowpass = 40.0 # 4.0 in Hz 
+f_highpass = 0.5 #0.5 # in Hz 
+f_lowpass = 4.0 # 4.0 in Hz 
 apply_filter = True # setting to False will ignore the 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
@@ -64,7 +64,7 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True # standard: True 
-channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+channel_list = ["P5", "P6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 #["x_dir", "y_dir", "z_dir"]
 
 # just remap the parameters (need to be adapted)

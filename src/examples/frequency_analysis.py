@@ -20,14 +20,13 @@ import emg_lib
 
 # files to load 
 #filenames = ["Test_Orthosis/20230623_Test_Orthosis.vhdr"] 
-filenames = ["Test_Orthosis/26012023_ZW07D_ErrorOrthosisEEGEMG_Multi_Set3.vhdr"]
-evaluation = "Old_orthosis_ZW07D_"
+filenames = ["Test_Orthosis/20230425_AY63D_orthosisErrorIjcai_multi_set3.vhdr"]
+evaluation = "old_supply_AQ59D"
 
-channel_to_evaluate = "P3"
+channel_to_evaluate = "CP1"
 
-start_ind = 38576
-stop_ind = 108885
-
+# start_ind = 38576
+# stop_ind = 108885
 
 
 #create numpy array with file names 
@@ -37,7 +36,7 @@ for files_str in filenames:
 
 
 raw= eeg_lib.loadBrainproductsData(data_str_arr) # read data in brainproducts format
-raw.filter(1, 100)
+raw.filter(49.9, 50.1, method="iir")
 
 f_samp_eeg = raw.info['sfreq'] # get sampling rate 
 
@@ -50,8 +49,7 @@ channel_index = ch_names.index(channel_to_evaluate)
 print("Channel: ", ch_names[channel_index])
 
 # specify time range 
-EEG_ch_selected = EEG_data[channel_index, start_ind:stop_ind]
-
+EEG_ch_selected = EEG_data[channel_index, :]
 
 i = 0
 
@@ -70,13 +68,15 @@ y = EEG_ch_selected
 
 yf = fft(y)
 
-xf = fftfreq(N, dT)[:N//3]
+xf = fftfreq(N, dT)[:N//2]
+
+yf = 2.0/N * np.abs(yf[0:N//2])
 
 
 
 fig, axs = plt.subplots(2, 1)
 plt.subplots_adjust(hspace = 0.5)
-axs[0].plot(xf, 2.0/N * np.abs(yf[0:N//3]))
+axs[0].plot(xf, yf)
 
 axs[0].grid()
 axs[0].set_xlabel("Frequencies in Hz")
@@ -97,6 +97,11 @@ fig.savefig(evaluation+ch_names[channel_index])
 
 plt.show()
 
+index_50Hz = np.where(xf.astype(int) == 50)[0]
+val_50Hz = np.max(yf[index_50Hz]) # get max values of indices around 50 Hz 
+
+print("max value 50 Hz: ", val_50Hz)
+
 # raw.plot()
 # plt.show()
 
@@ -110,7 +115,6 @@ plt.show()
 
 #  # EMG data loading and processing 
 # filename_EMG = "20230426_AJ05D_orthosisErrorIjcai_multi_set7.txt"
-
 
 
 # file_str_emg = os.path.join(data_path, filename_EMG)

@@ -46,7 +46,7 @@ eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically r
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 # in Hz 
-f_lowpass = 4.0 # in Hz 
+f_lowpass = 7.0 # in Hz 
 apply_filter = True # setting to False will ignore the filtering 
 
 
@@ -62,7 +62,7 @@ event_id_used = {"movement_onset": marker_number}
 
 # time selection for epoching of the data 
 epoching_time_before_onset = -1.5 # time in seconds (start epoch)
-epoching_time_after_onset = 0 # time in seconds (0 = movement onset)
+epoching_time_after_onset = 0.3 # time in seconds (0 = movement onset)
 
 # should baseline correction be applied ? (standard -1.5 to -1 seconds)
 apply_baseline_correction = True 
@@ -75,7 +75,7 @@ min_val = -6e-06 # Voltage values for colour scale
 max_val = 6e-06
 
 # topoplot params 
-topoplot_times =  [-1000, -500, -200, -100, 0] # times in ms to the event after epoching 
+topoplot_times =  [-1000, -500, -200, -100, 0, 300] # times in ms to the event after epoching 
 topoplot_title_str = "time to movement "
 
 # select channel name for visualizing it 

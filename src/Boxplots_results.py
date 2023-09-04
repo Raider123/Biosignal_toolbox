@@ -14,17 +14,16 @@ import pandas as pd
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "fcn_network_results_34ch_time_frequency_features"#"Training trials compare pooling"
+title = "EEGNet Kernel length evaluation"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = [ "fusion", "EEGNet_base", "EEGNet_Nadam", "EEGNet_Relu", "EEGNet_LkRelu", "EEGNet_D4"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_time_freq_domain_feat", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_base", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_Nadam", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_relu", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_lkrelu", "fcn_network_results_34ch_EEGNet_kl100_05_40Hz_D4"]
+xLabels = ["10t MLP","10t EEG", "20t MLP","20t EEG", "40t MLP","40t EEG", "60t MLP","60t EEG", "80t MLP","80t EEG"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_MLP_10_trials","fcn_network_results_34ch_EEGNet_10_trials", "fcn_network_results_34ch_MLP_20_trials","fcn_network_results_34ch_EEGNet_20_trials", "fcn_network_results_34ch_MLP_40_trials", "fcn_network_results_34ch_EEGNet_40_trials", "fcn_network_results_34ch_MLP_60_trials", "fcn_network_results_34ch_EEGNet_60_trials", "fcn_network_results_34ch_MLP_80_trials","fcn_network_results_34ch_EEGNet_80_trials_kern50"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
-compare_type = 'features'
+compare_type = 'method'
 #compare_type = 'number of training trials'
 ylabel = "Performance (BA)"
-
 
 # ****** Load the evaluation results from the individual resulting folders  ***** 
 data_list = []
@@ -35,7 +34,6 @@ for file in result_list:
 
 data_arr = np.array(data_list) # has shape (evaluations, result vals, metric type)
 data_arr_ba = data_arr[:, :, 0].T
-
 
 data_frames = []
 medians = []
@@ -55,7 +53,7 @@ box_plot = sns.boxplot(data = all_frames, x = compare_type, y = 'Evaluation')
 plt.ylabel(ylabel)
 plt.title(title)
 plt.ylim([0.5, 1.0])
-plt.yticks(np.arange(0.5, 1.05, step= 0.05))
+plt.yticks(np.arange(0.5, 1.06, step= 0.05))
 
 i = 0
 for xtick in box_plot.get_xticks():

@@ -40,6 +40,7 @@ def loadBrainproductsData(dataset_list):
 
     return raw
 
+
 def applyButterLowpassFilter(signal, f_lowpass, f_samp, N): 
 
     """
@@ -569,11 +570,13 @@ def featureExtractionFromWindows(train_windows, feature_type, fsamp, feature_tim
     # (n_trials, n_channels, n_sampels, n_windows).
 
 
+    if(feature_times_windows):
+        start_point_index = int((feature_times_windows[0]/1000)*fsamp)
+        stop_point_index = int((feature_times_windows[1]/1000)*fsamp)
+
     if(feature_type == "timepoints"): 
 
         #x_train = np.zeros((int(train_windows.shape[0]*train_windows.shape[3]), int(train_windows.shape[1]*train_windows.shape[2]))) # shape: train samples, features 
-        start_point_index = int((feature_times_windows[0]/1000)*fsamp)
-        stop_point_index = int((feature_times_windows[1]/1000)*fsamp)
 
 
         x_train_features = np.zeros((train_windows.shape[0], train_windows.shape[3], int(np.abs(stop_point_index-start_point_index)*train_windows.shape[1]))) # shape: trials, windows, features
@@ -608,7 +611,11 @@ def featureExtractionFromWindows(train_windows, feature_type, fsamp, feature_tim
             for window_idx in range(0, train_windows.shape[3]):
                 for channel_idx in range(0, train_windows.shape[1]):
                     
-                    xf, yf = OnechannelFFT(train_windows[trial_idx, channel_idx, :, window_idx], fsamp) # do fft of sliced data
+                    if(feature_times_windows):
+                        xf, yf = OnechannelFFT(train_windows[trial_idx, channel_idx, start_point_index:stop_point_index, window_idx], fsamp) # do fft of sliced data
+                    else: 
+                        xf, yf = OnechannelFFT(train_windows[trial_idx, channel_idx,:, window_idx], fsamp) # do fft of sliced data
+
                     normed_freqs = (xf*yf)/np.sum(yf) # norm the frequencies
     
                     if(feature_type == "meanfreqs"): 
