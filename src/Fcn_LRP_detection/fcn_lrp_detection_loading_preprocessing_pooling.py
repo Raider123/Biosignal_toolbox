@@ -30,9 +30,9 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #choose a dataset of a subject 
-dataset = data_str_uni_JV43
+dataset = data_str_uni_UP28
 
-dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_XP01, data_str_uni_RA12, data_str_uni_AV82, data_str_uni_QS70, data_str_uni_UP28, data_str_uni_ZS27))
+dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_XP01, data_str_uni_JV43, data_str_uni_RA12, data_str_uni_QS70, data_str_uni_AV82, data_str_uni_ZS27))
 include_test_sub_in_train = False
 
 
@@ -47,12 +47,12 @@ eeg_channel_start_number = 0
 eeg_channel_end_number   = 67 # 64 eeg and 3 axis accelerometer (automatically removed laterl on )
 
 # name pattern of current subject and paradigm
-subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_05_4Hz_pool_tune_adapt_scale1"
+subject_paradigm_name = dataset[0].split("_r_")[1].split("_set")[0]+"_34ch_05_40Hz_pool"
 
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 #0.5 # in Hz 
-f_lowpass = 4.0 # 4.0 in Hz 
+f_lowpass = 40.0 # 4.0 in Hz 
 
 apply_filter = True # setting to False will ignore the 
 
@@ -79,7 +79,7 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True
-channel_list = ["x_dir", "y_dir", "z_dir" ,"FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7","P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8","F7"]
 
 
 # just remap the parameters (need to be adapted)
@@ -177,6 +177,12 @@ for iterations in set_nums:  # change here later on
         lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
         lrp_epochs_test_val_scaled= scaler_tune.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
 
+
+    # lrp_epochs_train_scaled = lrp_epochs_train_scaled -np.min(lrp_epochs_train_scaled)
+    # lrp_epochs_train_scaled = lrp_epochs_train_scaled/np.max(lrp_epochs_train_scaled)
+    # lrp_epochs_test_val_scaled = -np.min(lrp_epochs_train_scaled)
+    # lrp_epochs_test_val_scaled = lrp_epochs_test_val_scaled/np.max(lrp_epochs_test_val_scaled)
+    
 
     # seperate test and validation
     test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 

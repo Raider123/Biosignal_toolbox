@@ -5,14 +5,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Dense
 from tensorflow.keras.utils import to_categorical
 from time import perf_counter
 import sys
 from tensorflow.keras.models import save_model, load_model
-
+from keras_adabound import AdaBound
 
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
@@ -30,13 +27,6 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # disable GPU for testing
 #tf.config.set_visible_devices([], 'GPU')
 
-# gpus = tf.config.experimental.list_physical_devices('GPU')
-# if gpus:
-#   try:
-#     for gpu in gpus:
-#       tf.config.experimental.set_memory_growth(gpu, True)
-#   except RuntimeError as e:
-#     print(e)
 
 
 # *********************************************************************************
@@ -44,13 +34,13 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
+subject_names = ["AV82"] #["JV43"]#,"RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_EEGNet_80_trials_SGD"
-preprocessed_data_filename_end = "34ch_05_40Hz" # TODO: implement bp filter on windows for using raw data with MLP net 
-preprocessed_data_filename_end_f = "34ch_05_40Hz"
-eval_name = "EEGNet_80_trials_SGD"
+result_file_name = "pretrained_EEGnet_for_AV82"
+preprocessed_data_filename_end = "_34ch_05_40Hz_pool" 
+preprocessed_data_filename_end_f = "_34ch_05_40Hz_pool" # _34ch_05_40Hz_pool_trainTune
+eval_name = "pretrained_EEGnet_for_AV82"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
@@ -67,22 +57,31 @@ n_batch_size = 16 # 16 for EEGNet, 64 for MLP
 shuffle_data = True # shuffle all data for training, validation and testing
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
-show_training_results = False
+show_training_results = True
 #multiprocessing_cpus = 14
 early_stopping_patience = 100 # 100 
 
 
 #EEGNet-parameter
 kern_length_EEGNET = 50 # 100 before 
-F1 = 8
+F1 = 16 # 8 
 D = 2 
-F2 = 16
+F2 = 32 # 16 
 dropout_EEGNet = 0.5
 
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
-optimizer = "adam"
+optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
+    momentum=0.0,
+    nesterov=False,
+)
+
+# tf.keras.optimizers.SGD(
+#     learning_rate=0.005,
+#     momentum=0.0,
+#     nesterov=False,
+# )
 
 metrics = "accuracy"
 
@@ -94,7 +93,6 @@ window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
 window_labels_test = [0.0, 0.0, 1.0, 1.0] #np.zeros((81)) 
 #window_labels_test[76:] = 1.0 
 
-t = 80 # trials to use for training 
 
 feature_times_windows = (900, 1000) # (900, 1000) seems to work well# time inside the windows to be used as features (last 200 ms)
 # feature types used for generating training data 
@@ -137,10 +135,6 @@ early_callback = tf.keras.callbacks.EarlyStopping(
     restore_best_weights=True,
 )
 
-# checkpoint = tf.keras.callbacks.ModelCheckpoint(results_path+'model_file.h5', 
-#                     monitor="val_accuracy", mode="max", 
-#                     save_best_only=True, verbose=1)
-
 
 for subject in subject_names:
     for iteration in interations:
@@ -152,38 +146,26 @@ for subject in subject_names:
         # load each individual train, val and test sets (preprocessed)
         lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
 
-        #reduce number of train instances 
-
-        lrp_epochs_train_scaled = lrp_epochs_train_scaled[0:t,:, :]
-        print("train size: ",lrp_epochs_train_scaled.shape)
-
-
-        lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
-        lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")
+        print(lrp_epochs_train_scaled.shape)
 
 
         # *********************************************************************************
         # ********************* Prepare data for networks **********************************
         # *********************************************************************************
 
-        
+    
         # windowing of the data 
         train_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
-        val_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
-        test_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
 
         #test_windows = wind_names
 
         
         # train and test window selection 
         train_windows_EEG_select = eeg_lib.windowSelection(train_windows_EEG, wind_names, train_windows)
-        val_windows_EEG_select = eeg_lib.windowSelection(val_windows_EEG, wind_names, test_windows)
-        test_windows_EEG_select = eeg_lib.windowSelection(test_windows_EEG, wind_names, test_windows)
+
 
         # set window labels 
         y_train = eeg_lib.setWindowLabels(train_windows_EEG_select, window_labels_train)
-        y_val = eeg_lib.setWindowLabels(val_windows_EEG_select, window_labels_test)
-        y_test = eeg_lib.setWindowLabels(test_windows_EEG_select, window_labels_test)
 
 
         if not(used_model == "EEGNet"):
@@ -191,8 +173,6 @@ for subject in subject_names:
             # feature extraction from windows
             # time domain 
             x_train_t = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
-            x_val_t = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
-            x_test_t = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
 
 
         # ***************************************************************************
@@ -203,57 +183,33 @@ for subject in subject_names:
 
         # load each individual train, val and test sets (preprocessed)
         lrp_epochs_train_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_train_"+str(iteration)+".npy")
-        lrp_epochs_val_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_test_"+str(iteration)+".npy")
-        lrp_epochs_test_scaled_f = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_f+"_val_"+str(iteration)+".npy")
-
-
-        lrp_epochs_train_scaled_f = lrp_epochs_train_scaled_f[0:t, :, :]
 
 
         # windowing of the data 
         train_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled_f, f_samp_eeg, window_size, window_step)
-        val_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled_f, f_samp_eeg, window_size, window_step)
-        test_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_test_scaled_f, f_samp_eeg, window_size, window_step)
 
 
         # train and test window selection 
         train_windows_EEG_select_f = eeg_lib.windowSelection(train_windows_EEG_f, wind_names, train_windows)
-        val_windows_EEG_select_f = eeg_lib.windowSelection(val_windows_EEG_f, wind_names, test_windows)
-        test_windows_EEG_select_f = eeg_lib.windowSelection(test_windows_EEG_f, wind_names, test_windows)
 
 
         #frequency domain 
         x_train_f = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select_f, feature_type2, f_samp_eeg, None)
-        x_val_f = eeg_lib.featureExtractionFromWindows(val_windows_EEG_select_f, feature_type2, f_samp_eeg, None)
-        x_test_f = eeg_lib.featureExtractionFromWindows(test_windows_EEG_select_f, feature_type2, f_samp_eeg, None)
 
 
-        
         if not(used_model == "EEGNet"): 
 
             # which train features should be used 
             if(features_used == "fusion"): 
                 x_train = np.concatenate((x_train_t, x_train_f), axis = 1)
-                x_val = np.concatenate((x_val_t, x_val_f), axis = 1)
-                x_test = np.concatenate((x_test_t, x_test_f), axis = 1)
 
             elif(features_used == "frequency_domain"): 
                 x_train = x_train_f
-                x_test = x_test_f
-                x_val = x_val_f
 
             else: 
                 x_train = x_train_t
-                x_val = x_val_t
-                x_test = x_test_t
-
-        #with strategy.scope():
-        # print("Shape of train data: ", x_train.shape)
-        # print("Shape of test data: ", x_test.shape)
-        # print("Shape of validation data: ", x_val.shape)
 
         
-
         # *********************************************************************************
         # ********************* Build ML model in keras  ***********************************
         # *********************************************************************************
@@ -266,18 +222,10 @@ for subject in subject_names:
         else: 
             # preprocess the windows 
             x_train_EEG_net = eeg_lib.reshapeWindowsForCNNnets(train_windows_EEG_select_f)
-            x_val_EEG_net = eeg_lib.reshapeWindowsForCNNnets(val_windows_EEG_select_f) #val_windows_EEG_select_f for non filtered
-            x_test_EEG_net = eeg_lib.reshapeWindowsForCNNnets(test_windows_EEG_select_f)
             
 
             # # EEGNet setup 
             y_train = to_categorical(y_train, num_classes)
-            y_val = to_categorical(y_val, num_classes)
-            y_test = to_categorical(y_test, num_classes)
-
-            # x_train = x_train_f.reshape(x_train_EEG_net.shape[0], x_train_EEG_net.shape[1],  x_train_EEG_net.shape[2],  x_train_EEG_net.shape[3]) # windows, channels, sampels, kernes shapes 
-            # x_val = x_val_f.reshape(x_val_EEG_net.shape[0], x_val_EEG_net.shape[1],  x_val_EEG_net.shape[2],  x_val_EEG_net.shape[3])
-            # X_test = x_test_f.reshape(x_test_f.shape[0], chans, samples, kernels)
 
 
             # EEG Net 
@@ -303,11 +251,12 @@ for subject in subject_names:
                                 #workers=multiprocessing_cpus,
                                 class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
                                 #use_multiprocessing=True,
-                                validation_data = (x_val, y_val),
+                                validation_split=0.2, 
                                 callbacks = [early_callback])
             
         else: 
             model_EEGNet.compile(loss=loss_fcn, optimizer=optimizer, metrics=['accuracy']) 
+            print("train shape:", x_train_EEG_net.shape)
 
             history = model_EEGNet.fit(x_train_EEG_net,
                                     y_train,
@@ -317,14 +266,13 @@ for subject in subject_names:
                                     #workers=multiprocessing_cpus,
                                     class_weight={0: weight_no_lrp_class, 1: weight_lrp_class},
                                     #use_multiprocessing=True,
-                                    validation_data = (x_val_EEG_net, y_val),
+                                    validation_split=0.2, 
                                     callbacks = [early_callback])
 
 
 #       
         #model.load_weights(results_path+'model_file.h5') # load best model weights 
         
-
         print("*********************************")
         print("Training basic model done")
         print("*********************************")
@@ -375,46 +323,18 @@ for subject in subject_names:
         if not (used_model =="EEGNet"): 
 
             save_model(model, subject+"_MLP_"+eval_name+str(iteration)+".h5") # save 
-            loaded_model = load_model(subject+"_MLP_"+eval_name+str(iteration)+".h5") # load
-            val_predictions = loaded_model.predict(x_val) # predict test data 
-            print("predicted with MLP model")
+            print("saved MLP net model")
 
         else: 
-
+            
             # save model 
             #model_EEGNet.save(subject+"_EEGNet_"+eval_name, overwrite=False, save_format="keras")
-            save_model(model_EEGNet, subject+"_EEGNet_"+eval_name+str(iteration)+".h5") # save 
-            loaded_model = load_model(subject+"_EEGNet_"+eval_name+str(iteration)+".h5") # load
+            save_model(model_EEGNet, subject+"_EEGNet_"+eval_name+".h5") # save 
 
-            val_predictions = model_EEGNet.predict(x_val_EEG_net)[:, 1]
-            y_val = y_val[:, 1]
-
-            print("predicted with EEGNet model")
+            print("saved EEGNet model")
             
 
-        val_pred_labels = np.array([0 if score <0.5 else 1 for score in val_predictions])
-        tnr_val, tpr_val, acc_val, ba_val = eeg_lib.calcTestAccAndRates(val_pred_labels.flatten(), y_val.flatten())
-
-
-        print("")
-        print("Single trial metrics test data windows:")
-        print("TNR: ",np.round(tnr_val, 3))
-        print("TPR: ",np.round(tpr_val, 3))
-        print("Acc: ", np.round(acc_val, 3))
-        print("BA: ", np.round(ba_val, 3))
-        print("")
-
-
-        #perf_results = np.array([np.round(ba_train, 3), np.round(tpr_train, 3), np.round(tnr_train, 3)])
-        perf_results = np.array([np.round(ba_val, 3), np.round(tpr_val, 3), np.round(tnr_val, 3)])
-        perf_results_total.append(perf_results)
-
-
-#save results
-perf_results_total = np.array(perf_results_total)
-np.savetxt(results_path+result_file_name, perf_results_total, delimiter=",", fmt = "%1.8f", )
-
-
+       
 print("all done")
 print("")
 print("execution time: ")
@@ -422,5 +342,5 @@ print(perf_counter()-time_start)
 
 
 #show model
-#print(model_EEGNet.summary())
+print(model_EEGNet.summary())
 

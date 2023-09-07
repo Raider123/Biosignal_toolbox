@@ -28,9 +28,9 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "32ch_05_4Hz"
-
-train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-100", "bis-50", "bis0"]
+preprocessed_data_filename_end = "_32ch_05_4Hz_pool"
+preprocessed_data_filename_end_test = "32ch_05_4Hz"
+train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-2000", "bis-150", "bis-100", "bis-50", "bis0"]
 
 
 f_samp_eeg = 500 #sample Frequency of eeg
@@ -56,13 +56,12 @@ print( ch_names)
 print(list(ch_names).index("C1"))
 # params for now 
 iteration = interations[0]
-subject = subject_names[1]
+subject = subject_names[0]
 
 # load each individual train, val and test sets (preprocessed)
-lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")+5
-lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")+5
-lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_val_"+str(iteration)+".npy")+5
-
+lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
+lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_test+"_test_"+str(iteration)+".npy")
+lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_test+"_val_"+str(iteration)+".npy")
 
 avg_epoch_train = np.mean(lrp_epochs_train_scaled, axis = 0)
 
@@ -116,22 +115,22 @@ print(x_val_target.shape)
 # #generate model 
 input_wind = layers.Input(shape=(32, 500, 1))
 
-x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(input_wind)
+x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(input_wind)
 x = layers.MaxPooling2D((2, 2), padding='same')(x)
 # x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
 # x = layers.MaxPooling2D((2, 2), padding='same')(x)
-x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
+x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(x)
 encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
 
 # at this point the representation is (4, 4, 8) i.e. 128-dimensional
 
-x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(encoded)
+x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(encoded)
 x = layers.UpSampling2D((2, 2))(x)
 # x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
 # x = layers.UpSampling2D((2, 2))(x)
-x = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(x)
+x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(x)
 x = layers.UpSampling2D((2, 2))(x)
-decoded = layers.Conv2D(1, (3, 3), activation='sigmoid', padding='same')(x)
+decoded = layers.Conv2D(1, (3, 3), activation='linear', padding='same')(x)
 
 
 autoencoder = Model(input_wind, decoded)
@@ -144,7 +143,7 @@ history = autoencoder.fit(
     epochs=50,
     batch_size=64,
     shuffle=True,
-    validation_data=(x_val, x_val_target),
+    validation_split=0.2, 
 )
 
 # history of training process
@@ -178,43 +177,85 @@ if(show_training_results):
     plt.show()
 
 
-
 # show stuff 
 
 # average
 plt.figure()
 plt.imshow(avg_epoch_train, aspect="auto", cmap='gray')
+plt.title("average")
 plt.show()
+
+
+plt.figure()
+plt.plot(avg_epoch_train[24, :])
+plt.title("average C1")
+plt.show()
+
+
 
 # some single trials 
 plt.figure()
 plt.imshow(train_windows_EEG[10, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
+plt.title("raw")
 plt.show()
 
 pred_denoise = autoencoder.predict(np.reshape( train_windows_EEG[10, :, :, -1], (1, train_windows_EEG[10, :, :, -1].shape[0], train_windows_EEG[10, :, :, -1].shape[1], 1)))
 
 plt.figure()
-plt.imshow(pred_denoise[0, :, :,0], aspect="auto", cmap='gray', norm = "linear")
+plt.imshow(pred_denoise[0, :, :, 0], aspect="auto", cmap='gray', norm = "linear")
+plt.title("filtered")
 plt.show()
 
+plt.figure()
+plt.plot(train_windows_EEG[10, 24, :, -1])
+plt.title("C1 raw")
+plt.show()
+
+plt.figure()
+plt.plot(pred_denoise[0, 24, :, 0])
+plt.title("C1 filtered")
+plt.show()
 
 
 plt.figure()
 plt.imshow(train_windows_EEG[20, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
+plt.title("raw")
 plt.show()
 
 pred_denoise = autoencoder.predict(np.reshape(train_windows_EEG[20, :, :, -1], (1, train_windows_EEG[20, :, :, -1].shape[0], train_windows_EEG[20, :, :, -1].shape[1], 1)))
-
+print(pred_denoise.shape)
 
 plt.figure()
-plt.imshow(pred_denoise[0, :, :,0], aspect="auto", cmap='gray', norm = "linear")
+plt.imshow(train_windows_EEG[20, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
+plt.title("raw")
+plt.show()
+
+plt.figure()
+plt.imshow(pred_denoise[0, :, :, 0], aspect="auto", cmap='gray', norm = "linear")
+plt.title("filtered")
+plt.show()
+
+plt.figure()
+plt.plot(train_windows_EEG[20, 24, :, -1])
+plt.title("C1 raw")
+plt.show()
+
+plt.figure()
+plt.plot(pred_denoise[0, 24, :, 0])
+plt.title("C1 filtered")
 plt.show()
 
 
+
+pred_denoise = autoencoder.predict(np.reshape(train_windows_EEG[40, :, :, -1], (1, train_windows_EEG[20, :, :, -1].shape[0], train_windows_EEG[20, :, :, -1].shape[1], 1)))
+print(pred_denoise.shape)
+
 plt.figure()
-plt.plot(pred_denoise[0, 24, :,0])
+plt.plot(train_windows_EEG[40, 24, :, -1])
+plt.title("C1 raw")
 plt.show()
 
-
-
-
+plt.figure()
+plt.plot(pred_denoise[0, 24, :, 0])
+plt.title("C1 filtered")
+plt.show()

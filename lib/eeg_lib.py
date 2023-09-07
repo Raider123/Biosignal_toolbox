@@ -5,6 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mne
+from mne.preprocessing import ICA, corrmap, create_ecg_epochs, create_eog_epochs
 from sklearn.utils import shuffle
 from scipy import signal as sig
 from scipy.fft import fft, fftfreq
@@ -178,6 +179,100 @@ def topoplot(mean_epochs, time_axis_eeg_epoch, mne_obj, times, title_str, min_va
         cbar.set_label("in uV")
         count = count+1
     plt.show()
+
+def icaEOGArtifactRemoval(raw, eeg_epochs, n_components, drop_epochs, threshhold, ch_names, plot_steps, plot_montage, rename_channels):
+
+    """
+    This funcion automatically detects EOG artifacts in the given rereferenced eeg-signal with an ICA. The decisive components are marked and removed from the signal
+
+    Arguments
+        raw: The created mne object
+        eeg_epochs: The rereferenced epoched mne object
+        n_components: Number of principal components that are passed to the ICA algorithm during fitting:
+            var1: Give an int which must be greater than 1 and less than or equal to the number of channels.
+            var2: Give a float between 0 and 1, this will select the smallest number of components required to explain the cumulative variance of the data greater than n_components
+        drop_epochs: If TRUE a thrshhold determins the dropping of bad epochs based on peak to peak value
+        ch_names: The channels that are showing EOG artifacts
+        plot_steps: If TRUE the steps of the ICA will be plotted
+
+    Returns
+        eog_removed: The processed eeg data as an instance of mne object
+
+
+    Meta information: 
+    Author: Patrick Bings
+    Last changed: 07.09.2023
+
+    """
+
+    epoched_eeg_rereferenced = eeg_epochs.copy()
+
+    # dropping bad epochs based on peak to peak value if True
+    if(drop_epochs):
+        epoched_eeg_rereferenced.drop_bad(reject = {'eeg': threshhold})
+
+    # epoched_eeg_rereferenced.plot(block=True)
+
+    if(plot_steps == False):
+        # creating epochs around the EOG-artifacts
+        eog_evoked = create_eog_epochs(raw, ch_name=ch_names).average()
+        eog_evoked.apply_baseline(baseline=(None, -0.2))
+
+        # creating the ICA and fitting it to the epoched raw data: 
+        ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+        ica.fit(epoched_eeg_rereferenced)
+
+        # exclude the right ICs
+        ica.exclude = []
+
+        # find which ICs match the EOG pattern
+        eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+
+        ica.exclude.extend(eog_indices)
+
+        eog_removed = ica.apply(epoched_eeg_rereferenced)
+    else:
+        # create an acticap montage 
+        acticap_montage = createActicapMontage(plot_montage, rename_channels)
+        epoched_eeg_rereferenced.set_montage(acticap_montage) # set created montage 
+
+        # creating epochs around the EOG-artifacts
+        eog_evoked = create_eog_epochs(raw, ch_name=ch_names).average()
+        eog_evoked.apply_baseline(baseline=(None, -0.2))
+        #eog_evoked.plot_joint()
+
+        # creating the ICA and fitting it to the epoched raw data: 
+        ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+        ica.fit(epoched_eeg_rereferenced)
+        ica.plot_components()
+
+        # exclude the right ICs
+        ica.exclude = []
+
+        # find which ICs match the EOG pattern
+        eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+
+        ica.plot_overlay(eog_evoked, exclude=eog_indices, show=False)
+
+        ica.exclude.extend(eog_indices)
+
+        print(ica.exclude)
+
+        # barplot of ICA component "EOG match" scores
+        ica.plot_scores(eog_scores)
+
+        # plot diagnostics
+        ica.plot_properties(epoched_eeg_rereferenced, picks=eog_indices)
+
+        #plot ICs applied to raw data, with EOG matches highlighted
+        ica.plot_sources(epoched_eeg_rereferenced, show_scrollbars=False)
+
+        # plot ICs applied to the averaged EOG epochs, with EOG matches highlighted
+        ica.plot_sources(eog_evoked)
+
+        eog_removed = ica.apply(epoched_eeg_rereferenced)
+
+    return eog_removed
 
 
 def getKerasPredictionResultsLRP(model, epochs, n_samp_features): 

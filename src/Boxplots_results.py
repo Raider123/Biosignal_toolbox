@@ -17,8 +17,8 @@ result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_ma
 title = "EEGNet Kernel length evaluation"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["10t MLP","10t EEG", "20t MLP","20t EEG", "40t MLP","40t EEG", "60t MLP","60t EEG", "80t MLP","80t EEG"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_MLP_10_trials","fcn_network_results_34ch_EEGNet_10_trials", "fcn_network_results_34ch_MLP_20_trials","fcn_network_results_34ch_EEGNet_20_trials", "fcn_network_results_34ch_MLP_40_trials", "fcn_network_results_34ch_EEGNet_40_trials", "fcn_network_results_34ch_MLP_60_trials", "fcn_network_results_34ch_EEGNet_60_trials", "fcn_network_results_34ch_MLP_80_trials","fcn_network_results_34ch_EEGNet_80_trials_kern50"]
+xLabels = ["EEGNet adam", "EEGnet SGD"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_EEGNet_80_trials_kern50", "fcn_network_results_34ch_EEGNet_80_trials_SGD"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
 compare_type = 'method'
