@@ -18,7 +18,7 @@ sys.path.append(lib_path) # append own libs to path
 
 
 # # own libs 
-from eeg_lib import EEGData
+from biosignal_toolbox.eeg_lib import EEGData
 
 # proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 # sys.path.append(proj_path+"/lib") # path to lib folder 
@@ -30,7 +30,7 @@ from eeg_lib import EEGData
 # *********************************************************************************
 
 #filenames 
-filenames = ["21032023_AJ80D_curls_with_pause_set1.vhdr", "21032023_AJ80D_curls_with_pause_set2.vhdr", "21032023_AJ80D_curls_with_pause_set3.vhdr"]
+filenames = ["13032023_BZ29D_unilateral_set1.vhdr", "13032023_BZ29D_unilateral_set2.vhdr"]
 
 
 
@@ -51,7 +51,7 @@ apply_filter = True # setting to False will ignore the filtering
 reref_channel = ["average"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
-marker_number = 20 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
+marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
 # specifying marker type and give it a name (event that is used for epoching)
