@@ -7,17 +7,13 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
+from biosignal_toolbox.emg_lib import EMGData
 
 # project path settings 
 current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
 project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
 data_path = os.path.join(project_path, 'data') # path where the data lays 
-lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
-sys.path.append(lib_path) # append own libs to path 
 
-
-# own libs / classes 
-from emg_lib import EMGData
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -25,7 +21,7 @@ from emg_lib import EMGData
 
 
 # Create an string with dataset file name (ANT and Cometa)
-file_str = "21032023_AJ80D_curls_with_pause_set1.txt"
+file_str = "01092022_BO42D_B_S0_H_1.txt"
 
 
 # *** channel selection params (comment in for channel selection) ***
@@ -35,7 +31,7 @@ inverse = False # define True for channel selection
 
 # for ANT Systems 
 emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
-selected_channels = []
+selected_channels = ["EMG1", "EMG2"]
 
 
 # EMG sampling rate (Cometa default)
@@ -49,18 +45,26 @@ target_frequency = 500 # target frequency after downsampling (Cometa)
 # variance filter length 
 n_var = 170 # calc length of variance filter (default 170, tested for 500 Hz sampling rate)
 
+# filter settings
+f_high = 20 # in Hz
+f_low = 245 # in Hz
+
 # *********************************************************************************
 # ************************* Load and process EMG data  ****************************
 # *********************************************************************************
 
 # define the processing params
  
-load_data = 1 # 0 for Cometa, 1 vor ANT
-apply_var_filter = 0 # 0 -> no, 1 -> yes
-apply_bp_filter = 1 # 0 -> no, 1 -> yes
-plot_emg = 2 # 0 -> no plot, 1 -> plot raw data, 2 -> plot filtered data
-
 # create EMGData Object
+EMG = EMGData(data_path = data_path, filename = file_str, f_samp = 500, channel_names = emg_ch_names)
 
-emg_data_obj = EMGData(load_data, data_path, file_str, fsamp_emg, emg_ch_names, apply_var_filter, apply_bp_filter, plot_emg, selected_channels, inverse, target_frequency, n_var)
+#EMG.channelSelection(selected_channels, inverse)
+
+#data, time = EMG.getEMGData()
+
+EMG.applyBPFilter(f_high, f_low)
+
+#data, time = EMG.getEMGData()
+
+EMG.showEMGData()
 

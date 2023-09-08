@@ -7,38 +7,59 @@ import matplotlib.pyplot as plt
 import mne
 from sklearn.utils import shuffle
 from scipy import signal as sig
-
+import os 
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
 class EEGData:
 
-    def __init__(self, load_data = None, dataset_list = None, marker_number = None, error_number = None, channel_list = None, inverse_keep_channel = None, reref_channel = None, apply_filter = None, f_highpass = None, f_lowpass = None, event_id_used = None, epoching_time_before_onset = None, epoching_time_after_onset = None, f_samp_eeg = None, apply_baseline_correction = None,  t0_baseline = None, t1_baseline = None, plot_montage = None, rename_channels = None, min_val = None, max_val = None, topoplot_times = None, topoplot_title_str = None, channel_to_evaluate = None):
-        if load_data is 1:
-            self.raw = self.loadBrainproductsData(dataset_list)
-            self.erp_epochs, self.erp_epochs_obj, self.time_axis_eeg_epochs, self.remaining_eeg_channel_names, self.raw_filtered = self.rereferencingEpoching(self.raw, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-            self.average_erp_epochs = np.mean(self.erp_epochs, axis = 0)
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None):
+       
+        if(filenames and format == "Brainvision"): 
+            #create numpy array with file names 
+            data_str_arr = []
+            for files_str in filenames: 
+                data_str_arr.append(os.path.join(data_path, files_str)) 
+            data_str_arr = np.array(data_str_arr)
 
-            self.acticap_montage = self.createActicapMontage(plot_montage, rename_channels)
-            self.raw_filtered.set_montage(self.acticap_montage)
+            self.raw_obj = self.loadBrainproductsData(data_str_arr)
 
-            self.topoplot(self.average_erp_epochs, self.time_axis_eeg_epochs, self.raw_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
+            # parameter 
+            self.__ch_names = self.raw_obj.ch_names
+            self.__montage = None
+            self.__fsamp = self.raw_obj.info['sfreq']
+            self.time_axis_epochs = None
+            self.epochs = None 
+            self.epoch_obj =None
+            self.obj_filtered = None
+            self.average_epochs = None
+            self.events, self.event_id = mne.events_from_annotations(self.raw_obj)
 
-            self.channel_index = self.remaining_eeg_channel_names.index(channel_to_evaluate)
-            self.average_eeg_selected_channel = self.average_erp_epochs[self.channel_index, :]
+
+            # self.acticap_montage = self.createActicapMontage(plot_montage, rename_channels)
+            # self.raw_obj_filtered.set_montage(self.acticap_montage)
+
+            # self.topoplot(self.average_erp_epochs, self.time_axis_eeg_epochs, self.raw_obj_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
+
+            # self.channel_index = self.remaining_eeg_channel_names.index(channel_to_evaluate)
+            # self.average_eeg_selected_channel = self.average_erp_epochs[self.channel_index, :]
+        else: 
+            print("No dataset specified ...")
         
 
 
-
-    def get_raw(self):
-        return self.raw
+    def getRawObject(self):
+        return self.raw_obj
     
-    def get_time_axis_eeg_epochs(self):
-        return self.time_axis_eeg_epochs
+    def getEpochs(self):
+        return self.time_axis_eeg_epochs, self.epochs
     
-    def get_average_eeg_selected_channel(self):
-        return self.average_eeg_selected_channel
+    def getEvents(self): 
+        return self.events
+    
+    def getSamplingRate(self): 
+        return self.__fsamp
 
 
     def loadBrainproductsData(self, dataset_list): 
@@ -66,8 +87,8 @@ class EEGData:
             raw = mne.io.read_raw_brainvision(dataset_list[0], preload = True, verbose = False)
 
         return raw
-        
 
+        
     def applyButterLowpassFilter(self, signal, f_lowpass, f_samp, N): 
 
         """
@@ -92,7 +113,7 @@ class EEGData:
         return filtered_signal
 
 
-    def createActicapMontage(self, plot_montage, rename_channels): 
+    def createActicapMontage(self, plot_montage, rename_channels, set_montage = True): 
 
         """
         This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -151,11 +172,15 @@ class EEGData:
         acti_cap_montage = mne.channels.DigMontage(dig=easy_cap_dig_adapted, ch_names=easy_cap_ch_names_adapted)
         if(plot_montage == True): 
             acti_cap_montage.plot()
-            
-        return acti_cap_montage
+            plt.show()
+        
+        self.__montage = acti_cap_montage
+
+        if(set_montage): 
+            self.obj_filtered.set_montage(self.__montage)
 
 
-    def topoplot(self, mean_epochs, time_axis_eeg_epoch, mne_obj, times, title_str, min_val, max_val, f_samp_eeg): 
+    def topoplot(self, times, title_str, min_val, max_val): 
 
         """
         This function creates and showes an topoplot at different points in time. 
@@ -177,13 +202,14 @@ class EEGData:
             Last changed: 04.04.2023 (by Niklas Kueper)
         """
 
-        
+        mean_epochs = np.mean(self.epochs, axis = 0)
+
         #topoplot at different times 
         n,m = mean_epochs.shape
         #start_idx = (start_time/1000)*f_samp_eeg
         #step_idx = (step_time/1000)* f_samp_eeg
         time_idx = (np.array(times)).astype(int)
-        time_axis_eeg_epoch_ms = (time_axis_eeg_epoch*1000).astype(int) # make time axis in ms for the analysis 
+        time_axis_eeg_epoch_ms = (self.time_axis_epochs *1000).astype(int) # make time axis in ms for the analysis 
 
 
         #indices_of_topoplot = np.arange(start_idx, m, step = step_idx).astype(int) # 22 er steps 
@@ -198,13 +224,23 @@ class EEGData:
                 index = np.array(np.where(time_axis_eeg_epoch_ms == t_index+1))
             index = index[0][0] # numpy array to int value 
             cmap = 'bwr'
-            im, cn = mne.viz.plot_topomap(mean_epochs[:,index], mne_obj.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'cubic',extrapolate='local',vlim = [min_val, max_val])
+            im, cn = mne.viz.plot_topomap(mean_epochs[:,index], self.obj_filtered.info, cmap = cmap, axes = ax[count], show = False, image_interp = 'cubic',extrapolate='local',vlim = [min_val, max_val])
             str_time = str(t_index)+" ms"
             ax[count].set_title(title_str+str_time, color='black', fontsize=12)
             cbar =fig.colorbar(im, ax = ax[count], orientation="vertical", pad = 0.15)
             cbar.set_label("in uV")
             count = count+1
         plt.show()
+
+    def getDataOneChannel(self, channel_name, average = True): 
+
+        channel_idx = self.__ch_names.index(channel_name)
+        if(average):
+            data_channel = self.average_epochs[channel_idx, :]
+        else: 
+            data_channel = self.epochs[:, channel_idx, :]
+
+        return data_channel, self.time_axis_epochs
 
 
     def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
@@ -266,13 +302,12 @@ class EEGData:
 
         return processed_trial_predictions
 
-    def rereferencingEpoching(self, raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
+    def rereferencingEpoching(self, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, apply_baseline_correction,  t0_baseline, t1_baseline): 
         
         """
-        Apply rereferencing and epoching with given parameters and filters to an raw mne instance. 
+        Apply rereferencing and epoching with given parameters and filters to an raw_obj mne instance. 
 
-        Arguments:
-            raw: The created mne object. 
+        Arguments: 
             marker_number: The markernumber of the used event for creating the epochs. 
             error_number: The markernumber of trials with an error that are excluded from the evaluation. 
             channel_list: A list of EEG-channels that are either kept or dropped from evaluation depending on the "inverse_keep_channel" flag. 
@@ -290,12 +325,12 @@ class EEGData:
             t1_baseline: Specified end time for the baseline correction. 
 
 
-        Returns:
+        Class parameters:
             erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples)
             erp_epoch_obj: The erp epochs object created by mne. 
             time_axis_eeg_batch: The created time axis as one dimensional numpy array. 
             remaining_eeg_channel_names: A list of EEG-channels that are included in the analysis (in the erp_epochs array). 
-            filtered_eeg_rereferenced: Manipulated instance of an mne raw object (after filtering and channel selection). 
+            filtered_eeg_rereferenced: Manipulated instance of an mne raw_obj object (after filtering and channel selection). 
 
         Meta information: 
             Author: Niklas Kueper 
@@ -304,7 +339,7 @@ class EEGData:
 
         
         # rereferencing 
-        rereferenced_eeg_raw = raw.copy()
+        rereferenced_eeg_raw_obj = self.raw_obj.copy()
         
         if not (reref_channels):
             print("no reref channels specified, using original ref")
@@ -313,19 +348,19 @@ class EEGData:
             if (reref_channels[0] == "average"):
                 print("using average reference over all electrodes")
                 print("")
-                rereferenced_eeg_raw, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw, ref_channels='average' ,copy=True)
+                rereferenced_eeg_raw_obj, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw_obj, ref_channels='average' ,copy=True)
             else:
                 print("using custom electrodes for rereferencing")
-                rereferenced_eeg_raw, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw, ref_channels=reref_channels ,copy=True)
+                rereferenced_eeg_raw_obj, ref_data = mne.set_eeg_reference(rereferenced_eeg_raw_obj, ref_channels=reref_channels ,copy=True)
         
-        raw_eeg_rereferenced = rereferenced_eeg_raw.copy()
+        raw_obj_eeg_rereferenced = rereferenced_eeg_raw_obj.copy()
         #drop channel
 
         #apply filter 
         if (apply_filter): 
-            filtered_eeg_rereferenced = raw_eeg_rereferenced.filter(f_highpass,f_lowpass)
+            filtered_eeg_rereferenced = raw_obj_eeg_rereferenced.filter(f_highpass,f_lowpass)
         else: 
-            filtered_eeg_rereferenced = raw_eeg_rereferenced
+            filtered_eeg_rereferenced = raw_obj_eeg_rereferenced
         
         #extract events 
         plot_events, plot_event_dict = mne.events_from_annotations(filtered_eeg_rereferenced)
@@ -369,18 +404,17 @@ class EEGData:
                 eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
         
         # Get remaining channel names  
-        remaining_eeg_channel_names = filtered_eeg_rereferenced.ch_names
+        self.__ch_names = filtered_eeg_rereferenced.ch_names
+        self.obj_filtered = filtered_eeg_rereferenced.copy()
         
-        erp_epoch_obj = eeg_epochs.copy() # the object of epochs from mne 
+        self.epoch_obj = eeg_epochs.copy() # the object of epochs from mne 
 
         #get data out as numpy array for further processing 
-        erp_epochs = eeg_epochs.get_data() 
+        self.epochs = eeg_epochs.get_data() 
+        self.average_epochs = np.mean(self.epochs, axis = 0)
         
         #generate a time axis for the epochs 
-        time_axis_eeg_batch = np.arange(t1,t2+1/f_samp_eeg, step = 1/f_samp_eeg) #build time axis (epoch)
-
-        #return everything needed for further processing 
-        return erp_epochs, erp_epoch_obj, time_axis_eeg_batch, remaining_eeg_channel_names, filtered_eeg_rereferenced # shape of epochs: (epochs, channel, samples)
+        self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
@@ -424,7 +458,7 @@ class EEGData:
         return classified_windows
 
 
-    def windowEEGEpochs(self, epochs, f_samp_eeg, window_size, window_step): 
+    def windowEEGEpochs(self, epochs, window_size, window_step): 
 
         """
         This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
@@ -446,8 +480,8 @@ class EEGData:
         """
 
         #if (with_channel_dim == False): 
-        window_size_samp = int((window_size/1000) * f_samp_eeg) 
-        window_step_samp = int((window_step/1000) * f_samp_eeg) 
+        window_size_samp = int((window_size/1000) * self.__fsamp) 
+        window_step_samp = int((window_step/1000) * self.__fsamp) 
         epochs_arr_cut = epochs[:, 1:]
         num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
 
@@ -458,7 +492,7 @@ class EEGData:
         for win_nr in range(0, num_of_windows): 
             wind_start_idx = win_nr*window_step_samp
             wind_end_idx = window_size_samp+wind_start_idx
-            wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/f_samp_eeg) *1000))
+            wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/self.__fsamp) *1000))
             
             wind_names.append(wind_name) # a list of all window names
             #create arrays with cutted 

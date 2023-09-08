@@ -12,44 +12,34 @@ from scipy import signal as sig
 # *********************************************************************************
 class EMGData:
 
-    def __init__(self, load_data = None, data_path = None, file_str = None, f_samp = None, channel_names = None, apply_var_filter = None, apply_bp_filter = None, plot_emg = None, sel_channels = None, inverse = False, target_freq = None, n_var = None):
+    def __init__(self, format="ANTmini",data_path = None, filename = None, f_samp = None, channel_names = None): 
         
-        if load_data is 0:
-            self.emg_data, self.emg_time_axis, self.channel_names = self.loadCometaEMGData(data_path, file_str)
-        elif load_data is 1:
-            self.emg_data, self.emg_time_axis = self.loadMiniANTEMGData(data_path, file_str, f_samp)
+        # parameter 
+        self.__fsamp = f_samp
+        self.channel_names = channel_names
+        self.data = None
 
-        if apply_var_filter is 1:
-            self.channel_names = channel_names
-            self.sel_channels = sel_channels
-            self.target_freq = target_freq
-            self.n_var = n_var
-            self.emg_data_select, self.emg_ch_names_select = self.channelSelection(self.emg_data, channel_names, sel_channels, inverse)
-            self.emg_data_down, self.time_axis_down = self.decimateEMGData(self.emg_data_select, self.emg_time_axis, target_freq, f_samp)
-            self.emg_data_filtered = self.applyVarianceFilter(self.emg_data_down, n_var)
+        if(filename):
 
-        if apply_bp_filter is 1:
-            self.emg_filtered = self.applyBPFilterRectifying(f_samp, 20, 200, self.emg_data)
+            if(format == "ANTmini"):
+                self.raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+            else: 
+                self.raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
-        if plot_emg is 1:
-            self.showEMGData(self.emg_data, self.emg_time_axis, channel_names)
-        elif plot_emg is 2:
-            self.showEMGData(self.emg_filtered, self.emg_time_axis, channel_names)
+        self.data = self.raw_data
+        print(self.data.shape)
 
-
-
-    def get_emg_data(self):
-        return self.emg_data, self.emg_time_axis, self.channel_names
+    def getEMGData(self):
+        return self.data, self.time_axis
+    
+    def getChannelNames(self): 
+        return self.channel_names
         
-    def get_emg_filtered(self):
+    def getEMGfiltered(self):
         return self.emg_filtered
     
-    def get_sel_channels(self):
-        return self.sel_channels
-    
-    def get_time_axis_down(self):
-        return self.time_axis_down
-    
+    def getSamplingRate(self): 
+        return self.__fsamp
 
     def loadCometaEMGData(self, data_path, file_str):
 
@@ -106,45 +96,46 @@ class EMGData:
 
         return emg_data, time_axis 
 
-    def showEMGData(self, emg_data, time_axis, ch_names): 
+    def showEMGData(self): 
 
-        if (emg_data.ndim > 1): 
-            num_channels = emg_data.shape[1]
+        if (self.data.ndim > 1): 
+            num_channels = self.data.shape[1]
 
             for n_channel in range(0, num_channels): 
                 plt.figure()
-                plt.plot(time_axis, emg_data[:, n_channel])
-                plt.title(ch_names[n_channel])
+                plt.plot(self.time_axis, self.data[:, n_channel])
+                plt.title(self.channel_names[n_channel])
                 plt.xlabel("Time in seconds")
                 plt.ylabel("Voltage in uV")
         else:
             plt.figure()
-            plt.plot(time_axis, emg_data)
-            plt.title(ch_names)
+            plt.plot(self.time_axis, self.data)
+            plt.title(self.channel_names)
             plt.xlabel("Time in seconds")
             plt.ylabel("Voltage in uV")
 
         plt.show()
 
 
-    def channelSelection(self, emg_data, ch_names, selected_channels, inverse): 
+    def channelSelection(self, selected_channels, inverse): 
 
         ch_indices = []
 
         for selected_names in selected_channels: 
-            ch_indices.append(np.where(ch_names == selected_names)[0][0])
+            ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
 
         if(inverse == True): 
-            new_ch_indices = np.arange(0, len(ch_names)-1)
+            new_ch_indices = np.arange(0, len(self.channel_names)-1)
             ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
 
-        remaining_emg_data = emg_data[:, ch_indices]
+        remaining_emg_data = self.data[:, ch_indices]
         if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
             remaining_emg_data = remaining_emg_data[:, 0]
 
-        remaining_emg_channels = ch_names[ch_indices]
+        remaining_emg_channels = self.channel_names[ch_indices]
 
-        return remaining_emg_data, remaining_emg_channels
+        self.data = remaining_emg_data
+        self.channel_names = remaining_emg_channels
 
 
     def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
@@ -175,9 +166,9 @@ class EMGData:
         return dec_emg_data, new_time_axis
 
     
-    def applyVarianceFilter(self, signal, n_var):
+    def applyVarianceFilter(self, n_var):
         # signal init 
-        emg_filtered = np.zeros(signal.shape)
+        emg_filtered = np.zeros(self.data.shape)
 
         if(emg_filtered.ndim > 1): 
         
@@ -188,7 +179,7 @@ class EMGData:
                     if (index < n_var): 
                         emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
                     else: 
-                        emg_filtered[index, channel] = np.var(signal[index-n_var:index, channel])
+                        emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
 
         else: 
             for index in range(0, emg_filtered.shape[0]): 
@@ -196,9 +187,9 @@ class EMGData:
                     if (index < n_var): 
                         emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
                     else: 
-                        emg_filtered[index] = np.var(signal[index-n_var:index])
+                        emg_filtered[index] = np.var(self.data[index-n_var:index])
 
-        return emg_filtered
+        self.data = emg_filtered
 
 
     def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
@@ -237,7 +228,7 @@ class EMGData:
         return emg_epochs
 
 
-    def applyBPFilterRectifying(self, f_samp, f_high, f_low, emg_data):
+    def applyBPFilter(self, f_high, f_low, N = 8):
 
         """
         This function... to be written !
@@ -248,24 +239,24 @@ class EMGData:
             Last changed: 23.03.2023 (by Niklas Kueper)
         """
         #Calc filtercoeff.  
-        b1, a1 = sig.butter(8, f_high, 'high', analog=False, fs = f_samp)
-        b2, a2 = sig.butter(8, f_low, 'low', analog=False, fs = f_samp)
+        b1, a1 = sig.butter(N, f_high, 'high', analog=False, fs = self.__fsamp)
+        b2, a2 = sig.butter(N, f_low, 'low', analog=False, fs = self.__fsamp)
 
-        if (emg_data.ndim > 1): 
-            (sampels, channels) = emg_data.shape
+        if (self.data.ndim > 1): 
+            (sampels, channels) = self.data.shape
             emg_data_processed = np.zeros((sampels, channels))
-            for channel_idx in range(0, channels): 
+            print(emg_data_processed.shape)
 
-                filtered_emg_1 = sig.filtfilt(b2, a2, emg_data[:, channel_idx])
+            for channel_idx in range(0, channels): 
+                
+                filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
                 filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
 
                 emg_data_processed[:, channel_idx] = filtered_emg
 
         else: 
-            filtered_emg_1 = sig.filtfilt(b2, a2, emg_data)
-            filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+            filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
+            emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
 
-            emg_data_processed = filtered_emg
-
-        return emg_data_processed
+        self.data = emg_data_processed
 

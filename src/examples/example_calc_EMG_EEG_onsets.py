@@ -8,20 +8,19 @@ import numpy as np
 import sys 
 import matplotlib.pyplot as plt
 import os 
-
+# own libs 
+# # own libs 
+from biosignal_toolbox.eeg_lib import EEGData
+# # own libs 
+from biosignal_toolbox.emg_lib import EMGData
 import mne 
 
 # project path settings 
 current_path = os.path.dirname(os.path.abspath(__file__))
 project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
 data_path = os.path.join(project_path, 'data') # path where the data lays 
-lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
-sys.path.append(lib_path) # append own libs to path 
 
 
-# own libs 
-import eeg_lib
-import emg_lib
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************

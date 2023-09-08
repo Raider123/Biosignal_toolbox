@@ -13,9 +13,6 @@ import os
 current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
 project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
 data_path = os.path.join(project_path, 'data') # path where the data lays 
-lib_path = os.path.join(project_path, 'lib') # path were the additional library is located 
-sys.path.append(lib_path) # append own libs to path 
-
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -30,8 +27,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 # *********************************************************************************
 
 #filenames 
-filenames = ["13032023_BZ29D_unilateral_set1.vhdr", "13032023_BZ29D_unilateral_set2.vhdr"]
-
+filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr"]
 
 
 # name pattern of current subject and paradigm 
@@ -50,7 +46,6 @@ apply_filter = True # setting to False will ignore the filtering
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
 reref_channel = ["average"]
 
-f_samp_eeg = 500 #sample Frequency of eeg
 marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
@@ -88,26 +83,29 @@ rename_channels = True
 # ***************** Load and concatenate a dataset *********
 # *********************************************************************************
 
-#create numpy array with file names 
-data_str_arr = []
-for files_str in filenames: 
-    data_str_arr.append(os.path.join(data_path, files_str)) 
-data_str_arr = np.array(data_str_arr)
-
 
 # *********************************************************************************
 # **************** Make EEG average analysis **************************************
 # *********************************************************************************
 
-# select the EEGData params
-load_data = 1 # 0 -> No, 1 -> Yes
 
 #create EEGData object
-eeg_data_obj = EEGData(load_data, data_str_arr, marker_number, error_number, channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline, plot_montage, rename_channels, min_val, max_val, topoplot_times, topoplot_title_str, channel_to_evaluate)
+data = EEGData(format = "Brainvision", filenames = filenames, data_path = data_path)
+data.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
+
+# create an acticap montage 
+data.createActicapMontage(False, rename_channels)
+
+# # make a topoplot 
+data.topoplot(topoplot_times, topoplot_title_str, min_val, max_val)
+
+one_channel, time_axis = data.getDataOneChannel(channel_to_evaluate)
+
+# show average erp signal selected channel 
 
 # Plot the selected channel (average)
 plt.figure()
-plt.plot(eeg_data_obj.get_time_axis_eeg_epochs(), eeg_data_obj.get_average_eeg_selected_channel())
+plt.plot(time_axis, one_channel)
 plt.title("Average eeg signal for channel "+channel_to_evaluate)
 plt.xlabel("Time in seconds")
 plt.ylabel("Voltage in V")
