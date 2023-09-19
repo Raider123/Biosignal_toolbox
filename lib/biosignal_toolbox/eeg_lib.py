@@ -8,14 +8,39 @@ import mne
 from sklearn.utils import shuffle
 from scipy import signal as sig
 import os 
+from scipy.fft import fft, fftfreq
+from tensorflow.keras.utils import to_categorical
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
+
 class EEGData:
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None):
        
+        
+        self.raw_obj = None
+        # parameter 
+        #basic params 
+        self.__ch_names = None
+        self.__montage = None
+        self.__fsamp = None
+        self.time_axis_epochs = None
+        # epoching 
+        self.epochs = None 
+        self.epoch_obj =None
+        self.obj_filtered = None
+        self.average_epochs = None
+        #events
+        self.events = None
+        # windowing 
+        self.windows = None 
+        self.window_names = None 
+        self.num_windows = None
+        # features 
+        self.feature_vec = None
+
         if(filenames and format == "Brainvision"): 
             #create numpy array with file names 
             data_str_arr = []
@@ -26,24 +51,21 @@ class EEGData:
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
 
             # parameter 
+            #basic params 
             self.__ch_names = self.raw_obj.ch_names
-            self.__montage = None
             self.__fsamp = self.raw_obj.info['sfreq']
-            self.time_axis_epochs = None
-            self.epochs = None 
-            self.epoch_obj =None
-            self.obj_filtered = None
-            self.average_epochs = None
+            #events
             self.events, self.event_id = mne.events_from_annotations(self.raw_obj)
 
+        
+        elif(format == "NumpyEpochs"): 
+            self.epochs = epochs
+            self.__fsamp = f_samp
 
-            # self.acticap_montage = self.createActicapMontage(plot_montage, rename_channels)
-            # self.raw_obj_filtered.set_montage(self.acticap_montage)
+        elif(format == "RawObj"): 
+            self.raw_obj = raw_obj
+            self.__fsamp = f_samp
 
-            # self.topoplot(self.average_erp_epochs, self.time_axis_eeg_epochs, self.raw_obj_filtered, topoplot_times, topoplot_title_str, min_val, max_val, f_samp_eeg)
-
-            # self.channel_index = self.remaining_eeg_channel_names.index(channel_to_evaluate)
-            # self.average_eeg_selected_channel = self.average_erp_epochs[self.channel_index, :]
         else: 
             print("No dataset specified ...")
         
@@ -107,8 +129,12 @@ class EEGData:
             Last changed: 29.11.2022 (by Niklas Kueper)
         """
 
-        b, a = sig.butter(N, f_lowpass, 'low', analog=False, fs = f_samp)
-        filtered_signal = sig.filtfilt(b, a, signal) 
+        b, a = sig.iirfilter(N, [0.5, f_lowpass], btype ='band', analog=False, fs = f_samp)
+        
+        # signal shape: n_channel, n_sampels
+        filtered_signal = np.zeros(signal.shape)
+        for channel_idx in range(0, signal.shape[0]): 
+            filtered_signal[channel_idx, :] = sig.filtfilt(b, a, signal[channel_idx, :]) 
 
         return filtered_signal
 
@@ -301,6 +327,7 @@ class EEGData:
             trial_idx = trial_idx +1
 
         return processed_trial_predictions
+    
 
     def rereferencingEpoching(self, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, apply_baseline_correction,  t0_baseline, t1_baseline): 
         
@@ -417,6 +444,53 @@ class EEGData:
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def reshapeWindowsForCNNnets(self): 
+
+        """
+        Select windows and extract them from all windows segmented by specifying the windows names.  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 14.09.2023 (by Niklas Kueper)
+        """
+
+
+        reshaped_EEG_windows= np.zeros((self.windows.shape[0]*self.windows.shape[3], self.windows.shape[1], self.windows.shape[2], 1)) # (n_trials * n_windows, n_channels, n_sampels, 1). 
+
+
+        # get the features in one dim for all trials and windows 
+        for channel_idx in range(0, self.windows.shape[1]):
+            for sample_idx in range(0, self.windows.shape[2]): 
+
+                reshaped_EEG_windows[:, channel_idx, sample_idx, 0] = self.windows[:, channel_idx, sample_idx, :].flatten()
+
+        self.windows = reshaped_EEG_windows
+
+
+    def labelsToCategorical(self, num_classes = 2): 
+
+        y = to_categorical(self.labels, num_classes)
+
+        self.labels = y
+
+
+    def getTrainWindows(self): 
+        return self.windows
+    
+    def getFeatures(self): 
+        return self.feature_vec
+
+
+    def getLabels(self): 
+        return self.labels
+
+    def getTrainLabels(self, type = "binary"): 
+
+        if(type == "binary"):
+            return self.labels
+        elif(type == "onehotencoding"): 
+            return self.labels[:, 1]
+
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 
         """
@@ -458,48 +532,88 @@ class EEGData:
         return classified_windows
 
 
-    def windowEEGEpochs(self, epochs, window_size, window_step): 
+    def windowEEGEpochs(self, window_size, window_step, no_channel_dim = False):
 
         """
         This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
 
         Arguments:
-            epochs: The EEG-epochs as numpy array, currently only available for postprocessing with shape:(n_trials, n_sampels) without channel dimension!. 
-            f_samp_eeg: The sampling rate in Hz of the EEG-data. 
+            no_channel_dim(optional): Set to True if the EEG data (epochs) have no channel dimension. 
             window_size: The size of the windows in ms to be cutout (standard: 1000). 
             window_step: The stepsize of the sliding window (sliding step) in ms (standard: 25)
-
-        Returns:
-            wind_arr: Numpy array with windowed EEG-data with shape (n_trials, n_sampels, n_windows). 
-            num_of_windows: The total number of windows that are created. 
-            wind_names: A list of the window names according to the pySPACE naming of window definitions.  
+            
         
         Meta information: 
             Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
+            Last changed: 14.09.2023 (by Niklas Kueper)
         """
 
         #if (with_channel_dim == False): 
         window_size_samp = int((window_size/1000) * self.__fsamp) 
         window_step_samp = int((window_step/1000) * self.__fsamp) 
-        epochs_arr_cut = epochs[:, 1:]
-        num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
 
-        #init window arrays with shape (trials, sampel of window, windownumber)
-        wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
+        if(no_channel_dim): # support old way to postprocess
+            epochs_arr_cut = self.epochs[:, 1:]
+            num_of_windows =  int((epochs_arr_cut.shape[1]-window_size_samp)/window_step_samp)+1
+        else: 
+            epochs_arr_cut = self.epochs[:, :, 1:] # trials, channels, sampels 
+            num_of_windows =  int((epochs_arr_cut.shape[2]-window_size_samp)/window_step_samp)+1
+
+
+        #init window arrays with shape (trials, channels, sampel of window, windownumber)
+        if(no_channel_dim): 
+            wind_arr = np.zeros((epochs_arr_cut.shape[0], window_size_samp, num_of_windows))
+        else:
+            wind_arr = np.zeros((epochs_arr_cut.shape[0],epochs_arr_cut.shape[1], window_size_samp, num_of_windows))
+
         wind_names = []
 
         for win_nr in range(0, num_of_windows): 
             wind_start_idx = win_nr*window_step_samp
             wind_end_idx = window_size_samp+wind_start_idx
-            wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/self.__fsamp) *1000))
+
+            if(no_channel_dim): 
+                wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/self.__fsamp) *1000))
+            else: 
+                wind_name = "bis"+str(int((((epochs_arr_cut.shape[2]-wind_end_idx)*-1)/self.__fsamp) *1000))
             
             wind_names.append(wind_name) # a list of all window names
-            #create arrays with cutted 
-            wind_arr[:, :, win_nr] = win_nr
-            wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
+            #create arrays for windows 
 
-        return wind_arr, num_of_windows, wind_names
+            if(no_channel_dim): 
+                wind_arr[:, :, win_nr] = win_nr
+                wind_arr[:, :, win_nr] = epochs_arr_cut[:, wind_start_idx:wind_end_idx]
+            else:
+                wind_arr[:, :, :, win_nr] = win_nr
+                wind_arr[:, :, :, win_nr] = epochs_arr_cut[:, :, wind_start_idx:wind_end_idx]
+
+
+        self.windows = wind_arr 
+        self.num_windows = num_of_windows
+        self.window_names = wind_names
+
+
+    def windowSelection(self, selected_windows): 
+        """
+        Select windows and extract them from all windows segmented by specifying the windows names.  
+
+        Arguments:
+            selected_windows: The names of the windows (given after windowing) which are selected for further processing. 
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 14.09.2023 (by Niklas Kueper)
+        """
+
+        # interate over specified window names and extract the windows 
+        indices_selected_winds = []
+        for current_window_name in selected_windows: 
+            indices_selected_winds.append(self.window_names.index(current_window_name))
+
+        selected_windows_arr = self.windows[:, :, :, indices_selected_winds] 
+
+        self.windows = selected_windows_arr
+        self.window_names = selected_windows
 
 
     def calcTestAccAndRates(self, prediction_labels, true_labels):
@@ -646,6 +760,158 @@ class EEGData:
             ba = (tnr+tpr)/2
 
         return ba, tnr, tpr 
+    
+
+    def OnechannelFFT(self, one_channel_data, fsamp, plot = False): 
+        """
+        This function calculates the FFT for one channel of timeseries data. 
+        Arguments:
+
+
+        Returns:
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: .. 
+        """
+
+        N = len(one_channel_data)
+        # sample spacing
+        dT = 1.0/fsamp
+        x = np.linspace(0.0, N*dT, N, endpoint=False)
+        y = one_channel_data
+        yf = fft(y)
+
+        xf = fftfreq(N, dT)[:N//2]
+        yfn = 2.0/N * np.abs(yf[0:N//2])
+
+
+        if (plot): 
+            fig = plt.figure()
+            plt.plot(xf, yfn)
+
+        return xf, yfn
+
+    def featureExtractionFromWindows(self, feature_type, feature_times_windows = None, apply_lp_filter = False, f_lowpass = 4): 
+
+        # (n_trials, n_channels, n_sampels, n_windows).
+        feature_type_total = None
+
+        if(feature_times_windows):
+            start_point_index = int((feature_times_windows[0]/1000)*self.__fsamp)
+            stop_point_index = int((feature_times_windows[1]/1000)*self.__fsamp)
+
+        if(feature_type == "fusion"):  # extract both feature types after each other 
+            feature_type_total = feature_type
+            feature_type = "timepoints"
+
+
+        if(feature_type == "timepoints"): 
+
+            #x_train = np.zeros((int(train_windows.shape[0]*train_windows.shape[3]), int(train_windows.shape[1]*train_windows.shape[2]))) # shape: train samples, features 
+
+
+            x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], int(np.abs(stop_point_index-start_point_index)*self.windows.shape[1]))) # shape: trials, windows, features
+            
+            # get the features in one dim for all trials and windows 
+            for trial_idx in range(0, self.windows.shape[0]):
+                for window_idx in range(0, self.windows.shape[3]): 
+
+                    if(apply_lp_filter):
+                        N = 1
+                        filtered_window = self.applyButterLowpassFilter(self.windows[trial_idx, :, :, window_idx], f_lowpass, self.__fsamp, N)
+
+                        x_train_features[trial_idx, window_idx, :] = filtered_window[:, start_point_index:stop_point_index].flatten()
+                    else:
+                        x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, start_point_index:stop_point_index, window_idx].flatten()
+
+            # flatten the trials and windows as train instances 
+            x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
+            #print(x_train.shape)
+
+            for feature_idx in range(0, x_train_features.shape[2]):
+                x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
+
+            print(x_train.shape)
+
+        if(feature_type_total == "fusion"): 
+            x_train_time = x_train
+            feature_type = "meanfreqs"
+
+        elif(feature_type == "meanfreqs" or feature_type == "medianfreqs"): #fix this 
+
+
+            # (n_trials, n_channels, n_sampels, n_windows).
+            num_of_freq_bands = 5 
+            x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], num_of_freq_bands*self.windows.shape[1])) # shape: trials, windows, features
+
+            #print(x_train_features.shape)
+            features = np.zeros((num_of_freq_bands, self.windows.shape[1]))
+            
+            # get the features in one dim for all trials and windows 
+            for trial_idx in range(0, self.windows.shape[0]):
+                for window_idx in range(0, self.windows.shape[3]):
+                    for channel_idx in range(0, self.windows.shape[1]):
+                        
+                        if(feature_times_windows):
+                            xf, yf = OnechannelFFT(self.windows[trial_idx, channel_idx, start_point_index:stop_point_index, window_idx], self.__fsamp) # do fft of sliced data
+                        else: 
+                            xf, yf = OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.__fsamp) # do fft of sliced data
+
+                        normed_freqs = (xf*yf)/np.sum(yf) # norm the frequencies
+        
+                        if(feature_type == "meanfreqs"): 
+                            freqs_arr = np.array([np.mean(normed_freqs[0:4]), np.mean(normed_freqs[4:8]), np.mean(normed_freqs[8:14]), np.mean(normed_freqs[14:30]), np.mean(normed_freqs[30:40])]) #  mean band frequencies
+                        else: 
+                            freqs_arr  = np.array([np.median(normed_freqs[0:4]), np.median(normed_freqs[4:8]), np.median(normed_freqs[8:14]), np.median(normed_freqs[14:30]), np.median(normed_freqs[30:40])]) #  mean band frequencies
+
+
+                        features[:, channel_idx] = freqs_arr # freq band features for each channels 
+
+
+                    x_train_features[trial_idx, window_idx, :] = features.flatten()
+
+                    
+            # flatten the trials and windows as train instances 
+            x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
+            #print(x_train.shape)
+
+            for feature_idx in range(0, x_train_features.shape[2]):
+                x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
+
+
+        if(feature_type_total == "fusion"): 
+
+            self.feature_vec = np.concatenate((x_train_time, x_train), axis = 1)
+        else: 
+            self.feature_vec = x_train 
+
+        
+    def setWindowLabels(self, label_list): 
+
+        """
+        Set/encode the class labels of segemented windows for the classification task.  
+
+        Arguments:
+            label_list: A list of labels that correspond to the windows class labels (e.g. [0.0, 0.0, 1.0, 1.0]). 
+        
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 22.07.2023 (by Niklas Kueper)
+        """
+
+        y = np.zeros((self.windows.shape[0], self.windows.shape[3])).astype(dtype=np.float64)
+        for trial_idx in range(0, y.shape[0]): 
+            y[trial_idx, :] = np.array(label_list)  # shape: trials, window labels
+
+        y = y.flatten() # flatten the labels
+        y_temp = np.zeros((y.shape[0], 1))
+        y_temp[:, 0] = y
+        y = y_temp
+
+        self.labels = y 
+
 
     def calcEEGWindowOnset(self, window_predicts, num_pos_windows): 
 
@@ -810,184 +1076,5 @@ class EEGData:
         return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
-    def convertSamplesToLabelledData(self, erp_sampels, no_erp_sampels, tensor_shape, shuffle_data): 
 
-        # init arrays for both classes 
-        erp_shaped = np.zeros((erp_sampels.shape[0]*erp_sampels.shape[2], erp_sampels.shape[1]))
-        no_erp_shaped = np.zeros((no_erp_sampels.shape[0]*no_erp_sampels.shape[2], no_erp_sampels.shape[1]))
-
-        # flatten sampels and trials to one dim 
-        for channel in range(0, tensor_shape[1]): 
-            erp_shaped[:, channel] = erp_sampels[:,channel,:].flatten()
-            no_erp_shaped[:, channel] = no_erp_sampels[:,channel,:].flatten()
-
-        #merge data together 
-        x = np.concatenate((erp_shaped, no_erp_shaped), axis=0).astype(dtype = np.float64)
-
-        #create label encoding 
-        y = np.zeros((x.shape[0],1)).astype(dtype=np.float64)
-        y[0:erp_shaped.shape[0]] = 1.0
-        
-        #concatenate data for shuffling 
-        if (shuffle_data): 
-            x_y_concat = np.concatenate((x, y), axis=1)
-            x_y_concat_shuffle = shuffle(x_y_concat)
-            x = x_y_concat_shuffle[:, 0:x_y_concat_shuffle.shape[1]-1]
-            y = x_y_concat_shuffle[:, x_y_concat_shuffle.shape[1]-1]
-        
-        return x, y
-
-
-    def timeDomainFeaturesFromEpochs(self, erp_epochs, time_axis_eeg_batch, n_samp_features, use_continues_sampels, shuffle_data, t1_time, t2_time): 
-
-        """
-        This function 
-        Arguments:
-            erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples). 
-            time_axis_eeg_batch: The time axis of the EEG-epochs as one dimensional numpy array. 
-            n_samp_features: The number of sampels that are used as features (-n_samp_features:0 of each epoch). 
-            use_continues_sampels: If boolean flag is set to True, continous sampels with a stepsize are extracted from the specified negative class (t1_time to t2_time, balanced). If False, all sampels between t1_time and t2_time are used as features for the negative class. 
-            shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
-            t1_time: The start time where sampels of the negative class are extracted as features from EEG epochs. 
-            t2_time: The end time where sampels of the negative class are extracted as features from EEG epochs. 
-            
-        Returns:
-            x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
-            y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 29.11.2022 (by Niklas Kueper)
-        """
-        tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
-
-        n_start = n_samp_features # number of samples to use as features 
-        n_end = 1
-        erp_idx_1 = tensor_shape[2]-n_start-1
-        erp_idx_2 = tensor_shape[2]-n_end
-        no_erp_idx_1 = n_start
-
-        # convert from ms to seconds 
-        t1_time = t1_time/1000
-        t2_time = t2_time/1000
-
-        if (t1_time < 0): 
-            for index in range(0, len(time_axis_eeg_batch)): 
-                if(time_axis_eeg_batch[index] <= t1_time and time_axis_eeg_batch[index+1] >= t1_time): 
-                    print("t1 set")
-                    t1 = index 
-                    break
-
-        if (t2_time < 0): 
-            for index in range(0, len(time_axis_eeg_batch)): 
-                if(time_axis_eeg_batch[index] <= t2_time and time_axis_eeg_batch[index+1] >= t2_time): 
-                    t2 = index 
-                    break
-        
-
-        print("t1: ", t1)
-        print("t2: ", t2)
-
-        # print("erp indizes are: ", erp_idx_1, erp_idx_2)
-        # print("no_erp indizes are: ", t1, no_erp_idx_1+t1)
-        
-        #seperate the samples of both classes 
-        if(use_continues_sampels): # here no erp sampels are cut out at even spaced steps to erp class
-            erp_sampels = erp_epochs[:, :, erp_idx_1:erp_idx_2] # shape (trials, channel, sampels)
-            num_erp_samps = erp_sampels.shape[2]
-            #print((erp_idx_1/num_erp_samps))
-            stepsize_no_erp = int(((t2-t1)/num_erp_samps))
-            no_erp_ind = np.arange(t1, t2, step = stepsize_no_erp) 
-            
-            no_erp_indices = no_erp_ind[no_erp_ind.shape[0]-num_erp_samps:] # make the balance !
-            no_erp_sampels = erp_epochs[:, :, no_erp_indices]
-        else: 
-            erp_sampels = erp_epochs[:, :, erp_idx_1:erp_idx_2] # shape (trials, channel, sampels)
-            no_erp_sampels = erp_epochs[:, :, t1:no_erp_idx_1+t1]
-            
-        #output the time values of the cutted slices: 
-        
-        erp_times = np.array([time_axis_eeg_batch[erp_idx_1] *1000,time_axis_eeg_batch[erp_idx_2]*1000])
-        if(use_continues_sampels):
-            no_erp_times = np.array([time_axis_eeg_batch[no_erp_indices[0]]*1000,time_axis_eeg_batch[no_erp_indices[-1]]*1000])
-        else: 
-            no_erp_times = np.array([time_axis_eeg_batch[t1]*1000,time_axis_eeg_batch[no_erp_idx_1+t1]*1000])
-
-        print("erp times in ms: ", (erp_times).astype(dtype=np.int32))
-        print("no_erp times in ms: ", (no_erp_times.astype(dtype=np.int32)))
-
-        if(use_continues_sampels): 
-            print("stepsize for no erp is (samples): ", stepsize_no_erp)
-
-        x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
-        
-        return x, y
-
-        # flatten sampels and trials to one dim 
-        for channel in range(0, tensor_shape[1]): 
-            lrp_shaped[:, channel] = lrp_sampels[:,channel,:].flatten()
-            no_lrp_shaped[:, channel] = no_lrp_sampels[:,channel,:].flatten()
-
-    def timeDomainFeaturesFromWindows(self, erp_epochs, time_axis_eeg_batch, shuffle_data, pos_class_windows, neg_class_windows, feature_times_windows): 
-
-        """
-        This function 
-        Arguments:
-            erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples). 
-            time_axis_eeg_batch: The time axis of the EEG-epochs as one dimensional numpy array. 
-            shuffle_data: If boolean flag is set to True, the features are randomly shuffled. 
-            pos_class_windows: The window definitions of the positive class to be used as features and specified as a list of tuples (e.g windows = [(-1000, -100), (-1100, -100)]).
-            neg_class_windows: The window definitions of the negative class to be used as features and specified as a list of tuples (e.g windows = [(-3000, -2000), (-3500, -2500)]).
-            feature_times_windows: The time range (tuple in ms) that is used as features inside the training and testing windows. The times refer to the time frame of the window (e.g. 0 is the first point of the window). 
-            
-
-        Returns:
-            x: The time domain features as a numpy array with shape (n_sampels, n_channel/features). 
-            y: The encoded labels of both classes (binary classification) as numpy array with shape (n_sampels, )
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 26.05.2022 (by Niklas Kueper)
-        """
-        tensor_shape = erp_epochs.shape # shape is (trials, channel, sampels)
-
-        # calc offset in windows where 
-
-
-        time_axis_eeg_batch_us = (time_axis_eeg_batch *1000000).astype(int) # convert this to us to compare with windows and dont loose resolution 
-
-        pos_class_indices = []
-
-        end_offset = 0 
-        # get indices of the samples from the pos class window definitions 
-        for pos_train_wins in pos_class_windows: 
-            end_offset =  feature_times_windows[1] - (pos_train_wins[1]-pos_train_wins[0]) 
-            start_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[0]+feature_times_windows[0])*1000))[0][0]
-
-            stop_ind_win = np.where(time_axis_eeg_batch_us == int((pos_train_wins[1]+end_offset)*1000))[0][0]
-
-
-            pos_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
-
-        pos_class_indices = np.array(pos_class_indices).flatten()
-
-        neg_class_indices = []
-
-        # get indices of the samples from the neg class window definitions 
-        for neg_train_wins in neg_class_windows: 
-            end_offset =  (pos_train_wins[1]-pos_train_wins[0]) - feature_times_windows[1]
-            start_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[0]+feature_times_windows[0])*1000))[0][0]
-            stop_ind_win = np.where(time_axis_eeg_batch_us == int((neg_train_wins[1]+end_offset)*1000))[0][0]
-            neg_class_indices.append(np.arange(start_ind_win, stop_ind_win)) 
-
-        neg_class_indices = np.array(neg_class_indices).flatten()
-
-
-        erp_sampels = erp_epochs[:, :, pos_class_indices] # shape (trials, channel, sampels)
-        no_erp_sampels = erp_epochs[:, :, neg_class_indices]
-        
-        # #output the time values of the cutted slices: 
-        
-        x, y = convertSamplesToLabelledData(erp_sampels, no_erp_sampels, tensor_shape, shuffle_data)
-        
-        return x, y
+   

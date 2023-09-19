@@ -1,24 +1,22 @@
 #!usr/bin/python 
 
-from ast import Num
+
 import numpy as np
 import matplotlib.pyplot as plt 
-import os 
-import csv
 import seaborn as sns
 import pandas as pd
 
-# ****** Datasets of all evaluations ***** 
+# ****** Datasets of all evaluations *****  
 
 # Resulting paths  
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "EEGNet Kernel length evaluation"#"Training trials compare pooling"
+title = "filter eval"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["EEGNet adam", "EEGnet SGD"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_EEGNet_80_trials_kern50", "fcn_network_results_34ch_EEGNet_80_trials_SGD"]
+xLabels = ["MLP int filter", "MLP raw", "EEGnet raw", "MLP online filt", "MLP online filt Nadam", "MLP offline"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_MLP_baseline_int_filter", "fcn_network_results_34ch_MLP_baseline_raw", "fcn_network_results_34ch_EEGNet_baseline_raw", "fcn_network_results_34ch_MLP_online_filt", "fcn_network_results_34ch_MLP_online_filt", "fcn_network_results_34ch_MLP_offline"]
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
 compare_type = 'method'

@@ -453,7 +453,7 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
         for j in range(0, len(exclude_indices)):
             if ((exclude_indices[j]-1) == plot_onset_indices[i] or (exclude_indices[j]-2) == plot_onset_indices[i]):
                 include_mask[i] = 0
-
+    
     #Epochs with an S3 error are excluded 
     plot_onset_indices_correct = plot_onset_indices[include_mask.astype(bool)]
 
@@ -658,7 +658,7 @@ def OnechannelFFT(one_channel_data, fsamp, plot = False):
         plt.plot(xf, yfn)
 
     return xf, yfn
-
+    
 
 def featureExtractionFromWindows(train_windows, feature_type, fsamp, feature_times_windows = None): 
 

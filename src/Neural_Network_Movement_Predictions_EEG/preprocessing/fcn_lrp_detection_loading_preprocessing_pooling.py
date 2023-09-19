@@ -9,8 +9,8 @@ import sys
 
 # own libs 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder 
-import eeg_lib
+sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
+import eeg_lib_nc
 
 
 # *********************************************************************************
@@ -30,9 +30,9 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #choose a dataset of a subject 
-dataset = data_str_uni_UP28
+dataset = data_str_uni_XP01
 
-dataset_pool = np.concatenate((data_str_uni_JD68, data_str_uni_XP01, data_str_uni_JV43, data_str_uni_RA12, data_str_uni_QS70, data_str_uni_AV82, data_str_uni_ZS27))
+dataset_pool = np.concatenate((data_str_uni_ZS27, data_str_uni_QS70, data_str_uni_JV43, data_str_uni_RA12, data_str_uni_JD68, data_str_uni_AV82, data_str_uni_UP28))
 include_test_sub_in_train = False
 
 
@@ -99,14 +99,14 @@ for iterations in set_nums:  # change here later on
         else: 
             train_list = list(dataset_pool)
             train_list_tuning = [dataset[0], dataset[1]]
-            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+            raw_train_tuning = eeg_lib_nc.loadBrainproductsData(train_list_tuning)
 
-        test_list = [dataset[2]]
+        #test_list = [dataset[2]]
 
-        #test_list = [dataset[3], dataset[2]] # use for XP01 
+        test_list = [dataset[3], dataset[2]] # use for XP01 
 
-        raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-        raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+        raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+        raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     elif(iterations == 1): 
         
@@ -114,17 +114,17 @@ for iterations in set_nums:  # change here later on
             train_list = [dataset[1], dataset[2]] + list(dataset_pool)
         else: 
             train_list = list(dataset_pool) 
-            train_list_tuning = [dataset[1], dataset[2]] 
-            #train_list_tuning = [dataset[1], dataset[2], dataset[3]] # use for XP01
-            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+            #train_list_tuning = [dataset[1], dataset[2]] 
+            train_list_tuning = [dataset[1], dataset[2], dataset[3]] # use for XP01
+            raw_train_tuning = eeg_lib_nc.loadBrainproductsData(train_list_tuning)
         
 
         #train_list = [dataset[1], dataset[2], dataset[3]] +list(dataset_pool) # use for XP01 
         test_list = [dataset[0]]
 
 
-        raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-        raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+        raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+        raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
     else: 
 
@@ -133,16 +133,16 @@ for iterations in set_nums:  # change here later on
 
         else: 
             train_list = list(dataset_pool) 
-            train_list_tuning = [dataset[0], dataset[2]]
-            #train_list_tuning = [dataset[0], dataset[2], dataset[3]] # use for XP01 
-            raw_train_tuning = eeg_lib.loadBrainproductsData(train_list_tuning)
+            #train_list_tuning = [dataset[0], dataset[2]]
+            train_list_tuning = [dataset[0], dataset[2], dataset[3]] # use for XP01 
+            raw_train_tuning = eeg_lib_nc.loadBrainproductsData(train_list_tuning)
         
         #train_list = [dataset[0], dataset[2], dataset[3]] + list(dataset_pool)# use for XP01 
         test_list = [dataset[1]]
 
 
-        raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-        raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+        raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+        raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
         
 
     # *********************************************************************************
@@ -152,8 +152,8 @@ for iterations in set_nums:  # change here later on
     print(raw_train.ch_names)
 
     # epoch the eeg data to trial length (for merged sets)
-    lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-    lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+    lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+    lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
 
 
     # fit scaler only on train data 
@@ -163,7 +163,7 @@ for iterations in set_nums:  # change here later on
     
     # scaler for fine tuning 
     if(include_test_sub_in_train == False): 
-        lrp_epochs_train_tune, lrp_epochs_train_obj_tune, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj_tune = eeg_lib.rereferencingEpoching(raw_train_tuning, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        lrp_epochs_train_tune, lrp_epochs_train_obj_tune, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj_tune = eeg_lib_nc.rereferencingEpoching(raw_train_tuning, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
         scaler_tune = mne.decoding.Scaler(info=raw_train_obj_tune.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
         scaler_tune.fit(lrp_epochs_train_tune) # fit to epochs data
         lrp_epochs_train_tune_scaled= scaler_tune.transform(lrp_epochs_train_tune) # transform train data (unit variance and zero mean)

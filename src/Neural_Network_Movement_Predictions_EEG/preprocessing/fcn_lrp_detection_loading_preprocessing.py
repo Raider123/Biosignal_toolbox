@@ -9,8 +9,8 @@ import sys
 
 # own libs 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder 
-import eeg_lib
+sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
+import eeg_lib_nc
 
 
 # *********************************************************************************
@@ -30,7 +30,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "32ch_05_4Hz"
+filename_end = "34ch_05_4Hz_1"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -64,13 +64,12 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True # standard: True 
-channel_list = ["P5", "P6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 #["x_dir", "y_dir", "z_dir"]
 
 # just remap the parameters (need to be adapted)
 t1 = epoching_time_before_onset
 t2 = epoching_time_after_onset
-
 
 
 subject_num = 1
@@ -98,8 +97,8 @@ for dataset in datasets:
             test_list = [dataset[2]]
             if(subject_num == 5): # for XP01
                 test_list = [dataset[3], dataset[2]] # use for XP01 
-            raw_train= eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+            raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
         elif(iterations == 1): 
             
@@ -108,16 +107,16 @@ for dataset in datasets:
                 train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
             test_list = [dataset[0]]
 
-            raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+            raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
         else: 
             train_list = [dataset[0], dataset[2]]
             if(subject_num == 5): # for XP01
                 train_list = [dataset[0], dataset[2], dataset[3]] # use for XP01 
             test_list = [dataset[1]]
-            raw_train = eeg_lib.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib.loadBrainproductsData(test_list) # read data in brainproducts format 
+            raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
         
 
         # *********************************************************************************
@@ -125,14 +124,21 @@ for dataset in datasets:
         # *********************************************************************************
         
         # epoch the eeg data to trial length (for merged sets)
-        lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-        lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+
+        # # filter data epoch wise 
+        # filter_estimator = mne.decoding.TemporalFilter(f_highpass, f_lowpass, sfreq=f_samp_eeg)
+        # filter_estimator.fit(lrp_epochs_train)
+
+        # epochs_filter_train = filter_estimator.transform(lrp_epochs_train)
+        # epochs_filter_val_test = filter_estimator.transform(lrp_epochs_test_val)
 
         # fit scaler only on train data 
         # train test permutation 1 
         scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
         scaler.fit(lrp_epochs_train) # fit to epochs data
-
+        
         lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
         lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
 

@@ -13,8 +13,8 @@ from keras_adabound import AdaBound
 
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder
-import eeg_lib
+sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
+import eeg_lib_nc
 
 # models 
 from EEGModels import EEGNet, ShallowConvNet
@@ -34,13 +34,13 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["AV82"] #["JV43"]#,"RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject_names = ["RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "pretrained_EEGnet_for_AV82"
+result_file_name = "pretrained_EEGnet_b128"
 preprocessed_data_filename_end = "_34ch_05_40Hz_pool" 
 preprocessed_data_filename_end_f = "_34ch_05_40Hz_pool" # _34ch_05_40Hz_pool_trainTune
-eval_name = "pretrained_EEGnet_for_AV82"
+eval_name = "_b128"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
@@ -53,7 +53,7 @@ num_classes = 2
 
 # fcn model parameter 
 n_epochs = 300 #300 training epochs (max since early stopping is used)
-n_batch_size = 16 # 16 for EEGNet, 64 for MLP
+n_batch_size = 128 # 16 for EEGNet, 64 for MLP
 shuffle_data = True # shuffle all data for training, validation and testing
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
@@ -155,24 +155,24 @@ for subject in subject_names:
 
     
         # windowing of the data 
-        train_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
+        train_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
 
         #test_windows = wind_names
 
         
         # train and test window selection 
-        train_windows_EEG_select = eeg_lib.windowSelection(train_windows_EEG, wind_names, train_windows)
+        train_windows_EEG_select = eeg_lib_nc.windowSelection(train_windows_EEG, wind_names, train_windows)
 
 
         # set window labels 
-        y_train = eeg_lib.setWindowLabels(train_windows_EEG_select, window_labels_train)
+        y_train = eeg_lib_nc.setWindowLabels(train_windows_EEG_select, window_labels_train)
 
 
         if not(used_model == "EEGNet"):
 
             # feature extraction from windows
             # time domain 
-            x_train_t = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
+            x_train_t = eeg_lib_nc.featureExtractionFromWindows(train_windows_EEG_select, feature_type1, f_samp_eeg, feature_times_windows)
 
 
         # ***************************************************************************
@@ -186,15 +186,15 @@ for subject in subject_names:
 
 
         # windowing of the data 
-        train_windows_EEG_f, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled_f, f_samp_eeg, window_size, window_step)
+        train_windows_EEG_f, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_train_scaled_f, f_samp_eeg, window_size, window_step)
 
 
         # train and test window selection 
-        train_windows_EEG_select_f = eeg_lib.windowSelection(train_windows_EEG_f, wind_names, train_windows)
+        train_windows_EEG_select_f = eeg_lib_nc.windowSelection(train_windows_EEG_f, wind_names, train_windows)
 
 
         #frequency domain 
-        x_train_f = eeg_lib.featureExtractionFromWindows(train_windows_EEG_select_f, feature_type2, f_samp_eeg, None)
+        x_train_f = eeg_lib_nc.featureExtractionFromWindows(train_windows_EEG_select_f, feature_type2, f_samp_eeg, None)
 
 
         if not(used_model == "EEGNet"): 
@@ -221,7 +221,7 @@ for subject in subject_names:
 
         else: 
             # preprocess the windows 
-            x_train_EEG_net = eeg_lib.reshapeWindowsForCNNnets(train_windows_EEG_select_f)
+            x_train_EEG_net = eeg_lib_nc.reshapeWindowsForCNNnets(train_windows_EEG_select_f)
             
 
             # # EEGNet setup 

@@ -14,8 +14,8 @@ import matplotlib
 
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib") # path to lib folder
-import eeg_lib
+sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
+import eeg_lib_nc
 
 # disable GPU for testing
 #tf.config.set_visible_devices([], 'GPU')
@@ -28,7 +28,7 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "_32ch_05_4Hz_pool"
+preprocessed_data_filename_end = "32ch_05_40Hz"
 preprocessed_data_filename_end_test = "32ch_05_4Hz"
 train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-2000", "bis-150", "bis-100", "bis-50", "bis0"]
 
@@ -81,22 +81,22 @@ for trial_idx in range(0, target_lrp_epochs_test_scaled.shape[0]):
 
 
 # preprocessing 
-train_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
-val_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
-test_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
+train_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
+val_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
+test_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
 
-train_windows_EEG = eeg_lib.windowSelection(train_windows_EEG, wind_names, train_windows)
-val_windows_EEG = eeg_lib.windowSelection(val_windows_EEG, wind_names, train_windows)
-test_windows_EEG = eeg_lib.windowSelection(test_windows_EEG, wind_names, train_windows)
+train_windows_EEG = eeg_lib_nc.windowSelection(train_windows_EEG, wind_names, train_windows)
+val_windows_EEG = eeg_lib_nc.windowSelection(val_windows_EEG, wind_names, train_windows)
+test_windows_EEG = eeg_lib_nc.windowSelection(test_windows_EEG, wind_names, train_windows)
 
 #targets 
-target_train_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(target_lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
-target_val_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(target_lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
-target_test_windows_EEG, num_of_windows, wind_names = eeg_lib.windowEEGEpochs(target_lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
+target_train_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
+target_val_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
+target_test_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
 
-target_train_windows_EEG = eeg_lib.windowSelection(target_train_windows_EEG, wind_names, train_windows)
-target_val_windows_EEG = eeg_lib.windowSelection(target_val_windows_EEG, wind_names, train_windows)
-target_test_windows_EEG = eeg_lib.windowSelection(target_test_windows_EEG, wind_names, train_windows)
+target_train_windows_EEG = eeg_lib_nc.windowSelection(target_train_windows_EEG, wind_names, train_windows)
+target_val_windows_EEG = eeg_lib_nc.windowSelection(target_val_windows_EEG, wind_names, train_windows)
+target_test_windows_EEG = eeg_lib_nc.windowSelection(target_test_windows_EEG, wind_names, train_windows)
 
 # reshape to train input 
 x_train = np.reshape(train_windows_EEG, (train_windows_EEG.shape[0]*train_windows_EEG.shape[3], train_windows_EEG.shape[1], train_windows_EEG.shape[2],1))
@@ -115,22 +115,23 @@ print(x_val_target.shape)
 # #generate model 
 input_wind = layers.Input(shape=(32, 500, 1))
 
-x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(input_wind)
-x = layers.MaxPooling2D((2, 2), padding='same')(x)
+
+encoded = layers.Conv2D(10, (1, 10), strides=(1, 1), activation='relu', padding='same')(input_wind)
+#x = layers.MaxPooling2D((2, 2), padding='same')(x)
 # x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
 # x = layers.MaxPooling2D((2, 2), padding='same')(x)
-x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(x)
-encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
+#x = layers.Conv2D(10, (1, 500), activation='relu', padding='same')(x)
+#encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
 
 # at this point the representation is (4, 4, 8) i.e. 128-dimensional
 
-x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(encoded)
-x = layers.UpSampling2D((2, 2))(x)
+x = layers.Conv2D(10, (1, 10), strides=(1, 1), activation='relu', padding='same')(encoded)
+#x = layers.UpSampling2D((2, 2))(x)
 # x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
 # x = layers.UpSampling2D((2, 2))(x)
-x = layers.Conv2D(50, (3, 3), activation='relu', padding='same')(x)
-x = layers.UpSampling2D((2, 2))(x)
-decoded = layers.Conv2D(1, (3, 3), activation='linear', padding='same')(x)
+#x = layers.Conv2D(10, (1, 500), activation='relu', padding='same')(x)
+#x = layers.UpSampling2D((2, 2))(x)
+decoded = layers.Conv2D(1, (1, 10), strides=(1, 1), activation='linear', padding='same')(x)
 
 
 autoencoder = Model(input_wind, decoded)
@@ -139,9 +140,9 @@ autoencoder.summary()
 
 history = autoencoder.fit(
     x=x_train,
-    y=x_train_target,
-    epochs=50,
-    batch_size=64,
+    y=x_train,
+    epochs=30,
+    batch_size=16,
     shuffle=True,
     validation_split=0.2, 
 )
@@ -193,13 +194,15 @@ plt.show()
 
 
 
+
+
+pred_denoise = autoencoder.predict(np.reshape( train_windows_EEG[10, :, :, -1], (1, train_windows_EEG[10, :, :, -1].shape[0], train_windows_EEG[10, :, :, -1].shape[1], 1)))
+
 # some single trials 
 plt.figure()
 plt.imshow(train_windows_EEG[10, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
 plt.title("raw")
 plt.show()
-
-pred_denoise = autoencoder.predict(np.reshape( train_windows_EEG[10, :, :, -1], (1, train_windows_EEG[10, :, :, -1].shape[0], train_windows_EEG[10, :, :, -1].shape[1], 1)))
 
 plt.figure()
 plt.imshow(pred_denoise[0, :, :, 0], aspect="auto", cmap='gray', norm = "linear")
@@ -217,10 +220,6 @@ plt.title("C1 filtered")
 plt.show()
 
 
-plt.figure()
-plt.imshow(train_windows_EEG[20, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
-plt.title("raw")
-plt.show()
 
 pred_denoise = autoencoder.predict(np.reshape(train_windows_EEG[20, :, :, -1], (1, train_windows_EEG[20, :, :, -1].shape[0], train_windows_EEG[20, :, :, -1].shape[1], 1)))
 print(pred_denoise.shape)
