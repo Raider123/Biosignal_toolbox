@@ -12,16 +12,23 @@ import pandas as pd
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "filter eval"#"Training trials compare pooling"
+title = "norm eval"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["MLP int filter", "MLP raw", "EEGnet raw", "MLP online filt", "MLP online filt Nadam", "MLP offline"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_MLP_baseline_int_filter", "fcn_network_results_34ch_MLP_baseline_raw", "fcn_network_results_34ch_EEGNet_baseline_raw", "fcn_network_results_34ch_MLP_online_filt", "fcn_network_results_34ch_MLP_online_filt", "fcn_network_results_34ch_MLP_offline"]
+xLabels = ["MLP iir base", "MLP min max scale", "MLP window scale", "MLP keras feat norm", "feature fuse online", "reduce time "] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_MLP_final_iir" ,
+            "fcn_network_results_34ch_MLP_final_iir_z_norm_min_max",
+            "fcn_network_results_34ch_MLP_final_iir_z_norm_min_max_window",
+            "fcn_network_results_34ch_MLP_final_iir_keras_feat_norm", 
+            "fcn_network_results_34ch_MLP_feature_fuse_final", 
+            "fcn_network_results_34ch_MLP_feature_fuse_reduce_time"]
+
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
 compare_type = 'method'
 #compare_type = 'number of training trials'
-ylabel = "Performance (BA)"
+ylabel = "Performance (BA)" 
+
 
 # ****** Load the evaluation results from the individual resulting folders  ***** 
 data_list = []

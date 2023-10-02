@@ -436,7 +436,7 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
 
     #apply filter 
     if (apply_filter): 
-        filtered_eeg_rereferenced = raw_eeg_rereferenced.filter(f_highpass,f_lowpass)
+        filtered_eeg_rereferenced = raw_eeg_rereferenced.filter(f_highpass,f_lowpass, method ="fir", fir_design = "firwin", fir_window = "hamming")
     else: 
         filtered_eeg_rereferenced = raw_eeg_rereferenced
     

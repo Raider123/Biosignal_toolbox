@@ -10,6 +10,7 @@ from scipy import signal as sig
 import os 
 from scipy.fft import fft, fftfreq
 from tensorflow.keras.utils import to_categorical
+import scipy 
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -40,6 +41,8 @@ class EEGData:
         self.num_windows = None
         # features 
         self.feature_vec = None
+        self.calib_means = None
+        self.calib_stds = None
 
         if(filenames and format == "Brainvision"): 
             #create numpy array with file names 
@@ -70,7 +73,6 @@ class EEGData:
             print("No dataset specified ...")
         
 
-
     def getRawObject(self):
         return self.raw_obj
     
@@ -82,6 +84,51 @@ class EEGData:
     
     def getSamplingRate(self): 
         return self.__fsamp
+
+    def getCalibStats(self): 
+        return self.calib_means, self.calib_stds, self.calib_mins, self.calib_maxs
+    
+    def setCalibStats(self, means, stds, mins, maxs): 
+        self.calib_means = means
+        self.calib_stds = stds
+        self.calib_mins = mins
+        self.calib_maxs = maxs
+
+    def setChannelNames(self, ch_names): 
+        self.__ch_names = list(ch_names)
+
+    def calcCalibStats(self, feature_times = None): 
+        # shape: trials, channels, sampels, windows
+        calib_means = np.zeros(self.windows.shape[1]) # channel wise 
+        calib_stds = np.zeros(self.windows.shape[1])
+        calib_maxs = np.zeros(self.windows.shape[1])
+        calib_mins = np.zeros(self.windows.shape[1])
+
+        if(feature_times): 
+            start_point_index = int((feature_times[0]/1000)*self.__fsamp)
+            stop_point_index = int((feature_times[1]/1000)*self.__fsamp)
+
+        for channel_idx in range(0, self.windows.shape[1]):   # channel wise 
+            if(feature_times):
+                channel_data = self.windows[:, channel_idx, start_point_index:stop_point_index, :].flatten() # use only the features time points for window norm 
+            else: 
+                channel_data = self.windows[:, channel_idx, :, :].flatten() # use hole window 
+
+            # calc descriptive values 
+            mean = (np.max(channel_data) +np.min(channel_data))/2 
+            std = np.std(channel_data)
+            max = np.max(channel_data)
+            min = np.min(channel_data)
+            # calib values 
+            calib_means[channel_idx] = mean
+            calib_stds[channel_idx] = std
+            calib_maxs[channel_idx] = max 
+            calib_mins[channel_idx] = min
+        # set the matrices for calibration 
+        self.calib_means = calib_means
+        self.calib_stds = calib_stds
+        self.calib_mins = calib_mins
+        self.calib_maxs = calib_maxs
 
 
     def loadBrainproductsData(self, dataset_list): 
@@ -111,32 +158,154 @@ class EEGData:
         return raw
 
         
-    def applyButterLowpassFilter(self, signal, f_lowpass, f_samp, N): 
+    def applyButterFilter(self, signal, f_lowpass = None, f_highpass = None, N = 1, type = "bandpass", padlen = 20, show_response = False): 
 
         """
         This function filters a signal with a simple digital butterworth lowpass filter with order N. 
         Arguments:
             signal: The signal to be filtered as onedimensional numpy array. 
             f_lowpass: The cutoff frequency of the lowpass filter. 
-            f_samp: The sampling rate of the signal in Hz. 
             N: The order of the butterworth filter. 
-
-        Returns:
-            filtered_signal: The lowpass-filtered signal as numpy array. 
+            type: The type of the filter as string, can be "bandpass", "lowpass" or "highpass". 
+            padlen: The number of values to pad for filtering (see zero padding method). 
 
         Meta information: 
             Author: Niklas Kueper 
-            Last changed: 29.11.2022 (by Niklas Kueper)
+            Last changed: 21.09.2023 (by Niklas Kueper)
         """
 
-        b, a = sig.iirfilter(N, [0.5, f_lowpass], btype ='band', analog=False, fs = f_samp)
+        if(type == "bandpass"): 
+            sos = sig.butter(N, [f_highpass, f_lowpass], btype=type, analog=False, output='sos', fs=self.__fsamp)
+        elif(type == "lowpass"): 
+            sos = sig.butter(N, f_lowpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
+        elif(type == "highpass"): 
+            sos = sig.butter(N, f_highpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
+
+        w, h = sig.sosfreqz(sos, worN=512, whole = True)
+
+        if(show_response): 
+            plt.subplot(2, 1, 1)
+            db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
+            plt.plot(w/np.pi, db)
+            plt.ylim(-75, 5)
+            plt.grid(True)
+            plt.yticks([0, -20, -40, -60])
+            plt.ylabel('Gain [dB]')
+            plt.title('Frequency Response')
+            plt.subplot(2, 1, 2)
+            plt.plot(w/np.pi, np.angle(h))
+            plt.grid(True)
+            plt.yticks([-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],[r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
+            plt.ylabel('Phase [rad]')
+            plt.xlabel('Normalized frequency (1.0 = Nyquist)')
+            plt.show()
         
         # signal shape: n_channel, n_sampels
         filtered_signal = np.zeros(signal.shape)
         for channel_idx in range(0, signal.shape[0]): 
-            filtered_signal[channel_idx, :] = sig.filtfilt(b, a, signal[channel_idx, :]) 
+            filtered_signal[channel_idx, :] = sig.sosfiltfilt(sos, signal[channel_idx, :], padlen=padlen, padtype='even') 
 
         return filtered_signal
+    
+    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = None, show_response = False): # under change 
+        # shape: trials, channels, sampels, windows
+
+        if(filter_type == "dc_notch"):
+            b, a = sig.iirnotch(f_high, Q, fs=self.__fsamp)
+
+        if(filter_type == "scipy_butter"): # prefer this one 
+            if(f_high and f_low): 
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
+            elif(f_high):
+                b, a = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='ba', fs=self.__fsamp)
+                #zi = sig.lfilter_zi(b, a)
+            elif(f_low): 
+                b, a = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='ba', fs=self.__fsamp)
+                #zi = sig.lfilter_zi(b, a)
+        
+            
+        if(show_response): 
+            w, h = sig.freqz(b, a, worN=2024)
+            plt.subplot(2, 1, 1)
+
+            x = (w/np.pi)*(self.__fsamp/2)
+
+            db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
+            plt.plot(x, db)
+            plt.ylim(-75, 5)
+            plt.grid(True)
+            plt.yticks([0, -20, -40, -60])
+            plt.ylabel('Gain [dB]')
+            plt.title('Frequency Response')
+            plt.subplot(2, 1, 2)
+            plt.plot(x, (np.angle(h)))
+            plt.grid(True)
+            plt.yticks([-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],[r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
+            plt.ylabel('Phase [rad]')
+            plt.xlabel('Frequency[Hz]')
+            plt.show()
+
+            # group delay 
+            w, gd = sig.group_delay((b, a), fs = self.__fsamp)
+            plt.title('Digital filter group delay')
+            plt.plot(w, gd)
+            plt.ylabel('Group delay [samples]')
+            plt.xlabel('Frequency [Hz]')
+            plt.show()
+            
+        
+        for trial_idx in range(0, self.windows.shape[0]): 
+                for window_idx in range(0, self.windows.shape[3]): 
+                    
+                    current_wind = self.windows[trial_idx, :, :, window_idx]
+                    #data_buffer[:, int(mid_buffer):int(mid_buffer+current_wind.shape[1])] = current_wind
+
+                    # currently the best 
+                    if(filter_type == "mne_fir" or filter_type == "mne_iir"): 
+                        filtered_window= mne.filter.filter_data(current_wind, sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = filter_type, fir_design = fir_design, phase = 'zero', fir_window = "hamming", pad = "symmetric") # pad = "symmetric"
+                        self.windows[trial_idx, :, :, window_idx] = filtered_window
+
+                    elif(filter_type == "scipy_butter" or filter_type =="dc_notch"): 
+                        for channel_idx in range(0, self.windows.shape[1]):
+                            
+                            # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
+                            filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], method ="gust") # forward backward filtering with gustafson method 
+   
+                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+
+
+                    elif(filter_type == "fft_bandpass"):  # fft bandpass implementation from pySPACE 
+
+
+                        filtered_window = np.zeros(current_wind.shape)
+                        for channel_idx in range(0, self.windows.shape[1]): 
+
+                            n = len(current_wind[channel_idx, :])
+
+                            res = 0.1 # fixed resolution to 0.1 Hz 
+                            fourier_transformed = scipy.fftpack.fft(current_wind[channel_idx, :], n = int(self.__fsamp/res)) # increase resolution to 0.1 Hz 
+
+                            inverse = scipy.fftpack.ifft(fourier_transformed, n = self.__fsamp) # go back to normal samp rate size
+
+                            #Compute the pass band indices
+                            lower_bound = int(round(float(f_high) / (self.__fsamp) * len(fourier_transformed)))
+                            upper_bound = int(round(float(f_low) / (self.__fsamp) * len(fourier_transformed)))
+
+
+                            #Setting frequencies outside the pass band to 0
+                            for i in range(0, lower_bound):
+                                fourier_transformed[i] = 0
+                                fourier_transformed[-i-1] = 0
+
+                            for i in range(upper_bound,len(fourier_transformed)//2):
+                                fourier_transformed[i] = 0
+                                fourier_transformed[-i-1] = 0
+                            
+                            inverse = scipy.fftpack.ifft(fourier_transformed, n = self.__fsamp) # go back to normal samp rate size 
+
+
+                            #Inverse Fourier transform and project to real component
+                            self.windows[trial_idx, channel_idx, :, window_idx] = inverse
 
 
     def createActicapMontage(self, plot_montage, rename_channels, set_montage = True): 
@@ -258,15 +427,27 @@ class EEGData:
             count = count+1
         plt.show()
 
-    def getDataOneChannel(self, channel_name, average = True): 
+    def getDataOneChannel(self, channel_name, average = True, is_windowed = False): 
 
         channel_idx = self.__ch_names.index(channel_name)
-        if(average):
-            data_channel = self.average_epochs[channel_idx, :]
-        else: 
-            data_channel = self.epochs[:, channel_idx, :]
 
-        return data_channel, self.time_axis_epochs
+        if (is_windowed): 
+            # shape: trials, channel, sampels, windows 
+
+            if(average): # if average should be returned 
+                
+                return np.mean(self.windows[:, channel_idx, :, :], axis = 0)
+            else: 
+                return self.windows[:, channel_idx, :, :]
+
+        else: # if not windowed yet 
+
+            if(average):
+                data_channel = self.average_epochs[channel_idx, :]
+            else: 
+                data_channel = self.epochs[:, channel_idx, :]
+
+            return data_channel, self.time_axis_epochs
 
 
     def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
@@ -474,8 +655,11 @@ class EEGData:
         self.labels = y
 
 
-    def getTrainWindows(self): 
+    def getWindows(self): 
         return self.windows
+    
+    def getWindowNames(self): 
+        return self.window_names
     
     def getFeatures(self): 
         return self.feature_vec
@@ -593,6 +777,8 @@ class EEGData:
         self.window_names = wind_names
 
 
+
+
     def windowSelection(self, selected_windows): 
         """
         Select windows and extract them from all windows segmented by specifying the windows names.  
@@ -615,6 +801,38 @@ class EEGData:
         self.windows = selected_windows_arr
         self.window_names = selected_windows
 
+    def windowStandardization(self, norm = False, use_min_max_norm = False):
+        
+        # shape: trials, channels, sampels, windows 
+        for trial_idx in range(0, self.windows.shape[0]): 
+            for channel_idx in range(0, self.windows.shape[1]): 
+                for window_idx in range(0, self.windows.shape[3]): 
+                    # get current window 
+                    current_wind = self.windows[trial_idx, channel_idx, :, window_idx]
+                    
+                    if(use_min_max_norm): 
+                        
+                        current_wind_norm = current_wind - self.calib_mins[channel_idx]
+                        current_wind_norm = current_wind_norm/((self.calib_mins[channel_idx]*-1)+self.calib_maxs[channel_idx])
+
+                    else: 
+                        # apply z-transform 
+                        current_wind_norm = current_wind - self.calib_means[channel_idx] 
+                        current_wind_norm = current_wind_norm/self.calib_stds[channel_idx]  
+                        
+                        if(norm): 
+                        #current_wind_norm = current_wind+(-1*min)-1 # -1 is min 
+                            current_wind_norm = current_wind_norm/np.max(current_wind_norm)
+
+
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_norm # 1 is max 
+
+                    # print("")
+                    # print(np.min(current_wind_norm))
+                    # print(np.mean(current_wind_norm))
+                    # print(np.std(current_wind_norm))
+                    # print(np.max(current_wind_norm))
+                    # print("")
 
     def calcTestAccAndRates(self, prediction_labels, true_labels):
 
@@ -767,7 +985,6 @@ class EEGData:
         This function calculates the FFT for one channel of timeseries data. 
         Arguments:
 
-
         Returns:
 
         Meta information: 
@@ -791,15 +1008,21 @@ class EEGData:
             plt.plot(xf, yfn)
 
         return xf, yfn
+    
+    def detrendWindows(self): 
+        # get the features in one dim for all trials and windows 
+        for trial_idx in range(0, self.windows.shape[0]):
+            for window_idx in range(0, self.windows.shape[3]):
+                for channel_idx in range(0, self.windows.shape[1]):
+                    current_window = self.windows[trial_idx, channel_idx, :, window_idx]
+                    current_window_corr = sig.detrend(current_window)
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_window_corr
 
-    def featureExtractionFromWindows(self, feature_type, feature_times_windows = None, apply_lp_filter = False, f_lowpass = 4): 
+
+    def featureExtractionFromWindows(self, feature_type, feature_indices_windows = None, use_mean = False, N = 1): 
 
         # (n_trials, n_channels, n_sampels, n_windows).
         feature_type_total = None
-
-        if(feature_times_windows):
-            start_point_index = int((feature_times_windows[0]/1000)*self.__fsamp)
-            stop_point_index = int((feature_times_windows[1]/1000)*self.__fsamp)
 
         if(feature_type == "fusion"):  # extract both feature types after each other 
             feature_type_total = feature_type
@@ -808,23 +1031,36 @@ class EEGData:
 
         if(feature_type == "timepoints"): 
 
+            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+
             #x_train = np.zeros((int(train_windows.shape[0]*train_windows.shape[3]), int(train_windows.shape[1]*train_windows.shape[2]))) # shape: train samples, features 
 
-
-            x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], int(np.abs(stop_point_index-start_point_index)*self.windows.shape[1]))) # shape: trials, windows, features
+            if(use_mean): 
+                x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], N*self.windows.shape[1]))
+            else: 
+                x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], int(len(feature_times_indices)*self.windows.shape[1]))) # shape: trials, windows, features
             
+
+            mean_feat_buffer = np.zeros((self.windows.shape[1], N))
+
             # get the features in one dim for all trials and windows 
             for trial_idx in range(0, self.windows.shape[0]):
                 for window_idx in range(0, self.windows.shape[3]): 
+                    
+                    if(use_mean):
+                        # shape channel, sampels
+                        #  
+                        current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] # use the first and las value only 
+                        k = int(current_wind.shape[1]/N) 
 
-                    if(apply_lp_filter):
-                        N = 1
-                        filtered_window = self.applyButterLowpassFilter(self.windows[trial_idx, :, :, window_idx], f_lowpass, self.__fsamp, N)
+                        for idx in range(0, N): 
+                            mean_feat_buffer[:, idx] = np.mean(current_wind[:, (idx*k):((idx*k) +k)], axis = 1) 
 
-                        x_train_features[trial_idx, window_idx, :] = filtered_window[:, start_point_index:stop_point_index].flatten()
-                    else:
-                        x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, start_point_index:stop_point_index, window_idx].flatten()
+                        x_train_features[trial_idx, window_idx, :] = mean_feat_buffer.flatten() # use mean of timepoints
+                    else: 
+                        x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, feature_times_indices, window_idx].flatten()
 
+                    
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
             #print(x_train.shape)
@@ -832,7 +1068,6 @@ class EEGData:
             for feature_idx in range(0, x_train_features.shape[2]):
                 x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
 
-            print(x_train.shape)
 
         if(feature_type_total == "fusion"): 
             x_train_time = x_train
@@ -852,11 +1087,8 @@ class EEGData:
             for trial_idx in range(0, self.windows.shape[0]):
                 for window_idx in range(0, self.windows.shape[3]):
                     for channel_idx in range(0, self.windows.shape[1]):
-                        
-                        if(feature_times_windows):
-                            xf, yf = OnechannelFFT(self.windows[trial_idx, channel_idx, start_point_index:stop_point_index, window_idx], self.__fsamp) # do fft of sliced data
-                        else: 
-                            xf, yf = OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.__fsamp) # do fft of sliced data
+                         
+                        xf, yf = self.OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.__fsamp) # do fft of sliced data
 
                         normed_freqs = (xf*yf)/np.sum(yf) # norm the frequencies
         
@@ -886,7 +1118,15 @@ class EEGData:
         else: 
             self.feature_vec = x_train 
 
-        
+    def addFeatures(self, x): 
+        print(self.feature_vec.shape)
+        print(x.shape)
+        features = np.concatenate((self.feature_vec, x), axis = 1)
+        self.feature_vec = features 
+
+    def printFeatureShape(self): 
+        print("feature shape: ", self.feature_vec.shape)
+
     def setWindowLabels(self, label_list): 
 
         """

@@ -30,7 +30,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_05_4Hz_1"
+filename_end = "34ch_05Hz"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -38,8 +38,9 @@ validation_rate = 0.5 # rate to split test and validation data
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 #0.5 # in Hz 
-f_lowpass = 4.0 # 4.0 in Hz 
+f_lowpass = None # 4.0 in Hz 
 apply_filter = True # setting to False will ignore the 
+
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
 reref_channel = []
@@ -47,7 +48,7 @@ reref_channel = []
 # should baseline correction be applied ? (standard -1.5 to -1 seconds)
 apply_baseline_correction = False 
 t0_baseline = 0 # not used
-t1_baseline = 0
+t1_baseline = 0 
 
 f_samp_eeg = 500 #sample Frequency of eeg
 marker_number = 100 # onset markernumber (Qualisys)
@@ -110,7 +111,7 @@ for dataset in datasets:
             raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
             raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
-        else: 
+        else:  
             train_list = [dataset[0], dataset[2]]
             if(subject_num == 5): # for XP01
                 train_list = [dataset[0], dataset[2], dataset[3]] # use for XP01 
@@ -118,7 +119,7 @@ for dataset in datasets:
             raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
             raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
         
-
+        
         # *********************************************************************************
         # *********** EEG preprocessing, epoching and train, test split *******************
         # *********************************************************************************
@@ -126,21 +127,36 @@ for dataset in datasets:
         # epoch the eeg data to trial length (for merged sets)
         lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
         lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-
+        
         # # filter data epoch wise 
-        # filter_estimator = mne.decoding.TemporalFilter(f_highpass, f_lowpass, sfreq=f_samp_eeg)
-        # filter_estimator.fit(lrp_epochs_train)
+        # iir_params = dict(order=1, ftype='butter', output='sos', padlen=20, phase = "zero")
 
+        # filter_estimator = mne.decoding.TemporalFilter(0.25, 4.0, sfreq=f_samp_eeg, method='iir', iir_params=iir_params)
+        # filter_estimator.fit(lrp_epochs_train)
+        
+        # #online or offline filter ? 
         # epochs_filter_train = filter_estimator.transform(lrp_epochs_train)
         # epochs_filter_val_test = filter_estimator.transform(lrp_epochs_test_val)
 
-        # fit scaler only on train data 
-        # train test permutation 1 
-        scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
-        scaler.fit(lrp_epochs_train) # fit to epochs data
+        # epochs_filter_train = lrp_epochs_train
+        # epochs_filter_val_test = lrp_epochs_test_val 
+
+        # fit scaler only on train data         
+        # scaler = mne.decoding.Scaler(info=raw_train_obj.info, scalings='mean', with_mean=True, with_std=True)  #(n_epochs, n_channels, n_times) scaler requires this shape
+        # scaler.fit(epochs_filter_train) # fit to epochs data
         
-        lrp_epochs_train_scaled= scaler.transform(lrp_epochs_train) # transform train data (unit variance and zero mean)
-        lrp_epochs_test_val_scaled= scaler.transform(lrp_epochs_test_val) # transform test val data (unit variance and zero mean)
+        # lrp_epochs_train_scaled= scaler.transform(epochs_filter_train) # transform train data (unit variance and zero mean)
+        # lrp_epochs_test_val_scaled= scaler.transform(epochs_filter_val_test) # transform test val data (unit variance and zero mean)
+        
+
+        # just convert, no scaling 
+
+        lrp_epochs_train_scaled = lrp_epochs_train*1000000
+        print(np.max(lrp_epochs_train_scaled))
+        print(np.mean(lrp_epochs_train_scaled))
+        print(np.std(lrp_epochs_train_scaled))
+        print(np.min(lrp_epochs_train_scaled))
+        lrp_epochs_test_val_scaled = lrp_epochs_test_val*1000000
 
         # seperate test and validation
         test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 

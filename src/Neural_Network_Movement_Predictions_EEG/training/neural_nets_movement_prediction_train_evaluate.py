@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from time import perf_counter
 import sys
+import copy 
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -32,17 +33,18 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
+
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_offline"
-preprocessed_data_filename_end = "34ch_05_4Hz_1" # TODO: implement bp filter on windows for using raw data with MLP net 
-eval_name = "fcn_network_results_34ch_MLP_offline"
+result_file_name = "fcn_network_results_34ch_MLP_feature_fuse_reduce_time"
+preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+#eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
-fine_tune = False
-pre_trained_model = "EEGNet_pretrained_b128"
+# fine_tune = False
+# pre_trained_model = "EEGNet_pretrained_b128"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
@@ -52,13 +54,12 @@ f_samp_eeg = 500 #sample Frequency of eeg
 used_model = "MLP"
 num_classes = 2
 
+
 # fcn model parameter 
 n_epochs = 300 #300 training epochs (max since early stopping is used)
 n_batch_size = 64 # 16 for EEGNet, 64 for MLP
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
-show_training_results = False
-#multiprocessing_cpus = 14
 early_stopping_patience = 100 # 100 
 
 
@@ -72,9 +73,9 @@ dropout_EEGNet = 0.5
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
-optimizer  = "Nadam" 
+optimizer  = "Nadam" # Nadam for MLP 
 
-# tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
+# optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
 #     momentum=0.0,
 #     nesterov=False,
 # )
@@ -89,8 +90,9 @@ window_labels_test = [0.0, 0.0, 1.0, 1.0] #np.zeros((81))
 
 used_trials_training = 80 # trials to use for training 
 
-features = "timepoints" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
-feature_times_windows = (900, 1000) # (900, 1000) seems to work well, time inside the windows to be used as features (last 100 ms)
+features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
+feature_indices_windows = np.arange(900, 1000, step = 2) # numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+
 
 # window wise metric evaluation
 window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
@@ -100,6 +102,7 @@ window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
 # *********************************************************************************
+
 
 # init performance results list
 perf_results_total = []
@@ -137,7 +140,7 @@ for subject in subject_names:
         lrp_epochs_train_scaled = lrp_epochs_train_scaled[0:used_trials_training,:, :] # limit the number of trials used for training 
 
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
-     
+
 
         # **********************************************************************************
         # ********************* Preprocessing for data of both networks ********************
@@ -146,6 +149,7 @@ for subject in subject_names:
         EEG_train = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_train_scaled, f_samp = f_samp_eeg)
         EEG_val = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_val_scaled, f_samp = f_samp_eeg)
 
+        
         # window EEG epochs 
         EEG_train.windowEEGEpochs(window_size, window_step)
         EEG_val.windowEEGEpochs(window_size, window_step)
@@ -154,21 +158,66 @@ for subject in subject_names:
         EEG_train.windowSelection(train_windows)
         EEG_val.windowSelection(test_windows)
 
-        # specify the window labels 
+        # split up obj for frequency features (other preprocessing)
+        if(features == "fusion"): 
+            EEG_train_freq = copy.deepcopy(EEG_train)
+            EEG_val_freq = copy.deepcopy(EEG_val)
+
+        
+        # filtering windows 
+        # bandpass iir 
+
+        #windows_raw = copy.deepcopy(EEG_train.getWindows()) 
+        EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
+        EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
+
+
+        #  FFT Bandpass  
+        # EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass") 
+        # EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass")
+
+        
+        # # # calibration (standardization params) --> not used now 
+        # EEG_train.calcCalibStats(feature_times = None) 
+        # means, stds, mins, maxs  = EEG_train.getCalibStats() # get statistic stats from train data 
+        # EEG_val.setCalibStats(means, stds, mins, maxs)
+        
+        # # Standardize windows with z transform with mean from min max calc 
+        # EEG_train.windowStandardization(norm = False, use_min_max_norm = False)  
+        # EEG_val.windowStandardization(norm = False,  use_min_max_norm = False) 
+
+
+        # # specify the window labels 
         EEG_train.setWindowLabels(window_labels_train)
         EEG_val.setWindowLabels(window_labels_test)
 
-
+        
         # **********************************************************************************
         # ********************* Model selection and training *******************************
         # **********************************************************************************
-
+        
         # MLP Net training pipeline 
         if not (used_model =="EEGNet"): 
 
-            EEG_train.featureExtractionFromWindows(feature_type = features, feature_times_windows = feature_times_windows, apply_lp_filter = False, f_lowpass = 4)
-            EEG_val.featureExtractionFromWindows(feature_type = features, feature_times_windows = feature_times_windows, apply_lp_filter = False, f_lowpass = 4)
-            #EEG_test.featureExtractionFromWindows(feature_type = features, feature_times_windows = feature_times_windows)
+            # time domain features 
+            EEG_train.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
+            EEG_val.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
+
+            # frequency domain features 
+            if(features == "fusion"): 
+                EEG_train_freq.featureExtractionFromWindows(feature_type = "meanfreqs")
+                EEG_val_freq.featureExtractionFromWindows(feature_type = "meanfreqs")
+
+                x_train_freq = EEG_train_freq.getFeatures()
+                x_val_freq = EEG_val_freq.getFeatures()
+
+                # add the frequency features to the time domain features 
+                EEG_train.addFeatures(x_train_freq)
+                EEG_val.addFeatures(x_val_freq)
+
+
+            # print feature shape 
+            EEG_train.printFeatureShape()
 
             # get train data from EEG instances 
             x_train = EEG_train.getFeatures()
@@ -176,12 +225,12 @@ for subject in subject_names:
             x_val = EEG_val.getFeatures()
             y_val = EEG_val.getTrainLabels()
 
-            print(x_train.shape)
-            print(y_train.shape)
 
             # create MLP model 
             print("Use MLP model")
-            MLP = MLP_Model(x_train)
+
+            # Load model with norm layer  
+            MLP = MLP_Model(x_train, use_norm_layer = True)
 
             MLP_model = MLModel(model = MLP, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
             MLP_model.trainModel()
@@ -201,19 +250,19 @@ for subject in subject_names:
             # EEGNet label conversion (to one hot encodings)
             EEG_train.labelsToCategorical(num_classes = num_classes)
             EEG_val.labelsToCategorical(num_classes = num_classes)
-   
+
 
             # get train data from EEG instances 
-            x_train = EEG_train.getTrainWindows()
+            x_train = EEG_train.getWindows()
             y_train = EEG_train.getTrainLabels()
-            x_val = EEG_val.getTrainWindows()
+            x_val = EEG_val.getWindows()
             y_val = EEG_val.getTrainLabels()
 
             # model setup and training 
 
             # create EEGNet model for training 
             print("Use EEGNet")
-            train_wind_shape = EEG_train.getTrainWindows().shape # get train data shape for network 
+            train_wind_shape = EEG_train.getWindows().shape # get train data shape for network 
             model_EEGNet = EEGNet(nb_classes=num_classes, Chans=train_wind_shape[1], Samples=train_wind_shape[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout')
             EEGNet_model = MLModel(model = model_EEGNet, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
             EEGNet_model.trainModel()

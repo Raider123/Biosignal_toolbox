@@ -14,7 +14,7 @@ import tensorflow as tf
 
 class MLModel: 
 
-    def __init__(self, type = "keras", model = None, train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, model_summary = False, loss_fcn = None, optimizer = None, metrics = "accuracy"): 
+    def __init__(self, type = "keras", model = None, train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, model_summary = False, loss_fcn = None, optimizer = None, metrics = "accuracy",  use_input_norm = False): 
 
         self.type = type 
         self.model = model 
@@ -31,12 +31,13 @@ class MLModel:
         self.optimizer = optimizer
         self.metrics = metrics 
         self.perf_results = None
+        self.use_input_norm = use_input_norm
 
         if(model_summary): 
             print(model.summary())
 
 
-    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"): 
+    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"):         
 
         # compile model 
         if (self.type == "keras"): 
