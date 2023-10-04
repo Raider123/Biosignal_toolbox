@@ -14,8 +14,7 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 64, second_layer_u
         norm_layer = Normalization()
         norm_layer.adapt(x_train)
         model.add(norm_layer)
-
-    model.add(BatchNormalization())
+    #model.add(BatchNormalization())
     model.add(Dense(units=first_layer_units, input_shape=(x_train.shape[1],)))
     model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
     model.add(Dropout(dropout_rate))

@@ -18,13 +18,15 @@ import scipy
 
 class EEGData:
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None):
        
         
         self.raw_obj = None
         # parameter 
         #basic params 
-        self.__ch_names = None
+
+        self.__ch_names = channel_names
+
         self.__montage = None
         self.__fsamp = None
         self.time_axis_epochs = None
@@ -1019,29 +1021,26 @@ class EEGData:
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_window_corr
 
 
-    def featureExtractionFromWindows(self, feature_type, feature_indices_windows = None, use_mean = False, N = 1): 
+    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")]): 
 
         # (n_trials, n_channels, n_sampels, n_windows).
-        feature_type_total = None
-
-        if(feature_type == "fusion"):  # extract both feature types after each other 
-            feature_type_total = feature_type
-            feature_type = "timepoints"
-
 
         if(feature_type == "timepoints"): 
-
+            
             feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
 
-            #x_train = np.zeros((int(train_windows.shape[0]*train_windows.shape[3]), int(train_windows.shape[1]*train_windows.shape[2]))) # shape: train samples, features 
-
+            # init stuff 
             if(use_mean): 
                 x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], N*self.windows.shape[1]))
+
             else: 
                 x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], int(len(feature_times_indices)*self.windows.shape[1]))) # shape: trials, windows, features
-            
+
+            if(add_neightbour_diffs): 
+                 x_train_features_add = np.zeros((self.windows.shape[0], self.windows.shape[3], len(feature_times_indices)*len(neighbours_list))) # shape: trials, windows, features
 
             mean_feat_buffer = np.zeros((self.windows.shape[1], N))
+
 
             # get the features in one dim for all trials and windows 
             for trial_idx in range(0, self.windows.shape[0]):
@@ -1060,24 +1059,52 @@ class EEGData:
                     else: 
                         x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, feature_times_indices, window_idx].flatten()
 
+                    # neighbour diff features 
+                    if (add_neightbour_diffs): # if you want to add local feature diffs 
+                        features_add = np.zeros((x_train_features.shape [0], x_train_features.shape[1], len(feature_times_indices), len(neighbours_list))) # if use mean values only one dim 
+                        i = 0
+
+                        for channel_tup in neighbours_list: # loop over all indice values and calc diff of features 
+                            idx1 = self.__ch_names.index(channel_tup[0])
+                            idx2 = self.__ch_names.index(channel_tup[1])
+
+                            # shape: trials, windows, features 
+                            current_wind_feat = self.windows[trial_idx, :, feature_times_indices, window_idx].T # get current window features: channel, sampels
+
+                            features_add[trial_idx, window_idx, :, i] = (current_wind_feat[idx1, :] - current_wind_feat[idx2, :])
+                            i = i+1
+
+                        # flatten the feature dims 
+                        x_train_features_add[trial_idx, window_idx, :] = features_add[trial_idx, window_idx, :, :].flatten()
+
                     
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
             #print(x_train.shape)
 
+
+            # train data for neighbour condition 
+            if(add_neightbour_diffs): 
+                x_train_add = np.zeros((x_train_features_add.shape[0]*x_train_features_add.shape[1], x_train_features_add.shape[2]))
+
+                for feature_idx in range(0, x_train_features_add.shape[2]):
+                    x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
+
+            # flatten data 
             for feature_idx in range(0, x_train_features.shape[2]):
                 x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
 
 
-        if(feature_type_total == "fusion"): 
-            x_train_time = x_train
-            feature_type = "meanfreqs"
 
         elif(feature_type == "meanfreqs" or feature_type == "medianfreqs"): #fix this 
 
 
             # (n_trials, n_channels, n_sampels, n_windows).
             num_of_freq_bands = 5 
+
+            if(add_neightbour_diffs): 
+                 x_train_features_add = np.zeros((self.windows.shape[0], self.windows.shape[3], num_of_freq_bands*len(neighbours_list))) # shape: trials, windows, features
+
             x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], num_of_freq_bands*self.windows.shape[1])) # shape: trials, windows, features
 
             #print(x_train_features.shape)
@@ -1091,19 +1118,30 @@ class EEGData:
                         xf, yf = self.OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.__fsamp) # do fft of sliced data
 
                         normed_freqs = (xf*yf)/np.sum(yf) # norm the frequencies
-        
+
                         if(feature_type == "meanfreqs"): 
                             freqs_arr = np.array([np.mean(normed_freqs[0:4]), np.mean(normed_freqs[4:8]), np.mean(normed_freqs[8:14]), np.mean(normed_freqs[14:30]), np.mean(normed_freqs[30:40])]) #  mean band frequencies
                         else: 
                             freqs_arr  = np.array([np.median(normed_freqs[0:4]), np.median(normed_freqs[4:8]), np.median(normed_freqs[8:14]), np.median(normed_freqs[14:30]), np.median(normed_freqs[30:40])]) #  mean band frequencies
 
-
                         features[:, channel_idx] = freqs_arr # freq band features for each channels 
 
+                    if (add_neightbour_diffs): # if you want to add local feature diffs 
+                        features_add = np.zeros((features.shape[0], len(neighbours_list)))
+                        i = 0
+
+                        for channel_tup in neighbours_list: # loop over all indice values and calc diff of features 
+                            idx1 = self.__ch_names.index(channel_tup[0])
+                            idx2 = self.__ch_names.index(channel_tup[1])
+                            features_add[:, i] = features[:, idx1] -features[:, idx2] # calculate local feature diffs 
+                            i = i+1
+
+                        # flatten the feature dims 
+                        x_train_features_add[trial_idx, window_idx, :] = features_add.flatten()
 
                     x_train_features[trial_idx, window_idx, :] = features.flatten()
 
-                    
+
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
             #print(x_train.shape)
@@ -1111,16 +1149,22 @@ class EEGData:
             for feature_idx in range(0, x_train_features.shape[2]):
                 x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
 
+            # train data for neighbour condition 
+            if(add_neightbour_diffs): 
+                x_train_add = np.zeros((x_train_features_add.shape[0]*x_train_features_add.shape[1], x_train_features_add.shape[2]))
 
-        if(feature_type_total == "fusion"): 
+                for feature_idx in range(0, x_train_features_add.shape[2]):
+                    x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
 
-            self.feature_vec = np.concatenate((x_train_time, x_train), axis = 1)
+
+        # how to proceed with features (both conditions)
+        if(add_neightbour_diffs): 
+            self.feature_vec = np.concatenate((x_train, x_train_add), axis = 1)
         else: 
             self.feature_vec = x_train 
 
+
     def addFeatures(self, x): 
-        print(self.feature_vec.shape)
-        print(x.shape)
         features = np.concatenate((self.feature_vec, x), axis = 1)
         self.feature_vec = features 
 

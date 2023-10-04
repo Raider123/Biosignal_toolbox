@@ -39,7 +39,7 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_feature_fuse_reduce_time"
+result_file_name = "fcn_network_results_34ch_MLP_online"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
@@ -73,7 +73,7 @@ dropout_EEGNet = 0.5
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
-optimizer  = "Nadam" # Nadam for MLP 
+optimizer  = "adam" # Nadam for MLP 
 
 # optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
 #     momentum=0.0,
@@ -91,7 +91,12 @@ window_labels_test = [0.0, 0.0, 1.0, 1.0] #np.zeros((81))
 used_trials_training = 80 # trials to use for training 
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
-feature_indices_windows = np.arange(900, 1000, step = 2) # numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+feature_indices_windows = np.arange(900, 1000, step = 1) # numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+
+# is using neighbour features from channels specify the neighbouring channels 
+# neighbours_list = [("P6", "P4"), ("P4", "P2"), ("P2", "PZ"), ("PZ", "P1"), ("P3", "P5"), ("CP6", "CP4"), ("CP4", "CP2"), ("CP2", "CPZ"), ("CPZ", "CP1"), ("CP1", "CP3"), ("CP3", "CP5"), 
+#                    ("C6", "C4"), ("C4", "C2"), ("C2", "CZ"), ("CZ", "C1"), ("C1", "C3"), ("CZ", "C1"), ("C3", "C5"), ("FC6", "C4"), ("FC4", "FC2"), ("FC2", "FC1"), ("FC1", "FC3"), 
+#                    ("FC3", "FC5"), ("F6", "F4"), ("F4", "F2"), ("F2", "FZ"), ("F4", "F2"), ("F2", "FZ"), ("F1", "F3"), ("F3", "F5")]
 
 
 # window wise metric evaluation
@@ -134,20 +139,20 @@ for subject in subject_names:
         # ***************** Load train, test, val sets for every iteration ****************
         # *********************************************************************************
 
-
+        
         # load each individual train, val and test sets (preprocessed)
         lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
         lrp_epochs_train_scaled = lrp_epochs_train_scaled[0:used_trials_training,:, :] # limit the number of trials used for training 
 
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
-
+        channel_names = np.load(data_path+"remaining_eeg_channel_names"+".npy")
 
         # **********************************************************************************
         # ********************* Preprocessing for data of both networks ********************
         # **********************************************************************************
 
-        EEG_train = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_train_scaled, f_samp = f_samp_eeg)
-        EEG_val = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_val_scaled, f_samp = f_samp_eeg)
+        EEG_train = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_train_scaled, f_samp = f_samp_eeg, channel_names = list(channel_names))
+        EEG_val = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_val_scaled, f_samp = f_samp_eeg, channel_names = list(channel_names))
 
         
         # window EEG epochs 
@@ -163,7 +168,7 @@ for subject in subject_names:
             EEG_train_freq = copy.deepcopy(EEG_train)
             EEG_val_freq = copy.deepcopy(EEG_val)
 
-        
+
         # filtering windows 
         # bandpass iir 
 
@@ -171,20 +176,9 @@ for subject in subject_names:
         EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
         EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
 
-
         #  FFT Bandpass  
         # EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass") 
         # EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass")
-
-        
-        # # # calibration (standardization params) --> not used now 
-        # EEG_train.calcCalibStats(feature_times = None) 
-        # means, stds, mins, maxs  = EEG_train.getCalibStats() # get statistic stats from train data 
-        # EEG_val.setCalibStats(means, stds, mins, maxs)
-        
-        # # Standardize windows with z transform with mean from min max calc 
-        # EEG_train.windowStandardization(norm = False, use_min_max_norm = False)  
-        # EEG_val.windowStandardization(norm = False,  use_min_max_norm = False) 
 
 
         # # specify the window labels 
@@ -198,7 +192,7 @@ for subject in subject_names:
         
         # MLP Net training pipeline 
         if not (used_model =="EEGNet"): 
-
+            
             # time domain features 
             EEG_train.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
             EEG_val.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)

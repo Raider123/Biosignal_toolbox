@@ -15,13 +15,15 @@ result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_ma
 title = "norm eval"#"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["MLP iir base", "MLP min max scale", "MLP window scale", "MLP keras feat norm", "feature fuse online", "reduce time "] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_MLP_final_iir" ,
-            "fcn_network_results_34ch_MLP_final_iir_z_norm_min_max",
-            "fcn_network_results_34ch_MLP_final_iir_z_norm_min_max_window",
-            "fcn_network_results_34ch_MLP_final_iir_keras_feat_norm", 
-            "fcn_network_results_34ch_MLP_feature_fuse_final", 
-            "fcn_network_results_34ch_MLP_feature_fuse_reduce_time"]
+xLabels = ["step 1 100 ms", "step 1 200ms", "200 ms diffs", "step 2", "step 4", "step 6", "step 8", "step 10"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_MLP_online_eval_step_1_100ms",
+            "fcn_network_results_34ch_MLP_online_eval_step_1_200ms", 
+            "fcn_network_results_34ch_MLP_online_eval_step_1_200ms_diffs", 
+            "fcn_network_results_34ch_MLP_online_eval_step_2", 
+            "fcn_network_results_34ch_MLP_online_eval_step_4", 
+            "fcn_network_results_34ch_MLP_online_eval_step_6", 
+            "fcn_network_results_34ch_MLP_online_eval_step_8", 
+            "fcn_network_results_34ch_MLP_online_eval_step_10"]
 
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 

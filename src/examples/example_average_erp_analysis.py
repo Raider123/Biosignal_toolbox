@@ -27,7 +27,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 # *********************************************************************************
 
 #filenames 
-filenames = ["20032023_AF64D_unilateral_set1.vhdr","20032023_AF64D_unilateral_set2.vhdr", "20032023_AF64D_unilateral_set3.vhdr"]
+filenames = ["20211210_r_JV43_intentional_unilateral_set1.vhdr","20211210_r_JV43_intentional_unilateral_set2.vhdr", "20211210_r_JV43_intentional_unilateral_set3.vhdr"]
 
 
 # name pattern of current subject and paradigm 
@@ -46,7 +46,7 @@ apply_filter = True # setting to False will ignore the filtering
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
 reref_channel = ["average"]
 
-marker_number = 22 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
+marker_number = 100 # markernumber that should be used for e.g. epoching (e.g.  movement onset)
 error_number = 3 # number of the error marker (trials will be excluded)
 
 # specifying marker type and give it a name (event that is used for epoching)
