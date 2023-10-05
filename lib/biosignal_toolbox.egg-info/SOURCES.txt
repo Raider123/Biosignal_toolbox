@@ -1,4 +1,5 @@
 setup.py
+biosignal_toolbox/ML_lib.py
 biosignal_toolbox/__init__.py
 biosignal_toolbox/eeg_labeling_lib_nc.py
 biosignal_toolbox/eeg_lib.py
@@ -10,3 +11,8 @@ biosignal_toolbox.egg-info/SOURCES.txt
 biosignal_toolbox.egg-info/dependency_links.txt
 biosignal_toolbox.egg-info/requires.txt
 biosignal_toolbox.egg-info/top_level.txt
+biosignal_toolbox/models/__init__.py
+biosignal_toolbox/models/EEG_Net/CNN_Nets.py
+biosignal_toolbox/models/EEG_Net/__init__.py
+biosignal_toolbox/models/MLP_Net/MlpErp.py
+biosignal_toolbox/models/MLP_Net/__init__.py

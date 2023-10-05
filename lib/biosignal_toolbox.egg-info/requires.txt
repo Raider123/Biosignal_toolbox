@@ -4,4 +4,5 @@ numpy
 scikit_learn
 scipy
 setuptools
-tensorflow
+tensorflow==2.9.3
+seaborn

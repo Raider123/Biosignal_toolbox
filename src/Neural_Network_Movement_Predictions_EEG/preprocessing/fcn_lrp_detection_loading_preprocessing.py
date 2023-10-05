@@ -8,7 +8,7 @@ import mne
 import sys 
 
 # own libs 
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
+proj_path = "/home/niklas/Documents/mne_machine_learning"
 sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 import eeg_lib_nc
 
@@ -30,16 +30,16 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_05Hz"
+filename_end = "34ch_raw_no_scale"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
 validation_rate = 0.5 # rate to split test and validation data 
 
 # Filtering Params for EEG data 
-f_highpass = 0.5 #0.5 # in Hz 
+f_highpass = None #0.5 # in Hz 
 f_lowpass = None # 4.0 in Hz 
-apply_filter = True # setting to False will ignore the 
+apply_filter = False # setting to False will ignore the 
 
 
 #rereferencing (["average"] or [] for no reref (otherwise specify channel names))
@@ -127,6 +127,7 @@ for dataset in datasets:
         # epoch the eeg data to trial length (for merged sets)
         lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
         lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        
         
         # # filter data epoch wise 
         # iir_params = dict(order=1, ftype='butter', output='sos', padlen=20, phase = "zero")

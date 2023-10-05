@@ -15,7 +15,8 @@ setuptools.setup(
         'scikit_learn',
         'scipy',
         'setuptools',
-        'tensorflow',
+        'tensorflow==2.9.3',
+        'seaborn'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],

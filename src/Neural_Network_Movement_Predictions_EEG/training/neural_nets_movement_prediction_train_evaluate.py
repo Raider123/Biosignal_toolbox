@@ -15,14 +15,14 @@ from biosignal_toolbox.ML_lib import MLModel
 
 
 # own libs
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
+proj_path = "/home/niklas/Documents/mne_machine_learning"
+#sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 
 # models 
-from EEGModels import EEGNet
+from biosignal_toolbox.models.CNNnets import EEGNet
 
 # own model 
-from MlpErp import MLP_Model
+from biosignal_toolbox.models.MlpErp import MLP_Model
 
 print(tf.config.experimental.list_physical_devices('GPU'))
 
@@ -39,25 +39,26 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_online"
+result_file_name = "fcn_network_results_34ch_EEGNet_online_SGD"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # fine_tune = False
 # pre_trained_model = "EEGNet_pretrained_b128"
 
+
 f_samp_eeg = 500 #sample Frequency of eeg
 
 #machine learning params
 
 # model selection 
-used_model = "MLP"
+used_model = "EEGNet"
 num_classes = 2
 
 
 # fcn model parameter 
 n_epochs = 300 #300 training epochs (max since early stopping is used)
-n_batch_size = 64 # 16 for EEGNet, 64 for MLP
+n_batch_size = 16 # 16 for EEGNet, 64 for MLP
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
 early_stopping_patience = 100 # 100 
@@ -73,12 +74,12 @@ dropout_EEGNet = 0.5
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
-optimizer  = "adam" # Nadam for MLP 
+#optimizer  = "adam" # Nadam for MLP 
 
-# optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
-#     momentum=0.0,
-#     nesterov=False,
-# )
+optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
+    momentum=0.0,
+    nesterov=False,
+)
 
 metrics = "accuracy"
 
@@ -162,19 +163,28 @@ for subject in subject_names:
         # window selection 
         EEG_train.windowSelection(train_windows)
         EEG_val.windowSelection(test_windows)
-
+        
         # split up obj for frequency features (other preprocessing)
         if(features == "fusion"): 
             EEG_train_freq = copy.deepcopy(EEG_train)
             EEG_val_freq = copy.deepcopy(EEG_val)
 
-
         # filtering windows 
         # bandpass iir 
 
         #windows_raw = copy.deepcopy(EEG_train.getWindows()) 
-        EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
-        EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) 
+
+        if(used_model == "MLP"): # different filtering for different nets 
+            f_low = 5.0 
+            f_high = 0.3 
+        else: 
+            f_low = 40.0 # check filter design again !
+            f_high = 0.3
+        
+        # bandpass filter data 
+        EEG_train.FilterWindows(f_low = f_low, f_high = f_high, filter_type = "scipy_butter", order=2, show_response = False) 
+        EEG_val.FilterWindows(f_low = f_low, f_high = f_high, filter_type = "scipy_butter", order=2, show_response = False) 
+
 
         #  FFT Bandpass  
         # EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass") 
@@ -227,7 +237,7 @@ for subject in subject_names:
             MLP = MLP_Model(x_train, use_norm_layer = True)
 
             MLP_model = MLModel(model = MLP, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-            MLP_model.trainModel()
+            MLP_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration)+".h5")
             
             # predict and get results 
             MLP_model.predict(data = x_val, labels = y_val, encoding = "binary", show_results = True)
@@ -257,9 +267,9 @@ for subject in subject_names:
             # create EEGNet model for training 
             print("Use EEGNet")
             train_wind_shape = EEG_train.getWindows().shape # get train data shape for network 
-            model_EEGNet = EEGNet(nb_classes=num_classes, Chans=train_wind_shape[1], Samples=train_wind_shape[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout')
+            model_EEGNet = EEGNet(nb_classes=num_classes, Chans=train_wind_shape[1], Samples=train_wind_shape[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout', x_train = x_train, use_norm_layer = True)
             EEGNet_model = MLModel(model = model_EEGNet, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-            EEGNet_model.trainModel()
+            EEGNet_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration)+".h5")
             
             # predict and get results 
             EEGNet_model.predict(data = x_val, labels = y_val, encoding = "onehotencoding", show_results = True)
