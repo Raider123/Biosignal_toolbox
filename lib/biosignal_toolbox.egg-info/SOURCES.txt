@@ -11,8 +11,6 @@ biosignal_toolbox.egg-info/SOURCES.txt
 biosignal_toolbox.egg-info/dependency_links.txt
 biosignal_toolbox.egg-info/requires.txt
 biosignal_toolbox.egg-info/top_level.txt
+biosignal_toolbox/models/CNNnets.py
+biosignal_toolbox/models/MlpErp.py
 biosignal_toolbox/models/__init__.py
-biosignal_toolbox/models/EEG_Net/CNN_Nets.py
-biosignal_toolbox/models/EEG_Net/__init__.py
-biosignal_toolbox/models/MLP_Net/MlpErp.py
-biosignal_toolbox/models/MLP_Net/__init__.py

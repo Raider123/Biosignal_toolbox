@@ -9,14 +9,15 @@ import pandas as pd
 # ****** Datasets of all evaluations *****  
 
 # Resulting paths  
-result_path = "/home/niklas/Documents/mne_machine_learning/results/"
+result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "norm eval"#"Training trials compare pooling"
+title = "freq band test method" #"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["EEGNet online", "EEGNet online norm", "EEGNet old setting"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_EEGNet_online", "fcn_network_results_34ch_EEGNet_online_input_norm", "fcn_network_results_34ch_EEGNet_online_old_settings"]
+xLabels = ["multitaper", "mean fft", "FFT", "welch", "rations "] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["fcn_network_results_34ch_MLP_online_freq_band_multitaper", "fcn_network_results_34ch_MLP_online_freq_band_mean_fft", "fcn_network_results_34ch_MLP_online_freq_band_fft", "fcn_network_results_34ch_MLP_online_freq_band_welch", 
+               "fcn_network_results_34ch_MLP_online_ratios"]
 
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 

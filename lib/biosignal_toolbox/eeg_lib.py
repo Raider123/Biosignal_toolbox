@@ -11,6 +11,7 @@ import os
 from scipy.fft import fft, fftfreq
 from tensorflow.keras.utils import to_categorical
 import scipy 
+import mne_features.univariate as mne_feat
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -982,7 +983,7 @@ class EEGData:
         return ba, tnr, tpr 
     
 
-    def OnechannelFFT(self, one_channel_data, fsamp, plot = False): 
+    def OnechannelFFT(self, one_channel_data, fsamp, plot = False, window = "kaiser", beta = 1): 
         """
         This function calculates the FFT for one channel of timeseries data. 
         Arguments:
@@ -998,7 +999,23 @@ class EEGData:
         # sample spacing
         dT = 1.0/fsamp
         x = np.linspace(0.0, N*dT, N, endpoint=False)
-        y = one_channel_data
+        
+        # apply window before calculating fft 
+        if(window == "hamming"): 
+            window_fct = sig.windows.hamming(N)
+            y = window_fct*one_channel_data
+        elif (window == "hann"): 
+            window_fct = sig.windows.hann(N)
+            y = window_fct*one_channel_data
+
+        elif (window == "kaiser"): 
+            window_fct = sig.windows.kaiser(N, beta = beta)
+            y = window_fct*one_channel_data
+
+        else: 
+            y = one_channel_data
+
+
         yf = fft(y)
 
         xf = fftfreq(N, dT)[:N//2]
@@ -1010,6 +1027,7 @@ class EEGData:
             plt.plot(xf, yfn)
 
         return xf, yfn
+     
     
     def detrendWindows(self): 
         # get the features in one dim for all trials and windows 
@@ -1021,7 +1039,7 @@ class EEGData:
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_window_corr
 
 
-    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")]): 
+    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper"): 
 
         # (n_trials, n_channels, n_sampels, n_windows).
 
@@ -1155,6 +1173,45 @@ class EEGData:
 
                 for feature_idx in range(0, x_train_features_add.shape[2]):
                     x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
+
+
+        elif(feature_type == "freqBandPower"): 
+
+            #windows (n_trials, n_channels, n_sampels, n_windows).
+
+            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            num_of_freq_bands = len(freq_bands)-1
+
+            if(add_neightbour_diffs): 
+                 x_train_features_add = np.zeros((self.windows.shape[0], self.windows.shape[3], num_of_freq_bands*len(neighbours_list))) # shape: trials, windows, features
+
+            x_train_features = np.zeros((self.windows.shape[0], self.windows.shape[3], num_of_freq_bands*self.windows.shape[1])) # shape: trials, windows, features
+
+            #print(x_train_features.shape)
+            features = np.zeros((num_of_freq_bands, self.windows.shape[1])) # 5, 34
+            
+            # get the features in one dim for all trials and windows 
+            for trial_idx in range(0, self.windows.shape[0]):
+                for window_idx in range(0, self.windows.shape[3]):
+                         
+                    current_wind = self.windows[trial_idx, :, :, window_idx] # shape channel, sampels
+                    features = mne_feat.compute_pow_freq_bands(sfreq = self.__fsamp, data =current_wind, freq_bands=freq_bands, normalize = False, psd_method = psd_method)
+                    x_train_features[trial_idx, window_idx, :] = features
+
+            # flatten the trials and windows as train instances 
+            x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
+            #print(x_train.shape)
+
+            for feature_idx in range(0, x_train_features.shape[2]):
+                x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
+
+            # train data for neighbour condition 
+            if(add_neightbour_diffs): 
+                x_train_add = np.zeros((x_train_features_add.shape[0]*x_train_features_add.shape[1], x_train_features_add.shape[2]))
+
+                for feature_idx in range(0, x_train_features_add.shape[2]):
+                    x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
+
 
 
         # how to proceed with features (both conditions)

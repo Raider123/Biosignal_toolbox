@@ -15,7 +15,7 @@ from biosignal_toolbox.ML_lib import MLModel
 
 
 # own libs
-proj_path = "/home/niklas/Documents/mne_machine_learning"
+proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 #sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 
 # models 
@@ -39,7 +39,7 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_EEGNet_online_SGD"
+result_file_name = "fcn_network_results_34ch_MLP_online_ratios"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
@@ -52,16 +52,16 @@ f_samp_eeg = 500 #sample Frequency of eeg
 #machine learning params
 
 # model selection 
-used_model = "EEGNet"
+used_model = "MLP"
 num_classes = 2
 
 
 # fcn model parameter 
 n_epochs = 300 #300 training epochs (max since early stopping is used)
-n_batch_size = 16 # 16 for EEGNet, 64 for MLP
+n_batch_size = 64 # 16 for EEGNet, 64 for MLP
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
-early_stopping_patience = 100 # 100 
+early_stopping_patience = 30 # 100 
 
 
 #EEGNet-parameter
@@ -74,12 +74,12 @@ dropout_EEGNet = 0.5
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
-#optimizer  = "adam" # Nadam for MLP 
+optimizer  = "adam" # Nadam for MLP 
 
-optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
-    momentum=0.0,
-    nesterov=False,
-)
+# optimizer = tf.keras.optimizers.SGD( learning_rate=0.005, # choose slow learning rate 
+#     momentum=0.0,
+#     nesterov=False,
+# )
 
 metrics = "accuracy"
 
@@ -139,7 +139,6 @@ for subject in subject_names:
         # *********************************************************************************
         # ***************** Load train, test, val sets for every iteration ****************
         # *********************************************************************************
-
         
         # load each individual train, val and test sets (preprocessed)
         lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
@@ -148,6 +147,7 @@ for subject in subject_names:
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
         channel_names = np.load(data_path+"remaining_eeg_channel_names"+".npy")
 
+
         # **********************************************************************************
         # ********************* Preprocessing for data of both networks ********************
         # **********************************************************************************
@@ -155,25 +155,23 @@ for subject in subject_names:
         EEG_train = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_train_scaled, f_samp = f_samp_eeg, channel_names = list(channel_names))
         EEG_val = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_val_scaled, f_samp = f_samp_eeg, channel_names = list(channel_names))
 
-        
         # window EEG epochs 
         EEG_train.windowEEGEpochs(window_size, window_step)
         EEG_val.windowEEGEpochs(window_size, window_step)
 
         # window selection 
         EEG_train.windowSelection(train_windows)
-        EEG_val.windowSelection(test_windows)
+        EEG_val.windowSelection(test_windows) 
+
         
         # split up obj for frequency features (other preprocessing)
         if(features == "fusion"): 
             EEG_train_freq = copy.deepcopy(EEG_train)
             EEG_val_freq = copy.deepcopy(EEG_val)
 
+
         # filtering windows 
         # bandpass iir 
-
-        #windows_raw = copy.deepcopy(EEG_train.getWindows()) 
-
         if(used_model == "MLP"): # different filtering for different nets 
             f_low = 5.0 
             f_high = 0.3 
@@ -184,11 +182,6 @@ for subject in subject_names:
         # bandpass filter data 
         EEG_train.FilterWindows(f_low = f_low, f_high = f_high, filter_type = "scipy_butter", order=2, show_response = False) 
         EEG_val.FilterWindows(f_low = f_low, f_high = f_high, filter_type = "scipy_butter", order=2, show_response = False) 
-
-
-        #  FFT Bandpass  
-        # EEG_train.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass") 
-        # EEG_val.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "fft_bandpass")
 
 
         # # specify the window labels 
@@ -209,8 +202,12 @@ for subject in subject_names:
 
             # frequency domain features 
             if(features == "fusion"): 
-                EEG_train_freq.featureExtractionFromWindows(feature_type = "meanfreqs")
-                EEG_val_freq.featureExtractionFromWindows(feature_type = "meanfreqs")
+                # EEG_train_freq.featureExtractionFromWindows(feature_type = "meanfreqs")
+                # EEG_val_freq.featureExtractionFromWindows(feature_type = "meanfreqs") 
+
+                EEG_train_freq.featureExtractionFromWindows(feature_type = "freqBandPower")
+                EEG_val_freq.featureExtractionFromWindows(feature_type = "freqBandPower")
+                
 
                 x_train_freq = EEG_train_freq.getFeatures()
                 x_val_freq = EEG_val_freq.getFeatures()

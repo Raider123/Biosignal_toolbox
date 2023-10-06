@@ -11,7 +11,7 @@ import csv
 # Resulting paths  
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
 
-filename = "fcn_network_results_34ch_MLP_final_iir_keras_feat_norm"
+filename = "fcn_network_results_34ch_MLP_online_freq_band_test"
 
 result_arr1 = np.loadtxt(result_path+filename, dtype = float, delimiter= ',')
 
