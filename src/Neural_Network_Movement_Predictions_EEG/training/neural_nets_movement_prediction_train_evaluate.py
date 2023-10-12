@@ -36,10 +36,10 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
+subject_names = ["JV43","RA12"]#, "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_online_ratios"
+result_file_name = "fcn_network_results_34ch_MLP_online_no_norm"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
@@ -231,10 +231,10 @@ for subject in subject_names:
             print("Use MLP model")
 
             # Load model with norm layer  
-            MLP = MLP_Model(x_train, use_norm_layer = True)
+            MLP = MLP_Model(x_train, use_norm_layer = False)
 
             MLP_model = MLModel(model = MLP, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-            MLP_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration)+".h5")
+            MLP_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration))
             
             # predict and get results 
             MLP_model.predict(data = x_val, labels = y_val, encoding = "binary", show_results = True)
@@ -266,14 +266,13 @@ for subject in subject_names:
             train_wind_shape = EEG_train.getWindows().shape # get train data shape for network 
             model_EEGNet = EEGNet(nb_classes=num_classes, Chans=train_wind_shape[1], Samples=train_wind_shape[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout', x_train = x_train, use_norm_layer = True)
             EEGNet_model = MLModel(model = model_EEGNet, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-            EEGNet_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration)+".h5")
+            EEGNet_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration))
             
             # predict and get results 
             EEGNet_model.predict(data = x_val, labels = y_val, encoding = "onehotencoding", show_results = True)
             perf_results = EEGNet_model.getPerfResults()
             
             
-
         perf_results_total.append(perf_results[0:3])
 
 

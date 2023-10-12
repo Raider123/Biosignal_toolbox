@@ -5,6 +5,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import save_model
+from tensorflow.keras.models import load_model
+
 import tensorflow as tf
 
 # *********************************************************************************
@@ -83,6 +85,10 @@ class MLModel:
 
         if(save_trained_model): 
             save_model(self.model, model_filename+".h5") # save 
+
+
+    def loadModel(self, filename, path = ""): 
+        self.model = load_model(filepath = path+filename+".h5")
 
 
     def calcTestAccAndRates(self, prediction_labels, true_labels):

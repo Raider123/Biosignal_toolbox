@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Normalization
 
@@ -10,12 +10,15 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 64, second_layer_u
 
     # MLP setup
     model = Sequential()
+    model.add(Input(shape = x_train.shape[1],))
+    
     if(use_norm_layer): 
         norm_layer = Normalization()
         norm_layer.adapt(x_train)
         model.add(norm_layer)
+    
     #model.add(BatchNormalization())
-    model.add(Dense(units=first_layer_units, input_shape=(x_train.shape[1],)))
+    model.add(Dense(units=first_layer_units))
     model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
     model.add(Dropout(dropout_rate))
     model.add(BatchNormalization())
