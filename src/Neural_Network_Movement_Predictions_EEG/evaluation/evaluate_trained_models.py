@@ -5,8 +5,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from time import perf_counter
-import sys
+from time import perf_counter_ns
 import copy 
 
 # # own libs 
@@ -27,7 +26,7 @@ from biosignal_toolbox.models.MlpErp import MLP_Model
 print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
-#tf.config.set_visible_devices([], 'GPU')
+tf.config.set_visible_devices([], 'GPU') 
 
 
 # *********************************************************************************
@@ -36,15 +35,13 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43","RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # model names 
-MLP_eval_name = "fcn_network_results_34ch_MLP_online_no_norm"
-EEGNet_eval_name = "fcn_network_results_34ch_EEGNet_online"
+MLP_eval_name = "fcn_network_results_34ch_MLP_online"
+EEGNet_eval_name = "fcn_network_results_34ch_EEGNet"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
@@ -56,12 +53,13 @@ optimizer  = "adam" # Nadam for MLP
 metrics = "accuracy"
 
 # training windows and features
+use_all_windows = True
 test_windows = ["bis-2500", "bis-2050", "bis-100", "bis0"]
-window_labels_test = [0.0, 0.0, 1.0, 1.0] #np.zeros((81)) 
-
+window_labels_test = [0.0, 0.0, 1.0, 1.0]
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
 feature_indices_windows = np.arange(900, 1000, step = 1) # numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+
 
 # window wise metric evaluation
 window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
@@ -72,19 +70,22 @@ window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 # ***************** Main processing and classification loop ***********************
 # *********************************************************************************
 
-
 # load the time axis of the epoched data
 time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
 
 # example data 
-subject = "JV43"
+subject = "RA12"
 iteration = 0
 
 # load each individual train, val and test sets (preprocessed)
 lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
 channel_names = np.load(data_path+"remaining_eeg_channel_names"+".npy")
 
+lrp_epochs_val_scaled_cut = lrp_epochs_val_scaled[17, :, : ]
+lrp_epochs_val_scaled = np.expand_dims(lrp_epochs_val_scaled_cut, axis=0) # fit shape of trials                       
 print(lrp_epochs_val_scaled.shape)
+
+
 # **********************************************************************************
 # ********************* Preprocessing for data of both networks ********************
 # **********************************************************************************
@@ -93,6 +94,11 @@ EEG_val = EEGData(format = "NumpyEpochs", epochs = lrp_epochs_val_scaled, f_samp
 
 # window EEG epochs 
 EEG_val.windowEEGEpochs(window_size, window_step)
+
+if (use_all_windows): # if all windows used 
+    test_windows = EEG_val.getWindowNames()
+    window_labels_test = np.zeros((81))
+    window_labels_test[-3:] = 1.0
 
 # window selection 
 EEG_val_MLP = EEG_val
@@ -137,31 +143,44 @@ y_val_EEGNet = EEG_val_EEGNet.getTrainLabels()
 
 # ********** Load and apply models ***********
 
-MLP_model = MLModel(use_input_norm = True) 
+MLP_model = MLModel() 
 MLP_model.loadModel(path =data_path, filename = subject+"_"+scenario_name+MLP_eval_name+"_model_"+str(iteration))
 
-
 # predict and get results 
-MLP_model.predict(data = x_val_MLP, labels = y_val_MLP, encoding = "binary", show_results = True)
-perf_results = MLP_model.getPerfResults()
-
-print("perf results MLP", perf_results)
-
-
+MLP_model.predict(data = x_val_MLP, labels = y_val_MLP, encoding = "binary", show_results = True, show_pred_time = True)
 
 # model setup and training 
 
-# create EEGNet model for training 
-# print("Use EEGNet")
-# train_wind_shape = EEG_train.getWindows().shape # get train data shape for network 
-# model_EEGNet = load #
-# EEGNet_model = MLModel(model = model_EEGNet, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-
+model_EEGNet = MLModel()
+model_EEGNet.loadModel(path =data_path, filename = subject+"_"+scenario_name+EEGNet_eval_name+"_model_"+str(iteration))
 
 # # predict and get results 
-# EEGNet_model.predict(data = x_val, labels = y_val, encoding = "onehotencoding", show_results = True)
-# perf_results = EEGNet_model.getPerfResults()
-    
-            
+
+model_EEGNet.predict(data = x_val_EEGNet, labels = y_val_EEGNet, encoding = "onehotencoding", show_results = True, show_pred_time = True)
+
+# evaluate an ensemble model of both predictions 
+scores_EEGNet = model_EEGNet.getPredictionScores()
+scores_MLP = MLP_model.getPredictionScores()
 
 
+# show single trial scores 
+fig = plt.figure()
+plt.scatter(np.arange(0, len(scores_EEGNet)), scores_EEGNet)
+plt.scatter(np.arange(0, len(scores_EEGNet)), scores_MLP)
+plt.plot(np.arange(0, len(scores_EEGNet)), (scores_EEGNet+scores_MLP)/2, color = "green", linewidth=2.0)
+plt.plot(np.arange(0, len(scores_EEGNet)), (scores_EEGNet*scores_MLP), color = "purple", linewidth=4.0, marker='o', linestyle='solid')
+plt.legend(["EEGNet", "MLP", "Average", "Multiply"])
+plt.ylim((0.0, 1.0))
+plt.xlabel("Windows")
+plt.ylabel("Probability")
+plt.title("Single trial probability (ensemble model)")
+plt.show()
+#fig.savefig("ensemble_models.png")
+
+mean_scores = (scores_EEGNet*scores_MLP)
+
+ens_model = copy.deepcopy(MLP_model) 
+ens_model.calcBinaryPerformance(predictions = mean_scores, labels = y_val_MLP, encoding = "binary", show_results = True)
+
+print(test_windows[70])
+print(test_windows[60])

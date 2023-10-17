@@ -129,7 +129,6 @@ def EEGNet(nb_classes, Chans = 64, Samples = 128,
     model = Sequential()
 
     model.add(Input(shape = (Chans, Samples, 1)))
-
     
     if(use_norm_layer): 
         norm_layer = Normalization()

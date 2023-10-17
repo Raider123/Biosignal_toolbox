@@ -36,10 +36,10 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43","RA12"]#, "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject_names = ["JV43","RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_online_no_norm"
+result_file_name = "fcn_network_results_34ch_MLP_online"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
@@ -84,10 +84,10 @@ optimizer  = "adam" # Nadam for MLP
 metrics = "accuracy"
 
 # training windows and features
-train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-1800", "bis-150", "bis-100", "bis-50", "bis0"]
-test_windows = ["bis-2500", "bis-2050", "bis-100", "bis0"]
-window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
-window_labels_test = [0.0, 0.0, 1.0, 1.0] #np.zeros((81)) 
+train_windows = ["bis-2500", "bis-2050", "bis-1800", "bis-1000", "bis-150", "bis-100", "bis-50", "bis0"] #["bis-2500", "bis-2050", "bis-2200", "bis-1800", "bis-150", "bis-100", "bis-50", "bis0"]
+test_windows = ["bis-2500", "bis-2050", "bis-100", "bis0"] # ["bis-2500", "bis-2050", "bis-100", "bis0"]
+window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0] # [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]
+window_labels_test = [0.0, 0.0, 1.0, 1.0] #  [0.0, 0.0, 1.0, 1.0]
 
 used_trials_training = 80 # trials to use for training 
 
@@ -231,7 +231,7 @@ for subject in subject_names:
             print("Use MLP model")
 
             # Load model with norm layer  
-            MLP = MLP_Model(x_train, use_norm_layer = False)
+            MLP = MLP_Model(x_train, use_norm_layer = True)
 
             MLP_model = MLModel(model = MLP, train_epochs= n_epochs, batch_size=n_batch_size, class_weights={0: weight_no_lrp_class, 1: weight_lrp_class}, x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
             MLP_model.trainModel(save_trained_model = True, model_filename =subject+"_"+scenario_name+result_file_name+"_model_"+str(iteration))

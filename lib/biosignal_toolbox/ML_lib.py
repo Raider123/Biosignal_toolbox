@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import load_model
+from time import perf_counter_ns
 
 import tensorflow as tf
 
@@ -16,7 +17,7 @@ import tensorflow as tf
 
 class MLModel: 
 
-    def __init__(self, type = "keras", model = None, train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, model_summary = False, loss_fcn = None, optimizer = None, metrics = "accuracy",  use_input_norm = False): 
+    def __init__(self, type = "keras", model = None, train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, model_summary = False, loss_fcn = None, optimizer = None, metrics = "accuracy"): 
 
         self.type = type 
         self.model = model 
@@ -33,7 +34,7 @@ class MLModel:
         self.optimizer = optimizer
         self.metrics = metrics 
         self.perf_results = None
-        self.use_input_norm = use_input_norm
+        #self.use_input_norm = use_input_norm
 
         if(model_summary): 
             print(model.summary())
@@ -131,37 +132,55 @@ class MLModel:
         ba = (tnr+tpr)/2
 
         return tnr, tpr, acc, ba
+    
+    def calcBinaryPerformance(self,predictions, labels, encoding = "binary", show_results = False): 
 
-
-    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False): 
-
-        if(self.type == "keras"): 
-            
-            predictions = self.model.predict(data)
-
-            if (n_classes == 2): 
-                
-                if(encoding == "onehotencoding"): 
+        if(encoding == "onehotencoding"): 
                     predictions = predictions[:, 1] # convert to binary from onehotencoding 
                     labels = labels[:, 1]
 
-                pred_labels = np.array([0 if score <0.5 else 1 for score in predictions])
+
+        pred_labels = np.array([0 if score <0.5 else 1 for score in predictions])
+        self.prediction_scores = np.array(predictions).flatten() # store predictions 
+        self.predicted_labels = pred_labels
+
+        tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
+        perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
+        self.perf_results = perf_results # store perf results 
+
+        if(show_results): 
+            print("")
+            print("Single trial metrics test data windows:")
+            print("TNR: ",np.round(tnr, 3))
+            print("TPR: ",np.round(tpr, 3))
+            print("Acc: ", np.round(acc, 3))
+            print("BA: ", np.round(ba, 3))
+            print("")
 
 
-                tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
-                perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
-                self.perf_results = perf_results
+    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False): 
 
-                if(show_results): 
-                    print("")
-                    print("Single trial metrics test data windows:")
-                    print("TNR: ",np.round(tnr, 3))
-                    print("TPR: ",np.round(tpr, 3))
-                    print("Acc: ", np.round(acc, 3))
-                    print("BA: ", np.round(ba, 3))
-                    print("")
+        if(self.type == "keras"): 
+            
+            if (show_pred_time): 
+                time1 = perf_counter_ns()
+
+            predictions = self.model(data) # call the model, is a lot faster than using predict method 
+            #predictions = self.model.predict_on_batch(data)
+
+            if(show_pred_time): 
+                time2 = perf_counter_ns()
+                print("pred time ms", (time2-time1)/1000000)
+
+            if (n_classes == 2): 
+                self.calcBinaryPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels)
 
     def getPerfResults(self): 
         return self.perf_results
+    
+    def modelSummary(self): 
+        self.model.summary()
 
+    def getPredictionScores(self): 
+        return self.prediction_scores
 
