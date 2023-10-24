@@ -12,6 +12,8 @@ proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_mach
 sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 import eeg_lib_nc
 
+# # own libs 
+from biosignal_toolbox.eeg_lib import EEGData
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -30,7 +32,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_05_4Hz"
+filename_end = "34ch_spatial_filt_test"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -98,8 +100,11 @@ for dataset in datasets:
             test_list = [dataset[2]]
             if(subject_num == 5): # for XP01
                 test_list = [dataset[3], dataset[2]] # use for XP01 
-            raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
+            #raw_train= eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            data_train = EEGData(format = "Brainvision", filenames = train_list, data_path = data_path)
+            data_test_val = EEGData(format = "Brainvision", filenames = test_list, data_path = data_path)
+
+            #raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
 
         elif(iterations == 1): 
             
@@ -108,16 +113,22 @@ for dataset in datasets:
                 train_list = [dataset[1], dataset[2], dataset[3]] # use for XP01 
             test_list = [dataset[0]]
 
-            raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
+            # raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            # raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
+
+            data_train = EEGData(format = "Brainvision", filenames = train_list, data_path = data_path)
+            data_test_val = EEGData(format = "Brainvision", filenames = test_list, data_path = data_path)
 
         else:  
             train_list = [dataset[0], dataset[2]]
             if(subject_num == 5): # for XP01
                 train_list = [dataset[0], dataset[2], dataset[3]] # use for XP01 
             test_list = [dataset[1]]
-            raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
-            raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
+            
+            data_train = EEGData(format = "Brainvision", filenames = train_list, data_path = data_path)
+            data_test_val = EEGData(format = "Brainvision", filenames = test_list, data_path = data_path)
+            # raw_train = eeg_lib_nc.loadBrainproductsData(train_list) # read data in brainproducts format
+            # raw_test_val = eeg_lib_nc.loadBrainproductsData(test_list) # read data in brainproducts format 
         
         
         # *********************************************************************************
@@ -125,18 +136,26 @@ for dataset in datasets:
         # *********************************************************************************
         
         # epoch the eeg data to trial length (for merged sets)
-        lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
-        lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline)
+        # lrp_epochs_train, lrp_epochs_train_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_train_obj = eeg_lib_nc.rereferencingEpoching(raw_train, onset_number, error_number,channel_list,inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline, apply_ica = True)
+        # lrp_epochs_test_val, lrp_epochs_test_val_obj, time_axis_eeg_batch, remaining_eeg_channel_names, raw_test_val_obj = eeg_lib_nc.rereferencingEpoching(raw_test_val, onset_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline, apply_ica = True)
         
+        # epoch the eeg data to trial length (for merged sets)
+        data_train.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
+        data_test_val.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
         
-        # just convert, no scaling 
+        resulting_channel_epochs_train = data_train.timeShiftingLinearSpatialFilter(replace_epochs = True)
+        resulting_channel_epochs_test_val = data_test_val.timeShiftingLinearSpatialFilter(replace_epochs = True)
 
-        lrp_epochs_train_scaled = lrp_epochs_train*1000000
-        print(np.max(lrp_epochs_train_scaled))
-        print(np.mean(lrp_epochs_train_scaled))
-        print(np.std(lrp_epochs_train_scaled))
-        print(np.min(lrp_epochs_train_scaled))
-        lrp_epochs_test_val_scaled = lrp_epochs_test_val*1000000
+
+        # get the epochs after 
+        time_axis_eeg_batch, lrp_epochs_train = data_train.getEpochs()
+        time_axis_eeg_batch, lrp_epochs_test_val = data_test_val.getEpochs()
+        remaining_eeg_channel_names = data_train.getChannelNames()
+
+
+        # just convert, no scaling 
+        lrp_epochs_train_scaled = resulting_channel_epochs_train*1000000 # changed here for spatial filter 
+        lrp_epochs_test_val_scaled = resulting_channel_epochs_test_val*1000000
 
         # seperate test and validation
         test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 
@@ -147,6 +166,8 @@ for dataset in datasets:
         # *********************************************************************************
         # *********************** Save preprocessed EEG data ******************************
         # *********************************************************************************
+
+        print(lrp_epochs_train_scaled.shape) # trials channels, sampels 
 
         # save preprocessed data with shape (trials, channel, sampel) for every permutation 
         np.save(data_path+subject_paradigm_name+"_train_"+str(iterations), lrp_epochs_train_scaled)

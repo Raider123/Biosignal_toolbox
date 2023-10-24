@@ -12,6 +12,8 @@ from scipy.fft import fft, fftfreq
 from tensorflow.keras.utils import to_categorical
 import scipy 
 import mne_features.univariate as mne_feat
+from mne.preprocessing import ICA
+import copy 
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -80,7 +82,7 @@ class EEGData:
         return self.raw_obj
     
     def getEpochs(self):
-        return self.time_axis_eeg_epochs, self.epochs
+        return self.time_axis_epochs, self.epochs
     
     def getEvents(self): 
         return self.events
@@ -99,6 +101,9 @@ class EEGData:
 
     def setChannelNames(self, ch_names): 
         self.__ch_names = list(ch_names)
+
+    def getChannelNames(self): 
+        return self.__ch_names
 
     def calcCalibStats(self, feature_times = None): 
         # shape: trials, channels, sampels, windows
@@ -133,6 +138,105 @@ class EEGData:
         self.calib_mins = calib_mins
         self.calib_maxs = calib_maxs
 
+
+    def icaEOGArtifactRemoval(self, raw, eeg_epochs, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, baseline = (None, -0.2)):
+
+        """
+        This funcion automatically detects EOG artifacts in the given rereferenced eeg-signal with an ICA. The decisive components are marked and removed from the signal
+
+        Arguments
+            raw: The created mne object
+            eeg_epochs: The rereferenced epoched mne object
+            n_components: Number of principal components that are passed to the ICA algorithm during fitting:
+                var1: Give an int which must be greater than 1 and less than or equal to the number of channels.
+                var2: Give a float between 0 and 1, this will select the smallest number of components required to explain the cumulative variance of the data greater than n_components
+            drop_epochs: If TRUE a thrshhold determins the dropping of bad epochs based on peak to peak value
+            ch_names: The channels that are showing EOG artifacts
+            plot_steps: If TRUE the steps of the ICA will be plotted
+
+        Returns
+            eog_removed: The processed eeg data as an instance of mne object
+
+
+        Meta information: 
+        Author: Patrick Bings
+        Last changed: 07.09.2023
+
+        """
+
+        # dropping bad epochs based on peak to peak value if True
+        if(drop_epochs):
+            self.epochs.drop_bad(reject = {'eeg': threshhold})
+
+        # epoched_eeg_rereferenced.plot(block=True)
+
+        if(plot_steps == False):
+            # creating epochs around the EOG-artifacts
+            eog_evoked = create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
+            eog_evoked.apply_baseline(baseline=baseline)
+
+            # creating the ICA and fitting it to the epoched raw data: 
+            ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+            ica.fit(epoched_eeg_rereferenced)
+
+            # exclude the right ICs
+            ica.exclude = []
+
+            # find which ICs match the EOG pattern
+            eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+
+            ica.exclude.extend(eog_indices)
+
+            eog_removed = ica.apply(epoched_eeg_rereferenced)
+        else:
+            # create an acticap montage  --> why ? 
+            # acticap_montage = createActicapMontage(plot_montage, rename_channels)
+            # epoched_eeg_rereferenced.set_montage(acticap_montage) # set created montage 
+
+            # creating epochs around the EOG-artifacts
+            eog_evoked = create_eog_epochs(raw, ch_name=ch_names).average()
+            eog_evoked.apply_baseline(baseline=(None, -0.2))
+            #eog_evoked.plot_joint()
+
+            # creating the ICA and fitting it to the epoched raw data: 
+            ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+            ica.fit(self.epoch_obj) 
+            ica.plot_components()
+
+            # exclude the right ICs
+            ica.exclude = []
+
+            # find which ICs match the EOG pattern
+            eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+
+            ica.plot_overlay(eog_evoked, exclude=eog_indices, show=False)
+
+            ica.exclude.extend(eog_indices)
+
+            print(ica.exclude)
+
+            # barplot of ICA component "EOG match" scores
+            ica.plot_scores(eog_scores)
+
+            # plot diagnostics
+            ica.plot_properties(epoched_eeg_rereferenced, picks=eog_indices)
+
+            #plot ICs applied to raw data, with EOG matches highlighted
+            ica.plot_sources(epoched_eeg_rereferenced, show_scrollbars=False)
+
+            # plot ICs applied to the averaged EOG epochs, with EOG matches highlighted
+            ica.plot_sources(eog_evoked)
+
+            eog_removed = ica.apply(epoched_eeg_rereferenced)
+
+        return eog_removed
+
+    def simpleICAFiltering(self, n_components = 20, exclude_components = [0, 1]): 
+        ica = ICA(n_components=n_components) 
+        ica.fit(self.epoch_obj)
+        ica.apply(self.epoch_obj, exclude = exclude_components)
+        self.epochs = self.epoch_obj.get_data()
+        
 
     def loadBrainproductsData(self, dataset_list): 
 
@@ -311,7 +415,7 @@ class EEGData:
                             self.windows[trial_idx, channel_idx, :, window_idx] = inverse
 
 
-    def createActicapMontage(self, plot_montage, rename_channels, set_montage = True): 
+    def createActicapMontage(self, plot_montage = False, rename_channels=None, set_montage = True): 
 
         """
         This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
@@ -379,7 +483,7 @@ class EEGData:
 
 
     def topoplot(self, times, title_str, min_val, max_val): 
-
+        
         """
         This function creates and showes an topoplot at different points in time. 
         Arguments:
@@ -430,27 +534,34 @@ class EEGData:
             count = count+1
         plt.show()
 
-    def getDataOneChannel(self, channel_name, average = True, is_windowed = False): 
+    def getDataFromChannels(self, channel_names, average = True, is_windowed = False): 
+        
+        if(len(channel_names) > 1): # for more then one channel
+            channel_idxs = []
+            for channel_name in channel_names: 
+                channel_idx = self.__ch_names.index(channel_name)
+                channel_idxs.append(channel_idx)
+        else: 
+            channel_idxs = self.__ch_names.index(channel_names[0])
 
-        channel_idx = self.__ch_names.index(channel_name)
 
         if (is_windowed): 
             # shape: trials, channel, sampels, windows 
 
             if(average): # if average should be returned 
                 
-                return np.mean(self.windows[:, channel_idx, :, :], axis = 0)
+                return np.mean(self.windows[:, channel_idxs, :, :], axis = 0)
             else: 
-                return self.windows[:, channel_idx, :, :]
+                return self.windows[:, channel_idxs, :, :]
 
         else: # if not windowed yet 
 
             if(average):
-                data_channel = self.average_epochs[channel_idx, :]
+                data_channel = self.average_epochs[channel_idxs, :] # data channel with shape: (channels, sampels) for average 
             else: 
-                data_channel = self.epochs[:, channel_idx, :]
+                data_channel = self.epochs[:, channel_idxs, :] # data channel with shape: (trials, channels, sampels)  
 
-            return data_channel, self.time_axis_epochs
+            return data_channel, self.time_axis_epochs #
 
 
     def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
@@ -513,7 +624,7 @@ class EEGData:
         return processed_trial_predictions
     
 
-    def rereferencingEpoching(self, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, apply_baseline_correction,  t0_baseline, t1_baseline): 
+    def rereferencingEpoching(self, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, apply_baseline_correction,  t0_baseline, t1_baseline, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
         
         """
         Apply rereferencing and epoching with given parameters and filters to an raw_obj mne instance. 
@@ -572,6 +683,13 @@ class EEGData:
             filtered_eeg_rereferenced = raw_obj_eeg_rereferenced.filter(f_highpass,f_lowpass)
         else: 
             filtered_eeg_rereferenced = raw_obj_eeg_rereferenced
+
+        # if ica should be used 
+        if(apply_ica): 
+            ica = ICA(n_components=n_ica_comp) 
+            ica.fit(rereferenced_eeg_raw_obj)
+            ica.apply(rereferenced_eeg_raw_obj, exclude = exclude_ica_comp)
+
         
         #extract events 
         plot_events, plot_event_dict = mne.events_from_annotations(filtered_eeg_rereferenced)
@@ -628,6 +746,65 @@ class EEGData:
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def timeShiftingLinearSpatialFilter(self, erp_value_type = "min", replace_epochs = False, max_sample_diff = 200): 
+        
+        if(erp_value_type == "min"): 
+    
+            min_vals = np.min(self.average_epochs, axis = 1)
+            min_indices = np.argmin(self.average_epochs, axis = 1)
+
+            source_index = min_indices[np.argmin(min_vals)]
+            
+            indices_diffs = min_indices - source_index
+
+            coefficients = min_vals *(-1)
+            norm_coefficients =  (coefficients/np.sum(coefficients))
+            weighted_epochs = np.zeros(self.epochs.shape)
+
+            resulting_channel_epochs = 0
+            
+            for trial_idx in range(0, self.epochs.shape[0]): 
+                for channel_idx in range(0, self.epochs.shape[1]): 
+                    weighted_epochs[trial_idx, channel_idx, :] = self.epochs[trial_idx, channel_idx, :] * norm_coefficients[channel_idx]
+
+            # calc actual resulting channel
+            resulting_channel_epochs = np.zeros((weighted_epochs.shape[0], weighted_epochs.shape[2]))
+            for trial_idx in range(0, weighted_epochs.shape[0]): 
+                weighted_trial = weighted_epochs[trial_idx, :, :] # channels, sampels
+                for channel_idx in range(0, self.epochs.shape[1]): 
+                    
+                    weighted_trial_channel = weighted_trial[channel_idx, :] # sampels
+                    
+                    if ((indices_diffs[channel_idx] > 0) and (max_sample_diff > indices_diffs[channel_idx])): # if there is a delay after the source channel 
+
+                        weighted_trial_channel_temp = copy.deepcopy(weighted_trial_channel)
+                        weighted_trial_channel_temp = np.pad(weighted_trial_channel_temp, pad_width = (0, np.abs(indices_diffs[channel_idx])), mode='edge') # append array at end 
+                        weighted_trial_channel_temp = weighted_trial_channel_temp[indices_diffs[channel_idx]:]
+                        
+                    elif ((indices_diffs[channel_idx] < 0) and (max_sample_diff*(-1) < indices_diffs[channel_idx])):
+                        
+                        weighted_trial_channel_temp = copy.deepcopy(weighted_trial_channel)
+                        weighted_trial_channel_temp = np.pad(weighted_trial_channel_temp, pad_width = (np.abs(indices_diffs[channel_idx]), 0), mode='edge') # append array at end 
+                        weighted_trial_channel_temp = weighted_trial_channel_temp[0: len(weighted_trial_channel_temp)-np.abs(indices_diffs[channel_idx])]
+                    
+                    else: 
+                        weighted_trial_channel_temp = weighted_trial_channel
+
+                    weighted_epochs[trial_idx, channel_idx, :] = weighted_trial_channel_temp
+
+                resulting_channel_epochs[trial_idx, :] = np.sum(weighted_epochs[trial_idx, :, :], axis = 0) 
+
+            if (replace_epochs): 
+                self.epochs = weighted_epochs*self.epochs.shape[1] # calc weighted epochs with same scaling as before 
+
+                self.average_epochs = np.mean(self.epochs, axis = 0)
+            
+            resulting_channel_epochs  = np.expand_dims(resulting_channel_epochs, axis=1)
+            print(resulting_channel_epochs.shape)
+                
+            return resulting_channel_epochs
+
+
     def reshapeWindowsForCNNnets(self): 
 
         """
@@ -671,12 +848,8 @@ class EEGData:
     def getLabels(self): 
         return self.labels
 
-    def getTrainLabels(self, type = "binary"): 
-
-        if(type == "binary"):
+    def getTrainLabels(self): 
             return self.labels
-        elif(type == "onehotencoding"): 
-            return self.labels[:, 1]
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 

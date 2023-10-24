@@ -42,6 +42,11 @@ class MLModel:
 
     def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"):         
 
+
+        print(self.x_train.shape)
+        print(self.y_train.shape)
+
+
         # compile model 
         if (self.type == "keras"): 
             self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
@@ -133,31 +138,51 @@ class MLModel:
 
         return tnr, tpr, acc, ba
     
-    def calcBinaryPerformance(self,predictions, labels, encoding = "binary", show_results = False): 
-
-        if(encoding == "onehotencoding"): 
-                    predictions = predictions[:, 1] # convert to binary from onehotencoding 
-                    labels = labels[:, 1]
-
-
-        pred_labels = np.array([0 if score <0.5 else 1 for score in predictions])
-        self.prediction_scores = np.array(predictions).flatten() # store predictions 
-        self.predicted_labels = pred_labels
-
-        tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
-        perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
-        self.perf_results = perf_results # store perf results 
-
-        if(show_results): 
-            print("")
-            print("Single trial metrics test data windows:")
-            print("TNR: ",np.round(tnr, 3))
-            print("TPR: ",np.round(tpr, 3))
-            print("Acc: ", np.round(acc, 3))
-            print("BA: ", np.round(ba, 3))
-            print("")
+    def calcPerformance(self,predictions, labels, encoding = "binary", type="binary", show_results = False): 
+        
+        if(type == "binary"):
+            if(encoding == "onehotencoding"): 
+                        print(predictions.shape)
+                        predictions = predictions[:, 1] # convert to binary from onehotencoding 
+                        labels = labels[:, 1]
 
 
+            pred_labels = np.array([0 if score <0.5 else 1 for score in predictions])
+            self.prediction_scores = np.array(predictions).flatten() # store predictions 
+            self.predicted_labels = pred_labels
+
+            tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
+            perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
+            self.perf_results = perf_results # store perf results 
+
+            if(show_results): 
+                print("")
+                print("Single trial metrics test data windows:")
+                print("TNR: ",np.round(tnr, 3))
+                print("TPR: ",np.round(tpr, 3))
+                print("Acc: ", np.round(acc, 3))
+                print("BA: ", np.round(ba, 3))
+                print("")
+                
+        else: 
+            self.prediction_scores = np.array(predictions) # not flatten because n classes
+            self.predicted_labels = np.argmax(self.prediction_scores, axis=1)
+
+            # acc_metrics = tf.keras.metrics.Accuracy()
+            # acc_metrics.update_state(labels, self.prediction_scores)
+            # acc = acc_metrics.result().numpy()
+            # print("acc", acc)
+            acc = 0.0 # not implemented 
+            perf_results = np.array([np.round(acc, 3)])
+            self.perf_results = perf_results
+
+            if(show_results): 
+                print("")
+                print("Single trial metrics test data windows:")
+                print("Acc: ", np.round(acc, 3))
+                print("")
+
+            
     def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False): 
 
         if(self.type == "keras"): 
@@ -173,7 +198,9 @@ class MLModel:
                 print("pred time ms", (time2-time1)/1000000)
 
             if (n_classes == 2): 
-                self.calcBinaryPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels)
+                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="binary")
+            elif (n_classes > 2): 
+                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
 
     def getPerfResults(self): 
         return self.perf_results

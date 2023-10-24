@@ -379,7 +379,14 @@ def calcMovingAveragePredictionScores(trial_prediction_test, n_samp):
 
     return processed_trial_predictions
 
-def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline): 
+def simpleICAFiltering(epoch_obj, n_components = 20, exclude_components = [0, 1]): 
+    ica = ICA(n_components=n_components) 
+    ica.fit(epoch_obj)
+    ica.apply(epoch_obj, exclude = exclude_components)
+    
+    return epoch_obj
+
+def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, f_samp_eeg, apply_baseline_correction,  t0_baseline, t1_baseline, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
     
     """
     Apply rereferencing and epoching with given parameters and filters to an raw mne instance. 
@@ -436,9 +443,16 @@ def rereferencingEpoching(raw, marker_number, error_number,channel_list, inverse
 
     #apply filter 
     if (apply_filter): 
-        filtered_eeg_rereferenced = raw_eeg_rereferenced.filter(f_highpass,f_lowpass, method ="fir", fir_design = "firwin", fir_window = "hamming")
+        filtered_eeg_rereferenced = raw_eeg_rereferenced.filter(f_highpass,f_lowpass)
     else: 
         filtered_eeg_rereferenced = raw_eeg_rereferenced
+    
+            # if ica should be used 
+    if(apply_ica): 
+        ica = ICA(n_components=n_ica_comp) 
+        ica.fit(filtered_eeg_rereferenced)
+        ica.apply(filtered_eeg_rereferenced, exclude = exclude_ica_comp)
+        
     
     #extract events 
     plot_events, plot_event_dict = mne.events_from_annotations(filtered_eeg_rereferenced)
