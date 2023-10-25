@@ -13,3 +13,4 @@ data/
 plots/
 results/
 *.npy
+lib/biosignal_toolbox.egg-info

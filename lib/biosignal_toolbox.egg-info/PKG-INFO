@@ -1,8 +1,0 @@
-Metadata-Version: 2.1
-Name: biosignal-toolbox
-Version: 0.1.0
-Summary: biosignal_toolbox
-Home-page: https://git.hb.dfki.de/dfki_ude/mne_machine_learning.git
-Author: DFKI
-Classifier: Programming langugage :: Python :: Version > 3.6
-Classifier: Operating System :: OS independent

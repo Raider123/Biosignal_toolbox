@@ -15,7 +15,7 @@ from biosignal_toolbox.ML_lib import MLModel
 
 
 # own libs
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
+proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
 #sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 
 # models 

@@ -5,7 +5,7 @@ setuptools.setup(
     name='biosignal_toolbox',
     version='0.1.0',
     description='biosignal_toolbox',
-    url='https://git.hb.dfki.de/dfki_ude/mne_machine_learning.git',
+    url='https://git.hb.dfki.de/dfki_ude/biosignal_toolbox.git',
     author='DFKI',
     packages=setuptools.find_packages(),
     install_requires=[
