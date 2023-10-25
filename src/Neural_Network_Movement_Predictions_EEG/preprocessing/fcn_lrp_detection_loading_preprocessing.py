@@ -4,13 +4,11 @@
 # *********************************************************************************
 
 import numpy as np
-import mne
 import sys 
 
 # own libs 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
 sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
-import eeg_lib_nc
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -32,7 +30,7 @@ data_str_uni_QS70 = np.array([data_path+"20220107_r_QS70_intentional_unilateral_
 
 
 #specify filename ending 
-filename_end = "34ch_spatial_filt_test"
+filename_end = "34ch_denoising"
 
 # Which sets are used 
 set_nums = [0, 1, 2]
@@ -40,7 +38,7 @@ validation_rate = 0.5 # rate to split test and validation data
 
 # Filtering Params for EEG data 
 f_highpass = 0.5 #0.5 # in Hz 
-f_lowpass = 4.0 # 4.0 in Hz 
+f_lowpass = None # 4.0 in Hz 
 apply_filter = True # setting to False will ignore the 
 
 
@@ -143,8 +141,14 @@ for dataset in datasets:
         data_train.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
         data_test_val.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
         
-        resulting_channel_epochs_train = data_train.timeShiftingLinearSpatialFilter(replace_epochs = True)
-        resulting_channel_epochs_test_val = data_test_val.timeShiftingLinearSpatialFilter(replace_epochs = True)
+        # denoising filter 
+        xd = data_train.xDAWNDenoising(n_components = 6, processing_type="fit_apply", return_filter = True)
+        data_test_val.xDAWNDenoising(processing_type="apply", return_filter = True, xd = xd)
+        
+
+        # if use spatial filter 
+        # resulting_channel_epochs_train = data_train.timeShiftingLinearSpatialFilter(replace_epochs = True)
+        # resulting_channel_epochs_test_val = data_test_val.timeShiftingLinearSpatialFilter(replace_epochs = True)
 
 
         # get the epochs after 
@@ -154,8 +158,8 @@ for dataset in datasets:
 
 
         # just convert, no scaling 
-        lrp_epochs_train_scaled = resulting_channel_epochs_train*1000000 # changed here for spatial filter 
-        lrp_epochs_test_val_scaled = resulting_channel_epochs_test_val*1000000
+        lrp_epochs_train_scaled = lrp_epochs_train*1000000 # changed here for spatial filter 
+        lrp_epochs_test_val_scaled = lrp_epochs_test_val*1000000
 
         # seperate test and validation
         test_val_idx = int(lrp_epochs_test_val_scaled.shape[0]*validation_rate) 

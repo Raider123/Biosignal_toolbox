@@ -39,8 +39,8 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_MLP_spatial_filt_test"
-preprocessed_data_filename_end = "34ch_spatial_filt_test"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+result_file_name = "fcn_network_results_34ch_EEGNet_denoise_test_1"
+preprocessed_data_filename_end = "34ch_denoising"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # fine_tune = False
@@ -52,13 +52,13 @@ f_samp_eeg = 500 #sample Frequency of eeg
 #machine learning params
 
 # model selection 
-used_model = "MLP"
+used_model = "EEGNet"
 num_classes = 2
 
 
 # fcn model parameter 
 n_epochs = 300 #300 training epochs (max since early stopping is used)
-n_batch_size = 64 # 16 for EEGNet, 64 for MLP
+n_batch_size = 16 # 16 for EEGNet, 64 for MLP
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
 early_stopping_patience = 50 # 100 

@@ -14,6 +14,8 @@ import scipy
 import mne_features.univariate as mne_feat
 from mne.preprocessing import ICA
 import copy 
+from mne import compute_raw_covariance
+from mne.preprocessing import Xdawn
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -23,7 +25,6 @@ class EEGData:
 
     def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None):
        
-        
         self.raw_obj = None
         # parameter 
         #basic params 
@@ -741,6 +742,7 @@ class EEGData:
         #get data out as numpy array for further processing 
         self.epochs = eeg_epochs.get_data() 
         self.average_epochs = np.mean(self.epochs, axis = 0)
+        self.event_id = list(event_id_used)[0]
         
         #generate a time axis for the epochs 
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
@@ -1072,6 +1074,39 @@ class EEGData:
                     classified_windows[trial_idx, window_idx] = 0.0
                 
         return classified_windows
+    
+    def xDAWNDenoising(self, n_components = 2, processing_type="fit_apply", return_filter = True, xd = None): 
+
+        if (processing_type == "fit_apply"): # assuming this is only for training data or the epochs it should be fitted on 
+
+            # Xdawn instance
+            xd = Xdawn(n_components=n_components)
+            
+            # Fit xdawn
+            xd.fit(self.epoch_obj)
+            # apply 
+            epochs_denoised = xd.apply(self.epoch_obj)
+            self.epochs = epochs_denoised[self.event_id].get_data()
+            
+
+            if(return_filter): 
+                return xd 
+
+        elif(processing_type == "fit"): # only fit 
+
+            # Xdawn instance
+            xd = Xdawn(n_components=n_components)
+            
+            # Fit xdawn
+            xd.fit(self.epoch_obj)
+
+            if(return_filter): 
+                return xd 
+        
+        elif(processing_type == "apply"): # apply only (pass fitted filter !) 
+            # apply only 
+            epochs_denoised = xd.apply(self.epoch_obj)
+            self.epochs = epochs_denoised[self.event_id].get_data() 
 
 
     def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 

@@ -5,7 +5,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
-from time import perf_counter_ns
 import copy 
 
 # # own libs 
@@ -36,12 +35,12 @@ tf.config.set_visible_devices([], 'GPU')
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "34ch_raw_ica"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+preprocessed_data_filename_end = "34ch_denoising"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # model names 
-MLP_eval_name = "fcn_network_results_34ch_MLP_ica_test"
-EEGNet_eval_name = "fcn_network_results_34ch_EEGNet_ica_test"
+MLP_eval_name = "fcn_network_results_34ch_MLP_denoise_test_1"
+EEGNet_eval_name = "fcn_network_results_34ch_EEGNet_denoise_test_1"
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
