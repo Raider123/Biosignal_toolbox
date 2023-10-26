@@ -6,7 +6,7 @@ from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Normalization
 
 
-def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 64, second_layer_units = 32, third_layer_units = 10, activation = "sigmoid", n_classes = 2, dropout_rate = 0.5, use_norm_layer = False): # 8 8 8 0.2 drop
+def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 32, second_layer_units = 20, third_layer_units = 12, activation = "sigmoid", n_classes = 2, dropout_rate = 0.5, use_norm_layer = False): # 8 8 8 0.2 drop
 
     # first_layer_units = 64, second_layer_units = 32, third_layer_units = 10
     

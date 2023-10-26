@@ -810,16 +810,15 @@ class EEGData:
     def reshapeWindowsForCNNnets(self): 
 
         """
-        Select windows and extract them from all windows segmented by specifying the windows names.  
+        Reshape the windows from multiple trials to be fitted for the CNN networks like EEGNet.
+        This method is only required if windows are processed for more than one trial and window (do not use for single window processing). 
 
         Meta information: 
             Author: Niklas Kueper 
             Last changed: 14.09.2023 (by Niklas Kueper)
         """
-
-
         reshaped_EEG_windows= np.zeros((self.windows.shape[0]*self.windows.shape[3], self.windows.shape[1], self.windows.shape[2], 1)) # (n_trials * n_windows, n_channels, n_sampels, 1). 
-
+        
 
         # get the features in one dim for all trials and windows 
         for channel_idx in range(0, self.windows.shape[1]):
@@ -828,7 +827,6 @@ class EEGData:
                 reshaped_EEG_windows[:, channel_idx, sample_idx, 0] = self.windows[:, channel_idx, sample_idx, :].flatten()
 
         self.windows = reshaped_EEG_windows
-
 
     def labelsToCategorical(self, num_classes = 2): 
 

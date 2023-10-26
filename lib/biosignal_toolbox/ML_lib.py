@@ -183,24 +183,28 @@ class MLModel:
                 print("")
 
             
-    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False): 
+    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False, eval_type = "offline"): 
 
         if(self.type == "keras"): 
-            
-            if (show_pred_time): 
-                time1 = perf_counter_ns()
 
-            predictions = self.model(data) # call the model, is a lot faster than using predict method 
-            #predictions = self.model.predict_on_batch(data)
+            if(eval_type == "offline"): 
+                if (show_pred_time): 
+                    time1 = perf_counter_ns()
 
-            if(show_pred_time): 
-                time2 = perf_counter_ns()
-                print("pred time ms", (time2-time1)/1000000)
+                predictions = self.model(data) # call the model, is a lot faster than using predict method 
+                #predictions = self.model.predict_on_batch(data)
 
-            if (n_classes == 2): 
-                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="binary")
-            elif (n_classes > 2): 
-                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
+                if(show_pred_time): 
+                    time2 = perf_counter_ns()
+                    print("pred time ms", (time2-time1)/1000000)
+
+                if (n_classes == 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="binary")
+                elif (n_classes > 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
+
+            elif(eval_type == "online"):
+                self.prediction_scores =  np.array(self.model(data)).flatten()
 
     def getPerfResults(self): 
         return self.perf_results

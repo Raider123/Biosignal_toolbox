@@ -39,8 +39,8 @@ results_path = proj_path+"/results/"
 subject_names = ["JV43","RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "fcn_network_results_34ch_EEGNet_denoise_test_1"
-preprocessed_data_filename_end = "34ch_denoising"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+result_file_name = "fcn_network_results_34ch_EEGNet_online_pre_test_reduced_net"
+preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # fine_tune = False
@@ -66,11 +66,10 @@ early_stopping_patience = 50 # 100
 
 #EEGNet-parameter
 kern_length_EEGNET = 50 # 50 before 
-F1 = 16 # 8 
+F1 = 8 # 8 
 D = 2 
-F2 = 32 # 16 
+F2 = 16 # 16 
 dropout_EEGNet = 0.5
-
 
 # training params 
 loss_fcn =  "binary_crossentropy" #tf.keras.losses.Hinge()
@@ -92,7 +91,7 @@ window_labels_test = [0.0, 0.0, 1.0, 1.0] #  [0.0, 0.0, 1.0, 1.0]
 used_trials_training = 80 # trials to use for training 
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
-feature_indices_windows = np.arange(900, 1000, step = 1) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+feature_indices_windows = np.arange(900, 1000, step = 2) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
 
 # is using neighbour features from channels specify the neighbouring channels 
 # neighbours_list = [("P6", "P4"), ("P4", "P2"), ("P2", "PZ"), ("PZ", "P1"), ("P3", "P5"), ("CP6", "CP4"), ("CP4", "CP2"), ("CP2", "CPZ"), ("CPZ", "CP1"), ("CP1", "CP3"), ("CP3", "CP5"), 
@@ -248,7 +247,7 @@ for subject in subject_names:
             # reshape the windows to fit to input shape of EEGNet 
             EEG_train.reshapeWindowsForCNNnets()
             EEG_val.reshapeWindowsForCNNnets()
-        
+            
             # EEGNet label conversion (to one hot encodings)
             EEG_train.labelsToCategorical(num_classes = num_classes)
             EEG_val.labelsToCategorical(num_classes = num_classes)
