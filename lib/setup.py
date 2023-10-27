@@ -19,7 +19,8 @@ setuptools.setup(
         'seaborn==0.12.2', 
         'numba', 
         'PyWavelets', 
-        'pandas'
+        'pandas', 
+        'pylsl'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],

@@ -66,7 +66,7 @@ epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True # standard: True 
 channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
-#["x_dir", "y_dir", "z_dir"]
+
 
 # just remap the parameters (need to be adapted)
 t1 = epoching_time_before_onset
@@ -142,8 +142,8 @@ for dataset in datasets:
         data_test_val.rereferencingEpoching(marker_number, error_number,channel_list, inverse_keep_channel, reref_channel, apply_filter, f_highpass, f_lowpass, event_id_used, epoching_time_before_onset, epoching_time_after_onset, apply_baseline_correction,  t0_baseline, t1_baseline)
         
         # denoising filter 
-        xd = data_train.xDAWNDenoising(n_components = 6, processing_type="fit_apply", return_filter = True)
-        data_test_val.xDAWNDenoising(processing_type="apply", return_filter = True, xd = xd)
+        #xd = data_train.xDAWNDenoising(n_components = 6, processing_type="fit_apply", return_filter = True)
+        #data_test_val.xDAWNDenoising(processing_type="apply", return_filter = True, xd = xd)
         
 
         # if use spatial filter 

@@ -16,14 +16,101 @@ from mne.preprocessing import ICA
 import copy 
 from mne import compute_raw_covariance
 from mne.preprocessing import Xdawn
+from pylsl import StreamInlet, resolve_stream, local_clock
+from time import perf_counter 
+import requests
+
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
 
+class OnlineEEGUtils:
+
+    def __init__(self, n_channels, n_samples, dt_process_data = 0.05):
+
+        self.buffersize = n_samples
+        self.dt_process_data = dt_process_data
+        self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+
+
+    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5):
+        """
+        This function gathers all the relevant results and sends it to the host.
+        This function should be called everytime an error is detected.
+
+        Attributes:
+            team_name (str)         : each team will be assigned a team name which 
+            secret_id (str)         : each team will be provided with a secret code
+            timestamp_buffer_vals   : subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
+            local_clock_time        : current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.
+        """
+        # calculate the final values for the timings 
+        comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
+        computation_time = local_clock_time - timestamp_buffer_vals[1]
+
+
+        # connection to API for sending the results online 
+        url = 'http://10.250.223.221:5000/results'
+        myobj = {'team': team_name,
+                'secret': secret_id,
+                'host_timestamp': timestamp_buffer_vals[0], 
+                'comp_time': computation_time, 
+                'comm_delay': comm_delay}
+
+        x = requests.post(url, json = myobj)
+
+
+    def printStreamMetadata(self, stream_info_obj):
+        """
+        This function prints some basic meta data of the stream
+        """
+        print("") 
+        print("Meta data")
+        print("Name:", stream_info_obj.name())
+        print("Type:", stream_info_obj.type())
+        print("Number of channels:", stream_info_obj.channel_count())
+        print("Nominal sampling rate:", stream_info_obj.nominal_srate())
+        print("Channel format:",stream_info_obj.channel_format())
+        print("Source_id:",stream_info_obj.source_id())
+        print("Version:",stream_info_obj.version())
+        print("")
+
+
+    def updateBuffer(self, chunk):  #current_local_time, timestamp_offset, 
+        """
+        This function provides the most recent data samples and timestamps in a buffer.  
+        (first val is oldest, last the newest) 
+
+        Attributes:
+            chunk               : current data chunk
+            timestamps          : LSL local host timestamp for the data chunk 
+            current_local_time  : LSL local client timestamp when the chunk is received
+            timestamp offset    : correction factor that needs to be added to the timestamps to map it into the client's local LSL time
+            data_buffer         : data buffer array of shape (buffer_size, n_channels)
+            timestamp_buffer    : timestamps buffer of shape (buffer_size, 3). The 3 columns correspond to the host timestamp, the client local time and time correction offset resp.
+
+        Returns:
+            data_buffer         : data buffer array of shape (buffer_size, n_channels)
+            timestamp_buffer    : timestamp buffer of shape (buffer_size, 3)
+        """
+        #data 
+
+        current_chunk = np.array(chunk).T
+
+        n_samples = current_chunk.shape[1] # shape (samples, channels)
+        if (n_samples > self.data_buffer.shape[2]): 
+            print("Buffer overflow")
+
+        self.data_buffer = np.roll(self.data_buffer, shift = -1*int(n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
+        self.data_buffer[0, :, -1*int(n_samples):, 0] = current_chunk # update latest values in buffer  --> is this correct 
+
+        return self.data_buffer# , timestamp_buffer
+
+
 class EEGData:
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None):
        
         self.raw_obj = None
         # parameter 
@@ -74,6 +161,11 @@ class EEGData:
         elif(format == "RawObj"): 
             self.raw_obj = raw_obj
             self.__fsamp = f_samp
+
+        elif(format == "Live"): 
+            self.windows = windows
+            self.__fsamp = f_samp
+            self.__ch_names = channel_names
 
         else: 
             print("No dataset specified ...")
@@ -625,7 +717,7 @@ class EEGData:
         return processed_trial_predictions
     
 
-    def rereferencingEpoching(self, marker_number, error_number,channel_list, inverse_keep_channel, reref_channels, apply_filter, f_highpass, f_lowpass, event_id_used, t1, t2, apply_baseline_correction,  t0_baseline, t1_baseline, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
+    def rereferencingEpoching(self, marker_number, error_number, channel_list, inverse_keep_channel, event_id_used, t1, t2, reref_channels = [], apply_filter=False, f_highpass = None, f_lowpass= None, apply_baseline_correction = False,  t0_baseline = None, t1_baseline= None, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
         
         """
         Apply rereferencing and epoching with given parameters and filters to an raw_obj mne instance. 

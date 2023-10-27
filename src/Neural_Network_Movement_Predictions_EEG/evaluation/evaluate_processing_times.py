@@ -26,14 +26,15 @@ from biosignal_toolbox.models.MlpErp import MLP_Model
 print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
-#tf.config.set_visible_devices([], 'GPU') 
+tf.config.set_visible_devices([], 'GPU') 
 
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
 
-data_path = proj_path+"/data/"
+
+data_path = proj_path+"/data/" 
 results_path = proj_path+"/results/"
 scenario_name = "intentional_unilateral"
 preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
@@ -93,6 +94,7 @@ time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
 # load each individual train, val and test sets (preprocessed)
 lrp_epochs_val_scaled_start = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
 channel_names = np.load(data_path+"remaining_eeg_channel_names"+".npy")
+print(channel_names)
 
 for trial_idx in range(0, 20): 
 
@@ -113,7 +115,7 @@ for trial_idx in range(0, 20):
     EEG_val.windows = np.expand_dims(one_window, axis=3) # expand window dim to one for standard format 
     print("windows shape:", EEG_val.windows.shape)
 
-
+    
     # **********************************************************************************
     # ********************* Here starts the online part  *******************************
     # **********************************************************************************
@@ -124,7 +126,7 @@ for trial_idx in range(0, 20):
     EEG_val_EEGNet = copy.deepcopy(EEG_val_MLP) # for EEGNet
 
     t_copy_2 = perf_counter_ns()
-
+    
 #     # ******** MLP processing *******************
     
     # bandpass filter data 

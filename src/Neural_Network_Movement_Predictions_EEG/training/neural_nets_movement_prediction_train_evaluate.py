@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from time import perf_counter
-import sys
 import copy 
 
 # # own libs 
