@@ -27,7 +27,7 @@ import requests
 
 class OnlineEEGUtils:
 
-    def __init__(self, n_channels, n_samples, dt_process_data = 0.05):
+    def __init__(self, n_channels=32, n_samples= 500, dt_process_data = 0.05):
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
@@ -77,7 +77,7 @@ class OnlineEEGUtils:
         print("")
 
 
-    def updateBuffer(self, chunk):  #current_local_time, timestamp_offset, 
+    def updateBuffer(self, chunk, channel_indices = None, data_scale_factor = None):  #current_local_time, timestamp_offset, 
         """
         This function provides the most recent data samples and timestamps in a buffer.  
         (first val is oldest, last the newest) 
@@ -95,32 +95,46 @@ class OnlineEEGUtils:
             timestamp_buffer    : timestamp buffer of shape (buffer_size, 3)
         """
         #data 
+        
+        if (data_scale_factor): 
+            current_chunk = (np.array(chunk).T) *data_scale_factor
+        else: 
+            current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
 
-        current_chunk = np.array(chunk).T
+        if(channel_indices): 
+            current_chunk = current_chunk[channel_indices, :]
 
-        n_samples = current_chunk.shape[1] # shape (samples, channels)
-        if (n_samples > self.data_buffer.shape[2]): 
+        #print("current chunk shape: ", current_chunk.shape) # shape is channels, sampels
+
+        n_samples = current_chunk.shape[1] #
+        #print("n sampels: ", n_samples)
+
+        if (n_samples > self.data_buffer.shape[2]): # print error message 
             print("Buffer overflow")
 
-        self.data_buffer = np.roll(self.data_buffer, shift = -1*int(n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
-        self.data_buffer[0, :, -1*int(n_samples):, 0] = current_chunk # update latest values in buffer  --> is this correct 
+
+        self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
+        self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
 
         return self.data_buffer# , timestamp_buffer
+
+    def getDataBuffer(self): 
+        return self.data_buffer
 
 
 class EEGData:
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, units = None, data = None):
        
         self.raw_obj = None
         # parameter 
         #basic params 
 
         self.__ch_names = channel_names
-
         self.__montage = None
         self.__fsamp = None
         self.time_axis_epochs = None
+        self.units = None
         # epoching 
         self.epochs = None 
         self.epoch_obj =None
@@ -137,6 +151,7 @@ class EEGData:
         self.calib_means = None
         self.calib_stds = None
 
+        
         if(filenames and format == "Brainvision"): 
             #create numpy array with file names 
             data_str_arr = []
@@ -150,10 +165,11 @@ class EEGData:
             #basic params 
             self.__ch_names = self.raw_obj.ch_names
             self.__fsamp = self.raw_obj.info['sfreq']
+            self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
             #events
-            self.events, self.event_id = mne.events_from_annotations(self.raw_obj)
+            self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
-        
+
         elif(format == "NumpyEpochs"): 
             self.epochs = epochs
             self.__fsamp = f_samp
@@ -166,6 +182,41 @@ class EEGData:
             self.windows = windows
             self.__fsamp = f_samp
             self.__ch_names = channel_names
+
+        elif(format == "Recorded_LSL_stream"): 
+            
+            if(filenames): # implement running over all files and appending data to each other 
+                data = np.load(data_path +filenames[0]+".npy")
+
+            self.__fsamp = f_samp
+            self.__ch_names = channel_names
+
+            # create mne object 
+            sfreq = self.__fsamp  # Sampling frequency
+            data = data.T # in form (channel, sampels)
+            times = np.arange(0, data.shape[1], 1/sfreq)  # 
+            ch_types = ['eeg'] * len(self.__ch_names) # only EEG for now 
+            ch_names = self.__ch_names
+            info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
+            #scalings = {'eeg': 1}
+            raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
+            self.raw_obj = raw
+
+            # set annotation events (markers)
+            event_channel = data[-1, :]
+            marker_indices = np.where(event_channel > 0)[0]
+            marker_numbers = event_channel[marker_indices]
+            events = np.zeros((len(marker_indices), 3))
+            events[:, 0] = marker_indices
+            events[:, 2] = marker_numbers
+            self.events = events.astype(int)
+
+            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            self.raw_obj.set_annotations(annotations = annotations)
+
+            # print(type(self.events)) # (events, 3)
+            # print("events", self.events)
+        
 
         else: 
             print("No dataset specified ...")
@@ -231,6 +282,10 @@ class EEGData:
         self.calib_mins = calib_mins
         self.calib_maxs = calib_maxs
 
+    
+    def convertEpochsToMicrovolts(self): 
+        
+        self.epochs = self.epochs*1000000.0 # not in uV
 
     def icaEOGArtifactRemoval(self, raw, eeg_epochs, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, baseline = (None, -0.2)):
 
@@ -407,9 +462,10 @@ class EEGData:
 
         return filtered_signal
     
-    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = None, show_response = False): # under change 
+    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = None, show_response = False, alpha = 0.95): # under change 
         # shape: trials, channels, sampels, windows
 
+        # calc individual coeffs 
         if(filter_type == "dc_notch"):
             b, a = sig.iirnotch(f_high, Q, fs=self.__fsamp)
 
@@ -422,7 +478,21 @@ class EEGData:
             elif(f_low): 
                 b, a = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='ba', fs=self.__fsamp)
                 #zi = sig.lfilter_zi(b, a)
-        
+
+        if(filter_type == "scipy_bessel"): # prefer this one 
+            if(f_high and f_low): 
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='ba', fs=self.__fsamp)
+            elif(f_high):
+                b, a = sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='ba', fs=self.__fsamp)
+                #zi = sig.lfilter_zi(b, a)
+            elif(f_low): 
+                b, a = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='ba', fs=self.__fsamp)
+                #zi = sig.lfilter_zi(b, a)
+
+        if(filter_type == "dc_removal"): 
+            a = [1, -1 * alpha]
+            b = [1, -1]
+
             
         if(show_response): 
             w, h = sig.freqz(b, a, worN=2024)
@@ -473,9 +543,17 @@ class EEGData:
    
                             self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
+                    elif(filter_type =="dc_removal"): 
+                        for channel_idx in range(0, self.windows.shape[1]):
+                            
+                            # apply normal dc remove filter with initial condition no inverse reverse  
+                            #zi = sig.lfiltic(b, a, [0, 0])
+                            filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :])
 
-                    elif(filter_type == "fft_bandpass"):  # fft bandpass implementation from pySPACE 
+                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
+                    
+                    elif(filter_type == "fft_bandpass"):  # fft bandpass implementation from pySPACE, check this again 
 
                         filtered_window = np.zeros(current_wind.shape)
                         for channel_idx in range(0, self.windows.shape[1]): 
@@ -485,12 +563,10 @@ class EEGData:
                             res = 0.1 # fixed resolution to 0.1 Hz 
                             fourier_transformed = scipy.fftpack.fft(current_wind[channel_idx, :], n = int(self.__fsamp/res)) # increase resolution to 0.1 Hz 
 
-                            inverse = scipy.fftpack.ifft(fourier_transformed, n = self.__fsamp) # go back to normal samp rate size
-
                             #Compute the pass band indices
                             lower_bound = int(round(float(f_high) / (self.__fsamp) * len(fourier_transformed)))
                             upper_bound = int(round(float(f_low) / (self.__fsamp) * len(fourier_transformed)))
-
+                            
 
                             #Setting frequencies outside the pass band to 0
                             for i in range(0, lower_bound):
@@ -501,11 +577,12 @@ class EEGData:
                                 fourier_transformed[i] = 0
                                 fourier_transformed[-i-1] = 0
                             
-                            inverse = scipy.fftpack.ifft(fourier_transformed, n = self.__fsamp) # go back to normal samp rate size 
-
+                            inverse = scipy.fftpack.ifft(fourier_transformed, n = int(self.__fsamp)) # go back to normal samp rate size 
 
                             #Inverse Fourier transform and project to real component
                             self.windows[trial_idx, channel_idx, :, window_idx] = inverse
+
+
 
 
     def createActicapMontage(self, plot_montage = False, rename_channels=None, set_montage = True): 
@@ -784,10 +861,10 @@ class EEGData:
             ica.apply(rereferenced_eeg_raw_obj, exclude = exclude_ica_comp)
 
         
-        #extract events 
-        plot_events, plot_event_dict = mne.events_from_annotations(filtered_eeg_rereferenced)
-        plot_onset_indices = np.where(plot_events[:,2] == marker_number)[0] # S100 marker is leaving plate 
-        exclude_indices = np.where(plot_events[:,2] == error_number)[0] # S3 marker should be excluded 
+        #extract events
+        include_events = self.events
+        plot_onset_indices = np.where(include_events[:,2] == marker_number)[0] # S100 marker is leaving plate 
+        exclude_indices = np.where(include_events[:,2] == error_number)[0] # S3 marker should be excluded 
         
         #plot_onset_indices = plot_onset_indices[0:-1] # cut of last movement , might be after experiment --> not used anymore, leads to confusion ! 
         include_mask = np.ones(plot_onset_indices.shape)
@@ -802,15 +879,15 @@ class EEGData:
         plot_onset_indices_correct = plot_onset_indices[include_mask.astype(bool)]
 
         #create new event matrix 
-        used_plot_events = np.zeros((len(plot_onset_indices_correct),3))
-        used_plot_events = plot_events[plot_onset_indices_correct,:]
+        used_include_events = np.zeros((len(plot_onset_indices_correct),3))
+        used_include_events = include_events[plot_onset_indices_correct,:]
 
-        #eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
+        #eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
         if not(channel_list): 
             if(apply_baseline_correction): 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
             else: 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
                 
         else: #drop specified channels if False 
 
@@ -821,20 +898,20 @@ class EEGData:
                 filtered_eeg_rereferenced.pick_channels(channel_list)
 
             if(apply_baseline_correction): 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
             else: 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_plot_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
         
         # Get remaining channel names  
         self.__ch_names = filtered_eeg_rereferenced.ch_names
         self.obj_filtered = filtered_eeg_rereferenced.copy()
         
         self.epoch_obj = eeg_epochs.copy() # the object of epochs from mne 
-
+        
         #get data out as numpy array for further processing 
-        self.epochs = eeg_epochs.get_data() 
+        self.epochs = eeg_epochs.get_data()#units = "uV") 
         self.average_epochs = np.mean(self.epochs, axis = 0)
-        self.event_id = list(event_id_used)[0]
+        self.event_id = event_id_used 
         
         #generate a time axis for the epochs 
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
@@ -894,7 +971,6 @@ class EEGData:
                 self.average_epochs = np.mean(self.epochs, axis = 0)
             
             resulting_channel_epochs  = np.expand_dims(resulting_channel_epochs, axis=1)
-            print(resulting_channel_epochs.shape)
                 
             return resulting_channel_epochs
 
@@ -1176,7 +1252,7 @@ class EEGData:
             xd.fit(self.epoch_obj)
             # apply 
             epochs_denoised = xd.apply(self.epoch_obj)
-            self.epochs = epochs_denoised[self.event_id].get_data()
+            self.epochs = epochs_denoised[self.event_ids].get_data()
             
 
             if(return_filter): 
@@ -1196,7 +1272,7 @@ class EEGData:
         elif(processing_type == "apply"): # apply only (pass fitted filter !) 
             # apply only 
             epochs_denoised = xd.apply(self.epoch_obj)
-            self.epochs = epochs_denoised[self.event_id].get_data() 
+            self.epochs = epochs_denoised[self.event_ids].get_data() 
 
 
     def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 

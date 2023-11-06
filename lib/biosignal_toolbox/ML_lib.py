@@ -43,10 +43,7 @@ class MLModel:
     def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"):         
 
 
-        print(self.x_train.shape)
-        print(self.y_train.shape)
-
-
+        #if (type == "MLPNet"): 
         # compile model 
         if (self.type == "keras"): 
             self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
@@ -58,6 +55,19 @@ class MLModel:
                                 class_weight=self.class_weights,
                                 validation_data = (self.x_val, self.y_val),
                                 callbacks = self.callbacks)
+                
+        # else: 
+        #     if (self.type == "keras"): 
+        #         self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
+        #         history = self.model.fit(self.x_train,
+        #                             self.y_train,
+        #                             epochs  = self.epochs,
+        #                             batch_size= self.batch_size,
+        #                             shuffle = self.shuffle,
+        #                             class_weight=self.class_weights,
+        #                             #validation_data = (self.x_val, self.y_val),
+        #                             validation_split = 0.2,
+        #                             callbacks = self.callbacks)
             
             # history of training process
             history_dict = history.history
@@ -182,7 +192,7 @@ class MLModel:
                 print("Acc: ", np.round(acc, 3))
                 print("")
 
-            
+    
     def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False, eval_type = "offline"): 
 
         if(self.type == "keras"): 
@@ -190,7 +200,7 @@ class MLModel:
             if(eval_type == "offline"): 
                 if (show_pred_time): 
                     time1 = perf_counter_ns()
-
+                
                 predictions = self.model(data) # call the model, is a lot faster than using predict method 
                 #predictions = self.model.predict_on_batch(data)
 
@@ -204,6 +214,7 @@ class MLModel:
                     self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
 
             elif(eval_type == "online"):
+                
                 self.prediction_scores =  np.array(self.model(data)).flatten()
 
     def getPerfResults(self): 

@@ -15,12 +15,13 @@ setuptools.setup(
         'scikit_learn',
         'scipy',
         'setuptools',
-        'tensorflow==2.9.3',
+        'tensorflow',
         'seaborn==0.12.2', 
         'numba', 
         'PyWavelets', 
         'pandas', 
-        'pylsl'
+        'pylsl', 
+        'keyboard'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],

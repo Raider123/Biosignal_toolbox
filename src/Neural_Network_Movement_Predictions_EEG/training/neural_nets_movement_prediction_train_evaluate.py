@@ -158,7 +158,7 @@ for subject in subject_names:
         EEG_train.windowEEGEpochs(window_size, window_step)
         EEG_val.windowEEGEpochs(window_size, window_step)
 
-
+        
         # window selection 
         EEG_train.windowSelection(train_windows)
         EEG_val.windowSelection(test_windows) 
