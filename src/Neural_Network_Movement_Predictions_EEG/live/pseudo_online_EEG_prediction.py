@@ -51,8 +51,8 @@ iteration = 0
 result_file_name = "live_train_results"
 
 # model names 
-MLP_eval_name = "test_intentional_unilateraltest_recorder_LSL_transfer_model_MLP_0"
-EEGNet_eval_name = "test_intentional_unilateraltest_recorder_LSL_transfer_model_EEGNet0"
+MLP_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_MLP_0"
+EEGNet_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_EEGNet0"
 
 # ML params 
 decision_bound = 0.7
@@ -103,19 +103,26 @@ MLP_model.loadModel(path =data_path, filename = MLP_eval_name)
 model_EEGNet = MLModel()
 model_EEGNet.loadModel(path =data_path, filename = EEGNet_eval_name)
 
+f_samp_eeg = 500.0
+channel_names = ['F3', 'F1', 'FZ', 'F2', 'F4', 'FFC1h', 'FC5', 'FC3', 'FC1', 'FC2', 'FCC3h', 'FCC1h', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'FCC2h', 'CCP3h', 'CCP1h', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'P3', 'P1', 'PZ', 'P2', 'P4', 'FF3', "FF4"]
+n_channel = 34
+
 # load data and epoching to cut out data 
 
 #  loading and epoching for training  
-data_list = ["BR60D_unilateral_LSL_set4_1.vhdr"] #"BR60D_unilateral_LSL_set4_1.vhdr"
-data_raw = EEGData(format = "Brainvision", filenames = data_list, data_path = data_path)
+data_list = ["BR60D_unilateral_live_2_data"] #"BR60D_unilateral_LSL_set4_1.vhdr"
+data_train = EEGData(format = "Recorded_LSL_stream", filenames = data_list, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
+#data_raw = EEGData(format = "Brainvision", filenames = data_list, data_path = data_path)
 # data_raw.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, event_id_used = event_id_used, t1 = t1, t2= t2)
 # time_axis, eeg_epochs = data_raw.getEpochs() # trials, channels, sampels 
-raw_obj = data_raw.getRawObject()
-raw_data = raw_obj.get_data(units = "uV")
+raw_obj = data_train.getRawObject()
+raw_data = raw_obj.get_data()
 print(raw_data.shape)
 
+print(data_train.events[0:100, :])
+
 #20857 # onset ind 
-ind  = 48380
+ind  = 62516
 example_window = raw_data[:, ind-500:ind]
 #example_window = eeg_epochs[15, :, 1900:2400]
 example_window = np.expand_dims(example_window, 0) 
@@ -129,7 +136,7 @@ print("type: ", example_window.dtype)
 print("")
 
 # # create online EEG utils Object  
-EEGutils = OnlineEEGUtils(n_channels=32, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
+EEGutils = OnlineEEGUtils(n_channels=n_channel, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
 
 #inits 
 channel_names = None
@@ -138,6 +145,8 @@ EEG_live = EEGData(format = "Live", f_samp = 500.0, channel_names = channel_name
 
 # run one cycle on window
 EEG_live.windows = example_window
+
+print("example_window_shape: ", example_window.shape)
 
 #print(np.mean(EEG_live.windows[0, 10, :, 0]))
 
@@ -156,7 +165,9 @@ EEG_live_EEGNet = copy.deepcopy(EEG_live_MLP) # for EEGNet
     # ******** MLP processing *******************
 
 # bandpass filter data 
-EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # bandpass filter
+EEG_live_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
+EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed
+
 
 # time domain features (MLP)
 EEG_live_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows) # time dom features 
@@ -173,7 +184,8 @@ x_live_MLP = EEG_live_MLP.getFeatures()
 # *********** EEGNet processing *******************
 
 #EEG_live_EEGNet.FilterWindows(f_low = None, f_high = 0.1, filter_type = "scipy_butter", order=2, show_response = False) # try this ? 
-EEG_live_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # bandpass filter  
+EEG_live_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
+EEG_live_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # changed
 
 # get train windows 
 x_live_EEGNet = EEG_live_EEGNet.getWindows()

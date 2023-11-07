@@ -15,7 +15,7 @@ import serial
 import multiprocessing as mp 
 import SharedArray as sa
 from matplotlib import animation
-
+import warnings
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
@@ -49,15 +49,17 @@ def updateDataViz(i, data_chunk, inlet_viz, EEG_live_viz, EEGutils_live):
         
         # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
         EEG_live_viz.windows = EEGutils_live.updateBuffer(chunk)  #list(channel_indices)
-        #EEG_live_viz.FilterWindows(f_low = 245, f_high = 20, filter_type = "scipy_butter", order=2, show_response = False)  # changed
-        data_chunk = EEG_live_viz.windows[0, :, :, 0]
+        #print("window shape", EEG_live_viz.windows.shape)
+        #EEG_live_viz.windowStandardization()
+        data_chunk = EEG_live_viz.windows[0, :, :, 0] # channels, sampels
+        #print("data chunk shape ", data_chunk.shape)
 
     plt.cla() # clear the previous image
-    plt.plot(data_chunk.T)
+    plt.plot(data_chunk[0, :])
     #plt.hlines(onset_value, 0, len(emg_norm[param_viz.start_index:]), color = 'g')  
     
 
-def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 32, buffer_size = 500): 
+def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 34, buffer_size = 500): 
 
     # from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
     # from matplotlib import animation
@@ -87,30 +89,31 @@ def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 32, buffer_size
     # update the create plot (once created) in a loop this given interval dt and plot the values 
     anim = animation.FuncAnimation(fig, updateDataViz, frames = None, interval = dt_read_buffer_ms, blit = False, fargs = (data_chunk, inlet_viz, EEG_live_viz, EEGutils_live))
     plt.show()
+    
 
-
-def updateScoreViz(i, scores, names, buffersize): 
+def updateScoreViz(i, scores_memory1, names, buffersize): 
 
     plt.cla() # clear the previous image
-    plt.plot(scores)
+    plt.plot(scores_memory1)
     plt.ylabel("prediction scores")
     plt.xlim([0, buffersize]) # fix the x axis
     plt.legend(names)
     plt.title("Prediction scores")
 
-def predictionScoreVisualization(names, sa_name, dt_read_buffer = 0.05, buffersize = 500): 
+def predictionScoreVisualization(names, scores_memory1, dt_read_buffer = 0.05, buffersize = 500): 
     
-    scores = sa.attach(sa_name)
     fig1 = plt.figure()
     dt_read_buffer_ms = dt_read_buffer*1000
-    anim = animation.FuncAnimation(fig1, updateScoreViz, frames = None, interval = dt_read_buffer_ms, blit = False, fargs = (scores, names, buffersize), save_count=buffersize)
+    anim = animation.FuncAnimation(fig1, updateScoreViz, frames = None, interval = dt_read_buffer_ms, blit = False, fargs = (scores_memory1, names, buffersize), save_count=buffersize)
     plt.show()
+
 
 
 #************************************************************
 # ********************** user params ************************
 #************************************************************
 if __name__ == "__main__":
+    
 
     # online params 
     buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
@@ -118,7 +121,7 @@ if __name__ == "__main__":
     print_times = False
     do_class_pred = True
     send_marker = False
-
+    
     # subject info 
     subject = "Test"
     scenario_name = "intentional_unilateral"
@@ -126,8 +129,8 @@ if __name__ == "__main__":
     result_file_name = "live_train_results"
 
     # model names 
-    MLP_eval_name = "test_intentional_unilateraltest_recorder_LSL_transfer_model_MLP_0"
-    EEGNet_eval_name = "test_intentional_unilateraltest_recorder_LSL_transfer_model_EEGNet0"
+    MLP_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_MLP_0"
+    EEGNet_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_EEGNet0"
     
     # ML params 
     decision_bound = 0.7
@@ -140,20 +143,29 @@ if __name__ == "__main__":
     Baudrate = 115200
 
     # eeg stream params 
-    channel_names = ['F3', 'F1', 'FZ', 'F2', 'F4', 'FFC1h', 'FC5', 'FC3', 'FC1', 'FC2', 'FCC3h', 'FCC1h', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'FCC2h', 'CCP3h', 'CCP1h', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'P3', 'P1', 'PZ', 'P2', 'P4']
+    channel_names = ['F3', 'F1', 'FZ', 'F2', 'F4', 'FFC1h', 'FC5', 'ff5', 'ff3', 'ff4','FC3', 'FC1', 'FC2', 'FCC3h', 'FCC1h', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'FCC2h', 'CCP3h', 'CCP1h', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'P3', 'P1', 'PZ', 'P2', 'P4']
 
     # shared array params for scores 
     sa_name1 = "shm://scores"
     sa_size1 = buffer_size
-    score_names = ["MLP"]
+    score_names = ["product"]
 
     # EEG data params 
-    n_channels = 32
+    n_channels = 37
     f_samp_eeg = 500.0
-    
+
+
     #************************************************************
     # ********************** user params end ********************
     #************************************************************
+
+    # Deleting old SharedArrays
+    # if len(sa.list()) != 0:
+    #     sa.delete(sa_name1)
+
+    # scores_memory1 = sa.create(sa_name1, sa_size1) # len one for only one score 
+    # scores_buffer = np.zeros(buffer_size)
+
 
     # init serial markers
     if(send_marker): 
@@ -187,21 +199,15 @@ if __name__ == "__main__":
     EEG_live = EEGData(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
 
     # start visualization of data 
-    viz_data_process = mp.Process(target=dataVisualization, args=(channel_names,))
-    viz_data_process.start()
-
-    viz_scores_process = mp.Process(target=predictionScoreVisualization, args=(score_names, sa_name1))
-    viz_scores_process.start()
+    # viz_data_process = mp.Process(target=dataVisualization, args=(channel_names,))
+    # viz_data_process.start()
+    
+    # viz_scores_process = mp.Process(target=predictionScoreVisualization, args=(score_names, scores_memory1))
+    # viz_scores_process.start()
 
     # create shared array for passing prediction scores to visualization 
     # Create an array in shared memory.
 
-    # Deleting old SharedArrays
-    if len(sa.list()) != 0:
-        sa.delete(sa_name1)
-
-    scores_memory1 = sa.create(sa_name1, sa_size1) # len one for only one score 
-    scores_buffer = np.zeros(buffer_size)
 
     # run continiously 
     running = True
@@ -214,10 +220,20 @@ if __name__ == "__main__":
         if(chunk):#chunk # if list not empty (new data)
             
             # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
-            EEG_live.windows = EEGutils.updateBuffer(chunk, data_scale_factor=1)  #list(channel_indices)
-            #print("windows type: ", EEG_live.windows.dtype)
+            EEG_live.windows = EEGutils.updateBuffer(chunk, data_scale_factor=1, n_channels = n_channels)  #list(channel_indices)
             
+            # here with samples counter 
 
+
+            sample_indices = EEG_live.windows[0, -3, :, 0].astype(int)
+            
+            for i in range(0, len(sample_indices) -1): 
+                if sample_indices[i] + 1 != sample_indices[i+1]:
+                    warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
+
+            EEG_live.windows = EEG_live.windows[:, 0:34, :, :]
+    
+            
             if(print_times): 
                 t1 = perf_counter()
 
@@ -226,15 +242,18 @@ if __name__ == "__main__":
             # **********************************************
 
             # copy data objects for different processing 
-            EEG_live_MLP = EEG_live # time domain feates MLP
-            EEG_live_freq_MLP = copy.deepcopy(EEG_live_MLP) # for frequency features of MLP
-            EEG_live_EEGNet = copy.deepcopy(EEG_live_MLP) # for EEGNet
+            EEG_live_MLP = copy.deepcopy(EEG_live)# time domain feates MLP
+            EEG_live_freq_MLP = copy.deepcopy(EEG_live) # for frequency features of MLP
+            EEG_live_EEGNet = copy.deepcopy(EEG_live) # for EEGNet
+
 
             # ******** MLP processing *******************
             
             # bandpass filter data 
+            EEG_live_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
             EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed
-            
+
+
             # time domain features (MLP)
             EEG_live_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows) # time dom features 
             EEG_live_freq_MLP.featureExtractionFromWindows(feature_type = "freqBandPower") # freq domain features 
@@ -246,40 +265,44 @@ if __name__ == "__main__":
             # input features network 
             x_live_MLP = EEG_live_MLP.getFeatures()
 
-            #print("feature type", x_live_MLP.dtype)
+            #print("feature shape", x_live_MLP.shape)
             
 
             # *********** EEGNet processing *******************
             
             #EEG_live_EEGNet.FilterWindows(f_low = None, f_high = 0.1, filter_type = "scipy_butter", order=2, show_response = False) # try this ? 
+            EEG_live_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
             EEG_live_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # bandpass filter  
-            
-
+        
+            #EEG_live_EEGNet.windowStandardization()
 
             # get train windows 
             x_live_EEGNet = EEG_live_EEGNet.getWindows()
+            #print("feature shape", x_live_EEGNet.shape)
 
             # ********** make model prediction  ***********
             
             # predict and get results 
-            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = True, eval_type = "online")
+            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = False, eval_type = "online")
 
             # # predict and get results 
-            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = True, eval_type = "online")
+            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = False, eval_type = "online")
 
             # postprocessing 
             MLP_score =  MLP_model.prediction_scores[0] 
-            prod_score = MLP_score# final output score 
-            
+            prod_score = MLP_score* model_EEGNet.prediction_scores[1] # final output score 
+            EEG_live
 
-            if(do_class_pred): 
-                print("hole score:", prod_score)
-                print("EEGNet", model_EEGNet.prediction_scores[1])
-                print("MLP", MLP_score)
+            #if(do_class_pred): 
+                #print("hole score:", prod_score)
+                #print("EEGNet", model_EEGNet.prediction_scores[1])
+                #print("MLP", MLP_score)
                 
-                scores_buffer = np.roll(scores_buffer, shift = int(-1), axis = 0) 
-                scores_buffer[-1] = MLP_score
-                scores_memory1 = scores_buffer # write to shared memory 
+                # scores_buffer = np.roll(scores_buffer, shift = int(-1), axis = 0) 
+                # scores_buffer[-1] = MLP_score
+
+                # for index in range(0, len(scores_buffer)): 
+                #     scores_memory1[index] = scores_buffer[index] # write to shared memory 
 
             if(do_class_pred): 
                 if(prod_score > decision_bound): 
@@ -287,11 +310,14 @@ if __name__ == "__main__":
 
                     if(send_marker):
                         ser.write(b's') # send marker when detected 
+
+                else: 
+                    print("resting")
             
             
-            # *****************************************************
-            # *********** End processing section  *****************
-            # *****************************************************
+            #*****************************************************
+            #*********** End processing section  *****************
+            #*****************************************************
 
             if(print_times): 
                 print("model time(ms): ",(perf_counter()-t1)*1000)

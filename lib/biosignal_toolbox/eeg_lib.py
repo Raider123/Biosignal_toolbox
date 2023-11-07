@@ -27,7 +27,7 @@ import requests
 
 class OnlineEEGUtils:
 
-    def __init__(self, n_channels=32, n_samples= 500, dt_process_data = 0.05):
+    def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
@@ -77,7 +77,7 @@ class OnlineEEGUtils:
         print("")
 
 
-    def updateBuffer(self, chunk, channel_indices = None, data_scale_factor = None):  #current_local_time, timestamp_offset, 
+    def updateBuffer(self, chunk, channel_indices = None, data_scale_factor = None, n_channels = 34):  #current_local_time, timestamp_offset, 
         """
         This function provides the most recent data samples and timestamps in a buffer.  
         (first val is oldest, last the newest) 
@@ -104,15 +104,16 @@ class OnlineEEGUtils:
         if(channel_indices): 
             current_chunk = current_chunk[channel_indices, :]
 
-        #print("current chunk shape: ", current_chunk.shape) # shape is channels, sampels
+        
+        #print(current_chunk.shape)
+        current_chunk = current_chunk[0:n_channels, :] # use first n channels
 
-        n_samples = current_chunk.shape[1] #
-        #print("n sampels: ", n_samples)
+        n_samples = current_chunk.shape[1] 
 
         if (n_samples > self.data_buffer.shape[2]): # print error message 
             print("Buffer overflow")
 
-
+        
         self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
         self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
 
@@ -528,7 +529,6 @@ class EEGData:
                 for window_idx in range(0, self.windows.shape[3]): 
                     
                     current_wind = self.windows[trial_idx, :, :, window_idx]
-                    #data_buffer[:, int(mid_buffer):int(mid_buffer+current_wind.shape[1])] = current_wind
 
                     # currently the best 
                     if(filter_type == "mne_fir" or filter_type == "mne_iir"): 
@@ -1159,10 +1159,14 @@ class EEGData:
                         current_wind_norm = current_wind - self.calib_mins[channel_idx]
                         current_wind_norm = current_wind_norm/((self.calib_mins[channel_idx]*-1)+self.calib_maxs[channel_idx])
 
+
                     else: 
                         # apply z-transform 
-                        current_wind_norm = current_wind - self.calib_means[channel_idx] 
-                        current_wind_norm = current_wind_norm/self.calib_stds[channel_idx]  
+                        #print(current_wind.shape)
+                        current_wind_norm = current_wind - np.mean(current_wind, axis = 0) #self.calib_means[channel_idx] 
+                        print("current window ", current_wind)
+                        print("mean val", np.mean(current_wind))
+                        current_wind_norm = current_wind_norm/np.std(current_wind_norm)  #self.calib_stds[channel_idx]  
                         
                         if(norm): 
                         #current_wind_norm = current_wind+(-1*min)-1 # -1 is min 

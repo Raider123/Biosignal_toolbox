@@ -53,7 +53,8 @@ class MLModel:
                                 batch_size= self.batch_size,
                                 shuffle = self.shuffle,
                                 class_weight=self.class_weights,
-                                validation_data = (self.x_val, self.y_val),
+                                #validation_data = (self.x_val, self.y_val),
+                                validation_split = 0.2,
                                 callbacks = self.callbacks)
                 
         # else: 

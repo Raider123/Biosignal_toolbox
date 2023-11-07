@@ -7,6 +7,7 @@ import numpy as np
 import tensorflow as tf
 from time import perf_counter
 import copy 
+import mne 
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -26,7 +27,7 @@ from biosignal_toolbox.models.MlpErp import MLP_Model
 print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
-#tf.config.set_visible_devices([], 'GPU') # disable now 
+tf.config.set_visible_devices([], 'GPU') # disable now 
 
 
 # *********************************************************************************
@@ -36,16 +37,16 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-train_file_list = ["BR60D_unilateral_LSL_set3_1.vhdr", "BR60D_unilateral_LSL_set4_1.vhdr"] #"BR60D_unilateral_LSL_set4_1.vhdr"
+#train_file_list = ["BR60D_unilateral_LSL_set3_1.vhdr", "BR60D_unilateral_LSL_set4_1.vhdr"] #"BR60D_unilateral_LSL_set4_1.vhdr"
 
 # use LSL file recorded 
-#train_file_LSL = ["kartik_EMG_test1_data"]
+train_file_LSL = ["BR60D_intentional_unilateral_set8_data"]
 
 # subject params 
-subject = "test"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject = "BR60D"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 iteration = 0 # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
-result_file_name = "test_recorder_LSL_transfer"
+result_file_name = "test_with34_ch"
 
 
 #machine learning params
@@ -94,11 +95,11 @@ window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
 window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 
 f_samp_eeg = 500.0 #sample Frequency of eeg
-marker_number = 5 # onset markernumber (Qualisys)
+marker_number = 22 # onset markernumber (Qualisys)
 onset_number = marker_number
-error_number = 7 # number of the error marker 
+error_number = 3 # number of the error marker 
 # eeg stream params 
-channel_names = ['F3', 'F1', 'FZ', 'F2', 'F4', 'FFC1h', 'FC5', 'FC3', 'FC1', 'FC2', 'FCC3h', 'FCC1h', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'FCC2h', 'CCP3h', 'CCP1h', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'P3', 'P1', 'PZ', 'P2', 'P4']
+channel_names = ['F3', 'F1', 'FZ', 'F2', 'F4', 'FFC1h', 'FC5', 'FC3', 'FC1', 'FC2', 'FCC3h', 'FCC1h', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'FCC2h', 'CCP3h', 'CCP1h', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'P3', 'P1', 'PZ', 'P2', 'P4', 'FF3', "FF4"]
 
 # time selection for epoching of the data 
 epoching_time_before_onset = -5.0 # time in seconds (start epoch)
@@ -136,13 +137,18 @@ early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0
 # *********************************************************************************
 
 #  loading and epoching for training   
-data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
-#data_train = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
+#data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
+data_train = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
+#print("data shape", data_train.getRawObject().get_data().shape)
 
 data_train.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
+#data_train.epoch_obj = mne.Epochs(data_train.raw_obj, data_train.events, event_id=marker_number, tmin=t1, tmax=t2)
+#data_train.epochs = data_train.epoch_obj.get_data()
+
 channel_names = data_train.getChannelNames()
 print("channel names", channel_names)
+print("channel length", len(channel_names))
 print("")
 
 
@@ -161,7 +167,9 @@ print("windows type: ", EEG_train.windows.dtype)
 #EEG_val.windowSelection(test_windows) 
 
 # comment for normal 
-EEG_train.windows = EEG_train.windows*1000000
+#EEG_train.windows = EEG_train.windows*1000000
+
+print("windows shape", data_train.windows.shape)
 
 EEG_val_MLP = EEG_train # time domain feates MLP
 EEG_val_freq_MLP = copy.deepcopy(EEG_val_MLP) # for frequency features of MLP
@@ -170,10 +178,13 @@ EEG_val_EEGNet = copy.deepcopy(EEG_val_MLP) # for EEGNet
 # ******** MLP processing *******************
 
 # bandpass filter data 
+EEG_val_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
 EEG_val_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed
 
-# print("std:", np.std(EEG_val_MLP.windows[0, 0, :, 0]))
-# print("mean", np.mean(EEG_val_MLP.windows[0, 0, :, 0]))
+#EEG_val_MLP.windowStandardization() # standardize windows
+
+print("std:", np.std(EEG_val_MLP.windows[0, 0, :, 0]))
+print("mean", np.mean(EEG_val_MLP.windows[0, 0, :, 0]))
 
 
 # # specify the window labels (not needed)
@@ -207,10 +218,12 @@ perf_results_MLP = MLP_model.getPerfResults()
 
 # *********** EEGNet processing *******************
 
-EEG_val_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
+EEG_val_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
 EEG_val_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # changed
 
 #EEG_val_EEGNet.FilterWindows(f_low = None, f_high = 20.0, Q = 10, filter_type = "dc_notch") # changed
+
+#EEG_val_EEGNet.windowStandardization()
 
 EEG_val_EEGNet.setWindowLabels(window_labels_train)
 # reshape windows for net
