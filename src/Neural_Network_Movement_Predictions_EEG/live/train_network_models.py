@@ -40,10 +40,11 @@ results_path = proj_path+"/results/"
 #train_file_list = ["BR60D_unilateral_LSL_set3_1.vhdr", "BR60D_unilateral_LSL_set4_1.vhdr"] #"BR60D_unilateral_LSL_set4_1.vhdr"
 
 # use LSL file recorded 
-train_file_LSL = ["BR60D_intentional_unilateral_set8_data"]
+train_file_LSL = ["XY90_unilateral_set3_data", "XY90_unilateral_set4_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+
 
 # subject params 
-subject = "BR60D"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
+subject = "XY90_3"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 iteration = 0 # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
 result_file_name = "test_with34_ch"
@@ -59,7 +60,7 @@ n_batch_size_MLP = 64 #64 for MLP
 
 weight_no_lrp_class = 0.5 # weight for the both classes for training (loss function weighting, has to sum to 1 !)
 weight_lrp_class = 0.5
-early_stopping_patience = 50 # 50 
+early_stopping_patience = 100 # 50 
 
 
 #EEGNet-parameter
@@ -76,12 +77,12 @@ optimizer  = "adam" # Nadam for MLP
 metrics = "accuracy"
 
 # training windows and features
-#train_windows = ["bis-2700", "bis-2500", "bis-2300" ,"bis-2100", "bis-1900", "bis-1700", "bis-1500", "bis-1300" ,"bis-1000", "bis-150", "bis-100", "bis-50", "bis0"] #["bis-2500", "bis-2050", "bis-2200", "bis-1800", "bis-150", "bis-100", "bis-50", "bis0"]
+#train_windows = ["bis-2500", "bis-2300" ,"bis-2100", "bis-1900", "bis-1700", "bis-1300" ,"bis-1000", "bis-150", "bis-100", "bis-50", "bis0"] #["bis-2500", "bis-2050", "bis-2200", "bis-1800", "bis-150", "bis-100", "bis-50", "bis0"]
 
-train_windows = ["bis-2500", "bis-1900", "bis-1700" ,"bis-1500", "bis-150", "bis-100", "bis-50", "bis0"] # alternatively 
-test_windows = ["bis-2500", "bis-2050", "bis-100", "bis0"] # ["bis-2500", "bis-2050", "bis-100", "bis0"]
+train_windows = ["bis-2500", "bis-1900", "bis-1700" ,"bis-1500", "bis-250", "bis-200", "bis-150", "bis-100"]#, "bis-50", "bis0"] # alternatively 
+test_windows = ["bis-2500", "bis-2050", "bis-200", "bis100"] # ["bis-2500", "bis-2050", "bis-100", "bis0"]
 
-#window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# 
+#window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# 
 window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 window_labels_test = [0.0, 0.0, 1.0, 1.0] #  [0.0, 0.0, 1.0, 1.0]
 
@@ -139,7 +140,6 @@ early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0
 #  loading and epoching for training   
 #data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
 data_train = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
-#print("data shape", data_train.getRawObject().get_data().shape)
 
 data_train.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
@@ -179,7 +179,8 @@ EEG_val_EEGNet = copy.deepcopy(EEG_val_MLP) # for EEGNet
 
 # bandpass filter data 
 EEG_val_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
-EEG_val_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed
+EEG_val_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed here 
+EEG_val_EEGNet.windowStandardization()
 
 #EEG_val_MLP.windowStandardization() # standardize windows
 
@@ -218,8 +219,10 @@ perf_results_MLP = MLP_model.getPerfResults()
 
 # *********** EEGNet processing *******************
 
-EEG_val_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
+EEG_val_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
+#EEG_val_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
 EEG_val_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # changed
+EEG_val_EEGNet.windowStandardization()
 
 #EEG_val_EEGNet.FilterWindows(f_low = None, f_high = 20.0, Q = 10, filter_type = "dc_notch") # changed
 

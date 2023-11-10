@@ -16,6 +16,9 @@ import multiprocessing as mp
 import SharedArray as sa
 from matplotlib import animation
 import warnings
+import zmq 
+import pyrock
+
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
@@ -108,6 +111,14 @@ def predictionScoreVisualization(names, scores_memory1, dt_read_buffer = 0.05, b
     plt.show()
 
 
+def establishZMQ(port_name):
+    # create a socket connection as a publisher to send commands 
+    my_context = zmq.Context()
+    my_socket = my_context.socket(zmq.PUB)
+    my_socket.bind("tcp://*:"+port_name)
+    print("Publisher ready")
+    return my_socket
+
 
 #************************************************************
 # ********************** user params ************************
@@ -120,7 +131,8 @@ if __name__ == "__main__":
     dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
     print_times = False
     do_class_pred = True
-    send_marker = False
+    send_marker = True
+    deadtime = 1 # in seconds 
     
     # subject info 
     subject = "Test"
@@ -129,11 +141,13 @@ if __name__ == "__main__":
     result_file_name = "live_train_results"
 
     # model names 
-    MLP_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_MLP_0"
-    EEGNet_eval_name = "BR60D_intentional_unilateraltest_with34_ch_model_EEGNet0"
+    MLP_eval_name = "XY90_3_intentional_unilateraltest_with34_ch_model_MLP_0"
+    EEGNet_eval_name = "XY90_3_intentional_unilateraltest_with34_ch_model_EEGNet0"
     
     # ML params 
     decision_bound = 0.7
+    n_count_positives = 3 # how many window have to be positive 
+
     # MLP Net 
     #features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
     feature_indices_windows = np.arange(900, 1000, step = 2) # numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
@@ -154,22 +168,36 @@ if __name__ == "__main__":
     n_channels = 37
     f_samp_eeg = 500.0
 
+    # zmq stuff 
+    zmq_port = "34761"
+    zmq_topic = b"10"
 
+    # pyrock command setup 
+    ns = pyrock.NameService("10.250.3.15")
+    task = ns.get_task_context("pyspace")
+    writer = task.writer("prediction_vector1")
+    sample = writer.get_sample()
+    sample['label'] = ["Right"]
+
+    task = ns.get_task_context("trajectory_from_fileTask")
+    reader = task.reader("state", type=pyrock.RTT.CBuffer, size=50)
+
+    # 
+    output_classification = True # remove this later 
+
+    
     #************************************************************
     # ********************** user params end ********************
     #************************************************************
 
-    # Deleting old SharedArrays
-    # if len(sa.list()) != 0:
-    #     sa.delete(sa_name1)
-
-    # scores_memory1 = sa.create(sa_name1, sa_size1) # len one for only one score 
-    # scores_buffer = np.zeros(buffer_size)
+    # dead time 
+    dead_n_samples = deadtime/dt_read_buffer
 
 
     # init serial markers
     if(send_marker): 
         ser = serial.Serial(usb_port, Baudrate)
+        my_socket = establishZMQ(zmq_port)
         time.sleep(3)
 
     # load models
@@ -198,21 +226,18 @@ if __name__ == "__main__":
     #inits 
     EEG_live = EEGData(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
 
-    # start visualization of data 
-    # viz_data_process = mp.Process(target=dataVisualization, args=(channel_names,))
-    # viz_data_process.start()
-    
-    # viz_scores_process = mp.Process(target=predictionScoreVisualization, args=(score_names, scores_memory1))
-    # viz_scores_process.start()
 
-    # create shared array for passing prediction scores to visualization 
-    # Create an array in shared memory.
+    # init values 
+    running = True    # run continiously 
+    trajectory_done = False
+    movement_start = False
+    pos_last_prediction = True
+    pos_prediction_count = 0 
+    onset_detected = False
+    counter = 0
+    old_send_time = perf_counter()*1000
 
 
-    # run continiously 
-    running = True
-
-    #counter = 0
     while running:
         
         chunk, timestamps = inlet.pull_chunk() # get a new data chunk
@@ -231,8 +256,8 @@ if __name__ == "__main__":
                 if sample_indices[i] + 1 != sample_indices[i+1]:
                     warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
 
-            EEG_live.windows = EEG_live.windows[:, 0:34, :, :]
-    
+            EEG_live.windows = EEG_live.windows[:, 0:n_channels-3, :, :]
+
             
             if(print_times): 
                 t1 = perf_counter()
@@ -251,8 +276,8 @@ if __name__ == "__main__":
             
             # bandpass filter data 
             EEG_live_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
-            EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed
-
+            EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed here
+            EEG_live_MLP.windowStandardization()
 
             # time domain features (MLP)
             EEG_live_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows) # time dom features 
@@ -267,13 +292,15 @@ if __name__ == "__main__":
 
             #print("feature shape", x_live_MLP.shape)
             
-
+            
             # *********** EEGNet processing *******************
             
             #EEG_live_EEGNet.FilterWindows(f_low = None, f_high = 0.1, filter_type = "scipy_butter", order=2, show_response = False) # try this ? 
-            EEG_live_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
-            EEG_live_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # bandpass filter  
-        
+            EEG_live_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
+            #EEG_live_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.9)
+            EEG_live_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False) # changed
+            EEG_live_EEGNet.windowStandardization()
+            
             #EEG_live_EEGNet.windowStandardization()
 
             # get train windows 
@@ -290,31 +317,81 @@ if __name__ == "__main__":
 
             # postprocessing 
             MLP_score =  MLP_model.prediction_scores[0] 
-            prod_score = MLP_score* model_EEGNet.prediction_scores[1] # final output score 
-            EEG_live
+            prod_score = model_EEGNet.prediction_scores[1] #MLP_score#* model_EEGNet.prediction_scores[1] # final output score 
 
+            
             #if(do_class_pred): 
-                #print("hole score:", prod_score)
-                #print("EEGNet", model_EEGNet.prediction_scores[1])
-                #print("MLP", MLP_score)
+            #print("hole score:", prod_score)
+            #print("EEGNet", model_EEGNet.prediction_scores[1])
+            #print("MLP", MLP_score)
                 
-                # scores_buffer = np.roll(scores_buffer, shift = int(-1), axis = 0) 
-                # scores_buffer[-1] = MLP_score
 
-                # for index in range(0, len(scores_buffer)): 
-                #     scores_memory1[index] = scores_buffer[index] # write to shared memory 
+            if(do_class_pred):
 
-            if(do_class_pred): 
+                # exo states 
+                status = pyrock.RTT.CNewData
+                while status == pyrock.RTT.CNewData:
+                    #print(f"{status=}")
+                    status, state = reader.read(return_status=True)
+                    if state == 7:
+                        trajectory_done = True
+                        #print("exo state 7")
+                    elif state == 5: 
+                        movement_start = True
+                        #print("exo state 5")
+
+
+                # check if exo moving 
+                if (trajectory_done == False and movement_start == True): # in movement  
+                    print("movement ongoing")
+                    prod_score = 0.0 # output is zero from model 
+
+                elif ((trajectory_done == True) and (movement_start == True)): # after movement 
+                    
+                    print("movement done ")
+                    if (counter > dead_n_samples): # done waiting  
+                        movement_start = False 
+                        trajectory_done = False 
+                        counter = 0
+
+                    else: 
+                        print("waiting")
+                        counter = counter +1  # waiting 
+                        prod_score = 0.0  # no output from model 
+
+
+                # model output count positives 
                 if(prod_score > decision_bound): 
                     print("onset detected")
-
-                    if(send_marker):
-                        ser.write(b's') # send marker when detected 
-
+                    pos_prediction_count = pos_prediction_count +1
+                    if(pos_prediction_count >= n_count_positives): # onset detected after counting positives 
+                        pos_prediction_count = 0
+                        pos_last_prediction = False
+                        onset_detected = True
                 else: 
-                    print("resting")
-            
-            
+                    pos_prediction_count = 0
+                    if(movement_start == False and trajectory_done == False): 
+                        print("resting")
+
+                #print("pos pred count", pos_prediction_count)
+                # send command to move  
+                if(send_marker and output_classification and onset_detected):
+                        ser.write(b's') # send marker when detected 
+                        writer.write(sample)
+                        #output_classification = False
+                        onset_detected = False 
+                        #pos_prediction_count = 0
+
+                        print("*****")
+                        print("move !!!!")
+                        print("*****")
+
+                if (send_marker): # write this continously 
+                    my_socket.send(zmq_topic+str(prod_score).encode())
+                    # print("send time:", perf_counter()*1000 -old_send_time)
+                    # old_send_time = perf_counter()*1000
+
+                
             #*****************************************************
             #*********** End processing section  *****************
             #*****************************************************

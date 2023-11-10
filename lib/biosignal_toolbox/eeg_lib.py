@@ -186,9 +186,19 @@ class EEGData:
 
         elif(format == "Recorded_LSL_stream"): 
             
-            if(filenames): # implement running over all files and appending data to each other 
-                data = np.load(data_path +filenames[0]+".npy")
 
+            if(filenames): # implement running over all files and appending data to each other 
+
+                if(len(filenames) > 1): 
+                    concat_list = []
+                    for filename in filenames: 
+                        concat_list.append(np.load(data_path +filename+".npy"))
+                    
+                    data = np.concatenate(concat_list)
+                else: 
+                    data = np.load(data_path +filenames[0]+".npy")
+
+            
             self.__fsamp = f_samp
             self.__ch_names = channel_names
 
@@ -1164,8 +1174,8 @@ class EEGData:
                         # apply z-transform 
                         #print(current_wind.shape)
                         current_wind_norm = current_wind - np.mean(current_wind, axis = 0) #self.calib_means[channel_idx] 
-                        print("current window ", current_wind)
-                        print("mean val", np.mean(current_wind))
+                        #print("current window ", current_wind)
+                        #print("mean val", np.mean(current_wind))
                         current_wind_norm = current_wind_norm/np.std(current_wind_norm)  #self.calib_stds[channel_idx]  
                         
                         if(norm): 
