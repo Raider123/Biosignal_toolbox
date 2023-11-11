@@ -23,6 +23,7 @@ import pyrock
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
 from biosignal_toolbox.ML_lib import MLModel
+import biosignal_toolbox.ML_pipelines_lib as pipeline
 
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
@@ -43,72 +44,6 @@ tf.config.set_visible_devices([], 'GPU')
 #************************************************************
 #********************** visualization ***********************
 #************************************************************
-
-def updateDataViz(i, data_chunk, inlet_viz, EEG_live_viz, EEGutils_live): 
-
-    chunk, timestamps = inlet_viz.pull_chunk() # get a new data chunk
-
-    if(chunk): # if list not empty (new data)
-        
-        # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
-        EEG_live_viz.windows = EEGutils_live.updateBuffer(chunk)  #list(channel_indices)
-        #print("window shape", EEG_live_viz.windows.shape)
-        #EEG_live_viz.windowStandardization()
-        data_chunk = EEG_live_viz.windows[0, :, :, 0] # channels, sampels
-        #print("data chunk shape ", data_chunk.shape)
-
-    plt.cla() # clear the previous image
-    plt.plot(data_chunk[0, :])
-    #plt.hlines(onset_value, 0, len(emg_norm[param_viz.start_index:]), color = 'g')  
-    
-
-def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 34, buffer_size = 500): 
-
-    # from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
-    # from matplotlib import animation
-
-    # first resolve an EEG stream on the lab network
-    print("looking for an LSL EEG stream  visualization...")
-    streams_viz = resolve_stream('type', 'EEG') # create data stream
-
-    # create a new inlet to read from the stream
-    inlet_viz = StreamInlet(streams_viz[0]) 
-    stream_info_viz = inlet_viz.info()
-
-    # create online EEG utils Object  
-    EEGutils_live = OnlineEEGUtils(n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
-    EEGutils_live.printStreamMetadata(stream_info_viz) # print stream info 
-
-    EEG_live_viz = EEGData(format = "Live", f_samp = stream_info_viz.nominal_srate())
-
-    data_chunk = np.zeros((n_channels, buffer_size))
-
-    fig = plt.figure()
-    plt.ylabel("data")
-    plt.xlim([0, data_chunk.shape[1]]) # fix the x axis
-    plt.legend(names)
-    plt.title("raw EEG data")
-    dt_read_buffer_ms = dt_read_buffer*1000
-    # update the create plot (once created) in a loop this given interval dt and plot the values 
-    anim = animation.FuncAnimation(fig, updateDataViz, frames = None, interval = dt_read_buffer_ms, blit = False, fargs = (data_chunk, inlet_viz, EEG_live_viz, EEGutils_live))
-    plt.show()
-    
-
-def updateScoreViz(i, scores_memory1, names, buffersize): 
-
-    plt.cla() # clear the previous image
-    plt.plot(scores_memory1)
-    plt.ylabel("prediction scores")
-    plt.xlim([0, buffersize]) # fix the x axis
-    plt.legend(names)
-    plt.title("Prediction scores")
-
-def predictionScoreVisualization(names, scores_memory1, dt_read_buffer = 0.05, buffersize = 500): 
-    
-    fig1 = plt.figure()
-    dt_read_buffer_ms = dt_read_buffer*1000
-    anim = animation.FuncAnimation(fig1, updateScoreViz, frames = None, interval = dt_read_buffer_ms, blit = False, fargs = (scores_memory1, names, buffersize), save_count=buffersize)
-    plt.show()
 
 
 def establishZMQ(port_name):
@@ -133,6 +68,8 @@ if __name__ == "__main__":
     do_class_pred = True
     send_marker = True
     deadtime = 1 # in seconds 
+    window_size = 1000
+    window_step = 50
     
     # subject info 
     subject = "Test"
@@ -248,7 +185,7 @@ if __name__ == "__main__":
             EEG_live.windows = EEGutils.updateBuffer(chunk, data_scale_factor=1, n_channels = n_channels)  #list(channel_indices)
             
             # here with samples counter 
-
+            
 
             sample_indices = EEG_live.windows[0, -3, :, 0].astype(int)
             
@@ -274,21 +211,7 @@ if __name__ == "__main__":
 
             # ******** MLP processing *******************
             
-            # bandpass filter data 
-            EEG_live_MLP.FilterWindows(filter_type = "dc_removal", alpha = 0.95)
-            EEG_live_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, filter_type = "scipy_butter", order=2, show_response = False)  # changed here
-            EEG_live_MLP.windowStandardization()
-
-            # time domain features (MLP)
-            EEG_live_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows) # time dom features 
-            EEG_live_freq_MLP.featureExtractionFromWindows(feature_type = "freqBandPower") # freq domain features 
-            
-            # feauture combination 
-            x_val_freq = EEG_live_freq_MLP.getFeatures() # get features of freq
-            EEG_live_MLP.addFeatures(x_val_freq) # add frequency domain features 
-            
-            # input features network 
-            x_live_MLP = EEG_live_MLP.getFeatures()
+            EEG_train = pipeline.firstStagePreprocessing(EEG_live_MLP, window_size, window_step, [0.5])
 
             #print("feature shape", x_live_MLP.shape)
             

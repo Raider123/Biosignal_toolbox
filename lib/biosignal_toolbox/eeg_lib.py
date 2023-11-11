@@ -19,7 +19,7 @@ from mne.preprocessing import Xdawn
 from pylsl import StreamInlet, resolve_stream, local_clock
 from time import perf_counter 
 import requests
-
+from pybv import write_brainvision
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -100,6 +100,8 @@ class OnlineEEGUtils:
             current_chunk = (np.array(chunk).T) *data_scale_factor
         else: 
             current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
+        
+        #print("chunk shape", current_chunk.shape) # should be channels, sampels 
 
         if(channel_indices): 
             current_chunk = current_chunk[channel_indices, :]
@@ -167,7 +169,7 @@ class EEGData:
             self.__ch_names = self.raw_obj.ch_names
             self.__fsamp = self.raw_obj.info['sfreq']
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
-            #events
+            #eventsepochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
 
@@ -205,6 +207,7 @@ class EEGData:
             # create mne object 
             sfreq = self.__fsamp  # Sampling frequency
             data = data.T # in form (channel, sampels)
+            #print("markers", np.where(data[-1, :] == 64)[0])
             times = np.arange(0, data.shape[1], 1/sfreq)  # 
             ch_types = ['eeg'] * len(self.__ch_names) # only EEG for now 
             ch_names = self.__ch_names
@@ -227,11 +230,15 @@ class EEGData:
 
             # print(type(self.events)) # (events, 3)
             # print("events", self.events)
-        
 
         else: 
             print("No dataset specified ...")
-        
+
+    def mneRawToBrainvision(self, folder, filename, meas_date = None, resolution = 0.1, unit = "µV"):
+        events=copy.deepcopy(self.events) 
+        events_bv = events[:, [0, 2]]
+        write_brainvision(data=self.raw_obj.get_data(), sfreq=self.__fsamp, ch_names=self.__ch_names, fname_base=filename, folder_out=folder, events=events_bv, meas_date = meas_date, resolution = resolution, unit = unit)
+        print("stored data in brainvision format")
 
     def getRawObject(self):
         return self.raw_obj
@@ -482,22 +489,24 @@ class EEGData:
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
+                #b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
             elif(f_high):
-                b, a = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.__fsamp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                b, a = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='sos', fs=self.__fsamp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "scipy_bessel"): # prefer this one 
             if(f_high and f_low): 
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='sos', fs=self.__fsamp)
+
             elif(f_high):
-                b, a = sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='ba', fs=self.__fsamp)
+                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='sos', fs=self.__fsamp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                b, a = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='sos', fs=self.__fsamp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "dc_removal"): 
@@ -542,15 +551,25 @@ class EEGData:
 
                     # currently the best 
                     if(filter_type == "mne_fir" or filter_type == "mne_iir"): 
-                        filtered_window= mne.filter.filter_data(current_wind, sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = filter_type, fir_design = fir_design, phase = 'zero', fir_window = "hamming", pad = "symmetric") # pad = "symmetric"
-                        self.windows[trial_idx, :, :, window_idx] = filtered_window
+                        if(filter_type == "mne_iir"): 
+                            method = "iir"
+                        else: 
+                            method = "fir"
 
-                    elif(filter_type == "scipy_butter" or filter_type =="dc_notch"): 
+                        for channel_idx in range(0, self.windows.shape[1]):
+                            #print(current_wind.shape)
+                            filtered_window= mne.filter.filter_data(current_wind[channel_idx, :], sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = method, fir_design = fir_design, verbose = "CRITICAL") # pad = "symmetric"
+                            self.windows[trial_idx, :, :, window_idx] = filtered_window
+
+                    elif(filter_type == "scipy_butter" or filter_type =="dc_notch" or filter_type == "scipy_bessel"): 
                         for channel_idx in range(0, self.windows.shape[1]):
                             
                             # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
-                            filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], method ="gust") # forward backward filtering with gustafson method 
-   
+                            #filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
+                            #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
+
+                            filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1) # normal filtering with padding 
+
                             self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
                     elif(filter_type =="dc_removal"): 
@@ -558,7 +577,7 @@ class EEGData:
                             
                             # apply normal dc remove filter with initial condition no inverse reverse  
                             #zi = sig.lfiltic(b, a, [0, 0])
-                            filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :])
+                            filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())
 
                             self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
@@ -927,6 +946,25 @@ class EEGData:
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def splitTrainTestEpochs(self, n_test_epochs = 5):
+
+        epochs_train = self.epochs[0:-n_test_epochs, :, :] 
+        epochs_test = self.epochs[-n_test_epochs:, :, :]
+
+        print("train shape", epochs_train.shape)
+        print("test shape", epochs_test.shape)
+
+        # copy objects 
+        data_obj_train = copy.deepcopy(self)
+        data_obj_test = copy.deepcopy(self)
+
+        # epochs returning 
+        data_obj_train.epochs = epochs_train
+        data_obj_test.epochs = epochs_test
+
+        return data_obj_train, data_obj_test
+
+
     def timeShiftingLinearSpatialFilter(self, erp_value_type = "min", replace_epochs = False, max_sample_diff = 200): 
         
         if(erp_value_type == "min"): 
@@ -1176,14 +1214,14 @@ class EEGData:
                         current_wind_norm = current_wind - np.mean(current_wind, axis = 0) #self.calib_means[channel_idx] 
                         #print("current window ", current_wind)
                         #print("mean val", np.mean(current_wind))
-                        current_wind_norm = current_wind_norm/np.std(current_wind_norm)  #self.calib_stds[channel_idx]  
+                        current_wind_norm_out = current_wind_norm/np.std(current_wind_norm)  #self.calib_stds[channel_idx]  
                         
                         if(norm): 
                         #current_wind_norm = current_wind+(-1*min)-1 # -1 is min 
-                            current_wind_norm = current_wind_norm/np.max(current_wind_norm)
+                            current_wind_norm_out = current_wind_norm/np.max(current_wind_norm)
 
 
-                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_norm # 1 is max 
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_norm_out # 1 is max 
 
                     # print("")
                     # print(np.min(current_wind_norm))
@@ -1191,6 +1229,25 @@ class EEGData:
                     # print(np.std(current_wind_norm))
                     # print(np.max(current_wind_norm))
                     # print("")
+
+    def WindowMedianCorrection(self, ratio_len = 0.1): 
+
+        end_idx = int(self.windows.shape[2]*ratio_len)
+
+        # shape: trials, channels, sampels, windows 
+        for trial_idx in range(0, self.windows.shape[0]): 
+            for channel_idx in range(0, self.windows.shape[1]): 
+                for window_idx in range(0, self.windows.shape[3]): 
+                    # get current window 
+                    current_wind = copy.deepcopy(self.windows[trial_idx, channel_idx, :, window_idx])
+
+                    median_val = np.median(current_wind[0:end_idx])
+
+                    current_wind_med_corr = current_wind -median_val
+                    
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_med_corr # 1 is max 
+
+    
 
     def calcTestAccAndRates(self, prediction_labels, true_labels):
 

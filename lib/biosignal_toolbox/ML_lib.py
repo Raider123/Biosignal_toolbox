@@ -43,7 +43,6 @@ class MLModel:
     def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"):         
 
 
-        #if (type == "MLPNet"): 
         # compile model 
         if (self.type == "keras"): 
             self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
@@ -53,22 +52,9 @@ class MLModel:
                                 batch_size= self.batch_size,
                                 shuffle = self.shuffle,
                                 class_weight=self.class_weights,
-                                #validation_data = (self.x_val, self.y_val),
-                                validation_split = 0.2,
+                                validation_data = (self.x_val, self.y_val),
                                 callbacks = self.callbacks)
-                
-        # else: 
-        #     if (self.type == "keras"): 
-        #         self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
-        #         history = self.model.fit(self.x_train,
-        #                             self.y_train,
-        #                             epochs  = self.epochs,
-        #                             batch_size= self.batch_size,
-        #                             shuffle = self.shuffle,
-        #                             class_weight=self.class_weights,
-        #                             #validation_data = (self.x_val, self.y_val),
-        #                             validation_split = 0.2,
-        #                             callbacks = self.callbacks)
+        
             
             # history of training process
             history_dict = history.history
