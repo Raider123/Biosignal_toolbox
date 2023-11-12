@@ -21,7 +21,8 @@ setuptools.setup(
         'PyWavelets', 
         'pandas', 
         'pylsl', 
-        'keyboard'
+        'keyboard', 
+        'pybv'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],
