@@ -23,7 +23,7 @@ def establishZMQ(zmq_server_ip, zmq_topic):
     return my_socket
 
 
-def updateScoreViz(i, scores_arr, my_zmq_socket,buffersize, y_lim_arr, n_ticks, prob_thr): 
+def updateScoreViz(i, scores_arr, my_zmq_socket,buffer_size, y_lim_arr, n_ticks, prob_thr): 
     try:
         undecoded_msg = my_zmq_socket.recv(flags=zmq.NOBLOCK)
         zmq_msg = float(undecoded_msg[2:])
@@ -36,7 +36,7 @@ def updateScoreViz(i, scores_arr, my_zmq_socket,buffersize, y_lim_arr, n_ticks, 
         lines = plt.plot(scores_arr)
         plt.xlabel("Recent Samples")
         plt.ylabel("Prediction Score")
-        plt.xlim([0, buffersize]) # fix the x axis
+        plt.xlim([0, buffer_size]) # fix the x axis
         plt.xticks(np.linspace(0,buffer_size,n_ticks))
         plt.ylim(y_lim_arr)
         plt.title("Online Movement Onset Prediction Scores")
