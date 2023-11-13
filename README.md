@@ -4,7 +4,7 @@
 
 ### Project structure
 This project contains all files for biosignal analysis (especially EMG and EEG) as well as machine learning flows in python. The src folder contains all the source files and includes project folders for a specific analysis or evaluation. You can find basic examples for biosignal processing and classification in the examples folder (under src). The lib folder contains the libraries containing methods for data processing for the biosignals. 
-Single scripts or jupyter notebooks can be directly pushed to this repository. If you work on a project or evaluation containing more than one file, please create a new folder for the multiple files. If you created a machine learning flow, please consider structuring the evaluation in seperate files (e.g. loading, preprocessing, train_model, prediction). 
+Single scripts or jupyter notebooks can be directly pushed to this repository. If you work on a project or evaluation containing more than one file, please create a new folder for the multiple files. If you created a machine learning flow, please consider structuring the evaluation in seperate files (e.g. loading, preprocessing, train_model, prediction). The library ist tested and used under Python 3.9.17. 
 This repository should **ONLY** contain python scripts and no datasets, plots or other file formats. For the storage of data that should be analysed or evaluated, a data folder should be created containing all the files from experiments. The data folder will be ignored when adding and commiting the changes you made. If you are new to git, please have a look at the git documentation (https://www.git-scm.com/doc). 
 
 
@@ -32,6 +32,22 @@ This folder contains all files for the prediction of movement intentions by usin
 
 ### Neural_Network_Movement_Predictions_EEG
 This folder contains neural networks for preprocessing and classification based on an MLP net (own development) and the EEGNet from lawhern et. al. 
+
+#### evaluation
+This folder contains source files for the evaluation of the trained neural networks for the prediction of movement intentions from EEG data. 
+#### live 
+This folder contains several source files for the online classification of EEG data using LSL as a data streaming source. Each of the file contains a user parameter section at the top of the scripts in which the paramters can and should be changed depending on the users needs (i.e. you have to change the proj_path depending on you installation folder). Please also make sure you created a data folder besides the lib and src folder (as described above) where the data and trained models will be stored. Furthermore an LSL stream (server) has to be up and running to receive the streamed data for recording and classification (e.g. for Brainproduct LiveAmp use LSLConnector software: https://github.com/brain-products/LSL-LiveAmp/releases). You can also send recorded data via LSL for a pseudo online evaluation. 
+
+The folder contains the following scripts that can be run for example in the following order. 
+
+-  **record_data_LSL.py:** Run this script for the recording of EEG data from an LSL stream (as LSL client). By parsing the argument -n _filename_ you can specify the filename under which the recorded data is stored in the data folder. The data will be stored in the numpy binary format (.npy files). The key "s" on the keyboard is used to start the recording and "e" (maybe hold the button if not directly stopping) to stop the recording.  <br />
+Note: Make sure that all markers are send properly when recording via the LSL-connector software from Brainproducts. You can test this by printing the last EEG channel (markers if checkbox EEG channels is checked in connector software for triggers) in the recording script or after loading the data of a test recording. 
+
+- **train_network_models_live.py:** Run this script to train both neural network models on the recorded LSL data (specified in train_file_LSL). The models will be evaluated (validation set) on the specified amount of trials (epochs) that are excluded from the training set. By default the trained models will be saved in the data folder to be loaded for the online classification.  
+
+- **online_EEG_prediction_LSL_exo.py:** Run this script to perform the online EEG classification by triggering the recupera exosceleton to move. This script depends on the pyrock package that has to be installed in order to use this script. 
+
+- **online_data_viz.py:** Run this script for the visualization of the streamed EEG data as well as the probabilities (prediction outcomes) of the neural network models. 
 
 ### Fcn_LRP_detection (not up to date)
 This folder contains the implementation of a fully connected neural network that is used for the classification of movement intentions based on the LRP and MRCPs. The model is implemented in keras and several methods for data processing and classification are integrated in the eeg library. 
