@@ -146,8 +146,8 @@ EEG_data = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, d
 
 EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
-EEG_train, EEG_val_test = EEG_data.splitTrainTestEpochs(n_test_epochs=10) # split in train and val_test 
-EEG_val, EEG_test = EEG_val_test.splitTrainTestEpochs(n_test_epochs=5) # split into val and test 
+EEG_train, EEG_val = EEG_data.splitTrainTestEpochs(n_test_epochs=5) # split in train and val_test 
+#EEG_val, EEG_test = EEG_val_test.splitTrainTestEpochs(n_test_epochs=5) # split into val and test 
 
 
 channel_names = EEG_data.getChannelNames()
