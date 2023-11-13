@@ -49,6 +49,15 @@ Note: Make sure that all markers are send properly when recording via the LSL-co
 
 - **online_data_viz.py:** Run this script for the visualization of the streamed EEG data as well as the probabilities (prediction outcomes) of the neural network models. 
 
+- **convert_numpy_LSL_data_to_brainvision.py:** This script can be used to convert the recorded files from LSL stream in numpy format to the Brainvision format. 
+
+- **online_EEG_prediction_LSL_orthosis.py** Run this script to perform an online EEG prediction to trigger the active orthosis (v2) _--> script not finished yet _
+
+- **pseudo_online_EEG_prediction.py:** Run this script to perform a pseudo online classification by receiving data from LSL (as in real online) that is send by an LSL server (e.g. a script or even a real source). The script only outputs print statements based on markers and the classification output about the current action but does not trigger a real robotic device. 
+
+- **send_data_LSL.py:** Run this script to send (recorded) data via LSL as an LSL server. It can be used to test the online classification in an pseudo online fashion. 
+
+
 ### Fcn_LRP_detection (not up to date)
 This folder contains the implementation of a fully connected neural network that is used for the classification of movement intentions based on the LRP and MRCPs. The model is implemented in keras and several methods for data processing and classification are integrated in the eeg library. 
 
