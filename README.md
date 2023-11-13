@@ -41,7 +41,7 @@ This folder contains several source files for the online classification of EEG d
 The folder contains the following scripts that can be run for example in the following order. 
 
 -  **record_data_LSL.py:** Run this script for the recording of EEG data from an LSL stream (as LSL client). By parsing the argument -n _filename_ you can specify the filename under which the recorded data is stored in the data folder. The data will be stored in the numpy binary format (.npy files). The key "s" on the keyboard is used to start the recording and "e" (maybe hold the button if not directly stopping) to stop the recording.  <br />
-Note: Make sure that all markers are send properly when recording via the LSL-connector software from Brainproducts. You can test this by printing the last EEG channel (markers if checkbox EEG channels is checked in connector software for triggers) in the recording script or after loading the data of a test recording. 
+Note: Make sure that all markers are send properly when recording via the LSL-connector software from Brainproducts. You can test this by printing the last EEG channel (markers if checkbox EEG channels is checked in connector software for triggers) in the recording script or using the _print_marker_recorded_data.py_ script to evaluate if markers were received in a test recording.  
 
 - **train_network_models_live.py:** Run this script to train both neural network models on the recorded LSL data (specified in train_file_LSL). The models will be evaluated (validation set) on the specified amount of trials (epochs) that are excluded from the training set. By default the trained models will be saved in the data folder to be loaded for the online classification.  
 
@@ -57,6 +57,7 @@ Note: Make sure that all markers are send properly when recording via the LSL-co
 
 - **send_data_LSL.py:** Run this script to send (recorded) data via LSL as an LSL server. It can be used to test the online classification in an pseudo online fashion. 
 
+- **print_marker_recorded_data.py:** Run this script to print the events (markers) recorded in a stored numpy array that was recorded from an LSL-stream. 
 
 ### Fcn_LRP_detection (not up to date)
 This folder contains the implementation of a fully connected neural network that is used for the classification of movement intentions based on the LRP and MRCPs. The model is implemented in keras and several methods for data processing and classification are integrated in the eeg library. 

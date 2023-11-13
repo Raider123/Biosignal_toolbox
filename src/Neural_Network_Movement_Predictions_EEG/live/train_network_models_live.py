@@ -14,9 +14,6 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
-# own libs
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
-#sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
 
 # models 
 from biosignal_toolbox.models.CNNnets import EEGNet
@@ -35,6 +32,9 @@ tf.config.set_visible_devices([], 'GPU') # disable now
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
+
+# own libs
+proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
 
 
 data_path = proj_path+"/data/"
@@ -91,8 +91,10 @@ window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# alternative
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
 feature_indices_windows = np.arange(900, 1000, step = 2) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
-
 use_norm_layer = True # use the input norm layer 
+
+# validation trials used for performance evaluation 
+n_val_trials = 5 
 
 # window wise metric evaluation
 window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
@@ -146,7 +148,7 @@ EEG_data = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, d
 
 EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
-EEG_train, EEG_val = EEG_data.splitTrainTestEpochs(n_test_epochs=5) # split in train and val_test 
+EEG_train, EEG_val = EEG_data.splitTrainTestEpochs(n_test_epochs=n_val_trials) # split in train and val_test 
 #EEG_val, EEG_test = EEG_val_test.splitTrainTestEpochs(n_test_epochs=5) # split into val and test 
 
 
