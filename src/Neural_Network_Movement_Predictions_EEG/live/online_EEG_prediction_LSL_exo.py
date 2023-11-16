@@ -116,7 +116,7 @@ if __name__ == "__main__":
     #************************************************************
     # ********************** user params end ********************
     #************************************************************
-
+    
     # dead time 
     dead_n_samples = deadtime/dt_read_buffer
 
@@ -150,7 +150,7 @@ if __name__ == "__main__":
 
     #inits 
     EEG_live = EEGData(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
-
+    
 
     # init values 
     running = True    # run continiously 
@@ -194,7 +194,7 @@ if __name__ == "__main__":
             EEG_live_freq_MLP = copy.deepcopy(EEG_live) # for frequency features of MLP
             EEG_live_EEGNet = copy.deepcopy(EEG_live) # for EEGNet
 
-
+            
             # ******** MLP processing *******************
             
             x_live_MLP, y_live_MLP = pipeline.MLPProcessing(EEG_live_MLP, EEG_live_freq_MLP, [0.5], feature_indices_windows)

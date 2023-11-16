@@ -15,10 +15,13 @@ def firstStagePreprocessing(EEG_data, window_size, window_step, windows_selected
 def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows): 
 
     # ******** MLP processing *******************
-
+    
     # bandpass filter data 
     #EEG_MLP.WindowMedianCorrection(ratio_len = 0.1)
     EEG_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter")
+
+    EEG_MLP.windows = EEG_MLP.windows[:, :, 25:-25, :] # try this for reducing artifacts 
+    
     
     #EEG_MLP.windowStandardization()
     
@@ -28,7 +31,7 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
     # time domain features (MLP)
     EEG_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
     EEG_freq_MLP.featureExtractionFromWindows(feature_type = "freqBandPower")
-
+    
     # feauture combination 
     x_freq = EEG_freq_MLP.getFeatures() # get features of freq
     EEG_MLP.addFeatures(x_freq) # add frequency domain features 
@@ -46,6 +49,8 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
     #EEG_EEGNet.FilterWindows(filter_type = "dc_removal", alpha = 0.8)
     #EEG_EEGNet.WindowMedianCorrection(ratio_len = 0.1)
     EEG_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter")
+
+    EEG_EEGNet.windows = EEG_EEGNet.windows[:, :, 25:-25, :] # try this for reducing artifacts 
 
     EEG_EEGNet.setWindowLabels(window_labels)
     # reshape windows for net

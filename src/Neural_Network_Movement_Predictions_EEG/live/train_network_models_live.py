@@ -97,7 +97,7 @@ use_norm_layer = True # use the input norm layer
 n_val_trials = 5 
 
 # window wise metric evaluation
-window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
+window_size = 1100 #windowsize in ms (analog to pySPACE evaluation) # testweise 
 window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 
 f_samp_eeg = 500.0 #sample Frequency of eeg

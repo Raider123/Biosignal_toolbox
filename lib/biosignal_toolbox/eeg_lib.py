@@ -480,7 +480,7 @@ class EEGData:
 
         return filtered_signal
     
-    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = None, show_response = False, alpha = 0.95): # under change 
+    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = 30, show_response = False, alpha = 0.95): # under change 
         # shape: trials, channels, sampels, windows
 
         # calc individual coeffs 
@@ -512,6 +512,11 @@ class EEGData:
         if(filter_type == "dc_removal"): 
             a = [1, -1 * alpha]
             b = [1, -1]
+        
+        if(filter_type == "allpass"):
+            scale = 0.8
+            b = [ 1 *scale, -alpha *scale] 
+            a = [-alpha*scale, 1*scale]
 
             
         if(show_response): 
@@ -561,7 +566,7 @@ class EEGData:
                             filtered_window= mne.filter.filter_data(current_wind[channel_idx, :], sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = method, fir_design = fir_design, verbose = "CRITICAL") # pad = "symmetric"
                             self.windows[trial_idx, :, :, window_idx] = filtered_window
 
-                    elif(filter_type == "scipy_butter" or filter_type =="dc_notch" or filter_type == "scipy_bessel"): 
+                    elif(filter_type == "scipy_butter" or filter_type == "scipy_bessel"): 
                         for channel_idx in range(0, self.windows.shape[1]):
                             
                             # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
@@ -572,7 +577,15 @@ class EEGData:
 
                             self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
-                    elif(filter_type =="dc_removal"): 
+                    elif(filter_type =="dc_notch"): 
+                        for channel_idx in range(0, self.windows.shape[1]):
+
+                            filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1) # normal filtering with padding 
+
+                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+
+
+                    elif(filter_type =="dc_removal" or filter_type == "allpass"): 
                         for channel_idx in range(0, self.windows.shape[1]):
                             
                             # apply normal dc remove filter with initial condition no inverse reverse  
@@ -611,6 +624,25 @@ class EEGData:
                             #Inverse Fourier transform and project to real component
                             self.windows[trial_idx, channel_idx, :, window_idx] = inverse
 
+
+    def minMaxNormWindows(self): 
+        
+        normed_wind = np.zeros(self.windows.shape)
+        for channel in range(0, self.windows.shape[0]): 
+            wind_channel = self.windows[channel, :] + (-1 *np.min(self.windows[channel, :]))
+            wind_channel = wind_channel / np.max(wind_channel)
+            normed_wind[channel, :] = wind_channel
+
+
+        for trial_idx in range(0, self.windows.shape[0]): 
+            for window_idx in range(0, self.windows.shape[3]): 
+                for channel_idx in range(0, self.windows.shape[1]): 
+                            
+                    current_wind = copy.deepcopy(self.windows[trial_idx, channel_idx, :, window_idx])
+                    current_wind = current_wind + (-1 *np.min(current_wind))
+                    #current_wind = current_wind / np.max(current_wind)
+
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind
 
 
 
@@ -1060,12 +1092,11 @@ class EEGData:
     def getFeatures(self): 
         return self.feature_vec
 
-
     def getLabels(self): 
         return self.labels
 
     def getTrainLabels(self): 
-            return self.labels
+        return self.labels
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 
@@ -1108,7 +1139,7 @@ class EEGData:
         return classified_windows
 
 
-    def windowEEGEpochs(self, window_size, window_step, no_channel_dim = False):
+    def windowEEGEpochs(self, window_size = 1000, window_step = 50, no_channel_dim = False):
 
         """
         This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
@@ -1248,7 +1279,6 @@ class EEGData:
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_med_corr # 1 is max 
 
     
-
     def calcTestAccAndRates(self, prediction_labels, true_labels):
 
         """
@@ -1312,7 +1342,7 @@ class EEGData:
                 
         return classified_windows
     
-    def xDAWNDenoising(self, n_components = 2, processing_type="fit_apply", return_filter = True, xd = None): 
+    def xDAWNSpatialfilter(self, n_components = 2, processing_type="fit_apply", return_filter = True, xd = None): 
 
         if (processing_type == "fit_apply"): # assuming this is only for training data or the epochs it should be fitted on 
 
@@ -1345,6 +1375,16 @@ class EEGData:
             epochs_denoised = xd.apply(self.epoch_obj)
             self.epochs = epochs_denoised[self.event_ids].get_data() 
 
+
+    def applyxDAWNToWindows(self, xd, n_components = 2): 
+        
+        new_windows = np.zeros((self.windows.shape[0], n_components, self.windows.shape[2], self.windows.shape[3])) # reduced channel dim
+
+        for window_idx in range(0, self.windows.shape[3]): 
+            windows_filtered= xd.transform(self.windows[:, :, :, window_idx])
+            new_windows[:, :, :, window_idx] = windows_filtered
+
+        self.windows = new_windows # replace old windows 
 
     def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
 
@@ -1698,6 +1738,14 @@ class EEGData:
 
         self.labels = y 
 
+    def dtwFeatureVecWindows(self): 
+        # windows in trials, channel, sampels, windows 
+        self.feature_vec = np.zeros((int(self.windows.shape[0]*self.windows.shape[3]), self.windows.shape[1], self.windows.shape[2]))
+
+        for channel_idx in range(0, self.windows.shape[1]): 
+            for sample_idx in range(0, self.windows.shape[2]): 
+                self.feature_vec[:, channel_idx, sample_idx] = self.windows[:, channel_idx, sample_idx, :].flatten()
+    
 
     def calcEEGWindowOnset(self, window_predicts, num_pos_windows): 
 

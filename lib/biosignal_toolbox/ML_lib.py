@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import load_model
 from time import perf_counter_ns
+from dtw import *
+import copy 
 
 import tensorflow as tf
 
@@ -135,14 +137,25 @@ class MLModel:
 
         return tnr, tpr, acc, ba
     
-    def calcPerformance(self,predictions, labels, encoding = "binary", type="binary", show_results = False): 
+    def calcPerformance(self, predictions, labels, encoding = "binary", type="binary", show_results = False): 
         
         if(type == "binary"):
             if(encoding == "onehotencoding"): 
-                        print(predictions.shape)
-                        predictions = predictions[:, 1] # convert to binary from onehotencoding 
-                        labels = labels[:, 1]
+                print(predictions.shape)
+                predictions = predictions[:, 1] # convert to binary from onehotencoding 
+                labels = labels[:, 1]
 
+
+            elif(encoding == "distance_array"): # for dtw algorithm 
+                print("predicitons shape", predictions.shape) # trials, channels
+                predictions_binary = []
+                for index in range(0, predictions.shape[0]): 
+                    if(predictions[index, 0] < predictions[index, 1]): # first index is negative class second positive
+                        predictions_binary.append(0.0)
+                    else: 
+                        predictions_binary.append(1.0)
+
+                predictions = np.array(predictions_binary)
 
             pred_labels = np.array([0 if score <0.5 else 1 for score in predictions])
             self.prediction_scores = np.array(predictions).flatten() # store predictions 
@@ -180,7 +193,7 @@ class MLModel:
                 print("")
 
     
-    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False, eval_type = "offline"): 
+    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False, eval_type = "offline", templates = None): 
 
         if(self.type == "keras"): 
 
@@ -188,7 +201,9 @@ class MLModel:
                 if (show_pred_time): 
                     time1 = perf_counter_ns()
                 
+                print("data shape input ", data.shape)
                 predictions = self.model(data) # call the model, is a lot faster than using predict method 
+                print("predictions", predictions)
                 #predictions = self.model.predict_on_batch(data)
 
                 if(show_pred_time): 
@@ -203,6 +218,39 @@ class MLModel:
             elif(eval_type == "online"):
                 
                 self.prediction_scores =  np.array(self.model(data)).flatten()
+
+        elif(self.type == "dtw"): 
+            #templates have shape n_train, channel, sampels 
+
+            predictions = []
+            if(eval_type == "offline"): 
+                if(n_classes == 2): 
+                    
+                    print("xtrain shape", data.shape)
+                    for train_idx in range(0, data.shape[0]):
+                        distances_pos_class = []
+                        distances_neg_class = []
+                        for channel_idx in range(0, data.shape[1]): 
+                            
+                            # pos class distances 
+                            dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 50}) 
+                            distances_pos_class.append(dtw_obj_pos_class.distance)
+                            #neg class 
+                            dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 50}) 
+                            distances_neg_class.append(dtw_obj_neg_class.distance)
+
+                        predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
+
+                    predictions = np.array(predictions)
+                    self.calcPerformance(predictions = predictions, encoding = "distance_array", show_results = show_results, labels=labels, type="binary")
+
+
+                else: 
+                    print("not implemented ... ")
+
+            else: 
+                print("not implemented")
+            
 
     def getPerfResults(self): 
         return self.perf_results
