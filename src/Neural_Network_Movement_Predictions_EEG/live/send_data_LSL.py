@@ -43,7 +43,7 @@ def main():
     # raw_data = raw_obj.get_data()
     #print("raw data shape", raw_data.shape)
 
-    raw_data = np.load(data_path+"BR60D_unilateral_live_2_data.npy")
+    raw_data = np.load(data_path+"XY90_unilateral_set3_data.npy")
     raw_data = raw_data.T
     print("raw data shape", raw_data.shape)
 

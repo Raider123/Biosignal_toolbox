@@ -4,7 +4,6 @@
 # ************************* Imports ***********************************************
 # *********************************************************************************
 
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import copy 
@@ -12,12 +11,10 @@ from pylsl import StreamInlet, resolve_stream
 from time import perf_counter
 import time
 import serial
-import warnings
-import zmq 
 import os 
 
 # # own libs 
-from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
+from biosignal_toolbox.eeg_lib import  OnlineEEG
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
@@ -36,15 +33,6 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # disable GPU for testing
 tf.config.set_visible_devices([], 'GPU') 
 
-#zmq server
-def establishZMQ(port_name):
-    # create a socket connection as a publisher to send commands 
-    my_context = zmq.Context()
-    my_socket = my_context.socket(zmq.PUB)
-    my_socket.bind("tcp://*:"+port_name)
-    print("Publisher ready")
-    return my_socket
-
 
 #************************************************************
 # ********************** user params ************************
@@ -52,7 +40,7 @@ def establishZMQ(port_name):
 if __name__ == "__main__":
     
     # online params 
-    buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
+    buffer_size = 550  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
     dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
     print_times = False
     do_class_pred = True
@@ -73,7 +61,7 @@ if __name__ == "__main__":
     
     # ML params 
     decision_bound = 0.7
-    n_count_positives = 1 # how many window have to be positive 
+    n_count_positives = 2 # how many window have to be positive 
     num_classes = 2
 
     # MLP Net 
@@ -95,22 +83,12 @@ if __name__ == "__main__":
     # EEG data params 
     n_channels = 37
     f_samp_eeg = 500.0
+    ignore_n_last_channels = 3 # markerchannels and indices 
 
     # zmq stuff 
     zmq_port = "34761"
     zmq_topic = b"10"
 
-    # pyrock command setup 
-    # ns = pyrock.NameService("10.250.3.15")
-    # task = ns.get_task_context("pyspace")
-    # writer = task.writer("prediction_vector1")
-    # sample = writer.get_sample()
-    # sample['label'] = ["Right"]
-
-    # task = ns.get_task_context("trajectory_from_fileTask")
-    # reader = task.reader("state", type=pyrock.RTT.CBuffer, size=50)
-
-    
     #************************************************************
     # ********************** user params end ********************
     #************************************************************
@@ -119,12 +97,6 @@ if __name__ == "__main__":
     dead_n_samples = deadtime/dt_read_buffer
 
     clear = lambda: os.system('clear')
-
-    # init serial markers
-    if(send_marker): 
-        ser = serial.Serial(usb_port, Baudrate)
-        my_socket = establishZMQ(zmq_port)
-        time.sleep(3)
 
     # load models
 
@@ -144,13 +116,15 @@ if __name__ == "__main__":
     inlet = StreamInlet(streams[0]) 
     stream_info = inlet.info()
     
-    # create online EEG utils Object  
-    EEGutils = OnlineEEGUtils(n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
+    # create online EEG object 
+    EEG_live = OnlineEEG(f_samp_eeg = f_samp_eeg, channel_names = channel_names, n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer)
+    EEG_live.printStreamMetadata(stream_info) # print stream info 
 
-    EEGutils.printStreamMetadata(stream_info) # print stream info 
-
-    #inits 
-    EEG_live = EEGData(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
+    # init serial markers
+    if(send_marker): 
+        ser = serial.Serial(usb_port, Baudrate)
+        my_socket = EEG_live.establishZMQ(zmq_port)
+        time.sleep(3)
 
 
     # init values 
@@ -171,11 +145,11 @@ if __name__ == "__main__":
         if(chunk):#chunk # if list not empty (new data)
             
             # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
-            EEG_live.windows = EEGutils.updateBuffer(chunk, data_scale_factor=1, n_channels = n_channels)  #list(channel_indices)
+            EEG_live.updateBuffer(chunk, check_sample_loss = False)  #list(channel_indices)
+            EEG_live.BufferToWindows(num_non_data_channels = ignore_n_last_channels)
             
             # here with samples counter 
-            
-            markers = EEG_live.windows[0, -1, :, 0].astype(int)
+            markers = EEG_live.data_buffer[0, -1, :, 0].astype(int)
             #print(markers)
             for marker in markers[-50:]: 
                 #print(marker)
@@ -185,16 +159,8 @@ if __name__ == "__main__":
                     #print("****")
                 elif(marker == 23): 
                     print("movement done")
-            
-            # sample_indices = EEG_live.windows[0, -3, :, 0].astype(int)
-            
-            # for i in range(0, len(sample_indices) -1): 
-            #     if sample_indices[i] + 1 != sample_indices[i+1]:
-            #         warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
 
-            EEG_live.windows = EEG_live.windows[:, 0:n_channels-3, :, :]
 
-            
             if(print_times): 
                 t1 = perf_counter()
 

@@ -19,10 +19,71 @@ import tensorflow as tf
 
 class MLModel: 
 
-    def __init__(self, type = "keras", model = None, train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, model_summary = False, loss_fcn = None, optimizer = None, metrics = "accuracy"): 
+    """
+    This class contains methods to be used to run machine learning algorithms for the classification and evaluation of biosignals. 
+
+    Attributes:
+        type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type "keras" and "dtw" are implemented. 
+        model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.  
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+    """
+
+    def __init__(self, type = "keras", model = None, model_summary = False): 
+
+        """
+        Constructor of the MLModel class.  
+
+        Attributes:
+            type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type "keras" and "dtw" are implemented. 
+            model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.
+            model_summary: Flag (boolean) if a summary of the model is printed (e.g. to show the size, parameters of a trained or created model)  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        """
 
         self.type = type 
         self.model = model 
+        
+        #self.use_input_norm = use_input_norm
+
+        if(model_summary): 
+            print(model.summary())
+
+
+    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test",  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, loss_fcn = None, optimizer = None, metrics = "accuracy"):
+
+        """ 
+        This method trains a machine learning model that was passed or created. 
+
+        Attributes:
+            epochs: The number of epochs for the training of a model. 
+            batch_size: The batch size used for training the ML-model. 
+            shuffle: If data should be shuffled before training a model. 
+            class_weights: The weights of the classes if a classification task is performed. 
+            x_train: The training data or features as numpy array. The shape might depend on the input shape of each model. 
+            x_val: the validation data used in the training process as numpy array. The shape might depend on the input shape of each model. 
+            y_train: The class labels used for training. 
+            y_val: The class labels used for the validation data.
+            callbacks: A callback function passed to be applied in the training procedure.
+            loss_fcn: The loss function (string) used for training a ML-model, especially for neural networks.
+            optimizer: The optimizer (string) used in the optimization process (i.e. weight updates for networks) 
+            metrics: The metrics (string) used for the performance evaluation. 
+            perf_results: The performance results as numpy array. The shape depends on the type of classification (amount of classes). For binary classification are an array containing BA, TPR, TNR and ACC performance values. 
+            show_train_results: A flag (boolean) weather the training results are printed in the console.
+            save_trained_model: If flag (boolean) is True the trained model will be saved in the data folder. For a keras model the model is stored in .h5 format. 
+            model_filename: The filename (string) of the model to be saved. 
+
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        """
+
         self.epochs = train_epochs
         self.batch_size = batch_size
         self.shuffle = shuffle 
@@ -36,14 +97,6 @@ class MLModel:
         self.optimizer = optimizer
         self.metrics = metrics 
         self.perf_results = None
-        #self.use_input_norm = use_input_norm
-
-        if(model_summary): 
-            print(model.summary())
-
-
-    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test"):         
-
 
         # compile model 
         if (self.type == "keras"): 
@@ -57,7 +110,6 @@ class MLModel:
                                 validation_data = (self.x_val, self.y_val),
                                 callbacks = self.callbacks)
         
-            
             # history of training process
             history_dict = history.history
             loss_values = history_dict["loss"]
@@ -93,6 +145,20 @@ class MLModel:
 
 
     def loadModel(self, filename, path = ""): 
+
+        """
+        Load a ML-model stored in a specific folder.   
+
+        Attributes:
+            filename: The filename (string) of of the model to be loaded. 
+            path: The path (string) where the model is stored. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+
+        """
+
         self.model = load_model(filepath = path+filename+".h5")
 
 
@@ -101,7 +167,7 @@ class MLModel:
         """
         Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
 
-        Arguments:
+        Attributes:
             prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
             true_labels: The true labels as one dimensional numpy array (flatten the array if it has more dimensions). 
 
@@ -138,16 +204,36 @@ class MLModel:
         return tnr, tpr, acc, ba
     
     def calcPerformance(self, predictions, labels, encoding = "binary", type="binary", show_results = False): 
+
+        """
+        This method calculates the classification or regression performance of a trained model. Please note that this is only a helper function inside the class. 
+
+        Attributes:
+            predictions: The prediction scores (output ) of a trained ML-model as numpy array. 
+            labels: The true labels used to calculate the performances. 
+            encoding: The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.
+            type: The type (string) of the classification or regression task. Currently only "binary" classification is implemented. 
+
+        Returns:
+            tnr: True negative rate 
+            tpr: True positive rate
+            acc: Accuracy
+            ba: Balanced accuracy
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        """
         
         if(type == "binary"):
             if(encoding == "onehotencoding"): 
-                print(predictions.shape)
+                #print(predictions.shape)
                 predictions = predictions[:, 1] # convert to binary from onehotencoding 
                 labels = labels[:, 1]
 
 
             elif(encoding == "distance_array"): # for dtw algorithm 
-                print("predicitons shape", predictions.shape) # trials, channels
+                #print("predicitons shape", predictions.shape) # trials, channels
                 predictions_binary = []
                 for index in range(0, predictions.shape[0]): 
                     if(predictions[index, 0] < predictions[index, 1]): # first index is negative class second positive
@@ -178,9 +264,6 @@ class MLModel:
             self.prediction_scores = np.array(predictions) # not flatten because n classes
             self.predicted_labels = np.argmax(self.prediction_scores, axis=1)
 
-            # acc_metrics = tf.keras.metrics.Accuracy()
-            # acc_metrics.update_state(labels, self.prediction_scores)
-            # acc = acc_metrics.result().numpy()
             # print("acc", acc)
             acc = 0.0 # not implemented 
             perf_results = np.array([np.round(acc, 3)])
@@ -193,7 +276,26 @@ class MLModel:
                 print("")
 
     
-    def predict(self, data, labels,  encoding = "binary", n_classes = 2, show_results = False, show_pred_time = False, eval_type = "offline", templates = None): 
+    def predict(self, data, labels = None,  encoding = "binary", n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None): 
+        
+        """
+        This method is used to do predictions on new data using a trained model (if training is required). 
+
+        Attributes:
+            data: The data (numpy array) on which the prediction should be done. The shape depends on the input shape of the model. 
+            labels: The true class labels (for a classification task) as 1D numpy array. Not required for eval_type = "online" since no ground truth labels are available. 
+            encoding: The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.
+            n_classes: The number of classes (int) for which the predictions are made. 
+            show_results: A flag (boolean) weather to show the results of the predictions. for eval_type = "online" the results are not shown to save computation time. 
+            show_pred_time: A flag (boolean) weather to show how long the time was to perform the prediction on the data provided. 
+            eval_type: The type (string) of the evaluation. Can be either "offline" or "online". For "offline" results are shown by default and prediction times can be measured. For "online" only the prediction scores are calculated and not further evaluated into a performance. 
+            templates: If using the "dtw" or another matching algorithm (unsupervised), the templates as numpy array with shape (n_channels, n_sampels) (e.g. for the dtw algorithm). 
+    
+            
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        """
 
         if(self.type == "keras"): 
 
@@ -203,8 +305,6 @@ class MLModel:
                 
                 print("data shape input ", data.shape)
                 predictions = self.model(data) # call the model, is a lot faster than using predict method 
-                print("predictions", predictions)
-                #predictions = self.model.predict_on_batch(data)
 
                 if(show_pred_time): 
                     time2 = perf_counter_ns()
@@ -253,11 +353,44 @@ class MLModel:
             
 
     def getPerfResults(self): 
+
+        """
+        This method returns the performance results after a prediction was performed. 
+
+        Returns:
+            perf_results: An array (1D numpy array) with the performance results depending on the type of classification or regression task. For binary classification the array contains BA, TPR, TNR and ACC. For multiclass, only the ACC is currently returned. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        """
+
         return self.perf_results
     
     def modelSummary(self): 
+
+        """
+        This method prints a summary of a created ML-model.  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        """
+
         self.model.summary()
 
     def getPredictionScores(self): 
+
+        """
+        This method returns the unprocessed prediction scores. This is usually a value between 0 and 1 from e.g. a sigmoidal fit. 
+
+        Returns: 
+            prediction_scores: The prediction scores (1D numpy array) for every predicted instance (n_predictions). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        """
+
         return self.prediction_scores
 

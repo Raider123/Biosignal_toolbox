@@ -5,7 +5,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mne
-from sklearn.utils import shuffle
 from scipy import signal as sig
 import os 
 from scipy.fft import fft, fftfreq
@@ -14,27 +13,27 @@ import scipy
 import mne_features.univariate as mne_feat
 from mne.preprocessing import ICA
 import copy 
-from mne import compute_raw_covariance
 from mne.preprocessing import Xdawn
-from pylsl import StreamInlet, resolve_stream, local_clock
-from time import perf_counter 
 import requests
 from pybv import write_brainvision
+import zmq 
+import warnings
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
 
-class OnlineEEGUtils:
+
+class OnlineEEGUtils: # leave this for backward compability for now 
 
     def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
         self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+        
 
-
-    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5):
+    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5, url = 'http://10.250.223.221:5000/results'):
         """
         This function gathers all the relevant results and sends it to the host.
         This function should be called everytime an error is detected.
@@ -49,9 +48,8 @@ class OnlineEEGUtils:
         comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
         computation_time = local_clock_time - timestamp_buffer_vals[1]
 
-
         # connection to API for sending the results online 
-        url = 'http://10.250.223.221:5000/results'
+        
         myobj = {'team': team_name,
                 'secret': secret_id,
                 'host_timestamp': timestamp_buffer_vals[0], 
@@ -77,40 +75,34 @@ class OnlineEEGUtils:
         print("")
 
 
-    def updateBuffer(self, chunk, channel_indices = None, data_scale_factor = None, n_channels = 34):  #current_local_time, timestamp_offset, 
+    def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
         """
         This function provides the most recent data samples and timestamps in a buffer.  
         (first val is oldest, last the newest) 
 
         Attributes:
-            chunk               : current data chunk
-            timestamps          : LSL local host timestamp for the data chunk 
-            current_local_time  : LSL local client timestamp when the chunk is received
-            timestamp offset    : correction factor that needs to be added to the timestamps to map it into the client's local LSL time
+            chunk               : current data chunk (as list with dimensions (sampels, channels))
             data_buffer         : data buffer array of shape (buffer_size, n_channels)
-            timestamp_buffer    : timestamps buffer of shape (buffer_size, 3). The 3 columns correspond to the host timestamp, the client local time and time correction offset resp.
+            channel_indices     : if only selected channel indices should be extracted a list of integers. 
+            n_channels          : the number of total channels (including marker and sample index channels) that should be evaluated 
 
         Returns:
-            data_buffer         : data buffer array of shape (buffer_size, n_channels)
-            timestamp_buffer    : timestamp buffer of shape (buffer_size, 3)
+            data_window         : data buffer/window (numpy array) of shape (buffer_size, n_channels)
         """
         #data 
         
-        if (data_scale_factor): 
-            current_chunk = (np.array(chunk).T) *data_scale_factor
-        else: 
-            current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
+        current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
         
         #print("chunk shape", current_chunk.shape) # should be channels, sampels 
 
         if(channel_indices): 
             current_chunk = current_chunk[channel_indices, :]
 
-        
-        #print(current_chunk.shape)
-        current_chunk = current_chunk[0:n_channels, :] # use first n channels
+        # #print(current_chunk.shape)
+        # current_chunk = current_chunk[0:n_channels, :] # use first n channels
 
         n_samples = current_chunk.shape[1] 
+        n_channels = current_chunk.shape[0] 
 
         if (n_samples > self.data_buffer.shape[2]): # print error message 
             print("Buffer overflow")
@@ -119,10 +111,29 @@ class OnlineEEGUtils:
         self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
         self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
 
-        return self.data_buffer# , timestamp_buffer
+
+        # check for sample loss 
+        sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
+
+        for i in range(0, len(sample_indices) -1): 
+            if sample_indices[i] + 1 != sample_indices[i+1]:
+                warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
+
+        data_windows = self.data_buffer[:, 0:n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
+
+        return data_windows# , timestamp_buffer
 
     def getDataBuffer(self): 
         return self.data_buffer
+    
+
+    def startZMQServer(self, port_name):
+        # create a socket connection as a publisher to send commands 
+        my_context = zmq.Context()
+        my_socket = my_context.socket(zmq.PUB)
+        my_socket.bind("tcp://*:"+port_name)
+        print("Publisher ready")
+        return my_socket
 
 
 class EEGData:
@@ -1910,5 +1921,125 @@ class EEGData:
         return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
 
 
+class OnlineEEG(EEGData): 
 
-   
+    def __init__(self, channel_names, n_channels=34, n_samples= 500, dt_process_data = 0.05, f_samp_eeg = 500.0): 
+
+        self.n_channels = n_channels
+        self.buffersize = n_samples
+        self.dt_process_data = dt_process_data
+        self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+
+        super().__init__(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
+        
+
+    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5, url = 'http://10.250.223.221:5000/results'):
+        """
+        This function gathers all the relevant results and sends it to the host.
+        This function should be called everytime an error is detected.
+
+        Attributes:
+            team_name (str)         : each team will be assigned a team name which 
+            secret_id (str)         : each team will be provided with a secret code
+            timestamp_buffer_vals   : subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
+            local_clock_time        : current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.
+        """
+        # calculate the final values for the timings 
+        comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
+        computation_time = local_clock_time - timestamp_buffer_vals[1]
+
+        # connection to API for sending the results online 
+        
+        myobj = {'team': team_name,
+                'secret': secret_id,
+                'host_timestamp': timestamp_buffer_vals[0], 
+                'comp_time': computation_time, 
+                'comm_delay': comm_delay}
+
+        x = requests.post(url, json = myobj)
+
+
+    def printStreamMetadata(self, stream_info_obj):
+        """
+        This function prints some basic meta data of the stream
+        """
+        print("") 
+        print("Meta data")
+        print("Name:", stream_info_obj.name())
+        print("Type:", stream_info_obj.type())
+        print("Number of channels:", stream_info_obj.channel_count())
+        print("Nominal sampling rate:", stream_info_obj.nominal_srate())
+        print("Channel format:",stream_info_obj.channel_format())
+        print("Source_id:",stream_info_obj.source_id())
+        print("Version:",stream_info_obj.version())
+        print("")
+
+    
+    def updateBuffer(self, chunk, channel_indices = None, check_sample_loss = True):  #current_local_time, timestamp_offset, 
+        """
+        This function provides the most recent data samples and timestamps in a buffer.  
+        (first val is oldest, last the newest) 
+
+        Attributes:
+            chunk               : current data chunk (as list with dimensions (sampels, channels))
+            data_buffer         : data buffer array of shape (buffer_size, n_channels)
+            channel_indices     : if only selected channel indices should be extracted a list of integers. 
+            n_channels          : the number of total channels (including marker and sample index channels) that should be evaluated 
+
+        Returns:
+            data_window         : data buffer/window (numpy array) of shape (buffer_size, n_channels)
+        """
+        #data 
+        
+        current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
+        
+        #print("chunk shape", current_chunk.shape) # should be channels, sampels 
+
+        if(channel_indices): 
+            current_chunk = current_chunk[channel_indices, :]
+
+        # #print(current_chunk.shape)
+        # current_chunk = current_chunk[0:n_channels, :] # use first n channels
+
+        n_samples = current_chunk.shape[1] 
+
+        if (n_samples > self.data_buffer.shape[2]): # print error message 
+            print("Buffer overflow")
+
+        
+        self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
+        self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
+
+        if (check_sample_loss): 
+            # check for sample loss 
+            sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
+            for i in range(0, len(sample_indices) -1): 
+                if sample_indices[i] + 1 != sample_indices[i+1]:
+                    warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
+
+    def BufferToWindows(self, num_non_data_channels = 3): 
+
+        self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
+
+    def getDataBuffer(self): 
+        return self.data_buffer
+    
+    # ZMQ stuff 
+    def startZMQServer(self, port_name):
+        # create a socket connection as a publisher to send commands 
+        my_context = zmq.Context()
+        my_socket = my_context.socket(zmq.PUB)
+        my_socket.bind("tcp://*:"+port_name)
+        print("Publisher ready")
+        return my_socket
+    
+    #zmq server
+    def establishZMQ(port_name):
+        # create a socket connection as a publisher to send commands 
+        my_context = zmq.Context()
+        my_socket = my_context.socket(zmq.PUB)
+        my_socket.bind("tcp://*:"+port_name)
+        print("Publisher ready")
+        return my_socket
+
+

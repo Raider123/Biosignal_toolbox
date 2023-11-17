@@ -3,7 +3,6 @@
 # ************************* Imports ***********************************************
 # *********************************************************************************
 
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 import copy 
@@ -12,11 +11,10 @@ from time import perf_counter
 import time
 import serial
 import warnings
-import zmq 
 import pyrock
 
 # # own libs 
-from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
+from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils, OnlineEEG
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
@@ -34,20 +32,6 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
 tf.config.set_visible_devices([], 'GPU') 
-
-
-#************************************************************
-#********************** visualization ***********************
-#************************************************************
-
-
-def establishZMQ(port_name):
-    # create a socket connection as a publisher to send commands 
-    my_context = zmq.Context()
-    my_socket = my_context.socket(zmq.PUB)
-    my_socket.bind("tcp://*:"+port_name)
-    print("Publisher ready")
-    return my_socket
 
 
 #************************************************************
@@ -77,7 +61,7 @@ if __name__ == "__main__":
     
     # ML params 
     decision_bound = 0.7
-    n_count_positives = 1 # how many window have to be positive 
+    n_count_positives = 2 # how many window have to be positive 
 
     # MLP Net 
     #features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
@@ -120,19 +104,14 @@ if __name__ == "__main__":
     # dead time 
     dead_n_samples = deadtime/dt_read_buffer
 
-    # init serial markers
-    if(send_marker): 
-        ser = serial.Serial(usb_port, Baudrate)
-        my_socket = establishZMQ(zmq_port)
-        time.sleep(3)
 
     # load models
     # load MLP model 
-    MLP_model = MLModel() 
+    MLP_model = MLModel(type="keras") 
     MLP_model.loadModel(path =data_path, filename = MLP_eval_name)
 
     # load EEGNet model 
-    model_EEGNet = MLModel()
+    model_EEGNet = MLModel(type="keras")
     model_EEGNet.loadModel(path =data_path, filename = EEGNet_eval_name)
 
     # first resolve an EEG stream on the lab network
@@ -146,11 +125,16 @@ if __name__ == "__main__":
     # create online EEG utils Object  
     EEGutils = OnlineEEGUtils(n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
 
-    EEGutils.printStreamMetadata(stream_info) # print stream info 
+    # init serial markers
+    if(send_marker): 
+        ser = serial.Serial(usb_port, Baudrate)
+        my_socket = EEGutils.startZMQServer(zmq_port)
+        time.sleep(3)
 
+    EEGutils.printStreamMetadata(stream_info) # print stream info 
+    
     #inits 
     EEG_live = EEGData(format = "Live", f_samp = f_samp_eeg, channel_names = channel_names)
-    
 
     # init values 
     running = True    # run continiously 
@@ -169,17 +153,7 @@ if __name__ == "__main__":
         if(chunk):#chunk # if list not empty (new data)
             
             # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
-            EEG_live.windows = EEGutils.updateBuffer(chunk, data_scale_factor=1, n_channels = n_channels)  #list(channel_indices)
-            
-            # here with samples counter 
-            sample_indices = EEG_live.windows[0, -3, :, 0].astype(int) # sample indice channel 
-            
-            # check for sample loss 
-            for i in range(0, len(sample_indices) -1): 
-                if sample_indices[i] + 1 != sample_indices[i+1]:
-                    warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
-
-            EEG_live.windows = EEG_live.windows[:, 0:n_channels-3, :, :]
+            EEG_live.windows = EEGutils.updateBuffer(chunk, n_channels = n_channels)  #list(channel_indices) 
 
             
             if(print_times): 

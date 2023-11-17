@@ -2,12 +2,10 @@
 # ************************* Imports ***********************************************
 # *********************************************************************************
 
-import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
 from time import perf_counter
 import copy 
-import os 
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -26,8 +24,6 @@ print(tf.config.experimental.list_physical_devices('GPU'))
 # disable GPU for testing
 tf.config.set_visible_devices([], 'GPU') # disable now 
 
-#os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0' # deable tensorflow rounding errors 
-
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -39,10 +35,9 @@ proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosigna
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-#train_file_list = ["BR60D_unilateral_LSL_set3_1.vhdr", "BR60D_unilateral_LSL_set4_1.vhdr"] #"BR60D_unilateral_LSL_set4_1.vhdr"
 
 # use LSL file recorded 
-train_file_LSL = ["XY90_unilateral_set3_data", "XY90_unilateral_set4_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+train_file_LSL = ["XY90_unilateral_set3_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
 
 
 # subject params 
@@ -82,12 +77,10 @@ metrics = "accuracy"
 train_windows = ["bis-2500", "bis-1900", "bis-1500" ,"bis-1200", "bis-150", "bis-100", "bis-50", "bis0"]#, "bis-50", "bis0"] # alternatively 
 #test_windows = ["bis-2500", "bis-2050", "bis-150", "bis-100"] # ["bis-2500", "bis-2050", "bis-100", "bis0"]
 
-
 #window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# 
 window_labels_train = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 #window_labels_test = [0.0, 0.0, 1.0, 1.0] #  [0.0, 0.0, 1.0, 1.0]
-# window_labels_test = np.zeros(81)
-# window_labels_test[-4:] = 1.0
+
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
 feature_indices_windows = np.arange(900, 1000, step = 2) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
@@ -107,8 +100,6 @@ error_number = 3 # number of the error marker
 # eeg stream params 
 channel_names = ["F5", "F3", "F1", "FZ", "F2", "F4", "F6", "FC5", "FC3", "FC1", "FC2", "FC4", "FC6", "C5", "C3", "C1", "CZ", "C2", "C4", "C6", "CP5", "CP3", "CP1", "CPZ", "CP2", "CP4", "CP6", "P5", "P3", "P1", "PZ", "P2", "P4", "P6"]
 # time selection for epoching of the data 
-epoching_time_before_onset = -5.0 # time in seconds (start epoch)
-epoching_time_after_onset = 0.0 # time in seconds (0 = movement onset)
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
 inverse_keep_channel = True # standard: True 
@@ -116,9 +107,8 @@ channel_list = [] # do not drop channels
 #channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 
 # just remap the parameters (need to be adapted)
-t1 = epoching_time_before_onset
-t2 = epoching_time_after_onset
-
+t1 = -5.0
+t2 = 0.0
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
@@ -146,7 +136,7 @@ early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0
 #data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
 EEG_data = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
 
-EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
+EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
 EEG_train, EEG_val = EEG_data.splitTrainTestEpochs(n_test_epochs=n_val_trials) # split in train and val_test 
 #EEG_val, EEG_test = EEG_val_test.splitTrainTestEpochs(n_test_epochs=5) # split into val and test 
@@ -156,7 +146,6 @@ channel_names = EEG_data.getChannelNames()
 print("channel names", channel_names)
 print("channel length", len(channel_names))
 print("")
-
 
 # **********************************************************************************
 # ********************* Preprocessing for data of both networks ********************
@@ -185,15 +174,14 @@ x_val_MLP, y_val_MLP = pipeline.MLPProcessing(EEG_val_MLP, EEG_val_freq_MLP, win
 
 # Load model with norm layer  
 MLP = MLP_Model(x_train_MLP, use_norm_layer = use_norm_layer)
-MLP_model = MLModel(model = MLP, train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_"+str(iteration))
+MLP_model = MLModel(model = MLP, type= "keras")
+MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_"+str(iteration), train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
 
 
 # predict and get results 
 print("predict MLP net")
 MLP_model.predict(data = x_train_MLP, labels = y_train_MLP, encoding = "binary", show_results = True, show_pred_time = False, eval_type = "offline")
 perf_results_MLP = MLP_model.getPerfResults()
-
 
 # EEGNet processing pipeline 
 x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessing(EEG_train_EEGNet, window_labels_train, num_classes)
@@ -203,8 +191,8 @@ x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessing(EEG_val_EEGNet, window_la
 shape_input = EEG_train_EEGNet.getWindows().shape # get train data shape for network 
 print("EEGNet Input shape", shape_input)
 model_EEGNet = EEGNet(nb_classes=num_classes,Chans=shape_input[1], Samples=shape_input[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout', x_train = x_train_EEGNet, use_norm_layer = use_norm_layer)
-EEGNet_model = MLModel(model = model_EEGNet, train_epochs= n_epochs, batch_size=n_batch_size_EEGNet, class_weights=None, x_train=x_train_EEGNet, y_train= y_train_EEGNet, x_val = x_val_EEGNet, y_val = y_val_EEGNet, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
-EEGNet_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_EEGNet"+str(iteration))
+EEGNet_model = MLModel(model = model_EEGNet, type="keras")
+EEGNet_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_EEGNet"+str(iteration), train_epochs= n_epochs, batch_size=n_batch_size_EEGNet, class_weights=None, x_train=x_train_EEGNet, y_train= y_train_EEGNet, x_val = x_val_EEGNet, y_val = y_val_EEGNet, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
 
 # # predict and get results 
 print("predict EEGNet")
