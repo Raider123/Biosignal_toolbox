@@ -9,7 +9,7 @@ This repository should **ONLY** contain python scripts and no datasets, plots or
 
 
 ### Installation 
-To install the biosignal toolbox move to the **lib** folder run the following command to install the Python package: **pip install -e .**
+To install the biosignal toolbox move to the **lib** folder run the following command to install the Python package: **pip install -e .** When using Visual Studio Code (VSC), please make sure to load the hole biosignal_toolbox repository as a project folder. Otherwise the installed python packages might not be found or detected properly by VSC.  
 
 ### Coding Conventions
 This section describes the general coding guidelines to follow during development process.
