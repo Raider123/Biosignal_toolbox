@@ -442,55 +442,59 @@ class EEGData:
         return raw
 
         
-    def applyButterFilter(self, signal, f_lowpass = None, f_highpass = None, N = 1, type = "bandpass", padlen = 20, show_response = False): 
+    # def applyButterFilter(self, signal, f_lowpass = None, f_highpass = None, N = 1, type = "bandpass", padlen = 20, show_response = False):  # not used anymore 
 
-        """
-        This function filters a signal with a simple digital butterworth lowpass filter with order N. 
-        Arguments:
-            signal: The signal to be filtered as onedimensional numpy array. 
-            f_lowpass: The cutoff frequency of the lowpass filter. 
-            N: The order of the butterworth filter. 
-            type: The type of the filter as string, can be "bandpass", "lowpass" or "highpass". 
-            padlen: The number of values to pad for filtering (see zero padding method). 
+    #     """
+    #     This function filters a signal with a simple digital butterworth lowpass filter with order N. 
+    #     Arguments:
+    #         signal: The signal to be filtered as onedimensional numpy array. 
+    #         f_lowpass: The cutoff frequency of the lowpass filter. 
+    #         N: The order of the butterworth filter. 
+    #         type: The type of the filter as string, can be "bandpass", "lowpass" or "highpass". 
+    #         padlen: The number of values to pad for filtering (see zero padding method). 
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 21.09.2023 (by Niklas Kueper)
-        """
+    #     Meta information: 
+    #         Author: Niklas Kueper 
+    #         Last changed: 21.09.2023 (by Niklas Kueper)
+    #     """
 
-        if(type == "bandpass"): 
-            sos = sig.butter(N, [f_highpass, f_lowpass], btype=type, analog=False, output='sos', fs=self.__fsamp)
-        elif(type == "lowpass"): 
-            sos = sig.butter(N, f_lowpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
-        elif(type == "highpass"): 
-            sos = sig.butter(N, f_highpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
+    #     if(type == "bandpass"): 
+    #         sos = sig.butter(N, [f_highpass, f_lowpass], btype=type, analog=False, output='sos', fs=self.__fsamp)
+    #     elif(type == "lowpass"): 
+    #         sos = sig.butter(N, f_lowpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
+    #     elif(type == "highpass"): 
+    #         sos = sig.butter(N, f_highpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
 
-        w, h = sig.sosfreqz(sos, worN=512, whole = True)
+    #     w, h = sig.sosfreqz(sos, worN=512, whole = True)
 
-        if(show_response): 
-            plt.subplot(2, 1, 1)
-            db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
-            plt.plot(w/np.pi, db)
-            plt.ylim(-75, 5)
-            plt.grid(True)
-            plt.yticks([0, -20, -40, -60])
-            plt.ylabel('Gain [dB]')
-            plt.title('Frequency Response')
-            plt.subplot(2, 1, 2)
-            plt.plot(w/np.pi, np.angle(h))
-            plt.grid(True)
-            plt.yticks([-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],[r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
-            plt.ylabel('Phase [rad]')
-            plt.xlabel('Normalized frequency (1.0 = Nyquist)')
-            plt.show()
+    #     if(show_response): 
+    #         plt.subplot(2, 1, 1)
+    #         db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
+    #         plt.plot(w/np.pi, db)
+    #         plt.ylim(-75, 5)
+    #         plt.grid(True)
+    #         plt.yticks([0, -20, -40, -60])
+    #         plt.ylabel('Gain [dB]')
+    #         plt.title('Frequency Response')
+    #         plt.subplot(2, 1, 2)
+    #         plt.plot(w/np.pi, np.angle(h))
+    #         plt.grid(True)
+    #         plt.yticks([-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],[r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
+    #         plt.ylabel('Phase [rad]')
+    #         plt.xlabel('Normalized frequency (1.0 = Nyquist)')
+    #         plt.show()
         
-        # signal shape: n_channel, n_sampels
-        filtered_signal = np.zeros(signal.shape)
-        for channel_idx in range(0, signal.shape[0]): 
-            filtered_signal[channel_idx, :] = sig.sosfiltfilt(sos, signal[channel_idx, :], padlen=padlen, padtype='even') 
+    #     # signal shape: n_channel, n_sampels
+    #     filtered_signal = np.zeros(signal.shape)
+    #     for channel_idx in range(0, signal.shape[0]): 
+    #         filtered_signal[channel_idx, :] = sig.sosfiltfilt(sos, signal[channel_idx, :], padlen=padlen, padtype='even') 
 
-        return filtered_signal
+    #     return filtered_signal
     
+    def FilterRaw(self, f_highpass, f_lowpass, picks=None, filter_length='auto', l_trans_bandwidth='auto', h_trans_bandwidth='auto', n_jobs=None, method='fir', iir_params=None, phase='zero', fir_window='hamming', fir_design='firwin', skip_by_annotation=('edge', 'bad_acq_skip'), pad='reflect_limited', verbose=None): 
+        self.raw_obj.filter(f_highpass, f_lowpass, picks=picks, filter_length=filter_length, l_trans_bandwidth=l_trans_bandwidth, h_trans_bandwidth=h_trans_bandwidth, n_jobs=n_jobs, method=method, iir_params=iir_params, phase=phase, fir_window=fir_window, fir_design=fir_design, skip_by_annotation=skip_by_annotation, pad=pad, verbose= verbose)
+
+
     def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = 30, show_response = False, alpha = 0.95): # under change 
         # shape: trials, channels, sampels, windows
 
@@ -651,8 +655,8 @@ class EEGData:
                             
                     current_wind = copy.deepcopy(self.windows[trial_idx, channel_idx, :, window_idx])
                     current_wind = current_wind + (-1 *np.min(current_wind))
-                    #current_wind = current_wind / np.max(current_wind)
-
+                    current_wind = current_wind / np.max(current_wind)
+                    
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_wind
 
 
@@ -776,7 +780,23 @@ class EEGData:
             count = count+1
         plt.show()
 
-    def getDataFromChannels(self, channel_names, average = True, is_windowed = False): 
+    def getDataFromChannels(self, channel_names, average = True, windowed_data = False, epoched_data = False): 
+
+        """
+        This function creates and showes an topoplot at different points in time. 
+        Arguments:
+            channel_names: The channel names (list) of the data that should be returned. 
+            average: If True (boolean) the data should be averaged after windowing or epoching (deprecated, averaging should be implemented seperately). 
+            windowed_data: If True (boolean) the windowed data of the specified channels is returned. 
+            epoched_data: If True (boolean) the epoched data of the specified channels is returned. 
+
+        Returns:
+            data_channels: Numpy array with the data from the selected channels. Can be either in the format of windowed data (if windowed_data = True), epoched data (if epoched_data = True or raw data in format (channels, sampels)). 
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 22.11.2023 (by Niklas Kueper)
+        """
         
         if(len(channel_names) > 1): # for more then one channel
             channel_idxs = []
@@ -787,7 +807,7 @@ class EEGData:
             channel_idxs = self.__ch_names.index(channel_names[0])
 
 
-        if (is_windowed): 
+        if (windowed_data): 
             # shape: trials, channel, sampels, windows 
 
             if(average): # if average should be returned 
@@ -796,14 +816,17 @@ class EEGData:
             else: 
                 return self.windows[:, channel_idxs, :, :]
 
-        else: # if not windowed yet 
+        elif(epoched_data): # data is epoched  
 
             if(average):
                 data_channel = self.average_epochs[channel_idxs, :] # data channel with shape: (channels, sampels) for average 
             else: 
                 data_channel = self.epochs[:, channel_idxs, :] # data channel with shape: (trials, channels, sampels)  
 
-            return data_channel, self.time_axis_epochs #
+            return data_channel
+        
+        else: # return data from raw object 
+            return self.raw_obj.get_data(picks=channel_names) # format is channels, sampels (numpy array shape)
 
 
     def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
@@ -1289,6 +1312,22 @@ class EEGData:
                     
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_med_corr # 1 is max 
 
+
+    def WindowMeanCorrection(self): 
+
+        # shape: trials, channels, sampels, windows 
+        for trial_idx in range(0, self.windows.shape[0]): 
+            for channel_idx in range(0, self.windows.shape[1]): 
+                for window_idx in range(0, self.windows.shape[3]): 
+                    # get current window 
+                    current_wind = copy.deepcopy(self.windows[trial_idx, channel_idx, :, window_idx])
+
+                    mean_val = np.mean(current_wind)
+
+                    current_wind_mean_corr = current_wind -mean_val
+                    
+                    self.windows[trial_idx, channel_idx, :, window_idx] = current_wind_mean_corr # 1 is max 
+
     
     def calcTestAccAndRates(self, prediction_labels, true_labels):
 
@@ -1479,21 +1518,26 @@ class EEGData:
         return ba, tnr, tpr 
     
 
-    def OnechannelFFT(self, one_channel_data, fsamp, plot = False, window = "kaiser", beta = 1): 
+    def OnechannelFFT(self, one_channel_data, plot = False, window = "hamming", beta = 1, title = None): 
         """
         This function calculates the FFT for one channel of timeseries data. 
         Arguments:
+            one_channel_data: The data for one channel as 1D numpy array. 
+            plot: If True the FFT spectrum of the data is plotted. 
+            window: The windowing function (string) that can be applied before the fft is calculated (see usable scipy window functions). 
 
         Returns:
+            xf: The frequency axis as numpy array. 
+            yfn: The FFT magnitude values of the frequency spectrum.  
 
         Meta information: 
             Author: Niklas Kueper 
-            Last changed: .. 
+            Last changed: 22.11.2023
         """
 
         N = len(one_channel_data)
         # sample spacing
-        dT = 1.0/fsamp
+        dT = 1.0/self.__fsamp
         x = np.linspace(0.0, N*dT, N, endpoint=False)
         
         # apply window before calculating fft 
@@ -1521,6 +1565,13 @@ class EEGData:
         if (plot): 
             fig = plt.figure()
             plt.plot(xf, yfn)
+            plt.ylabel("|H|")
+            if(title): 
+                plt.title(title)
+            else: 
+                plt.title("FFT Spectrum")
+            plt.xlabel("Frequency in Hz")
+            plt.show()
 
         return xf, yfn
      

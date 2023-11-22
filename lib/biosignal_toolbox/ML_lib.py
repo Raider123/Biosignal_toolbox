@@ -276,7 +276,7 @@ class MLModel:
                 print("")
 
     
-    def predict(self, data, labels = None,  encoding = "binary", n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None): 
+    def predict(self, data, labels = None,  encoding = "binary", n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None, treshold = None): 
         
         """
         This method is used to do predictions on new data using a trained model (if training is required). 
@@ -321,6 +321,7 @@ class MLModel:
 
         elif(self.type == "dtw"): 
             #templates have shape n_train, channel, sampels 
+            
 
             predictions = []
             if(eval_type == "offline"): 
@@ -333,16 +334,28 @@ class MLModel:
                         for channel_idx in range(0, data.shape[1]): 
                             
                             # pos class distances 
-                            dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 50}) 
+                            dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20}) 
                             distances_pos_class.append(dtw_obj_pos_class.distance)
                             #neg class 
-                            dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 50}) 
+                            dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20}) 
                             distances_neg_class.append(dtw_obj_neg_class.distance)
 
-                        predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
+                        
+
+                        if(treshold): 
+                            predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
+                        else: 
+                            predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
 
                     predictions = np.array(predictions)
-                    self.calcPerformance(predictions = predictions, encoding = "distance_array", show_results = show_results, labels=labels, type="binary")
+                    print("len pos class", len(distances_pos_class))
+
+                    if(treshold): 
+                        print("Distances:", predictions)
+                        predictions = (predictions < treshold).astype(float)
+                        self.calcPerformance(predictions = predictions, encoding = "binary", show_results = show_results, labels=labels, type="binary")
+                    else: 
+                        self.calcPerformance(predictions = predictions, encoding = "distance_array", show_results = show_results, labels=labels, type="binary")
 
 
                 else: 

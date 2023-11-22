@@ -80,11 +80,16 @@ EEG_data.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scip
 EEG_data.windows = EEG_data.windows[:, :, 25:-25, :]
 EEG_data.applyxDAWNToWindows(xd_filt, n_components = n_components)
 #EEG_data.minMaxNormWindows()
+EEG_data.WindowMeanCorrection()
+EEG_data.minMaxNormWindows()
 
 # generate templates for matching algorithm 
 windows_template = EEG_data.getWindows()
 pos_class_temp = np.mean(windows_template[:, :, :, -1], axis = 0)
 neg_class_temp = np.mean(windows_template[:, :, :, 0], axis = 0)
+
+# pos_class_temp = (windows_template[0, :, :, -1])
+# neg_class_temp = (windows_template[0, :, :, 0])
 
 
 print("template shape", neg_class_temp.shape)
@@ -92,39 +97,38 @@ print("template shape", neg_class_temp.shape)
 # neg_class_temp_norm = neg_class_temp
 
 pos_class_temp_norm = np.zeros(pos_class_temp.shape)
-pos_class_temp_norm[:] = pos_class_temp[:] - (np.median(pos_class_temp[0:50]))
-#pos_class_temp_norm = pos_class_temp_norm/np.std(pos_class_temp_norm)
+pos_class_temp_norm[:] = pos_class_temp[:] - (np.mean(pos_class_temp))
 
-#pos_class_temp_norm[:] = pos_class_temp[:] + (-1 *np.min(pos_class_temp[:]))
-#pos_class_temp_norm[:] = pos_class_temp_norm[:] / np.max(pos_class_temp_norm[:])
-# pos_class_temp_norm[1, :] = pos_class_temp[1, :] + (-1 *np.min(pos_class_temp[1, :]))
-# pos_class_temp_norm[1, :] = pos_class_temp_norm[1, :] / np.max(pos_class_temp_norm[1, :])
+# pos_class_temp_norm[:] = pos_class_temp_norm[:] + (-1 *np.min(pos_class_temp_norm[:]))
+# pos_class_temp_norm[:] = pos_class_temp_norm[:] / np.max(pos_class_temp_norm[:])
 
 neg_class_temp_norm = np.zeros(neg_class_temp.shape)
-neg_class_temp_norm[:] = neg_class_temp[:] - (np.median(neg_class_temp[0:50]))
-#neg_class_temp_norm = neg_class_temp_norm/np.std(neg_class_temp_norm)
+neg_class_temp_norm[:] = neg_class_temp[:] -(np.mean(neg_class_temp))
 
-#neg_class_temp_norm[:] = neg_class_temp[:] + (-1 *np.min(neg_class_temp[:]))
-#neg_class_temp_norm[:] = neg_class_temp_norm[:] / np.max(pos_class_temp_norm[:])
-# neg_class_temp_norm[1, :] = neg_class_temp[1, :] + (-1 *np.min(neg_class_temp[1, :]))
-# neg_class_temp_norm[1, :] = neg_class_temp_norm[1, :] / np.max(pos_class_temp_norm[1, :])
+# neg_class_temp_norm[:] = neg_class_temp_norm[:] + (-1 *np.min(neg_class_temp_norm[:]))
+# neg_class_temp_norm[:] = neg_class_temp_norm[:] / np.max(pos_class_temp_norm[:])
 
 
 # validation set 
 EEG_data_val.windowEEGEpochs(window_size, window_step)
 # on all windows 
 labels = np.zeros(81)
-labels[-6:] = 1.0
+labels[-4:] = 1.0
 EEG_data_val.setWindowLabels(labels)
 EEG_data_val.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter")
 EEG_data_val.windows = EEG_data_val.windows[:, :, 25:-25, :] # cut off artifact samples 
 EEG_data_val.applyxDAWNToWindows(xd_filt, n_components = n_components)
-EEG_data_val.windowStandardization()
+#EEG_data_val.windowStandardization()
 #EEG_data_val.minMaxNormWindows()
-EEG_data_val.WindowMedianCorrection()
+EEG_data_val.WindowMeanCorrection()
+EEG_data_val.minMaxNormWindows()
 
-plt.figure()
-plt.plot(pos_class_temp_norm.T)
+
+# plt.figure()
+# plt.plot(pos_class_temp_norm.T)
+# plt.plot(EEG_data_val.windows[12, :, :, -1].T)
+# plt.plot(EEG_data_val.windows[10, :, :, -1].T)
+# plt.legend(["template", "example1", "example2"])
 
 # plt.figure()
 # plt.plot(EEG_data_val.windows[10, :, :, -1].T)
@@ -134,16 +138,16 @@ plt.plot(pos_class_temp_norm.T)
 # plt.plot(EEG_data_val.windows[8, :, :, -1].T)
 # plt.figure()
 # plt.plot(EEG_data_val.windows[7, :, :, -1].T)
-# plt.show()
+#plt.show()
 
-plt.figure()
-for window_idx in range(0, EEG_data_val.windows.shape[3] -5): 
-    plt.plot(EEG_data_val.windows[10, :, :, window_idx].T)
+# plt.figure()
+# for window_idx in range(0, EEG_data_val.windows.shape[3] -5): 
+#     plt.plot(EEG_data_val.windows[12, :, :, window_idx].T)
 
-plt.figure()
-for window_idx in range(EEG_data_val.windows.shape[3] -5, EEG_data_val.windows.shape[3]): 
-    plt.plot(EEG_data_val.windows[10, :, :, window_idx].T)
-plt.show()
+# plt.figure()
+# for window_idx in range(EEG_data_val.windows.shape[3] -5, EEG_data_val.windows.shape[3]): 
+#     plt.plot(EEG_data_val.windows[12, :, :, window_idx].T)
+#plt.show()
 
 
 EEG_data.dtwFeatureVecWindows()
@@ -156,13 +160,63 @@ x_val = EEG_data_val.getFeatures()
 y_val = EEG_data_val.getLabels()
 
 
-dtw_model = MLModel(x_train=x_train, y_train= y_train, x_val = x_val, y_val = y_val, type = "dtw")
+dtw_model = MLModel(type = "dtw")
 
 # predict and get results 
-dtw_model.predict(data = x_val, labels = y_val, encoding = "distance_array", show_results = True, show_pred_time = False, eval_type = "offline", templates= [pos_class_temp_norm, neg_class_temp_norm])
+# dtw_model.predict(data = x_val, labels = y_val, encoding = "distance_array", show_results = True, show_pred_time = False, eval_type = "offline", templates= [pos_class_temp_norm, neg_class_temp_norm], treshold=80)
 
 
 # # perf_results_MLP = MLP_model.getPerfResults()
+
+
+# test this without dtw 
+
+current_trial = 8
+trial_windows = EEG_data_val.windows[current_trial, :, :, :]
+trial_windows_last1 = EEG_data_val.windows[current_trial-1, :, :, -1]
+trial_windows_last2 = EEG_data_val.windows[current_trial-2, :, :, -1]
+trial_windows_last3 = EEG_data_val.windows[current_trial-3, :, :, -1]
+trial_windows_last4 = EEG_data_val.windows[current_trial-4, :, :, -1]
+
+
+plt.figure()
+plt.plot(trial_windows[:, :, -1].T)
+plt.plot(trial_windows_last1.T)
+plt.plot(trial_windows_last2.T)
+plt.plot(trial_windows_last3.T)
+plt.plot(trial_windows_last4.T)
+plt.legend(["target", "temp1", "temp2", "temp3", "temp4"])
+plt.show()
+
+start_index = 300
+
+print(trial_windows_last2.shape)
+print(trial_windows.shape)
+
+print("trials wind  shape", trial_windows.shape)
+
+dist_list = []
+for window_idx in range(1, trial_windows.shape[2]):
+    dtw_dist = dtw(trial_windows[0, start_index:, window_idx], y=trial_windows_last1[0, start_index:], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20}) 
+    dtw_dist1 = dtw(trial_windows[0, start_index:, window_idx], y=trial_windows_last2[0, start_index:], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20}) 
+    dtw_dist2 = dtw(trial_windows[0, start_index:, window_idx], y=trial_windows_last3[0, start_index:], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20})
+    dtw_dist3 = dtw(trial_windows[0, start_index:, window_idx], y=trial_windows_last4[0, start_index:], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20})
+#dist = np.sum(np.abs(trial_windows[:, :, window_idx] -pos_class_temp_norm))
+    dist = dtw_dist.distance
+    dist1 = dtw_dist1.distance
+    dist2 = dtw_dist2.distance
+    dist3 = dtw_dist3.distance
+
+    dist = np.mean(np.array([dist, dist1, dist2, dist3]))
+    dist_list.append(dist)
+
+dist_arr = np.array(dist_list)
+
+print("dist vals trial", dist_arr)
+
+thresh = 30
+print("labels:", (dist_arr < thresh).astype(float))
+
 
 
 
