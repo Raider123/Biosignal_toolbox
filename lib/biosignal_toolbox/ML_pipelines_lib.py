@@ -1,3 +1,4 @@
+import scipy.signal as sig
 def firstStagePreprocessing(EEG_data, window_size, window_step, windows_selected): 
     
     # window EEG epochs 
@@ -17,8 +18,13 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
     # ******** MLP processing *******************
     
     # bandpass filter data 
-    EEG_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter")
-    EEG_MLP.windows = EEG_MLP.windows[:, :, 25:-25, :] # try this for reducing artifacts 
+    
+    wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
+    wind_band = wind[225:-225]
+    EEG_MLP.windows[0, 0, :, 0] = EEG_MLP.windows[0, 0, :, 0] *wind_band
+
+    EEG_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter") # bandpass filter (zero phase with padding)
+    EEG_MLP.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
     
     #EEG_MLP.windowStandardization()
     
@@ -43,9 +49,13 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 
     # *********** EEGNet processing *******************
 
-    EEG_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter")
+    wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
+    wind_band = wind[225:-225]
+    EEG_EEGNet.windows[0, 0, :, 0] = EEG_EEGNet.windows[0, 0, :, 0] *wind_band
 
-    EEG_EEGNet.windows = EEG_EEGNet.windows[:, :, 25:-25, :] # try this for reducing artifacts 
+    EEG_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter") # bandpass filter (zero phase with padding)
+
+    EEG_EEGNet.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
 
     EEG_EEGNet.setWindowLabels(window_labels)
     # reshape windows for net

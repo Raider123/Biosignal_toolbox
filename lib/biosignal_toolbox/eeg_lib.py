@@ -175,12 +175,12 @@ class EEGData:
 
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
 
-            # parameter 
+            # update parameter 
             #basic params 
             self.__ch_names = self.raw_obj.ch_names
             self.__fsamp = self.raw_obj.info['sfreq']
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
-            #eventsepochs_filter
+            #events epochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
 
@@ -250,6 +250,15 @@ class EEGData:
         events_bv = events[:, [0, 2]]
         write_brainvision(data=self.raw_obj.get_data(), sfreq=self.__fsamp, ch_names=self.__ch_names, fname_base=filename, folder_out=folder, events=events_bv, meas_date = meas_date, resolution = resolution, unit = unit)
         print("stored data in brainvision format")
+
+    def updatefromRawObject(self): 
+        # update parameter 
+        #basic params 
+        self.__ch_names = self.raw_obj.ch_names
+        self.__fsamp = self.raw_obj.info['sfreq']
+        self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
+        #events epochs_filter
+        self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
     def getRawObject(self):
         return self.raw_obj
@@ -441,61 +450,25 @@ class EEGData:
 
         return raw
 
-        
-    # def applyButterFilter(self, signal, f_lowpass = None, f_highpass = None, N = 1, type = "bandpass", padlen = 20, show_response = False):  # not used anymore 
 
-    #     """
-    #     This function filters a signal with a simple digital butterworth lowpass filter with order N. 
-    #     Arguments:
-    #         signal: The signal to be filtered as onedimensional numpy array. 
-    #         f_lowpass: The cutoff frequency of the lowpass filter. 
-    #         N: The order of the butterworth filter. 
-    #         type: The type of the filter as string, can be "bandpass", "lowpass" or "highpass". 
-    #         padlen: The number of values to pad for filtering (see zero padding method). 
-
-    #     Meta information: 
-    #         Author: Niklas Kueper 
-    #         Last changed: 21.09.2023 (by Niklas Kueper)
-    #     """
-
-    #     if(type == "bandpass"): 
-    #         sos = sig.butter(N, [f_highpass, f_lowpass], btype=type, analog=False, output='sos', fs=self.__fsamp)
-    #     elif(type == "lowpass"): 
-    #         sos = sig.butter(N, f_lowpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
-    #     elif(type == "highpass"): 
-    #         sos = sig.butter(N, f_highpass, btype=type, analog=False, output='sos', fs=self.__fsamp)
-
-    #     w, h = sig.sosfreqz(sos, worN=512, whole = True)
-
-    #     if(show_response): 
-    #         plt.subplot(2, 1, 1)
-    #         db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
-    #         plt.plot(w/np.pi, db)
-    #         plt.ylim(-75, 5)
-    #         plt.grid(True)
-    #         plt.yticks([0, -20, -40, -60])
-    #         plt.ylabel('Gain [dB]')
-    #         plt.title('Frequency Response')
-    #         plt.subplot(2, 1, 2)
-    #         plt.plot(w/np.pi, np.angle(h))
-    #         plt.grid(True)
-    #         plt.yticks([-np.pi, -0.5*np.pi, 0, 0.5*np.pi, np.pi],[r'$-\pi$', r'$-\pi/2$', '0', r'$\pi/2$', r'$\pi$'])
-    #         plt.ylabel('Phase [rad]')
-    #         plt.xlabel('Normalized frequency (1.0 = Nyquist)')
-    #         plt.show()
-        
-    #     # signal shape: n_channel, n_sampels
-    #     filtered_signal = np.zeros(signal.shape)
-    #     for channel_idx in range(0, signal.shape[0]): 
-    #         filtered_signal[channel_idx, :] = sig.sosfiltfilt(sos, signal[channel_idx, :], padlen=padlen, padtype='even') 
-
-    #     return filtered_signal
-    
-    def FilterRaw(self, f_highpass, f_lowpass, picks=None, filter_length='auto', l_trans_bandwidth='auto', h_trans_bandwidth='auto', n_jobs=None, method='fir', iir_params=None, phase='zero', fir_window='hamming', fir_design='firwin', skip_by_annotation=('edge', 'bad_acq_skip'), pad='reflect_limited', verbose=None): 
+    def filterRaw(self, f_highpass, f_lowpass, picks=None, filter_length='auto', l_trans_bandwidth='auto', h_trans_bandwidth='auto', n_jobs=None, method='fir', iir_params=None, phase='zero', fir_window='hamming', fir_design='firwin', skip_by_annotation=('edge', 'bad_acq_skip'), pad='reflect_limited', verbose=None): 
         self.raw_obj.filter(f_highpass, f_lowpass, picks=picks, filter_length=filter_length, l_trans_bandwidth=l_trans_bandwidth, h_trans_bandwidth=h_trans_bandwidth, n_jobs=n_jobs, method=method, iir_params=iir_params, phase=phase, fir_window=fir_window, fir_design=fir_design, skip_by_annotation=skip_by_annotation, pad=pad, verbose= verbose)
 
+    def show(self, scalings_dict = None): 
+        self.raw_obj.plot(scalings = scalings_dict)
 
-    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = 30, show_response = False, alpha = 0.95): # under change 
+    def mneRawMethod(self, method_name = None, **kwargs): 
+
+        if hasattr(self.raw_obj, method_name) and callable(getattr(self.raw_obj, method_name)):
+            method = getattr(self.raw_obj, method_name)
+            method(**kwargs) # call method with params 
+        else:
+            print("mne raw object does not have the expected method.")
+        
+        self.updatefromRawObject() # update class internal params from mne raw object 
+        
+
+    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = 30, show_response = False, alpha = 0.95,  apply_method = "padding"): # under change 
         # shape: trials, channels, sampels, windows
 
         # calc individual coeffs 
@@ -504,7 +477,7 @@ class EEGData:
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
-                #b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
                 sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
             elif(f_high):
                 sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.__fsamp)
@@ -585,13 +558,13 @@ class EEGData:
                         for channel_idx in range(0, self.windows.shape[1]):
                             
                             # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
-                            #filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
+                            if(apply_method == "gustav"): 
+                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
                             #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
-
-                            filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1) # normal filtering with padding 
-
+                            elif(apply_method == "padding"): 
+                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding 
                             self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
-
+                    
                     elif(filter_type =="dc_notch"): 
                         for channel_idx in range(0, self.windows.shape[1]):
 
@@ -659,6 +632,22 @@ class EEGData:
                     
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_wind
 
+    def cutWindows(self, n_samples_start = 25, n_samples_end = 25): 
+        """
+        This function can be used to cut the length of the windowed data (sample dimension). 
+
+        Arguments:
+            n_samples_start: The number of samples (int) to cut at the start of the windows. 
+            n_samples_end: The number of samples (int) to cut at the end of the windows. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 24.11.2023 (by Niklas Kueper)
+        """
+        if(self.windows.shape[2] < n_samples_start+n_samples_end):   # trials, channels, sampels, windows 
+            raise Exception("number of cutted samples exceeds window length, not performing the cutting ... ")
+        else: 
+            self.windows = self.windows[:, :, int(n_samples_start):int(-1*n_samples_end), :] 
 
 
     def createActicapMontage(self, plot_montage = False, rename_channels=None, set_montage = True): 
@@ -728,7 +717,7 @@ class EEGData:
             self.obj_filtered.set_montage(self.__montage)
 
 
-    def topoplot(self, times, title_str, min_val, max_val): 
+    def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06): 
         
         """
         This function creates and showes an topoplot at different points in time. 
@@ -889,7 +878,7 @@ class EEGData:
         return processed_trial_predictions
     
 
-    def rereferencingEpoching(self, marker_number, error_number, channel_list, inverse_keep_channel, event_id_used, t1, t2, reref_channels = [], apply_filter=False, f_highpass = None, f_lowpass= None, apply_baseline_correction = False,  t0_baseline = None, t1_baseline= None, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
+    def rereferencingEpoching(self, marker_number, error_number, channel_list, inverse_keep_channel, t1, t2, reref_channels = [], apply_filter=False, f_highpass = None, f_lowpass= None, apply_baseline_correction = False,  t0_baseline = None, t1_baseline= None, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
         
         """
         Apply rereferencing and epoching with given parameters and filters to an raw_obj mne instance. 
@@ -903,7 +892,6 @@ class EEGData:
             apply_filter: Boolean flag that should be True if a filter should be applied. 
             f_highpass: The highpass cutoff frequency in Hz (only used when apply_filter is True). 
             f_lowpass: The lowpass cutoff frequency in Hz (only used when apply_filter is True). 
-            event_id_used: The created mne event id (e.g. {"movement_onset": marker_number}). 
             t1: Start time of the epochs in ms.  
             t2: End time of the epochs in ms. 
             f_samp_eeg: Sampling rate of the EEG-signals in Hz. 
@@ -927,6 +915,7 @@ class EEGData:
         
         # rereferencing 
         rereferenced_eeg_raw_obj = self.raw_obj.copy()
+        event_id_used = marker_number
         
         if not (reref_channels):
             print("no reref channels specified, using original ref")
@@ -980,9 +969,9 @@ class EEGData:
         #eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
         if not(channel_list): 
             if(apply_baseline_correction): 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events,event_id = marker_number, tmin=t1, baseline=(t0_baseline, t1_baseline), tmax=t2, preload=True, reject_by_annotation = True)
             else: 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = marker_number, tmin=t1, baseline=None, tmax=t2, preload=True, reject_by_annotation = True)
                 
         else: #drop specified channels if False 
 
@@ -993,9 +982,9 @@ class EEGData:
                 filtered_eeg_rereferenced.pick_channels(channel_list)
 
             if(apply_baseline_correction): 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events,tmin=t1,event_id = marker_number, tmax=t2, baseline=(t0_baseline, t1_baseline), preload=True, reject_by_annotation = True)
             else: 
-                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events, event_id = event_id_used,tmin=t1, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
+                eeg_epochs = mne.Epochs(filtered_eeg_rereferenced, events = used_include_events,tmin=t1, event_id = marker_number, tmax=t2, baseline=None, preload=True, reject_by_annotation = True)
         
         # Get remaining channel names  
         self.__ch_names = filtered_eeg_rereferenced.ch_names

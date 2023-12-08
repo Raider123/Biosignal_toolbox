@@ -22,7 +22,10 @@ setuptools.setup(
         'pandas', 
         'pylsl', 
         'keyboard', 
-        'pybv'
+        'pybv', 
+        'mne_features', 
+        'pyzmq', 
+        'dtw-python'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],

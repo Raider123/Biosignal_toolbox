@@ -12,7 +12,6 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
-
 # models 
 from biosignal_toolbox.models.CNNnets import EEGNet
 
@@ -22,7 +21,7 @@ from biosignal_toolbox.models.MlpErp import MLP_Model
 print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
-tf.config.set_visible_devices([], 'GPU') # disable now 
+#tf.config.set_visible_devices([], 'GPU') # disable now 
 
 
 # *********************************************************************************
@@ -32,12 +31,11 @@ tf.config.set_visible_devices([], 'GPU') # disable now
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
 
-
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
 # use LSL file recorded 
-train_file_LSL = ["XY90_unilateral_set3_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+train_file_LSL = ["XY90_unilateral_set3_data", "XY90_unilateral_set4_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
 
 
 # subject params 
@@ -90,7 +88,7 @@ use_norm_layer = True # use the input norm layer
 n_val_trials = 5 
 
 # window wise metric evaluation
-window_size = 1100 #windowsize in ms (analog to pySPACE evaluation) # testweise 
+window_size = 1200 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
 window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 
 f_samp_eeg = 500.0 #sample Frequency of eeg
@@ -136,7 +134,7 @@ early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0
 #data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
 EEG_data = EEGData(format = "Recorded_LSL_stream", filenames = train_file_LSL, data_path = data_path, f_samp = f_samp_eeg, channel_names = channel_names)
 
-EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
+EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
 
 EEG_train, EEG_val = EEG_data.splitTrainTestEpochs(n_test_epochs=n_val_trials) # split in train and val_test 
 #EEG_val, EEG_test = EEG_val_test.splitTrainTestEpochs(n_test_epochs=5) # split into val and test 

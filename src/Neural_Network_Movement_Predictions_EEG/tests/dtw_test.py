@@ -168,7 +168,6 @@ dtw_model = MLModel(type = "dtw")
 
 # # perf_results_MLP = MLP_model.getPerfResults()
 
-
 # test this without dtw 
 
 current_trial = 8
