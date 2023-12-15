@@ -1,0 +1,1479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1" />
+<meta name="generator" content="pdoc 0.10.0" />
+<title>biosignal_toolbox.ML_lib API documentation</title>
+<meta name="description" content="" />
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/sanitize.min.css" integrity="sha256-PK9q560IAAa6WVRRh76LtCaI8pjTJ2z11v0miyNNjrs=" crossorigin>
+<link rel="preload stylesheet" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/10up-sanitize.css/11.0.1/typography.min.css" integrity="sha256-7l/o7C8jubJiy74VsKTidCy1yBkRtiUGbVkYBylBqUg=" crossorigin>
+<link rel="stylesheet preload" as="style" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/styles/github.min.css" crossorigin>
+<style>:root{--highlight-color:#fe9}.flex{display:flex !important}body{line-height:1.5em}#content{padding:20px}#sidebar{padding:30px;overflow:hidden}#sidebar > *:last-child{margin-bottom:2cm}.http-server-breadcrumbs{font-size:130%;margin:0 0 15px 0}#footer{font-size:.75em;padding:5px 30px;border-top:1px solid #ddd;text-align:right}#footer p{margin:0 0 0 1em;display:inline-block}#footer p:last-child{margin-right:30px}h1,h2,h3,h4,h5{font-weight:300}h1{font-size:2.5em;line-height:1.1em}h2{font-size:1.75em;margin:1em 0 .50em 0}h3{font-size:1.4em;margin:25px 0 10px 0}h4{margin:0;font-size:105%}h1:target,h2:target,h3:target,h4:target,h5:target,h6:target{background:var(--highlight-color);padding:.2em 0}a{color:#058;text-decoration:none;transition:color .3s ease-in-out}a:hover{color:#e82}.title code{font-weight:bold}h2[id^="header-"]{margin-top:2em}.ident{color:#900}pre code{background:#f8f8f8;font-size:.8em;line-height:1.4em}code{background:#f2f2f1;padding:1px 4px;overflow-wrap:break-word}h1 code{background:transparent}pre{background:#f8f8f8;border:0;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin:1em 0;padding:1ex}#http-server-module-list{display:flex;flex-flow:column}#http-server-module-list div{display:flex}#http-server-module-list dt{min-width:10%}#http-server-module-list p{margin-top:0}.toc ul,#index{list-style-type:none;margin:0;padding:0}#index code{background:transparent}#index h3{border-bottom:1px solid #ddd}#index ul{padding:0}#index h4{margin-top:.6em;font-weight:bold}@media (min-width:200ex){#index .two-column{column-count:2}}@media (min-width:300ex){#index .two-column{column-count:3}}dl{margin-bottom:2em}dl dl:last-child{margin-bottom:4em}dd{margin:0 0 1em 3em}#header-classes + dl > dd{margin-bottom:3em}dd dd{margin-left:2em}dd p{margin:10px 0}.name{background:#eee;font-weight:bold;font-size:.85em;padding:5px 10px;display:inline-block;min-width:40%}.name:hover{background:#e0e0e0}dt:target .name{background:var(--highlight-color)}.name > span:first-child{white-space:nowrap}.name.class > span:nth-child(2){margin-left:.4em}.inherited{color:#999;border-left:5px solid #eee;padding-left:1em}.inheritance em{font-style:normal;font-weight:bold}.desc h2{font-weight:400;font-size:1.25em}.desc h3{font-size:1em}.desc dt code{background:inherit}.source summary,.git-link-div{color:#666;text-align:right;font-weight:400;font-size:.8em;text-transform:uppercase}.source summary > *{white-space:nowrap;cursor:pointer}.git-link{color:inherit;margin-left:1em}.source pre{max-height:500px;overflow:auto;margin:0}.source pre code{font-size:12px;overflow:visible}.hlist{list-style:none}.hlist li{display:inline}.hlist li:after{content:',\2002'}.hlist li:last-child:after{content:none}.hlist .hlist{display:inline;padding-left:1em}img{max-width:100%}td{padding:0 .5em}.admonition{padding:.1em .5em;margin-bottom:1em}.admonition-title{font-weight:bold}.admonition.note,.admonition.info,.admonition.important{background:#aef}.admonition.todo,.admonition.versionadded,.admonition.tip,.admonition.hint{background:#dfd}.admonition.warning,.admonition.versionchanged,.admonition.deprecated{background:#fd4}.admonition.error,.admonition.danger,.admonition.caution{background:lightpink}</style>
+<style media="screen and (min-width: 700px)">@media screen and (min-width:700px){#sidebar{width:30%;height:100vh;overflow:auto;position:sticky;top:0}#content{width:70%;max-width:100ch;padding:3em 4em;border-left:1px solid #ddd}pre code{font-size:1em}.item .name{font-size:1em}main{display:flex;flex-direction:row-reverse;justify-content:flex-end}.toc ul ul,#index ul{padding-left:1.5em}.toc > ul > li{margin-top:.5em}}</style>
+<style media="print">@media print{#sidebar h1{page-break-before:always}.source{display:none}}@media print{*{background:transparent !important;color:#000 !important;box-shadow:none !important;text-shadow:none !important}a[href]:after{content:" (" attr(href) ")";font-size:90%}a[href][title]:after{content:none}abbr[title]:after{content:" (" attr(title) ")"}.ir a:after,a[href^="javascript:"]:after,a[href^="#"]:after{content:""}pre,blockquote{border:1px solid #999;page-break-inside:avoid}thead{display:table-header-group}tr,img{page-break-inside:avoid}img{max-width:100% !important}@page{margin:0.5cm}p,h2,h3{orphans:3;widows:3}h1,h2,h3,h4,h5,h6{page-break-after:avoid}}</style>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.1.1/highlight.min.js" integrity="sha256-Uv3H6lx7dJmRfRvH8TH6kJD1TSK1aFcwgx+mdg3epi8=" crossorigin></script>
+<script>window.addEventListener('DOMContentLoaded', () => hljs.initHighlighting())</script>
+</head>
+<body>
+<main>
+<article id="content">
+<header>
+<h1 class="title">Module <code>biosignal_toolbox.ML_lib</code></h1>
+</header>
+<section id="section-intro">
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python"># *********************************************************************************
+# ************************* Imports ***********************************************
+# *********************************************************************************
+
+import numpy as np
+import matplotlib.pyplot as plt
+from tensorflow.keras.models import save_model
+from tensorflow.keras.models import load_model
+from time import perf_counter_ns
+from dtw import *
+import copy 
+
+import tensorflow as tf
+
+# *********************************************************************************
+# ************************* Methods ***********************************************
+# *********************************************************************************
+
+
+class MLModel: 
+
+    &#34;&#34;&#34;
+    This class contains methods to be used to run machine learning algorithms for the classification and evaluation of biosignals. 
+
+    Attributes:
+        type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type &#34;keras&#34; and &#34;dtw&#34; are implemented. 
+        model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.  
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    def __init__(self, type = &#34;keras&#34;, model = None, model_summary = False): 
+
+        &#34;&#34;&#34;
+        Constructor of the MLModel class.  
+
+        Attributes:
+            type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type &#34;keras&#34; and &#34;dtw&#34; are implemented. 
+            model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.
+            model_summary: Flag (boolean) if a summary of the model is printed (e.g. to show the size, parameters of a trained or created model)  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.type = type 
+        self.model = model 
+        
+        #self.use_input_norm = use_input_norm
+
+        if(model_summary): 
+            print(model.summary())
+
+
+    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = &#34;test&#34;,  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, loss_fcn = None, optimizer = None, metrics = &#34;accuracy&#34;):
+
+        &#34;&#34;&#34; 
+        This method trains a machine learning model that was passed or created. 
+
+        Attributes:
+            epochs: The number of epochs for the training of a model. 
+            batch_size: The batch size used for training the ML-model. 
+            shuffle: If data should be shuffled before training a model. 
+            class_weights: The weights of the classes if a classification task is performed. 
+            x_train: The training data or features as numpy array. The shape might depend on the input shape of each model. 
+            x_val: the validation data used in the training process as numpy array. The shape might depend on the input shape of each model. 
+            y_train: The class labels used for training. 
+            y_val: The class labels used for the validation data.
+            callbacks: A callback function passed to be applied in the training procedure.
+            loss_fcn: The loss function (string) used for training a ML-model, especially for neural networks.
+            optimizer: The optimizer (string) used in the optimization process (i.e. weight updates for networks) 
+            metrics: The metrics (string) used for the performance evaluation. 
+            perf_results: The performance results as numpy array. The shape depends on the type of classification (amount of classes). For binary classification are an array containing BA, TPR, TNR and ACC performance values. 
+            show_train_results: A flag (boolean) weather the training results are printed in the console.
+            save_trained_model: If flag (boolean) is True the trained model will be saved in the data folder. For a keras model the model is stored in .h5 format. 
+            model_filename: The filename (string) of the model to be saved. 
+
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.epochs = train_epochs
+        self.batch_size = batch_size
+        self.shuffle = shuffle 
+        self.class_weights = class_weights
+        self.x_train = x_train
+        self.x_val = x_val
+        self.y_val = y_val
+        self.y_train = y_train
+        self.callbacks = callbacks
+        self.loss_fcn = loss_fcn
+        self.optimizer = optimizer
+        self.metrics = metrics 
+        self.perf_results = None
+
+        # compile model 
+        if (self.type == &#34;keras&#34;): 
+            self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
+            history = self.model.fit(self.x_train,
+                                self.y_train,
+                                epochs  = self.epochs,
+                                batch_size= self.batch_size,
+                                shuffle = self.shuffle,
+                                class_weight=self.class_weights,
+                                validation_data = (self.x_val, self.y_val),
+                                callbacks = self.callbacks)
+        
+            # history of training process
+            history_dict = history.history
+            loss_values = history_dict[&#34;loss&#34;]
+            val_loss_values = history_dict[&#34;val_loss&#34;]
+            num_of_epochs = range(1, len(loss_values)+1)
+
+            if(show_train_results):
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize =(6, 8))
+                fig.subplots_adjust(hspace = 0.3)
+                ax1.plot(num_of_epochs, loss_values, &#34;bo&#34;, label=&#34;Training loss&#34;)
+                ax1.plot(num_of_epochs, val_loss_values, &#34;b&#34;, label=&#34;Validation loss&#34;)
+                ax1.set_xlabel(&#34;Epochs&#34;)
+                ax1.set_ylabel(&#34;Loss&#34;)
+                ax1.legend()
+                ax1.set_title(&#34;Loss values over trained epochs&#34;)
+
+                acc_values = history_dict[&#34;accuracy&#34;]
+                val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+                ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
+                ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
+                ax2.set_xlabel(&#34;Epochs&#34;)
+                ax2.set_ylabel(&#34;Accuracy&#34;)
+                ax2.legend()
+                ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+
+                plt.show()
+
+            val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+        if(save_trained_model): 
+            save_model(self.model, model_filename+&#34;.h5&#34;) # save 
+
+
+    def loadModel(self, filename, path = &#34;&#34;): 
+
+        &#34;&#34;&#34;
+        Load a ML-model stored in a specific folder.   
+
+        Attributes:
+            filename: The filename (string) of of the model to be loaded. 
+            path: The path (string) where the model is stored. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+
+        &#34;&#34;&#34;
+
+        self.model = load_model(filepath = path+filename+&#34;.h5&#34;)
+
+
+    def calcTestAccAndRates(self, prediction_labels, true_labels):
+
+        &#34;&#34;&#34;
+        Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
+
+        Attributes:
+            prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
+            true_labels: The true labels as one dimensional numpy array (flatten the array if it has more dimensions). 
+
+        Returns:
+            tnr: True negative rate 
+            tpr: True positive rate
+            acc: Accuracy
+            ba: Balanced accuracy
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 28.11.2022 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        prediction_labels = prediction_labels.astype(int)
+        true_labels = true_labels.astype(int)
+        
+        negatives = np.sum(np.abs(true_labels-1))
+        positives = np.sum(true_labels)
+        
+        n = len(true_labels)
+        tps= 0 
+        tns = 0
+        for index in range(0, n): 
+            if (prediction_labels[index] == 0 and true_labels[index] == 0):
+                tns = tns+1
+            elif (prediction_labels[index] == 1 and true_labels[index] == 1): 
+                tps = tps+1
+        tnr = tns/negatives
+        tpr = tps/positives
+        acc = ((tns+tps)/n) #in percent
+        ba = (tnr+tpr)/2
+
+        return tnr, tpr, acc, ba
+    
+    def calcPerformance(self, predictions, labels, encoding = &#34;binary&#34;, type=&#34;binary&#34;, show_results = False): 
+
+        &#34;&#34;&#34;
+        This method calculates the classification or regression performance of a trained model. Please note that this is only a helper function inside the class. 
+
+        Attributes:
+            predictions: The prediction scores (output ) of a trained ML-model as numpy array. 
+            labels: The true labels used to calculate the performances. 
+            encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+            type: The type (string) of the classification or regression task. Currently only &#34;binary&#34; classification is implemented. 
+
+        Returns:
+            tnr: True negative rate 
+            tpr: True positive rate
+            acc: Accuracy
+            ba: Balanced accuracy
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+        
+        if(type == &#34;binary&#34;):
+            if(encoding == &#34;onehotencoding&#34;): 
+                #print(predictions.shape)
+                predictions = predictions[:, 1] # convert to binary from onehotencoding 
+                labels = labels[:, 1]
+
+
+            elif(encoding == &#34;distance_array&#34;): # for dtw algorithm 
+                #print(&#34;predicitons shape&#34;, predictions.shape) # trials, channels
+                predictions_binary = []
+                for index in range(0, predictions.shape[0]): 
+                    if(predictions[index, 0] &lt; predictions[index, 1]): # first index is negative class second positive
+                        predictions_binary.append(0.0)
+                    else: 
+                        predictions_binary.append(1.0)
+
+                predictions = np.array(predictions_binary)
+
+            pred_labels = np.array([0 if score &lt;0.5 else 1 for score in predictions])
+            self.prediction_scores = np.array(predictions).flatten() # store predictions 
+            self.predicted_labels = pred_labels
+
+            tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
+            perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
+            self.perf_results = perf_results # store perf results 
+
+            if(show_results): 
+                print(&#34;&#34;)
+                print(&#34;Single trial metrics test data windows:&#34;)
+                print(&#34;TNR: &#34;,np.round(tnr, 3))
+                print(&#34;TPR: &#34;,np.round(tpr, 3))
+                print(&#34;Acc: &#34;, np.round(acc, 3))
+                print(&#34;BA: &#34;, np.round(ba, 3))
+                print(&#34;&#34;)
+                
+        else: 
+            self.prediction_scores = np.array(predictions) # not flatten because n classes
+            self.predicted_labels = np.argmax(self.prediction_scores, axis=1)
+
+            # print(&#34;acc&#34;, acc)
+            acc = 0.0 # not implemented 
+            perf_results = np.array([np.round(acc, 3)])
+            self.perf_results = perf_results
+
+            if(show_results): 
+                print(&#34;&#34;)
+                print(&#34;Single trial metrics test data windows:&#34;)
+                print(&#34;Acc: &#34;, np.round(acc, 3))
+                print(&#34;&#34;)
+
+    
+    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None): 
+        
+        &#34;&#34;&#34;
+        This method is used to do predictions on new data using a trained model (if training is required). 
+
+        Attributes:
+            data: The data (numpy array) on which the prediction should be done. The shape depends on the input shape of the model. 
+            labels: The true class labels (for a classification task) as 1D numpy array. Not required for eval_type = &#34;online&#34; since no ground truth labels are available. 
+            encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+            n_classes: The number of classes (int) for which the predictions are made. 
+            show_results: A flag (boolean) weather to show the results of the predictions. for eval_type = &#34;online&#34; the results are not shown to save computation time. 
+            show_pred_time: A flag (boolean) weather to show how long the time was to perform the prediction on the data provided. 
+            eval_type: The type (string) of the evaluation. Can be either &#34;offline&#34; or &#34;online&#34;. For &#34;offline&#34; results are shown by default and prediction times can be measured. For &#34;online&#34; only the prediction scores are calculated and not further evaluated into a performance. 
+            templates: If using the &#34;dtw&#34; or another matching algorithm (unsupervised), the templates as numpy array with shape (n_channels, n_sampels) (e.g. for the dtw algorithm). 
+    
+            
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        if(self.type == &#34;keras&#34;): 
+
+            if(eval_type == &#34;offline&#34;): 
+                if (show_pred_time): 
+                    time1 = perf_counter_ns()
+                
+                print(&#34;data shape input &#34;, data.shape)
+                predictions = self.model(data) # call the model, is a lot faster than using predict method 
+
+                if(show_pred_time): 
+                    time2 = perf_counter_ns()
+                    print(&#34;pred time ms&#34;, (time2-time1)/1000000)
+
+                if (n_classes == 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                elif (n_classes &gt; 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+
+            elif(eval_type == &#34;online&#34;):
+                
+                self.prediction_scores =  np.array(self.model(data)).flatten()
+
+        elif(self.type == &#34;dtw&#34;): 
+            #templates have shape n_train, channel, sampels 
+            
+
+            predictions = []
+            if(eval_type == &#34;offline&#34;): 
+                if(n_classes == 2): 
+                    
+                    print(&#34;xtrain shape&#34;, data.shape)
+                    for train_idx in range(0, data.shape[0]):
+                        distances_pos_class = []
+                        distances_neg_class = []
+                        for channel_idx in range(0, data.shape[1]): 
+                            
+                            # pos class distances 
+                            dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                            distances_pos_class.append(dtw_obj_pos_class.distance)
+                            #neg class 
+                            dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                            distances_neg_class.append(dtw_obj_neg_class.distance)
+
+                        
+
+                        if(treshold): 
+                            predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
+                        else: 
+                            predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
+
+                    predictions = np.array(predictions)
+                    print(&#34;len pos class&#34;, len(distances_pos_class))
+
+                    if(treshold): 
+                        print(&#34;Distances:&#34;, predictions)
+                        predictions = (predictions &lt; treshold).astype(float)
+                        self.calcPerformance(predictions = predictions, encoding = &#34;binary&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                    else: 
+                        self.calcPerformance(predictions = predictions, encoding = &#34;distance_array&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+
+
+                else: 
+                    print(&#34;not implemented ... &#34;)
+
+            else: 
+                print(&#34;not implemented&#34;)
+            
+
+    def getPerfResults(self): 
+
+        &#34;&#34;&#34;
+        This method returns the performance results after a prediction was performed. 
+
+        Returns:
+            perf_results: An array (1D numpy array) with the performance results depending on the type of classification or regression task. For binary classification the array contains BA, TPR, TNR and ACC. For multiclass, only the ACC is currently returned. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        return self.perf_results
+    
+    def modelSummary(self): 
+
+        &#34;&#34;&#34;
+        This method prints a summary of a created ML-model.  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.model.summary()
+
+    def getPredictionScores(self): 
+
+        &#34;&#34;&#34;
+        This method returns the unprocessed prediction scores. This is usually a value between 0 and 1 from e.g. a sigmoidal fit. 
+
+        Returns: 
+            prediction_scores: The prediction scores (1D numpy array) for every predicted instance (n_predictions). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        return self.prediction_scores</code></pre>
+</details>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+</section>
+<section>
+<h2 class="section-title" id="header-classes">Classes</h2>
+<dl>
+<dt id="biosignal_toolbox.ML_lib.MLModel"><code class="flex name class">
+<span>class <span class="ident">MLModel</span></span>
+<span>(</span><span>type='keras', model=None, model_summary=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This class contains methods to be used to run machine learning algorithms for the classification and evaluation of biosignals. </p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>type</code></strong></dt>
+<dd>The type of the machine learning model (string) that should be used for the classification or regression task. Currently type "keras" and "dtw" are implemented. </dd>
+<dt><strong><code>model</code></strong></dt>
+<dd>The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.
+</dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 16.11.2023 (by Niklas Kueper)</p>
+<p>Constructor of the MLModel class.
+</p>
+<h2 id="attributes_1">Attributes</h2>
+<dl>
+<dt><strong><code>type</code></strong></dt>
+<dd>The type of the machine learning model (string) that should be used for the classification or regression task. Currently type "keras" and "dtw" are implemented. </dd>
+<dt><strong><code>model</code></strong></dt>
+<dd>The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.</dd>
+<dt><strong><code>model_summary</code></strong></dt>
+<dd>Flag (boolean) if a summary of the model is printed (e.g. to show the size, parameters of a trained or created model)
+</dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 16.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class MLModel: 
+
+    &#34;&#34;&#34;
+    This class contains methods to be used to run machine learning algorithms for the classification and evaluation of biosignals. 
+
+    Attributes:
+        type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type &#34;keras&#34; and &#34;dtw&#34; are implemented. 
+        model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.  
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    def __init__(self, type = &#34;keras&#34;, model = None, model_summary = False): 
+
+        &#34;&#34;&#34;
+        Constructor of the MLModel class.  
+
+        Attributes:
+            type: The type of the machine learning model (string) that should be used for the classification or regression task. Currently type &#34;keras&#34; and &#34;dtw&#34; are implemented. 
+            model: The model passed for further actions to be taken, if an instance of model can be created. Currently only a model instance of a keras model can be passed.
+            model_summary: Flag (boolean) if a summary of the model is printed (e.g. to show the size, parameters of a trained or created model)  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.type = type 
+        self.model = model 
+        
+        #self.use_input_norm = use_input_norm
+
+        if(model_summary): 
+            print(model.summary())
+
+
+    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = &#34;test&#34;,  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, loss_fcn = None, optimizer = None, metrics = &#34;accuracy&#34;):
+
+        &#34;&#34;&#34; 
+        This method trains a machine learning model that was passed or created. 
+
+        Attributes:
+            epochs: The number of epochs for the training of a model. 
+            batch_size: The batch size used for training the ML-model. 
+            shuffle: If data should be shuffled before training a model. 
+            class_weights: The weights of the classes if a classification task is performed. 
+            x_train: The training data or features as numpy array. The shape might depend on the input shape of each model. 
+            x_val: the validation data used in the training process as numpy array. The shape might depend on the input shape of each model. 
+            y_train: The class labels used for training. 
+            y_val: The class labels used for the validation data.
+            callbacks: A callback function passed to be applied in the training procedure.
+            loss_fcn: The loss function (string) used for training a ML-model, especially for neural networks.
+            optimizer: The optimizer (string) used in the optimization process (i.e. weight updates for networks) 
+            metrics: The metrics (string) used for the performance evaluation. 
+            perf_results: The performance results as numpy array. The shape depends on the type of classification (amount of classes). For binary classification are an array containing BA, TPR, TNR and ACC performance values. 
+            show_train_results: A flag (boolean) weather the training results are printed in the console.
+            save_trained_model: If flag (boolean) is True the trained model will be saved in the data folder. For a keras model the model is stored in .h5 format. 
+            model_filename: The filename (string) of the model to be saved. 
+
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.epochs = train_epochs
+        self.batch_size = batch_size
+        self.shuffle = shuffle 
+        self.class_weights = class_weights
+        self.x_train = x_train
+        self.x_val = x_val
+        self.y_val = y_val
+        self.y_train = y_train
+        self.callbacks = callbacks
+        self.loss_fcn = loss_fcn
+        self.optimizer = optimizer
+        self.metrics = metrics 
+        self.perf_results = None
+
+        # compile model 
+        if (self.type == &#34;keras&#34;): 
+            self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
+            history = self.model.fit(self.x_train,
+                                self.y_train,
+                                epochs  = self.epochs,
+                                batch_size= self.batch_size,
+                                shuffle = self.shuffle,
+                                class_weight=self.class_weights,
+                                validation_data = (self.x_val, self.y_val),
+                                callbacks = self.callbacks)
+        
+            # history of training process
+            history_dict = history.history
+            loss_values = history_dict[&#34;loss&#34;]
+            val_loss_values = history_dict[&#34;val_loss&#34;]
+            num_of_epochs = range(1, len(loss_values)+1)
+
+            if(show_train_results):
+                fig, (ax1, ax2) = plt.subplots(2, 1, figsize =(6, 8))
+                fig.subplots_adjust(hspace = 0.3)
+                ax1.plot(num_of_epochs, loss_values, &#34;bo&#34;, label=&#34;Training loss&#34;)
+                ax1.plot(num_of_epochs, val_loss_values, &#34;b&#34;, label=&#34;Validation loss&#34;)
+                ax1.set_xlabel(&#34;Epochs&#34;)
+                ax1.set_ylabel(&#34;Loss&#34;)
+                ax1.legend()
+                ax1.set_title(&#34;Loss values over trained epochs&#34;)
+
+                acc_values = history_dict[&#34;accuracy&#34;]
+                val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+                ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
+                ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
+                ax2.set_xlabel(&#34;Epochs&#34;)
+                ax2.set_ylabel(&#34;Accuracy&#34;)
+                ax2.legend()
+                ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+
+                plt.show()
+
+            val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+        if(save_trained_model): 
+            save_model(self.model, model_filename+&#34;.h5&#34;) # save 
+
+
+    def loadModel(self, filename, path = &#34;&#34;): 
+
+        &#34;&#34;&#34;
+        Load a ML-model stored in a specific folder.   
+
+        Attributes:
+            filename: The filename (string) of of the model to be loaded. 
+            path: The path (string) where the model is stored. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+
+        &#34;&#34;&#34;
+
+        self.model = load_model(filepath = path+filename+&#34;.h5&#34;)
+
+
+    def calcTestAccAndRates(self, prediction_labels, true_labels):
+
+        &#34;&#34;&#34;
+        Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
+
+        Attributes:
+            prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
+            true_labels: The true labels as one dimensional numpy array (flatten the array if it has more dimensions). 
+
+        Returns:
+            tnr: True negative rate 
+            tpr: True positive rate
+            acc: Accuracy
+            ba: Balanced accuracy
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 28.11.2022 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        prediction_labels = prediction_labels.astype(int)
+        true_labels = true_labels.astype(int)
+        
+        negatives = np.sum(np.abs(true_labels-1))
+        positives = np.sum(true_labels)
+        
+        n = len(true_labels)
+        tps= 0 
+        tns = 0
+        for index in range(0, n): 
+            if (prediction_labels[index] == 0 and true_labels[index] == 0):
+                tns = tns+1
+            elif (prediction_labels[index] == 1 and true_labels[index] == 1): 
+                tps = tps+1
+        tnr = tns/negatives
+        tpr = tps/positives
+        acc = ((tns+tps)/n) #in percent
+        ba = (tnr+tpr)/2
+
+        return tnr, tpr, acc, ba
+    
+    def calcPerformance(self, predictions, labels, encoding = &#34;binary&#34;, type=&#34;binary&#34;, show_results = False): 
+
+        &#34;&#34;&#34;
+        This method calculates the classification or regression performance of a trained model. Please note that this is only a helper function inside the class. 
+
+        Attributes:
+            predictions: The prediction scores (output ) of a trained ML-model as numpy array. 
+            labels: The true labels used to calculate the performances. 
+            encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+            type: The type (string) of the classification or regression task. Currently only &#34;binary&#34; classification is implemented. 
+
+        Returns:
+            tnr: True negative rate 
+            tpr: True positive rate
+            acc: Accuracy
+            ba: Balanced accuracy
+        
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 16.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+        
+        if(type == &#34;binary&#34;):
+            if(encoding == &#34;onehotencoding&#34;): 
+                #print(predictions.shape)
+                predictions = predictions[:, 1] # convert to binary from onehotencoding 
+                labels = labels[:, 1]
+
+
+            elif(encoding == &#34;distance_array&#34;): # for dtw algorithm 
+                #print(&#34;predicitons shape&#34;, predictions.shape) # trials, channels
+                predictions_binary = []
+                for index in range(0, predictions.shape[0]): 
+                    if(predictions[index, 0] &lt; predictions[index, 1]): # first index is negative class second positive
+                        predictions_binary.append(0.0)
+                    else: 
+                        predictions_binary.append(1.0)
+
+                predictions = np.array(predictions_binary)
+
+            pred_labels = np.array([0 if score &lt;0.5 else 1 for score in predictions])
+            self.prediction_scores = np.array(predictions).flatten() # store predictions 
+            self.predicted_labels = pred_labels
+
+            tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
+            perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
+            self.perf_results = perf_results # store perf results 
+
+            if(show_results): 
+                print(&#34;&#34;)
+                print(&#34;Single trial metrics test data windows:&#34;)
+                print(&#34;TNR: &#34;,np.round(tnr, 3))
+                print(&#34;TPR: &#34;,np.round(tpr, 3))
+                print(&#34;Acc: &#34;, np.round(acc, 3))
+                print(&#34;BA: &#34;, np.round(ba, 3))
+                print(&#34;&#34;)
+                
+        else: 
+            self.prediction_scores = np.array(predictions) # not flatten because n classes
+            self.predicted_labels = np.argmax(self.prediction_scores, axis=1)
+
+            # print(&#34;acc&#34;, acc)
+            acc = 0.0 # not implemented 
+            perf_results = np.array([np.round(acc, 3)])
+            self.perf_results = perf_results
+
+            if(show_results): 
+                print(&#34;&#34;)
+                print(&#34;Single trial metrics test data windows:&#34;)
+                print(&#34;Acc: &#34;, np.round(acc, 3))
+                print(&#34;&#34;)
+
+    
+    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None): 
+        
+        &#34;&#34;&#34;
+        This method is used to do predictions on new data using a trained model (if training is required). 
+
+        Attributes:
+            data: The data (numpy array) on which the prediction should be done. The shape depends on the input shape of the model. 
+            labels: The true class labels (for a classification task) as 1D numpy array. Not required for eval_type = &#34;online&#34; since no ground truth labels are available. 
+            encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+            n_classes: The number of classes (int) for which the predictions are made. 
+            show_results: A flag (boolean) weather to show the results of the predictions. for eval_type = &#34;online&#34; the results are not shown to save computation time. 
+            show_pred_time: A flag (boolean) weather to show how long the time was to perform the prediction on the data provided. 
+            eval_type: The type (string) of the evaluation. Can be either &#34;offline&#34; or &#34;online&#34;. For &#34;offline&#34; results are shown by default and prediction times can be measured. For &#34;online&#34; only the prediction scores are calculated and not further evaluated into a performance. 
+            templates: If using the &#34;dtw&#34; or another matching algorithm (unsupervised), the templates as numpy array with shape (n_channels, n_sampels) (e.g. for the dtw algorithm). 
+    
+            
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        if(self.type == &#34;keras&#34;): 
+
+            if(eval_type == &#34;offline&#34;): 
+                if (show_pred_time): 
+                    time1 = perf_counter_ns()
+                
+                print(&#34;data shape input &#34;, data.shape)
+                predictions = self.model(data) # call the model, is a lot faster than using predict method 
+
+                if(show_pred_time): 
+                    time2 = perf_counter_ns()
+                    print(&#34;pred time ms&#34;, (time2-time1)/1000000)
+
+                if (n_classes == 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                elif (n_classes &gt; 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+
+            elif(eval_type == &#34;online&#34;):
+                
+                self.prediction_scores =  np.array(self.model(data)).flatten()
+
+        elif(self.type == &#34;dtw&#34;): 
+            #templates have shape n_train, channel, sampels 
+            
+
+            predictions = []
+            if(eval_type == &#34;offline&#34;): 
+                if(n_classes == 2): 
+                    
+                    print(&#34;xtrain shape&#34;, data.shape)
+                    for train_idx in range(0, data.shape[0]):
+                        distances_pos_class = []
+                        distances_neg_class = []
+                        for channel_idx in range(0, data.shape[1]): 
+                            
+                            # pos class distances 
+                            dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                            distances_pos_class.append(dtw_obj_pos_class.distance)
+                            #neg class 
+                            dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                            distances_neg_class.append(dtw_obj_neg_class.distance)
+
+                        
+
+                        if(treshold): 
+                            predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
+                        else: 
+                            predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
+
+                    predictions = np.array(predictions)
+                    print(&#34;len pos class&#34;, len(distances_pos_class))
+
+                    if(treshold): 
+                        print(&#34;Distances:&#34;, predictions)
+                        predictions = (predictions &lt; treshold).astype(float)
+                        self.calcPerformance(predictions = predictions, encoding = &#34;binary&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                    else: 
+                        self.calcPerformance(predictions = predictions, encoding = &#34;distance_array&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+
+
+                else: 
+                    print(&#34;not implemented ... &#34;)
+
+            else: 
+                print(&#34;not implemented&#34;)
+            
+
+    def getPerfResults(self): 
+
+        &#34;&#34;&#34;
+        This method returns the performance results after a prediction was performed. 
+
+        Returns:
+            perf_results: An array (1D numpy array) with the performance results depending on the type of classification or regression task. For binary classification the array contains BA, TPR, TNR and ACC. For multiclass, only the ACC is currently returned. 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        return self.perf_results
+    
+    def modelSummary(self): 
+
+        &#34;&#34;&#34;
+        This method prints a summary of a created ML-model.  
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        self.model.summary()
+
+    def getPredictionScores(self): 
+
+        &#34;&#34;&#34;
+        This method returns the unprocessed prediction scores. This is usually a value between 0 and 1 from e.g. a sigmoidal fit. 
+
+        Returns: 
+            prediction_scores: The prediction scores (1D numpy array) for every predicted instance (n_predictions). 
+
+        Meta information: 
+            Author: Niklas Kueper 
+            Last changed: 17.11.2023 (by Niklas Kueper)
+        &#34;&#34;&#34;
+
+        return self.prediction_scores</code></pre>
+</details>
+<h3>Methods</h3>
+<dl>
+<dt id="biosignal_toolbox.ML_lib.MLModel.calcPerformance"><code class="name flex">
+<span>def <span class="ident">calcPerformance</span></span>(<span>self, predictions, labels, encoding='binary', type='binary', show_results=False)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method calculates the classification or regression performance of a trained model. Please note that this is only a helper function inside the class. </p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>predictions</code></strong></dt>
+<dd>The prediction scores (output ) of a trained ML-model as numpy array. </dd>
+<dt><strong><code>labels</code></strong></dt>
+<dd>The true labels used to calculate the performances. </dd>
+<dt><strong><code>encoding</code></strong></dt>
+<dd>The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.</dd>
+<dt><strong><code>type</code></strong></dt>
+<dd>The type (string) of the classification or regression task. Currently only "binary" classification is implemented. </dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tnr</code></dt>
+<dd>True negative rate </dd>
+<dt><code>tpr</code></dt>
+<dd>True positive rate</dd>
+<dt><code>acc</code></dt>
+<dd>Accuracy</dd>
+<dt><code>ba</code></dt>
+<dd>Balanced accuracy</dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 16.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calcPerformance(self, predictions, labels, encoding = &#34;binary&#34;, type=&#34;binary&#34;, show_results = False): 
+
+    &#34;&#34;&#34;
+    This method calculates the classification or regression performance of a trained model. Please note that this is only a helper function inside the class. 
+
+    Attributes:
+        predictions: The prediction scores (output ) of a trained ML-model as numpy array. 
+        labels: The true labels used to calculate the performances. 
+        encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+        type: The type (string) of the classification or regression task. Currently only &#34;binary&#34; classification is implemented. 
+
+    Returns:
+        tnr: True negative rate 
+        tpr: True positive rate
+        acc: Accuracy
+        ba: Balanced accuracy
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+    
+    if(type == &#34;binary&#34;):
+        if(encoding == &#34;onehotencoding&#34;): 
+            #print(predictions.shape)
+            predictions = predictions[:, 1] # convert to binary from onehotencoding 
+            labels = labels[:, 1]
+
+
+        elif(encoding == &#34;distance_array&#34;): # for dtw algorithm 
+            #print(&#34;predicitons shape&#34;, predictions.shape) # trials, channels
+            predictions_binary = []
+            for index in range(0, predictions.shape[0]): 
+                if(predictions[index, 0] &lt; predictions[index, 1]): # first index is negative class second positive
+                    predictions_binary.append(0.0)
+                else: 
+                    predictions_binary.append(1.0)
+
+            predictions = np.array(predictions_binary)
+
+        pred_labels = np.array([0 if score &lt;0.5 else 1 for score in predictions])
+        self.prediction_scores = np.array(predictions).flatten() # store predictions 
+        self.predicted_labels = pred_labels
+
+        tnr, tpr, acc, ba = self.calcTestAccAndRates(pred_labels.flatten(), labels.flatten())
+        perf_results = np.array([np.round(ba, 3), np.round(tpr, 3), np.round(tnr, 3), np.round(acc, 3)])
+        self.perf_results = perf_results # store perf results 
+
+        if(show_results): 
+            print(&#34;&#34;)
+            print(&#34;Single trial metrics test data windows:&#34;)
+            print(&#34;TNR: &#34;,np.round(tnr, 3))
+            print(&#34;TPR: &#34;,np.round(tpr, 3))
+            print(&#34;Acc: &#34;, np.round(acc, 3))
+            print(&#34;BA: &#34;, np.round(ba, 3))
+            print(&#34;&#34;)
+            
+    else: 
+        self.prediction_scores = np.array(predictions) # not flatten because n classes
+        self.predicted_labels = np.argmax(self.prediction_scores, axis=1)
+
+        # print(&#34;acc&#34;, acc)
+        acc = 0.0 # not implemented 
+        perf_results = np.array([np.round(acc, 3)])
+        self.perf_results = perf_results
+
+        if(show_results): 
+            print(&#34;&#34;)
+            print(&#34;Single trial metrics test data windows:&#34;)
+            print(&#34;Acc: &#34;, np.round(acc, 3))
+            print(&#34;&#34;)</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.calcTestAccAndRates"><code class="name flex">
+<span>def <span class="ident">calcTestAccAndRates</span></span>(<span>self, prediction_labels, true_labels)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,
+tnr and tpr are calculated. </p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>prediction_labels</code></strong></dt>
+<dd>The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).</dd>
+<dt><strong><code>true_labels</code></strong></dt>
+<dd>The true labels as one dimensional numpy array (flatten the array if it has more dimensions). </dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tnr</code></dt>
+<dd>True negative rate </dd>
+<dt><code>tpr</code></dt>
+<dd>True positive rate</dd>
+<dt><code>acc</code></dt>
+<dd>Accuracy</dd>
+<dt><code>ba</code></dt>
+<dd>Balanced accuracy</dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 28.11.2022 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calcTestAccAndRates(self, prediction_labels, true_labels):
+
+    &#34;&#34;&#34;
+    Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
+
+    Attributes:
+        prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
+        true_labels: The true labels as one dimensional numpy array (flatten the array if it has more dimensions). 
+
+    Returns:
+        tnr: True negative rate 
+        tpr: True positive rate
+        acc: Accuracy
+        ba: Balanced accuracy
+    
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 28.11.2022 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    prediction_labels = prediction_labels.astype(int)
+    true_labels = true_labels.astype(int)
+    
+    negatives = np.sum(np.abs(true_labels-1))
+    positives = np.sum(true_labels)
+    
+    n = len(true_labels)
+    tps= 0 
+    tns = 0
+    for index in range(0, n): 
+        if (prediction_labels[index] == 0 and true_labels[index] == 0):
+            tns = tns+1
+        elif (prediction_labels[index] == 1 and true_labels[index] == 1): 
+            tps = tps+1
+    tnr = tns/negatives
+    tpr = tps/positives
+    acc = ((tns+tps)/n) #in percent
+    ba = (tnr+tpr)/2
+
+    return tnr, tpr, acc, ba</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.getPerfResults"><code class="name flex">
+<span>def <span class="ident">getPerfResults</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method returns the performance results after a prediction was performed. </p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>perf_results</code></dt>
+<dd>An array (1D numpy array) with the performance results depending on the type of classification or regression task. For binary classification the array contains BA, TPR, TNR and ACC. For multiclass, only the ACC is currently returned. </dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 17.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def getPerfResults(self): 
+
+    &#34;&#34;&#34;
+    This method returns the performance results after a prediction was performed. 
+
+    Returns:
+        perf_results: An array (1D numpy array) with the performance results depending on the type of classification or regression task. For binary classification the array contains BA, TPR, TNR and ACC. For multiclass, only the ACC is currently returned. 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 17.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    return self.perf_results</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.getPredictionScores"><code class="name flex">
+<span>def <span class="ident">getPredictionScores</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method returns the unprocessed prediction scores. This is usually a value between 0 and 1 from e.g. a sigmoidal fit. </p>
+<p>Returns:
+prediction_scores: The prediction scores (1D numpy array) for every predicted instance (n_predictions). </p>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 17.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def getPredictionScores(self): 
+
+    &#34;&#34;&#34;
+    This method returns the unprocessed prediction scores. This is usually a value between 0 and 1 from e.g. a sigmoidal fit. 
+
+    Returns: 
+        prediction_scores: The prediction scores (1D numpy array) for every predicted instance (n_predictions). 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 17.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    return self.prediction_scores</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.loadModel"><code class="name flex">
+<span>def <span class="ident">loadModel</span></span>(<span>self, filename, path='')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>Load a ML-model stored in a specific folder.
+</p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>filename</code></strong></dt>
+<dd>The filename (string) of of the model to be loaded. </dd>
+<dt><strong><code>path</code></strong></dt>
+<dd>The path (string) where the model is stored. </dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 16.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def loadModel(self, filename, path = &#34;&#34;): 
+
+    &#34;&#34;&#34;
+    Load a ML-model stored in a specific folder.   
+
+    Attributes:
+        filename: The filename (string) of of the model to be loaded. 
+        path: The path (string) where the model is stored. 
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+
+    &#34;&#34;&#34;
+
+    self.model = load_model(filepath = path+filename+&#34;.h5&#34;)</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.modelSummary"><code class="name flex">
+<span>def <span class="ident">modelSummary</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method prints a summary of a created ML-model.
+</p>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 17.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def modelSummary(self): 
+
+    &#34;&#34;&#34;
+    This method prints a summary of a created ML-model.  
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 17.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    self.model.summary()</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.predict"><code class="name flex">
+<span>def <span class="ident">predict</span></span>(<span>self, data, labels=None, encoding='binary', n_classes=2, show_results=True, show_pred_time=False, eval_type='offline', templates=None, treshold=None)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method is used to do predictions on new data using a trained model (if training is required). </p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>data</code></strong></dt>
+<dd>The data (numpy array) on which the prediction should be done. The shape depends on the input shape of the model. </dd>
+<dt><strong><code>labels</code></strong></dt>
+<dd>The true class labels (for a classification task) as 1D numpy array. Not required for eval_type = "online" since no ground truth labels are available. </dd>
+<dt><strong><code>encoding</code></strong></dt>
+<dd>The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.</dd>
+<dt><strong><code>n_classes</code></strong></dt>
+<dd>The number of classes (int) for which the predictions are made. </dd>
+<dt><strong><code>show_results</code></strong></dt>
+<dd>A flag (boolean) weather to show the results of the predictions. for eval_type = "online" the results are not shown to save computation time. </dd>
+<dt><strong><code>show_pred_time</code></strong></dt>
+<dd>A flag (boolean) weather to show how long the time was to perform the prediction on the data provided. </dd>
+<dt><strong><code>eval_type</code></strong></dt>
+<dd>The type (string) of the evaluation. Can be either "offline" or "online". For "offline" results are shown by default and prediction times can be measured. For "online" only the prediction scores are calculated and not further evaluated into a performance. </dd>
+<dt><strong><code>templates</code></strong></dt>
+<dd>If using the "dtw" or another matching algorithm (unsupervised), the templates as numpy array with shape (n_channels, n_sampels) (e.g. for the dtw algorithm). </dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 17.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None): 
+    
+    &#34;&#34;&#34;
+    This method is used to do predictions on new data using a trained model (if training is required). 
+
+    Attributes:
+        data: The data (numpy array) on which the prediction should be done. The shape depends on the input shape of the model. 
+        labels: The true class labels (for a classification task) as 1D numpy array. Not required for eval_type = &#34;online&#34; since no ground truth labels are available. 
+        encoding: The encoding of the class labels (string), can be &#34;binary&#34; for 0.0 and 1.0 as class labels, &#34;onehotencoding&#34; for onehotencoded labels or &#34;distance_array&#34; for unsupervised methods like the the dtw algorithm.
+        n_classes: The number of classes (int) for which the predictions are made. 
+        show_results: A flag (boolean) weather to show the results of the predictions. for eval_type = &#34;online&#34; the results are not shown to save computation time. 
+        show_pred_time: A flag (boolean) weather to show how long the time was to perform the prediction on the data provided. 
+        eval_type: The type (string) of the evaluation. Can be either &#34;offline&#34; or &#34;online&#34;. For &#34;offline&#34; results are shown by default and prediction times can be measured. For &#34;online&#34; only the prediction scores are calculated and not further evaluated into a performance. 
+        templates: If using the &#34;dtw&#34; or another matching algorithm (unsupervised), the templates as numpy array with shape (n_channels, n_sampels) (e.g. for the dtw algorithm). 
+
+        
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 17.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    if(self.type == &#34;keras&#34;): 
+
+        if(eval_type == &#34;offline&#34;): 
+            if (show_pred_time): 
+                time1 = perf_counter_ns()
+            
+            print(&#34;data shape input &#34;, data.shape)
+            predictions = self.model(data) # call the model, is a lot faster than using predict method 
+
+            if(show_pred_time): 
+                time2 = perf_counter_ns()
+                print(&#34;pred time ms&#34;, (time2-time1)/1000000)
+
+            if (n_classes == 2): 
+                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+            elif (n_classes &gt; 2): 
+                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+
+        elif(eval_type == &#34;online&#34;):
+            
+            self.prediction_scores =  np.array(self.model(data)).flatten()
+
+    elif(self.type == &#34;dtw&#34;): 
+        #templates have shape n_train, channel, sampels 
+        
+
+        predictions = []
+        if(eval_type == &#34;offline&#34;): 
+            if(n_classes == 2): 
+                
+                print(&#34;xtrain shape&#34;, data.shape)
+                for train_idx in range(0, data.shape[0]):
+                    distances_pos_class = []
+                    distances_neg_class = []
+                    for channel_idx in range(0, data.shape[1]): 
+                        
+                        # pos class distances 
+                        dtw_obj_pos_class = dtw(data[train_idx, channel_idx, :], y=templates[1][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                        distances_pos_class.append(dtw_obj_pos_class.distance)
+                        #neg class 
+                        dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
+                        distances_neg_class.append(dtw_obj_neg_class.distance)
+
+                    
+
+                    if(treshold): 
+                        predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
+                    else: 
+                        predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
+
+                predictions = np.array(predictions)
+                print(&#34;len pos class&#34;, len(distances_pos_class))
+
+                if(treshold): 
+                    print(&#34;Distances:&#34;, predictions)
+                    predictions = (predictions &lt; treshold).astype(float)
+                    self.calcPerformance(predictions = predictions, encoding = &#34;binary&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                else: 
+                    self.calcPerformance(predictions = predictions, encoding = &#34;distance_array&#34;, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+
+
+            else: 
+                print(&#34;not implemented ... &#34;)
+
+        else: 
+            print(&#34;not implemented&#34;)</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.trainModel"><code class="name flex">
+<span>def <span class="ident">trainModel</span></span>(<span>self, show_train_results=False, save_trained_model=False, model_filename='test', train_epochs=10, batch_size=16, shuffle=True, class_weights=None, x_train=None, y_train=None, x_val=None, y_val=None, callbacks=None, loss_fcn=None, optimizer=None, metrics='accuracy')</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method trains a machine learning model that was passed or created. </p>
+<h2 id="attributes">Attributes</h2>
+<dl>
+<dt><strong><code>epochs</code></strong></dt>
+<dd>The number of epochs for the training of a model. </dd>
+<dt><strong><code>batch_size</code></strong></dt>
+<dd>The batch size used for training the ML-model. </dd>
+<dt><strong><code>shuffle</code></strong></dt>
+<dd>If data should be shuffled before training a model. </dd>
+<dt><strong><code>class_weights</code></strong></dt>
+<dd>The weights of the classes if a classification task is performed. </dd>
+<dt><strong><code>x_train</code></strong></dt>
+<dd>The training data or features as numpy array. The shape might depend on the input shape of each model. </dd>
+<dt><strong><code>x_val</code></strong></dt>
+<dd>the validation data used in the training process as numpy array. The shape might depend on the input shape of each model. </dd>
+<dt><strong><code>y_train</code></strong></dt>
+<dd>The class labels used for training. </dd>
+<dt><strong><code>y_val</code></strong></dt>
+<dd>The class labels used for the validation data.</dd>
+<dt><strong><code>callbacks</code></strong></dt>
+<dd>A callback function passed to be applied in the training procedure.</dd>
+<dt><strong><code>loss_fcn</code></strong></dt>
+<dd>The loss function (string) used for training a ML-model, especially for neural networks.</dd>
+<dt><strong><code>optimizer</code></strong></dt>
+<dd>The optimizer (string) used in the optimization process (i.e. weight updates for networks) </dd>
+<dt><strong><code>metrics</code></strong></dt>
+<dd>The metrics (string) used for the performance evaluation. </dd>
+<dt><strong><code>perf_results</code></strong></dt>
+<dd>The performance results as numpy array. The shape depends on the type of classification (amount of classes). For binary classification are an array containing BA, TPR, TNR and ACC performance values. </dd>
+<dt><strong><code>show_train_results</code></strong></dt>
+<dd>A flag (boolean) weather the training results are printed in the console.</dd>
+<dt><strong><code>save_trained_model</code></strong></dt>
+<dd>If flag (boolean) is True the trained model will be saved in the data folder. For a keras model the model is stored in .h5 format. </dd>
+<dt><strong><code>model_filename</code></strong></dt>
+<dd>The filename (string) of the model to be saved. </dd>
+</dl>
+<p>Meta information:
+Author: Niklas Kueper
+Last changed: 16.11.2023 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = &#34;test&#34;,  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, loss_fcn = None, optimizer = None, metrics = &#34;accuracy&#34;):
+
+    &#34;&#34;&#34; 
+    This method trains a machine learning model that was passed or created. 
+
+    Attributes:
+        epochs: The number of epochs for the training of a model. 
+        batch_size: The batch size used for training the ML-model. 
+        shuffle: If data should be shuffled before training a model. 
+        class_weights: The weights of the classes if a classification task is performed. 
+        x_train: The training data or features as numpy array. The shape might depend on the input shape of each model. 
+        x_val: the validation data used in the training process as numpy array. The shape might depend on the input shape of each model. 
+        y_train: The class labels used for training. 
+        y_val: The class labels used for the validation data.
+        callbacks: A callback function passed to be applied in the training procedure.
+        loss_fcn: The loss function (string) used for training a ML-model, especially for neural networks.
+        optimizer: The optimizer (string) used in the optimization process (i.e. weight updates for networks) 
+        metrics: The metrics (string) used for the performance evaluation. 
+        perf_results: The performance results as numpy array. The shape depends on the type of classification (amount of classes). For binary classification are an array containing BA, TPR, TNR and ACC performance values. 
+        show_train_results: A flag (boolean) weather the training results are printed in the console.
+        save_trained_model: If flag (boolean) is True the trained model will be saved in the data folder. For a keras model the model is stored in .h5 format. 
+        model_filename: The filename (string) of the model to be saved. 
+
+
+    Meta information: 
+        Author: Niklas Kueper 
+        Last changed: 16.11.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;
+
+    self.epochs = train_epochs
+    self.batch_size = batch_size
+    self.shuffle = shuffle 
+    self.class_weights = class_weights
+    self.x_train = x_train
+    self.x_val = x_val
+    self.y_val = y_val
+    self.y_train = y_train
+    self.callbacks = callbacks
+    self.loss_fcn = loss_fcn
+    self.optimizer = optimizer
+    self.metrics = metrics 
+    self.perf_results = None
+
+    # compile model 
+    if (self.type == &#34;keras&#34;): 
+        self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
+        history = self.model.fit(self.x_train,
+                            self.y_train,
+                            epochs  = self.epochs,
+                            batch_size= self.batch_size,
+                            shuffle = self.shuffle,
+                            class_weight=self.class_weights,
+                            validation_data = (self.x_val, self.y_val),
+                            callbacks = self.callbacks)
+    
+        # history of training process
+        history_dict = history.history
+        loss_values = history_dict[&#34;loss&#34;]
+        val_loss_values = history_dict[&#34;val_loss&#34;]
+        num_of_epochs = range(1, len(loss_values)+1)
+
+        if(show_train_results):
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize =(6, 8))
+            fig.subplots_adjust(hspace = 0.3)
+            ax1.plot(num_of_epochs, loss_values, &#34;bo&#34;, label=&#34;Training loss&#34;)
+            ax1.plot(num_of_epochs, val_loss_values, &#34;b&#34;, label=&#34;Validation loss&#34;)
+            ax1.set_xlabel(&#34;Epochs&#34;)
+            ax1.set_ylabel(&#34;Loss&#34;)
+            ax1.legend()
+            ax1.set_title(&#34;Loss values over trained epochs&#34;)
+
+            acc_values = history_dict[&#34;accuracy&#34;]
+            val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+            ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
+            ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
+            ax2.set_xlabel(&#34;Epochs&#34;)
+            ax2.set_ylabel(&#34;Accuracy&#34;)
+            ax2.legend()
+            ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+
+            plt.show()
+
+        val_acc_values = history_dict[&#34;val_accuracy&#34;]
+
+    if(save_trained_model): 
+        save_model(self.model, model_filename+&#34;.h5&#34;) # save </code></pre>
+</details>
+</dd>
+</dl>
+</dd>
+</dl>
+</section>
+</article>
+<nav id="sidebar">
+<h1>Index</h1>
+<div class="toc">
+<ul></ul>
+</div>
+<ul id="index">
+<li><h3>Super-module</h3>
+<ul>
+<li><code><a title="biosignal_toolbox" href="index.html">biosignal_toolbox</a></code></li>
+</ul>
+</li>
+<li><h3><a href="#header-classes">Classes</a></h3>
+<ul>
+<li>
+<h4><code><a title="biosignal_toolbox.ML_lib.MLModel" href="#biosignal_toolbox.ML_lib.MLModel">MLModel</a></code></h4>
+<ul class="two-column">
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.calcPerformance" href="#biosignal_toolbox.ML_lib.MLModel.calcPerformance">calcPerformance</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.calcTestAccAndRates" href="#biosignal_toolbox.ML_lib.MLModel.calcTestAccAndRates">calcTestAccAndRates</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.getPerfResults" href="#biosignal_toolbox.ML_lib.MLModel.getPerfResults">getPerfResults</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.getPredictionScores" href="#biosignal_toolbox.ML_lib.MLModel.getPredictionScores">getPredictionScores</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.loadModel" href="#biosignal_toolbox.ML_lib.MLModel.loadModel">loadModel</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.modelSummary" href="#biosignal_toolbox.ML_lib.MLModel.modelSummary">modelSummary</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.predict" href="#biosignal_toolbox.ML_lib.MLModel.predict">predict</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.trainModel" href="#biosignal_toolbox.ML_lib.MLModel.trainModel">trainModel</a></code></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</nav>
+</main>
+<footer id="footer">
+<p>Generated by <a href="https://pdoc3.github.io/pdoc" title="pdoc: Python API documentation generator"><cite>pdoc</cite> 0.10.0</a>.</p>
+</footer>
+</body>
+</html>
