@@ -9,7 +9,6 @@ from scipy import signal as sig
 import os 
 from scipy.fft import fft, fftfreq
 from tensorflow.keras.utils import to_categorical
-import scipy 
 import mne_features.univariate as mne_feat
 from mne.preprocessing import ICA
 import copy 
@@ -24,13 +23,14 @@ import warnings
 # *********************************************************************************
 
 
-class OnlineEEGUtils: # leave this for backward compability for now 
+class OnlineEEGUtils: # leave this for backward compability for now --> deprecated 
 
     def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
         self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+        warnings.warn("This class is deprecated, use OnlineEEG now!")
         
 
     def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5, url = 'http://10.250.223.221:5000/results'):
@@ -135,10 +135,76 @@ class OnlineEEGUtils: # leave this for backward compability for now
         print("Publisher ready")
         return my_socket
 
-
 class EEGData:
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, units = None, data = None):
+    """
+    This class includes useful methods and paramters for the (pre)processing and viusalization of EEG data. It is mainly dependend on numpy, mne, scipy and additional utils (e.g. keras preprocessing)). 
+
+    Parameters
+    ----------
+    format : str
+        The data format of the dataset to be loaded, can be "Brainvision" (default), "NumpyEpochs", "RawObj", "Live" or "Recorded_LSL_stream".
+    filenames : list of str
+        A list of strings containing the filenames of the dataset(s) to be loaded.
+    data_path : str
+        The datapath as a string, please pass the path to the "data" directory (see readme of the library). 
+    epochs : numpy ndarray, optional 
+        The epochs to be set as numpy ndarray, only required when format type "NumpyEpochs" is selected.
+    raw_obj :  mne raw object, optional
+        The mne raw object that is used to create the object. Only required for format type "RawObj".
+    f_samp: float
+        The sampling rate of the data, not required for type "Brainvision". 
+    channel_names : list of str
+        A list of channel names as strings, if not known from the data format. Not required for format "Brainvision".
+    windows : numpy ndarray, optional
+        A numpy array with windowed data (shape: n_trials, n_channels, n_sampels, n_windows), only required for format "Live". 
+    data : numpy ndarray, optional 
+        The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format). 
+
+    Attributes
+    ----------
+    raw_obj : instance of class Raw (mne) 
+        The mne raw object to be used for full mne support, please see the mne wiki for further information. 
+    __ch_names : list of str
+        A list of channel names (strings) for each data channel. 
+    __montage : mne montage object 
+        A created montage object of an mne montage. 
+    __fsamp : float 
+        The sampling rate of the data in Hz. 
+    time_axis_epochs: 1D numpy array 
+        The time axis of the data after the epoching step. 
+    units : str 
+        The units of the data (i.e. "uV" or "V")
+    epochs : numpy ndarray 
+        The epoched data as numpy ndarray with shape: (n_trials, n_channels, n_sampels). 
+    epoch_obj : instance of class Epochs (mne)
+        The mne epochs object to be used for full mne support, see the mne wiki for more information. 
+    obj_filtered : instance of class Raw (mne)
+        A processed version of the mne raw object (deprecated, to be removed in the future)
+    average_epochs : numpy ndarray 
+        The averaged epochs as numpy ndarray with shape: (n_channels, n_sampels), (deprecated, to be removed in future). 
+    events : numpy ndarray 
+        A numpy ndarray containing events in the data as provided by mne.raw.get_events() method (has shape: (indizes, 0, event_number)). 
+    windows : numpy ndarray 
+        The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n_windows). 
+    window_names : list of str
+        The names (indentifier) of each window as a list of strings (has same size as n_windows). 
+    feature_vec : numpy ndarray 
+        A feature vector as numpy array, can have different shapes depending on the later used ML model (see ML class). 
+    calib_means : float 
+        A calibration value containing the mean values of the data instance (e.g. of the training data). 
+    calib_stds : float 
+        A calibration value containing the standard deviation values of the data instance (e.g. of the training data). 
+
+    Methods
+    -------
+    method1(arg1, arg2):
+        A brief description of what the method does.
+    method2(arg1, arg2):
+        A brief description of what the method does.
+    """
+
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
        
         self.raw_obj = None
         # parameter 
@@ -159,7 +225,6 @@ class EEGData:
         # windowing 
         self.windows = None 
         self.window_names = None 
-        self.num_windows = None
         # features 
         self.feature_vec = None
         self.calib_means = None
@@ -246,12 +311,46 @@ class EEGData:
             print("No dataset specified ...")
 
     def mneRawToBrainvision(self, folder, filename, meas_date = None, resolution = 0.1, unit = "µV"):
+
+        """
+        This method can be used to store the data from an mne raw object in the brainvision format. 
+
+        Parameters
+        ----------
+        folder : str
+            The target folder where the data should be stored in the brainvision format, should be the path to the created data folder of the toolbox. 
+        filename : str
+            The filename of the data to be stored. 
+        meas_date : datetime object, str, optional
+            The measurement date on on which the data was recorded, by default None
+        resolution : float, optional
+            The resolution of the data in the measurement unit, by default 0.1
+        unit : str, optional
+            The units of the data to be stored as string, can be "uV" or "V", by default "µV"
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2022 (by Niklas Kueper)
+
+        """
+
         events=copy.deepcopy(self.events) 
         events_bv = events[:, [0, 2]]
         write_brainvision(data=self.raw_obj.get_data(), sfreq=self.__fsamp, ch_names=self.__ch_names, fname_base=filename, folder_out=folder, events=events_bv, meas_date = meas_date, resolution = resolution, unit = unit)
         print("stored data in brainvision format")
 
     def updatefromRawObject(self): 
+        """
+        This method can and should be used to update the class internal parameters and variables. Please make sure that this method is called whenever external methods (like mne raw methods) are executed to update the data. 
+            
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 12.11.2023 (by Niklas Kueper)
+
+        """
+
         # update parameter 
         #basic params 
         self.__ch_names = self.raw_obj.ch_names
@@ -261,33 +360,180 @@ class EEGData:
         self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
     def getRawObject(self):
+        """
+        This method can be used to get the current mne raw object. 
+
+        Returns
+        -------
+        mne raw object
+            The current mne raw object.  
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 12.11.2023 (by Niklas Kueper)
+
+        """
         return self.raw_obj
     
     def getEpochs(self):
+        """
+        This method returns the epoched an possibly processed data as numpy array. 
+
+        Returns
+        -------
+        time_axis_epochs : 1D numpy array 
+            The time axis of the epochs as numpy array. 
+        epochs : numpy ndarray 
+            The numpy ndarray including the epoched data with shape: (n_trials, n_channels, n_sampels). 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 12.11.2023 (by Niklas Kueper)
+
+        """
         return self.time_axis_epochs, self.epochs
     
     def getEvents(self): 
+        """
+        This method returns the events (i.e. markers) as numpy array. The events can mark experimental events or stimuli or are used to help with evaluating the data. 
+
+        Returns
+        -------
+        numpy ndarray
+            The events as numpy ndarray with shape: (indices, 0, eventnumbers). 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
         return self.events
     
     def getSamplingRate(self): 
+        """
+        This method returns the sampling rate of the data in Hz. 
+
+        Returns
+        -------
+        float
+            The sampling rate of the data as float value in Hz. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
+
         return self.__fsamp
 
     def getCalibStats(self): 
+        """
+        This function returns calibration parameters that where calculated for the dataset (see calcCalibStats for more information). 
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            calib_means : float
+                The mean values for each channel as 1D numpy array. 
+            calib_stds : float 
+                The standard deviations for each channel as 1D numpy array. 
+            calib_mins : float 
+                The minimum values for each channel as 1D numpy array. 
+            calib_maxs : float 
+                The maximum values for each channel as 1D numpy array. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
+
         return self.calib_means, self.calib_stds, self.calib_mins, self.calib_maxs
     
     def setCalibStats(self, means, stds, mins, maxs): 
+        """ 
+        This method can be used to set some basic statistical parameters for the dataset (e.g. mean and std) for each data channel. Can be used for example to calibrate or normalize a train data set afte setting the parameters. 
+
+        Parameters
+        ----------
+        means : numpy array
+            A 1D numpy array containing the mean values of each channel. 
+        stds : numpy array 
+            A 1D numpy array containing the standard deviation values of each channel. 
+        mins : numpy array 
+            A 1D numpy array containing the minimum values of each channel. 
+        maxs : numpy array 
+            A 1D numpy array containing the maximum values of each channel. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
+
         self.calib_means = means
         self.calib_stds = stds
         self.calib_mins = mins
         self.calib_maxs = maxs
 
     def setChannelNames(self, ch_names): 
+        """
+        This method can be used to set the channel names of the data if they were not specified before.
+
+        Parameters
+        ----------
+        ch_names : list of str
+            A list of channels names. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
         self.__ch_names = list(ch_names)
 
     def getChannelNames(self): 
+        """
+        This method returns the channel names of the data. 
+
+        Returns
+        -------
+        list of str
+            A list of channel names. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.11.2023 (by Niklas Kueper)
+
+        """
+
         return self.__ch_names
 
     def calcCalibStats(self, feature_times = None): 
+        """
+        This method can be used to calculate statistical parameters for the windowed data (training data) like mean and standard deviations for each channel. 
+
+        Parameters
+        ----------
+        feature_times : 1D numpy array or list, optional
+            A numpy array containing 2 values, which define the start and endpoint (times) of the data in the window to be selected for the calculation procedure, by default None
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 01.10.2023 (by Niklas Kueper)
+
+        """
+
         # shape: trials, channels, sampels, windows
         calib_means = np.zeros(self.windows.shape[1]) # channel wise 
         calib_stds = np.zeros(self.windows.shape[1])
@@ -321,103 +567,120 @@ class EEGData:
         self.calib_maxs = calib_maxs
 
     
-    def convertEpochsToMicrovolts(self): 
+    # def convertEpochsToMicrovolts(self): 
         
-        self.epochs = self.epochs*1000000.0 # not in uV
+    #     self.epochs = self.epochs*1000000.0 # not in uV
 
-    def icaEOGArtifactRemoval(self, raw, eeg_epochs, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, baseline = (None, -0.2)):
+    # def icaEOGArtifactRemoval(self, raw, eeg_epochs, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, baseline = (None, -0.2)):
 
-        """
-        This funcion automatically detects EOG artifacts in the given rereferenced eeg-signal with an ICA. The decisive components are marked and removed from the signal
+    #     """
+    #     This funcion automatically detects EOG artifacts in the given rereferenced eeg-signal with an ICA. The decisive components are marked and removed from the signal
 
-        Arguments
-            raw: The created mne object
-            eeg_epochs: The rereferenced epoched mne object
-            n_components: Number of principal components that are passed to the ICA algorithm during fitting:
-                var1: Give an int which must be greater than 1 and less than or equal to the number of channels.
-                var2: Give a float between 0 and 1, this will select the smallest number of components required to explain the cumulative variance of the data greater than n_components
-            drop_epochs: If TRUE a thrshhold determins the dropping of bad epochs based on peak to peak value
-            ch_names: The channels that are showing EOG artifacts
-            plot_steps: If TRUE the steps of the ICA will be plotted
+    #     Arguments
+    #         raw: The created mne object
+    #         eeg_epochs: The rereferenced epoched mne object
+    #         n_components: Number of principal components that are passed to the ICA algorithm during fitting:
+    #             var1: Give an int which must be greater than 1 and less than or equal to the number of channels.
+    #             var2: Give a float between 0 and 1, this will select the smallest number of components required to explain the cumulative variance of the data greater than n_components
+    #         drop_epochs: If TRUE a thrshhold determins the dropping of bad epochs based on peak to peak value
+    #         ch_names: The channels that are showing EOG artifacts
+    #         plot_steps: If TRUE the steps of the ICA will be plotted
 
-        Returns
-            eog_removed: The processed eeg data as an instance of mne object
+    #     Returns
+    #         eog_removed: The processed eeg data as an instance of mne object
 
 
-        Meta information: 
-        Author: Patrick Bings
-        Last changed: 07.09.2023
+    #     Meta information: 
+    #     Author: Patrick Bings
+    #     Last changed: 07.09.2023
 
-        """
+    #     """
 
-        # dropping bad epochs based on peak to peak value if True
-        if(drop_epochs):
-            self.epochs.drop_bad(reject = {'eeg': threshhold})
+    #     # dropping bad epochs based on peak to peak value if True
+    #     if(drop_epochs):
+    #         self.epochs.drop_bad(reject = {'eeg': threshhold})
 
-        # epoched_eeg_rereferenced.plot(block=True)
+    #     # epoched_eeg_rereferenced.plot(block=True)
 
-        if(plot_steps == False):
-            # creating epochs around the EOG-artifacts
-            eog_evoked = create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
-            eog_evoked.apply_baseline(baseline=baseline)
+    #     if(plot_steps == False):
+    #         # creating epochs around the EOG-artifacts
+    #         eog_evoked = create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
+    #         eog_evoked.apply_baseline(baseline=baseline)
 
-            # creating the ICA and fitting it to the epoched raw data: 
-            ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
-            ica.fit(epoched_eeg_rereferenced)
+    #         # creating the ICA and fitting it to the epoched raw data: 
+    #         ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+    #         ica.fit(epoched_eeg_rereferenced)
 
-            # exclude the right ICs
-            ica.exclude = []
+    #         # exclude the right ICs
+    #         ica.exclude = []
 
-            # find which ICs match the EOG pattern
-            eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+    #         # find which ICs match the EOG pattern
+    #         eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
 
-            ica.exclude.extend(eog_indices)
+    #         ica.exclude.extend(eog_indices)
 
-            eog_removed = ica.apply(epoched_eeg_rereferenced)
-        else:
-            # create an acticap montage  --> why ? 
-            # acticap_montage = createActicapMontage(plot_montage, rename_channels)
-            # epoched_eeg_rereferenced.set_montage(acticap_montage) # set created montage 
+    #         eog_removed = ica.apply(epoched_eeg_rereferenced)
+    #     else:
+    #         # create an acticap montage  --> why ? 
+    #         # acticap_montage = createActicapMontage(plot_montage, rename_channels)
+    #         # epoched_eeg_rereferenced.set_montage(acticap_montage) # set created montage 
 
-            # creating epochs around the EOG-artifacts
-            eog_evoked = create_eog_epochs(raw, ch_name=ch_names).average()
-            eog_evoked.apply_baseline(baseline=(None, -0.2))
-            #eog_evoked.plot_joint()
+    #         # creating epochs around the EOG-artifacts
+    #         eog_evoked = create_eog_epochs(raw, ch_name=ch_names).average()
+    #         eog_evoked.apply_baseline(baseline=(None, -0.2))
+    #         #eog_evoked.plot_joint()
 
-            # creating the ICA and fitting it to the epoched raw data: 
-            ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
-            ica.fit(self.epoch_obj) 
-            ica.plot_components()
+    #         # creating the ICA and fitting it to the epoched raw data: 
+    #         ica = ICA(n_components=n_components, max_iter="auto", random_state=97)
+    #         ica.fit(self.epoch_obj) 
+    #         ica.plot_components()
 
-            # exclude the right ICs
-            ica.exclude = []
+    #         # exclude the right ICs
+    #         ica.exclude = []
 
-            # find which ICs match the EOG pattern
-            eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
+    #         # find which ICs match the EOG pattern
+    #         eog_indices, eog_scores = ica.find_bads_eog(epoched_eeg_rereferenced, ch_name=ch_names)
 
-            ica.plot_overlay(eog_evoked, exclude=eog_indices, show=False)
+    #         ica.plot_overlay(eog_evoked, exclude=eog_indices, show=False)
 
-            ica.exclude.extend(eog_indices)
+    #         ica.exclude.extend(eog_indices)
 
-            print(ica.exclude)
+    #         print(ica.exclude)
 
-            # barplot of ICA component "EOG match" scores
-            ica.plot_scores(eog_scores)
+    #         # barplot of ICA component "EOG match" scores
+    #         ica.plot_scores(eog_scores)
 
-            # plot diagnostics
-            ica.plot_properties(epoched_eeg_rereferenced, picks=eog_indices)
+    #         # plot diagnostics
+    #         ica.plot_properties(epoched_eeg_rereferenced, picks=eog_indices)
 
-            #plot ICs applied to raw data, with EOG matches highlighted
-            ica.plot_sources(epoched_eeg_rereferenced, show_scrollbars=False)
+    #         #plot ICs applied to raw data, with EOG matches highlighted
+    #         ica.plot_sources(epoched_eeg_rereferenced, show_scrollbars=False)
 
-            # plot ICs applied to the averaged EOG epochs, with EOG matches highlighted
-            ica.plot_sources(eog_evoked)
+    #         # plot ICs applied to the averaged EOG epochs, with EOG matches highlighted
+    #         ica.plot_sources(eog_evoked)
 
-            eog_removed = ica.apply(epoched_eeg_rereferenced)
+    #         eog_removed = ica.apply(epoched_eeg_rereferenced)
 
-        return eog_removed
+    #     return eog_removed
 
     def simpleICAFiltering(self, n_components = 20, exclude_components = [0, 1]): 
+        """
+        This method can be used to fit and apply a ICA on epoched data (on mne epochs object). 
+
+        Parameters
+        ----------
+        n_components : int, optional
+            The number of components of the ICA, by default 20
+        exclude_components : list of int, optional
+            The components of the ICA to be excluded from the data. Most probably the first channels referring to eyeblinks or saccades, by default [0, 1]
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 01.10.2023 (by Niklas Kueper)
+
+        """
+
         ica = ICA(n_components=n_components) 
         ica.fit(self.epoch_obj)
         ica.apply(self.epoch_obj, exclude = exclude_components)
@@ -425,20 +688,25 @@ class EEGData:
         
 
     def loadBrainproductsData(self, dataset_list): 
+        """
+        This method is used to load a dataset in the Brainvision format (.eeg, .vhdr, .vmrk). 
+
+        Parameters
+        ----------
+        dataset_list : list of str
+            A list of filenames to be loaded. If the list contains more than one filename, the datasets are concatenated. 
+
+        Returns
+        -------
+        mne raw object
+            The loaded data as mne raw object. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 06.07.2022 (by Niklas Kueper)
 
         """
-        This function can be used for loading one or more datasets in brainproducts format.
-        Arguments:
-            dataset_list: A list of strings with filenames of the datasets to be loaded.
-
-        Returns:
-            raw: An mne object with the loaded (concatenated) dataset(s). 
-
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
-        """
-        
         if (len(dataset_list) > 1): 
             raw_list = []
             for dataset in dataset_list: 
@@ -450,14 +718,31 @@ class EEGData:
 
         return raw
 
+    # not required anymore 
+    # def filterRaw(self, f_highpass, f_lowpass, picks=None, filter_length='auto', l_trans_bandwidth='auto', h_trans_bandwidth='auto', n_jobs=None, method='fir', iir_params=None, phase='zero', fir_window='hamming', fir_design='firwin', skip_by_annotation=('edge', 'bad_acq_skip'), pad='reflect_limited', verbose=None): 
+    #     self.raw_obj.filter(f_highpass, f_lowpass, picks=picks, filter_length=filter_length, l_trans_bandwidth=l_trans_bandwidth, h_trans_bandwidth=h_trans_bandwidth, n_jobs=n_jobs, method=method, iir_params=iir_params, phase=phase, fir_window=fir_window, fir_design=fir_design, skip_by_annotation=skip_by_annotation, pad=pad, verbose= verbose)
 
-    def filterRaw(self, f_highpass, f_lowpass, picks=None, filter_length='auto', l_trans_bandwidth='auto', h_trans_bandwidth='auto', n_jobs=None, method='fir', iir_params=None, phase='zero', fir_window='hamming', fir_design='firwin', skip_by_annotation=('edge', 'bad_acq_skip'), pad='reflect_limited', verbose=None): 
-        self.raw_obj.filter(f_highpass, f_lowpass, picks=picks, filter_length=filter_length, l_trans_bandwidth=l_trans_bandwidth, h_trans_bandwidth=h_trans_bandwidth, n_jobs=n_jobs, method=method, iir_params=iir_params, phase=phase, fir_window=fir_window, fir_design=fir_design, skip_by_annotation=skip_by_annotation, pad=pad, verbose= verbose)
-
-    def show(self, scalings_dict = None): 
-        self.raw_obj.plot(scalings = scalings_dict)
+    # def show(self, scalings_dict = None): 
+    #     self.raw_obj.plot(scalings = scalings_dict)
 
     def mneRawMethod(self, method_name = None, **kwargs): 
+        """
+        Apply a mne raw objects method and update the parameters of the current object. This method should be used instead of writing new methods that just execute an existing method of an mne raw object (like raw.show()). 
+        Please the the wiki of mne for further informations about the methods. 
+
+        Parameters
+        ----------
+        method_name : str, optional
+            The name of the method to be executed passed as string, by default None
+        **kwargs : optional
+            The arguments passed to the method (e.g. plot = True, array = [0, 1, 2])
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 15.12.2023 (by Niklas Kueper)
+
+        """
 
         if hasattr(self.raw_obj, method_name) and callable(getattr(self.raw_obj, method_name)):
             method = getattr(self.raw_obj, method_name)
@@ -467,10 +752,41 @@ class EEGData:
         
         self.updatefromRawObject() # update class internal params from mne raw object 
         
+    def designFilter(self, f_low = None, f_high= None, order = 2, filter_type = "scipy_butter", Q = 30, show_response = False, alpha = 0.98, return_type = "ba"): 
+        """
+        Design a digital fir or iir filter (notch, bandpass, highpass or lowpass). 
 
-    def FilterWindows(self, f_low =None, f_high = None, order = 2, filter_type = "scipy_butter", fir_design = "firwin2", Q = 30, show_response = False, alpha = 0.95,  apply_method = "padding"): # under change 
-        # shape: trials, channels, sampels, windows
+        Parameters
+        ----------
+        f_low : float, optional
+            The lowpass frequency of the filter (the high frequency boundary), by default None
+        f_high : float, optional
+            The highpass frequency of the filter (the low frequency boundary), by default None
+        order : int, optional
+            The order of the filter, by default 2
+        filter_type : str, optional
+            The type of the filter as string (common biosignal filters), can be "scipy_butter", "scipy_bessel", "dc_notch", "dc_removal" or "allpass", by default "scipy_butter"
+        Q : int, optional
+            The sharpness factor of a notch filter (only required for "dc_notch"), see more information about scipys iirnotch method for further details, by default 30
+        show_response : bool, optional
+            If True, the filter response is shown (frequency and phase response), by default False
+        alpha : float, optional
+            The alpha value (sharpness) of the dc removal filter (only required for "dc_removal" filter), by default 0.98
+        return_type : str, optional
+            The type of the filter coefficients to be returned, can be "ba" or "sos". "sos should be preferred to avoid instabilites, but not all filtering methods support the "sos" type, by default "ba"
 
+        Returns
+        -------
+        tuple of numpy arrays or numpy array 
+            The returned filter parameters (ba or sos). 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 15.12.2023 (by Niklas Kueper)
+
+        """
+        
         # calc individual coeffs 
         if(filter_type == "dc_notch"):
             b, a = sig.iirnotch(f_high, Q, fs=self.__fsamp)
@@ -506,7 +822,6 @@ class EEGData:
             b = [ 1 *scale, -alpha *scale] 
             a = [-alpha*scale, 1*scale]
 
-            
         if(show_response): 
             w, h = sig.freqz(b, a, worN=2024)
             plt.subplot(2, 1, 1)
@@ -535,7 +850,49 @@ class EEGData:
             plt.ylabel('Group delay [samples]')
             plt.xlabel('Frequency [Hz]')
             plt.show()
-            
+
+        # return filter coeffs 
+        if(return_type == "ba"): 
+            return b, a
+        
+        elif(return_type == "sos"): 
+            return sos 
+
+    def filterWindows(self, b = None, a = [1], sos = None, apply_method = "zero_phase_sos", mne_filter_type = None, f_high = None, f_low = None, order = None, fir_design = None): # under change 
+        """
+        Apply a designed digital filter to the windowed data (window wise for each channel). Please be careful in selection appropriately designed filters, especially because they are applied on small data chunks (windows)!
+        Therefore, consider that artifacts might occur depending on the selected method and parameters. 
+
+        Parameters
+        ----------
+        b : 1D numpy array, optional
+            The filter coefficients (numerator), by default None
+        a : 1D numpy array, optional
+            The filter coefficients (denominator), by default [1] (fir)
+        sos : array_like, optional
+            The filter coefficients in sos format, by default None
+        apply_method : str, optional
+            The filtering method to be applied, can be "zero_phase_sos", "gustav", "zero_phase_ba" or "forward_filter". Please have a look at the documentation of the filter implemetations for more information (i.e. scipy and mne docu), by default "zero_phase_sos"
+        mne_filter_type : str, optional
+            The type of the mne filter to be applied, can be "mne_fir", "mne_iir", only required when using an mne filter , by default None
+        f_high : float, optional
+            The highpass filter frequency when applying the mne filter, by default None
+        f_low : float, optional
+            The lowpass filter frequency when applying the mne filter, by default None, by default None
+        order : int, optional
+            The order of the mne filter to be applied, only required for mne filter, by default None
+        fir_design : str, optional
+            The fir design method as string for mne filters (e.g. "hamming", see mne documentation for more information), by default None
+                
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 15.12.2023 (by Niklas Kueper)
+
+        """
+        
+
+        # shape: trials, channels, sampels, windows
         
         for trial_idx in range(0, self.windows.shape[0]): 
                 for window_idx in range(0, self.windows.shape[3]): 
@@ -543,74 +900,67 @@ class EEGData:
                     current_wind = self.windows[trial_idx, :, :, window_idx]
 
                     # currently the best 
-                    if(filter_type == "mne_fir" or filter_type == "mne_iir"): 
-                        if(filter_type == "mne_iir"): 
+                    if(mne_filter_type == "mne_fir" or mne_filter_type == "mne_iir"): # TODO: remove this filter here and add a new filtering method maybe ? Paramters do not fit 
+                        if(mne_filter_type == "mne_iir"): 
                             method = "iir"
                         else: 
                             method = "fir"
 
-                        for channel_idx in range(0, self.windows.shape[1]):
+                        for channel_idx in range(0, self.windows.shape[1]): # TODO: replace the function call by the parser method for mne objects 
                             #print(current_wind.shape)
                             filtered_window= mne.filter.filter_data(current_wind[channel_idx, :], sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = method, fir_design = fir_design, verbose = "CRITICAL") # pad = "symmetric"
                             self.windows[trial_idx, :, :, window_idx] = filtered_window
 
-                    elif(filter_type == "scipy_butter" or filter_type == "scipy_bessel"): 
+                    else: 
                         for channel_idx in range(0, self.windows.shape[1]):
                             
                             # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
                             if(apply_method == "gustav"): 
                                 filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
+                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+
                             #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
-                            elif(apply_method == "padding"): 
+                            elif(apply_method == "zero_phase_sos"): 
                                 filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding 
-                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
-                    
-                    elif(filter_type =="dc_notch"): 
-                        for channel_idx in range(0, self.windows.shape[1]):
+                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
-                            filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1) # normal filtering with padding 
+                            elif(apply_method == "zero_phase_ba"): 
+                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding
+                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
-                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+                            elif(apply_method == "forward_filter"): 
+                                filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())
+                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+   
 
+                    # elif(filter_type == "fft_bandpass"):  # fft bandpass implementation from pySPACE, check this again  --> not usable anymore 
 
-                    elif(filter_type =="dc_removal" or filter_type == "allpass"): 
-                        for channel_idx in range(0, self.windows.shape[1]):
-                            
-                            # apply normal dc remove filter with initial condition no inverse reverse  
-                            #zi = sig.lfiltic(b, a, [0, 0])
-                            filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())
+                    #     filtered_window = np.zeros(current_wind.shape)
+                    #     for channel_idx in range(0, self.windows.shape[1]): 
 
-                            self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+                    #         n = len(current_wind[channel_idx, :])
 
-                    
-                    elif(filter_type == "fft_bandpass"):  # fft bandpass implementation from pySPACE, check this again 
+                    #         res = 0.1 # fixed resolution to 0.1 Hz 
+                    #         fourier_transformed = scipy.fftpack.fft(current_wind[channel_idx, :], n = int(self.__fsamp/res)) # increase resolution to 0.1 Hz 
 
-                        filtered_window = np.zeros(current_wind.shape)
-                        for channel_idx in range(0, self.windows.shape[1]): 
-
-                            n = len(current_wind[channel_idx, :])
-
-                            res = 0.1 # fixed resolution to 0.1 Hz 
-                            fourier_transformed = scipy.fftpack.fft(current_wind[channel_idx, :], n = int(self.__fsamp/res)) # increase resolution to 0.1 Hz 
-
-                            #Compute the pass band indices
-                            lower_bound = int(round(float(f_high) / (self.__fsamp) * len(fourier_transformed)))
-                            upper_bound = int(round(float(f_low) / (self.__fsamp) * len(fourier_transformed)))
+                    #         #Compute the pass band indices
+                    #         lower_bound = int(round(float(f_high) / (self.__fsamp) * len(fourier_transformed)))
+                    #         upper_bound = int(round(float(f_low) / (self.__fsamp) * len(fourier_transformed)))
                             
 
-                            #Setting frequencies outside the pass band to 0
-                            for i in range(0, lower_bound):
-                                fourier_transformed[i] = 0
-                                fourier_transformed[-i-1] = 0
+                    #         #Setting frequencies outside the pass band to 0
+                    #         for i in range(0, lower_bound):
+                    #             fourier_transformed[i] = 0
+                    #             fourier_transformed[-i-1] = 0
 
-                            for i in range(upper_bound,len(fourier_transformed)//2):
-                                fourier_transformed[i] = 0
-                                fourier_transformed[-i-1] = 0
+                    #         for i in range(upper_bound,len(fourier_transformed)//2):
+                    #             fourier_transformed[i] = 0
+                    #             fourier_transformed[-i-1] = 0
                             
-                            inverse = scipy.fftpack.ifft(fourier_transformed, n = int(self.__fsamp)) # go back to normal samp rate size 
+                    #         inverse = scipy.fftpack.ifft(fourier_transformed, n = int(self.__fsamp)) # go back to normal samp rate size 
 
-                            #Inverse Fourier transform and project to real component
-                            self.windows[trial_idx, channel_idx, :, window_idx] = inverse
+                    #         #Inverse Fourier transform and project to real component
+                    #         self.windows[trial_idx, channel_idx, :, window_idx] = inverse
 
 
     def minMaxNormWindows(self): 
@@ -634,16 +984,22 @@ class EEGData:
 
     def cutWindows(self, n_samples_start = 25, n_samples_end = 25): 
         """
-        This function can be used to cut the length of the windowed data (sample dimension). 
+        This function can be used to cut the length of the windowed data (sample dimension).
 
-        Arguments:
-            n_samples_start: The number of samples (int) to cut at the start of the windows. 
-            n_samples_end: The number of samples (int) to cut at the end of the windows. 
+        Parameters
+        ----------
+        n_samples_start : int
+            The number of samples to cut at the start of the windows.
+        n_samples_end : int
+            The number of samples to cut at the end of the windows.
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 24.11.2023 (by Niklas Kueper)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 24.11.2023 (by Niklas Kueper)
+
         """
+
         if(self.windows.shape[2] < n_samples_start+n_samples_end):   # trials, channels, sampels, windows 
             raise Exception("number of cutted samples exceeds window length, not performing the cutting ... ")
         else: 
@@ -654,15 +1010,22 @@ class EEGData:
 
         """
         This function can be used to create an acticap montage (used by e.g. LiveAmp64). The montage was created based on the acticap manual and an easycap template provided by mne.
-        Arguments:
-            plot_montage: A boolean flag if the montage info should be shown or not. if set to True, the montage will be shown. 
 
-        Returns:
-            montage: An mne montage object, that was created for the acticap layout. 
+        Parameters
+        ----------
+        plot_montage : bool
+            A boolean flag if the montage info should be shown or not. if set to True, the montage will be shown.
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
+        Returns
+        -------
+        montage : mne.channels.Montage
+            An mne montage object, that was created for the acticap layout.
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2023 (by Niklas Kueper)
+
         """
         
         montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
@@ -718,27 +1081,27 @@ class EEGData:
 
 
     def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06): 
-        
         """
-        This function creates and showes an topoplot at different points in time. 
-        Arguments:
-            mean_epochs: The average epochs over all trials in numpy format. Shape should be (channel, sampels). 
-            time_axis_eeg_epoch: The time axis of the EEG-epochs as one dimensional numpy array. 
-            mne_obj: The mne object of the dataset from which the information is used for the plot (e.g. channel names). 
-            times: A list of times in ms at which the topolot should be created. 
-            title_str: The title of the plot as string. 
-            min_val: The minimum Voltage in the color scale. 
-            max_val: The maximum Voltage in the color scale. 
-            f_samp_eeg: Sampling rate of the EEG-data in Hz. 
+        This method creates a topoplot at different times in relation to an specifiy event. 
 
-        Returns:
-            -
+        Parameters
+        ----------
+        times : list of int
+            The times for which the topoplot should be created (in ms). 
+        title_str : str, optional
+            The title of the topoplot, by default "Topoplot at selected times"
+        min_val : float, optional
+            The minimum value of the colorbar in the units of the data, by default -6e-06
+        max_val : float, optional
+            The maximum value of the colorbar in the units of the data, by default 6e-06
         
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 04.04.2023 (by Niklas Kueper)
-        """
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2023 (by Niklas Kueper)
 
+        """
+        
         mean_epochs = np.mean(self.epochs, axis = 0)
 
         #topoplot at different times 
@@ -1219,7 +1582,7 @@ class EEGData:
 
 
         self.windows = wind_arr 
-        self.num_windows = num_of_windows
+        #self.num_windows = num_of_windows
         self.window_names = wind_names
 
 

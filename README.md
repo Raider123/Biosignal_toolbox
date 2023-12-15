@@ -11,12 +11,16 @@ This repository should **ONLY** contain python scripts and no datasets, plots or
 ### Installation 
 To install the biosignal toolbox move to the **lib** folder run the following command to install the Python package: **pip install -e .** When using Visual Studio Code (VSC), please make sure to load the hole biosignal_toolbox repository as a project folder. Otherwise the installed python packages might not be found or detected properly by VSC.  
 
+### Intended use and writing new methods
+The biosignal toolbox includes useful classes for the processing of data and should be extended by implementing new methods in the library files (_lib.py) in the lib folder as well as example scripts of working files in the src folder. The purpose of the toolbox is to extend, customize and create high level functionalities based on existing libraries like numpy, scipy and especially mne. Each class should (by now) have full compatibility to mne, to enable to use all existing methods based of the package but also enable the possibility to write own processing and other methods to make the data analysis, recording and visualization as easy as possible. Therefore, it is required to always update corresponding mne objects and the internal variables of the individual classes of the biosignal toolbox (e.g. changed mne_raw object --> update internal variables, changed internal variables (like epoched data), update mne_epochs object). Please also make sure that every new written method only has one specific job and is as minimalistic as possible to enable maximum reusability of the code. Also, please have a look at methods that are already implemented to avoid any duplications (see docu for example). Furthermore, pay attention to write proper comments in your code (in english) to allow others to understand and adapt your implementations. 
+
+
 ### Coding Conventions
 This section describes the general coding guidelines to follow during development process.
 - **Programming Language** <br />
 In this project, Python is used as the primary programming language.
 - **Documentation** <br />
-For the purpose of better readability and re-usability, it is essential that every script, attribute or method be well documented. In this project, the Google Style Python Docstrings should be used. (Refer : [Google Style](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html) for more information). 
+For the purpose of better readability and re-usability, it is essential that every script, attribute or method be well documented. In this project, the Numpy Style Python Docstrings should be used (see other example in the classes) 
 - **Defining a class** <br />
 A new class in python requires a class name. Please use Pascal case (MyNewClass) for this purpose.
 - **Defining a function or method** <br />
@@ -24,7 +28,7 @@ Please use Camel case (myFunc) for this purpose.
 - **Declaring a variable or attribute** <br />
 Please use Snake case (new_var) for this purpose.
 
-## Files and folders (src) 
+## src: Files and folders
 
 
 ### EEGNet_LRP_detection 

@@ -19,11 +19,12 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
     
     # bandpass filter data 
     
-    wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
-    wind_band = wind[225:-225]
-    EEG_MLP.windows[0, 0, :, 0] = EEG_MLP.windows[0, 0, :, 0] *wind_band
+    # wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
+    # wind_band = wind[225:-225]
+    # EEG_MLP.windows[0, 0, :, 0] = EEG_MLP.windows[0, 0, :, 0] *wind_band
 
-    EEG_MLP.FilterWindows(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter") # bandpass filter (zero phase with padding)
+    sos = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
+    EEG_MLP.filterWindows(sos = sos, filter_type = "zero_phase_sos") # bandpass filter (zero phase with padding)
     EEG_MLP.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
     
     #EEG_MLP.windowStandardization()
@@ -49,11 +50,12 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 
     # *********** EEGNet processing *******************
 
-    wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
-    wind_band = wind[225:-225]
-    EEG_EEGNet.windows[0, 0, :, 0] = EEG_EEGNet.windows[0, 0, :, 0] *wind_band
+    #wind = sig.windows.kaiser_bessel_derived(M=1000, beta = 600, sym=True)
+    #wind_band = wind[225:-225]
+    #EEG_EEGNet.windows[0, 0, :, 0] = EEG_EEGNet.windows[0, 0, :, 0] *wind_band
 
-    EEG_EEGNet.FilterWindows(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter") # bandpass filter (zero phase with padding)
+    sos = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
+    EEG_EEGNet.filterWindows(sos = sos, filter_type = "zero_phase_sos") # bandpass filter (zero phase with padding)
 
     EEG_EEGNet.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
 
