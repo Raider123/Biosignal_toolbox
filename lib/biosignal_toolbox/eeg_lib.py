@@ -202,6 +202,12 @@ class EEGData:
         A brief description of what the method does.
     method2(arg1, arg2):
         A brief description of what the method does.
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 09.01.2024 (by Niklas Kueper)
+
     """
 
     def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
@@ -1083,7 +1089,7 @@ class EEGData:
     def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06): 
         """
         This method creates a topoplot at different times in relation to an specifiy event. 
-
+    
         Parameters
         ----------
         times : list of int
@@ -1364,6 +1370,27 @@ class EEGData:
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def getTimeAxisEpochs(self): 
+        """
+        This method returns the calculated time axis for the epoched data as 1D numpy array. 
+        
+        Returns
+        -------
+        numpy array (1D)
+            The time axis as 1D numpy array containing the time axis values (in seconds) in relation to the event used for epoching. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 09.01.2024 (by Niklas Kueper)
+        
+        """
+        if (self.epochs is None): 
+            warnings.warn("Data not epoched yet, please do this before using this method, terminating ...")
+        else: # if epochs exist already  
+            return self.time_axis_epochs
+        
+    
     def splitTrainTestEpochs(self, n_test_epochs = 5):
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 

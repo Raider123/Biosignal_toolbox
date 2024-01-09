@@ -230,6 +230,12 @@ class EEGData:
         A brief description of what the method does.
     method2(arg1, arg2):
         A brief description of what the method does.
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 09.01.2024 (by Niklas Kueper)
+
     &#34;&#34;&#34;
 
     def __init__(self, format = &#34;Brainvision&#34;, filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
@@ -1111,7 +1117,7 @@ class EEGData:
     def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06): 
         &#34;&#34;&#34;
         This method creates a topoplot at different times in relation to an specifiy event. 
-
+    
         Parameters
         ----------
         times : list of int
@@ -1392,6 +1398,27 @@ class EEGData:
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def getTimeAxisEpochs(self): 
+        &#34;&#34;&#34;
+        This method returns the calculated time axis for the epoched data as 1D numpy array. 
+        
+        Returns
+        -------
+        numpy array (1D)
+            The time axis as 1D numpy array containing the time axis values (in seconds) in relation to the event used for epoching. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 09.01.2024 (by Niklas Kueper)
+        
+        &#34;&#34;&#34;
+        if (self.epochs is None): 
+            warnings.warn(&#34;Data not epoched yet, please do this before using this method, terminating ...&#34;)
+        else: # if epochs exist already  
+            return self.time_axis_epochs
+        
+    
     def splitTrainTestEpochs(self, n_test_epochs = 5):
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -2549,7 +2576,10 @@ class OnlineEEG(EEGData):
 <p>method1(arg1, arg2):
 A brief description of what the method does.
 method2(arg1, arg2):
-A brief description of what the method does.</p></div>
+A brief description of what the method does.</p>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 09.01.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -2621,6 +2651,12 @@ A brief description of what the method does.</p></div>
         A brief description of what the method does.
     method2(arg1, arg2):
         A brief description of what the method does.
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 09.01.2024 (by Niklas Kueper)
+
     &#34;&#34;&#34;
 
     def __init__(self, format = &#34;Brainvision&#34;, filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
@@ -3502,7 +3538,7 @@ A brief description of what the method does.</p></div>
     def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06): 
         &#34;&#34;&#34;
         This method creates a topoplot at different times in relation to an specifiy event. 
-
+    
         Parameters
         ----------
         times : list of int
@@ -3783,6 +3819,27 @@ A brief description of what the method does.</p></div>
         self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
 
 
+    def getTimeAxisEpochs(self): 
+        &#34;&#34;&#34;
+        This method returns the calculated time axis for the epoched data as 1D numpy array. 
+        
+        Returns
+        -------
+        numpy array (1D)
+            The time axis as 1D numpy array containing the time axis values (in seconds) in relation to the event used for epoching. 
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 09.01.2024 (by Niklas Kueper)
+        
+        &#34;&#34;&#34;
+        if (self.epochs is None): 
+            warnings.warn(&#34;Data not epoched yet, please do this before using this method, terminating ...&#34;)
+        else: # if epochs exist already  
+            return self.time_axis_epochs
+        
+    
     def splitTrainTestEpochs(self, n_test_epochs = 5):
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -6407,6 +6464,44 @@ Last changed: 28.11.2022 (by Niklas Kueper)</p></div>
     return self.__fsamp</code></pre>
 </details>
 </dd>
+<dt id="biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs"><code class="name flex">
+<span>def <span class="ident">getTimeAxisEpochs</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This method returns the calculated time axis for the epoched data as 1D numpy array. </p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>numpy array (1D)</code></dt>
+<dd>The time axis as 1D numpy array containing the time axis values (in seconds) in relation to the event used for epoching.</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 09.01.2024 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def getTimeAxisEpochs(self): 
+    &#34;&#34;&#34;
+    This method returns the calculated time axis for the epoched data as 1D numpy array. 
+    
+    Returns
+    -------
+    numpy array (1D)
+        The time axis as 1D numpy array containing the time axis values (in seconds) in relation to the event used for epoching. 
+    
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 09.01.2024 (by Niklas Kueper)
+    
+    &#34;&#34;&#34;
+    if (self.epochs is None): 
+        warnings.warn(&#34;Data not epoched yet, please do this before using this method, terminating ...&#34;)
+    else: # if epochs exist already  
+        return self.time_axis_epochs</code></pre>
+</details>
+</dd>
 <dt id="biosignal_toolbox.eeg_lib.EEGData.getTrainLabels"><code class="name flex">
 <span>def <span class="ident">getTrainLabels</span></span>(<span>self)</span>
 </code></dt>
@@ -7652,7 +7747,10 @@ Last changed: 14.09.2023 (by Niklas Kueper)</p></div>
 <p>method1(arg1, arg2):
 A brief description of what the method does.
 method2(arg1, arg2):
-A brief description of what the method does.</p></div>
+A brief description of what the method does.</p>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 09.01.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -8007,6 +8105,7 @@ n_channels
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getKerasPredictionResultsLRP" href="#biosignal_toolbox.eeg_lib.EEGData.getKerasPredictionResultsLRP">getKerasPredictionResultsLRP</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getRawObject" href="#biosignal_toolbox.eeg_lib.EEGData.getRawObject">getRawObject</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getSamplingRate" href="#biosignal_toolbox.eeg_lib.EEGData.getSamplingRate">getSamplingRate</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs" href="#biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs">getTimeAxisEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.loadBrainproductsData" href="#biosignal_toolbox.eeg_lib.EEGData.loadBrainproductsData">loadBrainproductsData</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawMethod" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawMethod">mneRawMethod</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision">mneRawToBrainvision</a></code></li>
@@ -8375,6 +8474,7 @@ n_channels
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getLabels" href="#biosignal_toolbox.eeg_lib.EEGData.getLabels">getLabels</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getRawObject" href="#biosignal_toolbox.eeg_lib.EEGData.getRawObject">getRawObject</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getSamplingRate" href="#biosignal_toolbox.eeg_lib.EEGData.getSamplingRate">getSamplingRate</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs" href="#biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs">getTimeAxisEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTrainLabels" href="#biosignal_toolbox.eeg_lib.EEGData.getTrainLabels">getTrainLabels</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindowNames" href="#biosignal_toolbox.eeg_lib.EEGData.getWindowNames">getWindowNames</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindows" href="#biosignal_toolbox.eeg_lib.EEGData.getWindows">getWindows</a></code></li>
