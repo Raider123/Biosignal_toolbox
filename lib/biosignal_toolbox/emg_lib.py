@@ -11,9 +11,38 @@ from scipy import signal as sig
 # ************************* Methods ***********************************************
 # *********************************************************************************
 class EMGData:
+    """
+    This class includes useful methods for the processing and visualization of EMG data. It mainly depends on numpy.
+
+    Parameters
+    ----------
+    format : str, optional
+        The formal in which the data is loaded", by default "ANTmini"
+    data_path : str, optional
+        The path where the data is stored, by default None
+    filename : str, optional
+        The file to be loaded, by default None
+    f_samp : int, optional
+        The sampling rate of the EMG system in Hz, by default None
+    channel_names : list of str, optional
+        A list of strings with the channel names/muscles, by default None 
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    """    
 
     def __init__(self, format="ANTmini",data_path = None, filename = None, f_samp = None, channel_names = None): 
+        """
+        The constructor of the EMG class
         
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+
         # parameter 
         self.__fsamp = f_samp
         self.channel_names = channel_names
@@ -30,32 +59,104 @@ class EMGData:
         print(self.data.shape)
 
     def getEMGData(self):
+        """
+        Returns a tuple wit the EMG data and EMG time axis
+
+        Returns
+        -------
+        tuple
+            data : Numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : Numpy array
+                The time axis of the EMG data with shape (n_samples,)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """
+
         return self.data, self.time_axis
     
     def getChannelNames(self): 
+        """
+        Returns the EMG channel names
+
+        Returns
+        -------
+        Numpy arry
+            channel_names : str
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """
+
         return self.channel_names
         
     def getEMGfiltered(self):
+        """
+        Returns the filtered EMG data 
+
+        Returns
+        -------
+        Numpy array
+            emg_filtered : float
+                The filtered EMG data witch have the same shape as data with shape (n_samples, n_channel)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """
+
         return self.emg_filtered
     
-    def getSamplingRate(self): 
+    def getSamplingRate(self):
+        """
+        Returns the sampling rate of the EMG
+
+        Returns
+        -------
+        int
+            __fsamp
+                The sampling rate the data was recorded with
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """
+
         return self.__fsamp
 
     def loadCometaEMGData(self, data_path, file_str):
-
         """
-        This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
-        Arguments:
-            file_str: The file to load given as String. 
+        This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        tuple
+            emg_data_channel : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            emg_time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples, )
+            channel_names : numpy array
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         """
 
         #seperate between data, meta and channel names 
@@ -72,20 +173,31 @@ class EMGData:
 
     
     def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
+        """
+        TODO: No sampling rate given in the data
+        This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
 
-        """ TODO: No sampling rate given in the data 
-        This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
-        Arguments:
-            file_str: The file to load given as String. 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
+        f_samp : int
+            The sampling frequency in Hz
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Returns
+        -------
+        tuple
+            emg_data : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples,)
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         """
 
         #seperate between data, meta and channel names 
@@ -96,7 +208,15 @@ class EMGData:
 
         return emg_data, time_axis 
 
-    def showEMGData(self): 
+    def showEMGData(self):
+        """
+        This function is plotting the EMG data
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         if (self.data.ndim > 1): 
             num_channels = self.data.shape[1]
@@ -118,6 +238,21 @@ class EMGData:
 
 
     def channelSelection(self, selected_channels, inverse): 
+        """
+        This function selects EMG channel and edits the EMG data
+
+        Parameters
+        ----------
+        selected_channels : list
+            A list of channels. If the given channels are kept oder dropped is defined by the inverse parameter
+        inverse : bool
+            If False only the given channels are kept. Otherwise the given channels are dropped
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         ch_indices = []
 
@@ -138,7 +273,34 @@ class EMGData:
         self.channel_names = remaining_emg_channels
 
 
-    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
+    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg):
+        """
+        This function is performing a downsampling to a given target frequency
+
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        time_axis : numpy array
+            The time axis of the EMG data with shape (n_samples, )
+        target_frequency : int
+            The target frequency to which it should be downsampled in Hz
+        fsamp_emg : int
+            The sampling frequency in Hz
+
+        Returns
+        -------
+        tuple
+            dec_emg_data : numpy array
+                The new downsampled EMG data with shape (n_samples, n_channel)
+            new_time_axis : numpy array
+                The new downsampled time axis of the EMG data with shape (n_samples)
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
         
         down_factor = int(fsamp_emg/target_frequency)
 
@@ -167,6 +329,20 @@ class EMGData:
 
     
     def applyVarianceFilter(self, n_var):
+        """
+        This function applies a variance filter to the EMG data
+
+        Parameters
+        ----------
+        n_var : int
+            The filter length of the variance filter
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """    
+
         # signal init 
         emg_filtered = np.zeros(self.data.shape)
 
@@ -192,23 +368,33 @@ class EMGData:
         self.data = emg_filtered
 
 
-    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
-
+    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         """
-        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.  
-        Arguments:
-            emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            marker_indices: The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps or a EEG system)
-            fsamp: The sampling rate of the EMG data in Hz. 
-            t_start: The start time where the epoch starts in relation to the events (marker indices) in seconds. 
-            t_stop: The stop time where the epoch ends in relation to the events (marker indices) in seconds. 
+        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
 
-        Returns:
-            emg_epochs: The epoched EMG data as numpy array (shape (n_epochs, n_channel, n_samples)). 
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        marker_indices : int
+            The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps of a EEG system)
+        fsamp : int
+            The sampling rate of the EMG data in Hz
+        t_start : int
+            The start time where the epoch starts in relation to the events (marker indices) in seconds
+        t_stop : int
+            The stop time where the epoch ends in relation to the events (marker indices) in seconds
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        Numpy array
+            emg_epochs : float
+            The epoched EMG data with shape (n_epochs, n_channel, n_samples)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         """
 
         start_samp = int(t_start)*fsamp # convert and then times sample rate 
@@ -229,15 +415,24 @@ class EMGData:
 
 
     def applyBPFilter(self, f_high, f_low, N = 8):
-
         """
-        This function... to be written !
-        
+        This function applies a bandpass filter to the EMG data
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 23.03.2023 (by Niklas Kueper)
+        Parameters
+        ----------
+        f_high : float
+            The high cutoff frequency in Hz
+        f_low : float
+            The lof cutoff frequency in Hz
+        N : int, optional
+            The order of the filter, by default 8
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 23.03.2023 (by Niklas Kueper)
         """
+
         #Calc filtercoeff.  
         b1, a1 = sig.butter(N, f_high, 'high', analog=False, fs = self.__fsamp)
         b2, a2 = sig.butter(N, f_low, 'low', analog=False, fs = self.__fsamp)
