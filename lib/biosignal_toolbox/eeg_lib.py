@@ -172,12 +172,12 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
 
     def startZMQServer(self, port_name):
         """
-        Missing
+        This function creats a socket connection as a pubisher to send commands
 
         Parameters
         ----------
         port_name : str
-            Name of the port
+           The address string. This has the form "tcp://interface:port"
 
         Returns
         -------
@@ -266,6 +266,14 @@ class EEGData:
     """
 
     def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
+        """
+        The constructor of the EEGData class
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 09.01.2024 (by Niklas Kueper)
+        """        
        
         self.raw_obj = None
         # parameter 
@@ -1292,7 +1300,29 @@ class EEGData:
         return predicted_labels, true_labels, prediction_scores
 
 
-    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp): 
+    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp):
+        """
+        This function calculates the moving average prediction scores
+
+        Parameters
+        ----------
+        trial_prediction_test : Missing
+            Missing
+        n_samp : int
+            Missing
+
+        Returns
+        -------
+        Numpy array
+            processed_trial_predictions : float
+                Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """   
+
         processed_trial_predictions = np.zeros(trial_prediction_test.shape)
 
         trial_idx = 0
@@ -1455,8 +1485,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 09.01.2024 (by Niklas Kueper)
-        
         """
+
         if (self.epochs is None): 
             warnings.warn("Data not epoched yet, please do this before using this method, terminating ...")
         else: # if epochs exist already  
@@ -1476,6 +1506,11 @@ class EEGData:
         -------
         Missing
             _description_
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
         """        
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -1512,6 +1547,11 @@ class EEGData:
         -------
         _type_
             _description_
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
         """        
         
         if(erp_value_type == "min"): 
@@ -1572,7 +1612,7 @@ class EEGData:
 
     def reshapeWindowsForCNNnets(self): 
         """
-        Reshape the windows from multiple trials to be fitted for the CNN networks like EEGNet.
+        This function reshapes the windows from multiple trials to be fitted for the CNN networks like EEGNet.
         This method is only required if windows are processed for more than one trial and windwo (do not use for single window processing)
 
         Author
@@ -1943,9 +1983,9 @@ class EEGData:
 
         Parameters
         ----------
-        prediction_labels : Missing
+        prediction_labels : numpy array
             The prediced labels as 1D numpy array (flatten the array if it has more dimensions)
-        true_labels : Missing
+        true_labels : numpy array
             The true labels as 1D numpy array (flatten the array if it has more dimensions)
 
         Returns
@@ -2386,7 +2426,7 @@ class EEGData:
             Numpy array with time feature indices, by default None
         use_mean : bool, optional
             Missing , by default False
-        N : int, int
+        N : int, optional
             Missing, by default 1
         add_neightbour_diffs : bool, optional
             Missing, by default False
@@ -2581,11 +2621,34 @@ class EEGData:
             self.feature_vec = x_train 
 
 
-    def addFeatures(self, x): 
+    def addFeatures(self, x):
+        """
+        This function add features to the feature_vec by concatinating them
+
+        Parameters
+        ----------
+        x : numpy array
+            The features that should be added. An array of floats with the same shape as feature_vec
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
+
         features = np.concatenate((self.feature_vec, x), axis = 1)
         self.feature_vec = features 
 
-    def printFeatureShape(self): 
+    def printFeatureShape(self):
+        """
+        This function prints the shape of feature_vec
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """   
+
         print("feature shape: ", self.feature_vec.shape)
 
     def setWindowLabels(self, label_list):
@@ -2860,23 +2923,36 @@ class EEGData:
 
 
 class OnlineEEG(EEGData): 
+    """
+    Missing
+
+    Parameters
+    ----------
+    channel_names : list
+        A list of the channel names
+    n_channels : int, optional
+        The number of channels, by default 34
+    n_samples : int, optional
+        The number of samples, by default 500
+    dt_process_data : float, optional
+        Missing, by default 0.05
+    f_samp_eeg : float, optional
+        The sample frequency of the EEG, by default 500.0
+
+    Parameters
+    ----------
+    EEGData : _type_
+        _description_
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    """    
 
     def __init__(self, channel_names, n_channels=34, n_samples= 500, dt_process_data = 0.05, f_samp_eeg = 500.0): 
         """
-        Missing
-
-        Parameters
-        ----------
-        channel_names : list
-            A list of the channel names
-        n_channels : int, optional
-            The number of channels, by default 34
-        n_samples : int, optional
-            The number of samples, by default 500
-        dt_process_data : float, optional
-            Missing, by default 0.05
-        f_samp_eeg : float, optional
-            The sample frequency of the EEG, by default 500.0
+        The constructor of the OnlineEEG class
 
         Author
         ------
@@ -3005,7 +3081,15 @@ class OnlineEEG(EEGData):
                 if sample_indices[i] + 1 != sample_indices[i+1]:
                     warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
 
-    def BufferToWindows(self, num_non_data_channels = 3): 
+    def BufferToWindows(self, num_non_data_channels = 3):
+        """
+        Missing
+
+        Parameters
+        ----------
+        num_non_data_channels : int, optional
+            Number of channels to be removed, by default 3
+        """         
 
         self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
 
@@ -3028,6 +3112,25 @@ class OnlineEEG(EEGData):
     
     # ZMQ stuff 
     def startZMQServer(self, port_name):
+        """
+        This function creats a socket connection as a pubisher to send commands
+
+        Parameters
+        ----------
+        port_name : str
+           The address string. This has the form "tcp://interface:port"
+
+        Returns
+        -------
+        Missing
+            Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
         my_socket = my_context.socket(zmq.PUB)
@@ -3037,6 +3140,25 @@ class OnlineEEG(EEGData):
     
     #zmq server
     def establishZMQ(port_name):
+        """
+        This function creats a socket connection as a pubisher to send commands
+
+        Parameters
+        ----------
+        port_name : str
+           The address string. This has the form "tcp://interface:port"
+
+        Returns
+        -------
+        Missing
+            Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+        
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
         my_socket = my_context.socket(zmq.PUB)
