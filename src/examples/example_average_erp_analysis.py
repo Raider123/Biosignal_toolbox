@@ -7,9 +7,9 @@ import os
 
 
 # project path settings 
-current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
-project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
-data_path = os.path.join(project_path, 'data') # path where the data lays 
+# current_path = os.path.dirname(os.path.abspath(__file__)) # project path 
+# project_path = os.path.split(os.path.split(current_path)[0])[0] # go up two folders to get the current path
+#data_path = os.path.join(project_path, 'data') # path where the data lays 
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -21,7 +21,8 @@ from biosignal_toolbox.eeg_lib import EEGData
 
 #proj path 
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
-data_path = proj_path+"/data/"
+data_path = os.path.join(proj_path, 'data') # path where the data lays 
+
 
 #filenames = ["test3.vhdr", "test4.vhdr"]
 filenames = ["20220105_r_JD68_intentional_unilateral_set1.vhdr", "20220105_r_JD68_intentional_unilateral_set2.vhdr", "20220105_r_JD68_intentional_unilateral_set1.vhdr"]
