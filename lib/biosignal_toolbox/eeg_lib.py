@@ -36,15 +36,28 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
 
     def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5, url = 'http://10.250.223.221:5000/results'):
         """
-        This function gathers all the relevant results and sends it to the host.
-        This function should be called everytime an error is detected.
+        This function gathers all the relevant results and sends it to the host
+        This function should be called eveytime an error is detected
 
-        Attributes:
-            team_name (str)         : each team will be assigned a team name which 
-            secret_id (str)         : each team will be provided with a secret code
-            timestamp_buffer_vals   : subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
-            local_clock_time        : current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.
-        """
+        Parameters
+        ----------
+        timestamp_buffer_vals : Numpy array
+            subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
+        local_clock_time : float
+            current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.
+        team_name : str, optional
+            Each team will be assigned a team name, by default "example_team"
+        secret_id : int, optional
+            Each team will be provided with a secret code, by default 5
+        url : str, optional
+            The URL where the resulst are stored, by default 'http://10.250.223.221:5000/results'
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+
         # calculate the final values for the timings 
         comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
         computation_time = local_clock_time - timestamp_buffer_vals[1]
@@ -63,7 +76,18 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
     def printStreamMetadata(self, stream_info_obj):
         """
         This function prints some basic meta data of the stream
-        """
+
+        Parameters
+        ----------
+        stream_info_obj : StreamInlet object
+            A pylsl StreamInlet object which contains alle the information of the stream
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
+
         print("") 
         print("Meta data")
         print("Name:", stream_info_obj.name())
@@ -78,18 +102,23 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
 
     def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
         """
-        This function provides the most recent data samples and timestamps in a buffer.  
-        (first val is oldest, last the newest) 
+        This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
 
-        Attributes:
-            chunk               : current data chunk (as list with dimensions (sampels, channels))
-            data_buffer         : data buffer array of shape (buffer_size, n_channels)
-            channel_indices     : if only selected channel indices should be extracted a list of integers. 
-            n_channels          : the number of total channels (including marker and sample index channels) that should be evaluated 
+        Parameters
+        ----------
+        chunk : list
+            Current data chunk with shape (samples, channels)
+        channel_indices : list, optional
+            If only selected channel indices should be extraced, by default None
+        check_sample_loss : bool, optional
+            If True the function is checkinf for sample losses, by default True
 
-        Returns:
-            data_window         : data buffer/window (numpy array) of shape (buffer_size, n_channels)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
         """
+
         #data 
         
         current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
@@ -125,10 +154,38 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
         return data_windows# , timestamp_buffer
 
     def getDataBuffer(self): 
+        """
+        This function returns the data_buffer
+
+        Returns
+        -------
+        Numpy array
+            data_butter : float
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         return self.data_buffer
     
 
     def startZMQServer(self, port_name):
+        """
+        This function creats a socket connection as a pubisher to send commands
+
+        Parameters
+        ----------
+        port_name : str
+           The address string. This has the form "tcp://interface:port"
+
+        Returns
+        -------
+        Missing
+            Missing
+        """     
+           
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
         my_socket = my_context.socket(zmq.PUB)
@@ -136,8 +193,7 @@ class OnlineEEGUtils: # leave this for backward compability for now --> deprecat
         print("Publisher ready")
         return my_socket
 
-class EEGData:
-
+class EEGData:    
     """
     This class includes useful methods and paramters for the (pre)processing and viusalization of EEG data. It is mainly dependend on numpy, mne, scipy and additional utils (e.g. keras preprocessing)). 
 
@@ -208,10 +264,17 @@ class EEGData:
     ------
     Author : Niklas Kueper \n
     Last changed: 09.01.2024 (by Niklas Kueper)
-
     """
 
     def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
+        """
+        The constructor of the EEGData class
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 09.01.2024 (by Niklas Kueper)
+        """        
        
         self.raw_obj = None
         # parameter 
@@ -339,7 +402,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 28.11.2022 (by Niklas Kueper)
-
         """
 
         events=copy.deepcopy(self.events) 
@@ -379,8 +441,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 12.11.2023 (by Niklas Kueper)
-
         """
+
         return self.raw_obj
     
     def getEpochs(self):
@@ -398,8 +460,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 12.11.2023 (by Niklas Kueper)
-
         """
+
         return self.time_axis_epochs, self.epochs
     
     def getEvents(self): 
@@ -415,8 +477,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
+
         return self.events
         
     def getSamplingRate(self): 
@@ -432,7 +494,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
 
         return self.__fsamp
@@ -458,7 +519,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
 
         return self.calib_means, self.calib_stds, self.calib_mins, self.calib_maxs
@@ -482,7 +542,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
 
         self.calib_means = means
@@ -503,8 +562,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
+
         self.__ch_names = list(ch_names)
         
         self.raw_obj.ch_names = list(ch_names)
@@ -531,7 +590,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 05.11.2023 (by Niklas Kueper)
-
         """
 
         return self.__ch_names
@@ -549,7 +607,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 01.10.2023 (by Niklas Kueper)
-
         """
 
         # shape: trials, channels, sampels, windows
@@ -696,7 +753,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 01.10.2023 (by Niklas Kueper)
-
         """
 
         ica = ICA(n_components=n_components) 
@@ -723,8 +779,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 06.07.2022 (by Niklas Kueper)
-
         """
+
         if (len(dataset_list) > 1): 
             raw_list = []
             for dataset in dataset_list: 
@@ -759,7 +815,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 15.12.2023 (by Niklas Kueper)
-
         """
 
         if hasattr(self.raw_obj, method_name) and callable(getattr(self.raw_obj, method_name)):
@@ -802,7 +857,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 15.12.2023 (by Niklas Kueper)
-
         """
         
         # calc individual coeffs 
@@ -906,7 +960,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 15.12.2023 (by Niklas Kueper)
-
         """
         
 
@@ -1015,7 +1068,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 24.11.2023 (by Niklas Kueper)
-
         """
 
         if(self.windows.shape[2] < n_samples_start+n_samples_end):   # trials, channels, sampels, windows 
@@ -1043,7 +1095,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 28.11.2023 (by Niklas Kueper)
-
         """
         
         montage = mne.channels.make_standard_montage('easycap-M1', head_size=0.095) 
@@ -1098,9 +1149,10 @@ class EEGData:
             self.obj_filtered.set_montage(self.__montage)
 
 
-    def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06): 
+    def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06):
+                 
         """
-        This method creates a topoplot at different times in relation to an specifiy event. 
+        This method creates a topoplot at different times in relation to an specific event. 
     
         Parameters
         ----------
@@ -1117,7 +1169,6 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 28.11.2023 (by Niklas Kueper)
-
         """
         
         mean_epochs = np.mean(self.epochs, axis = 0)
@@ -1153,20 +1204,30 @@ class EEGData:
     def getDataFromChannels(self, channel_names, average = True, windowed_data = False, epoched_data = False): 
         
         """
-        This function creates and showes an topoplot at different points in time. 
-        Arguments:
-            channel_names: The channel names (list) of the data that should be returned. 
-            average: If True (boolean) the data should be averaged after windowing or epoching (deprecated, averaging should be implemented seperately). 
-            windowed_data: If True (boolean) the windowed data of the specified channels is returned. 
-            epoched_data: If True (boolean) the epoched data of the specified channels is returned. 
+        This function returns data from the channels
 
-        Returns:
-            data_channels: Numpy array with the data from the selected channels. Can be either in the format of windowed data (if windowed_data = True), epoched data (if epoched_data = True or raw data in format (channels, sampels)). 
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 22.11.2023 (by Niklas Kueper)
-        """
+        Parameters
+        ----------
+        channel_names : str
+            The channel names (list) of the data tha should be returned
+        average : bool, optional
+            If True the data should be averaged after windowing of epoching(deprecated, averaged should be implemented seperately), by default True
+        windowed_data : bool, optional
+            If True the windowed data of the specified channels is returned, by default False
+        epoched_data : bool, optional
+            If True the epoched data of the specified channels is returned, by default False
+
+        Returns
+        -------
+        2D-numpy array
+            data_channels
+                Numpy array with the data from the selected channels. Can be either in the format of windowd data (if windowed_data = True), epoched data (if epoched_data = True or raw data in format (channels, samples)) 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 22.11.2023 (by Niklas Kueper)
+        """                
         
         if(len(channel_names) > 1): # for more then one channel
             channel_idxs = []
@@ -1200,23 +1261,33 @@ class EEGData:
 
 
     def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
-
         """
-        This function creates and showes an topoplot at different points in time. 
-        Arguments:
-            model: The keras model object. 
-            epochs: The EEG-epochs as numpy array with shape: (n_epochs, n_channels, n_sampels)
-            n_samp_features: Number of sampels that are used as features for both classes, currently the last n_samp_features datapoints are consideres as erp class and the remaining are from noerp class. 
+        Missing
 
+        Parameters
+        ----------
+        model : Sissing
+            The keras model object
+        epochs : Numpy array
+            The EEG-epochs as numpy array with shape (n_epochs, n_ channels, n_samples)
+        n_samp_features : int
+            Number of samples that are used as features for both classes, currentsl the last n_samp_features datapoints are considered as erp class and dht remaining ar from noerp class
 
-        Returns:
-            predicted_labels: The predicted labels of the classifier as float values (0.0 noerp or 1.0 erp)
-            true_labels: The true labels in respect to the number of n_samp_features as erp labels (-n_samp_features to time 0 as erp labelled points)
-            trial_prediction: The prediction scores of each classified datapoint. 
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
+        Returns
+        -------
+        tuple
+            predicted_lables : Numpy array
+                The predicted labels of the classifier as float values (0.0 noerp or 1.0 erp)
+            true_labels : Numpy array
+                The true labels in respect to the number of n_samp_features as erp labels (-n_samp_features to time 0 as erp labeled points)
+            trial_prediction : Numpy array
+                The prediction scores of each classified datapoint
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 22.11.2023 (by Niklas Kueper)
+
         """
 
         true_labels = []
@@ -1243,7 +1314,29 @@ class EEGData:
         return predicted_labels, true_labels, prediction_scores
 
 
-    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp): 
+    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp):
+        """
+        This function calculates the moving average prediction scores
+
+        Parameters
+        ----------
+        trial_prediction_test : Missing
+            Missing
+        n_samp : int
+            Missing
+
+        Returns
+        -------
+        Numpy array
+            processed_trial_predictions : float
+                Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """   
+
         processed_trial_predictions = np.zeros(trial_prediction_test.shape)
 
         trial_idx = 0
@@ -1260,39 +1353,50 @@ class EEGData:
     
 
     def rereferencingEpoching(self, marker_number, error_number, channel_list, inverse_keep_channel, t1, t2, reref_channels = [], apply_filter=False, f_highpass = None, f_lowpass= None, apply_baseline_correction = False,  t0_baseline = None, t1_baseline= None, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
-        
         """
-        Apply rereferencing and epoching with given parameters and filters to an raw_obj mne instance. 
+        Apply referencing and epoching with given filters to a raw_obj mne instance
 
-        Arguments: 
-            marker_number: The markernumber of the used event for creating the epochs. 
-            error_number: The markernumber of trials with an error that are excluded from the evaluation. 
-            channel_list: A list of EEG-channels that are either kept or dropped from evaluation depending on the "inverse_keep_channel" flag. 
-            inverse_keep_channel: If False, all channel in "channel_list" are kept, otherwise the specified channel are dropped. 
-            reref_channels: A list of channels that are used for rereferencing. If the list is empty, the original ref-channel is used, if ["average"] is passed an average reference is applied.
-            apply_filter: Boolean flag that should be True if a filter should be applied. 
-            f_highpass: The highpass cutoff frequency in Hz (only used when apply_filter is True). 
-            f_lowpass: The lowpass cutoff frequency in Hz (only used when apply_filter is True). 
-            t1: Start time of the epochs in ms.  
-            t2: End time of the epochs in ms. 
-            f_samp_eeg: Sampling rate of the EEG-signals in Hz. 
-            apply_baseline_correction: Boolean flag that is set to True if baseline correction should be applied (mean value between t0_baseline and t1_baseline is used as correction). 
-            t0_baseline: Specified start time for the baseline correction. 
-            t1_baseline: Specified end time for the baseline correction. 
+        Parameters
+        ----------
+        marker_number
+            The markernumber of the used event for creating the epochs
+        error_number
+            The markernumber of the trials with an error which are excluded from the evaluation
+        channel_list
+            As list of EEG-channels that are either kept or dropped from evaluation depending on the "inverse_keep_channel" flag
+        inverse_keep_channel
+            If False, all channel in "channel_list" are kept, otherwise the specified channels are dropped
+        t1
+            Start time of the epocs in ms
+        t2
+            End time of the epochs in ms
+        reref_channels, optional
+            A list of channels that are used for rereferencing. If the list is empty, the original ref-channel is used, if ["average"] an average an average reference is applied , by default []
+        apply_filter, optional
+            Boolean flag that should be True if a filter should be applied, by default False
+        f_highpass, optional
+            The highpass cutoff frequency in Hz (only used when apply_filter is True), by default None
+        f_lowpass, optional
+            The lowpass cutoff frequency in Hz (only used when apply_filter is True), by default None
+        apply_baseline_correction, optional
+            Boolean flag that is set to True if baseline correction should be applied (mean value between t0_baseline and t1_baseline is used as correction), by default False
+        t0_baseline, optional
+            Specified start time for the baseline correction, by default None
+        t1_baseline, optional
+            Specified end time for the baseline correction, by default None
+        apply_ica, optional
+            Boolean flag that should be True if a simple ICA removal should be applied, by default False
+        n_ica_comp, optional
+            Number of components the ICA should calculate, by default 20
+        exclude_ica_comp, optional
+            The components that are excluded if the ICA flag is True, by default [0, 1]
+            
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2022 (by Niklas Kueper)  
 
-
-        Class parameters:
-            erp_epochs: The epochs of the erp analysis as numpy array with shape: (n_epochs, n_channel, n_samples)
-            erp_epoch_obj: The erp epochs object created by mne. 
-            time_axis_eeg_batch: The created time axis as one dimensional numpy array. 
-            remaining_eeg_channel_names: A list of EEG-channels that are included in the analysis (in the erp_epochs array). 
-            filtered_eeg_rereferenced: Manipulated instance of an mne raw_obj object (after filtering and channel selection). 
-
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
-        """
-
+        """        
         
         # rereferencing 
         rereferenced_eeg_raw_obj = self.raw_obj.copy()
@@ -1395,8 +1499,8 @@ class EEGData:
         ------
         Author : Niklas Kueper \n
         Last changed: 09.01.2024 (by Niklas Kueper)
-        
         """
+
         if (self.epochs is None): 
             warnings.warn("Data not epoched yet, please do this before using this method, terminating ...")
         else: # if epochs exist already  
@@ -1404,6 +1508,24 @@ class EEGData:
         
 
     def splitTrainTestEpochs(self, n_test_epochs = 5):
+        """
+        Missing
+
+        Parameters
+        ----------
+        n_test_epochs : int, optional
+            Missing, by default 5
+
+        Returns
+        -------
+        Missing
+            _description_
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
         epochs_test = self.epochs[-n_test_epochs:, :, :]
@@ -1423,6 +1545,28 @@ class EEGData:
 
 
     def timeShiftingLinearSpatialFilter(self, erp_value_type = "min", replace_epochs = False, max_sample_diff = 200): 
+        """
+        Missing
+
+        Parameters
+        ----------
+        erp_value_type : str, optional
+            Missing, by default "min"
+        replace_epochs : bool, optional
+            Missing, by default False
+        max_sample_diff : int, optional
+            Missing, by default 200
+
+        Returns
+        -------
+        _type_
+            _description_
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
         
         if(erp_value_type == "min"): 
     
@@ -1481,15 +1625,16 @@ class EEGData:
 
 
     def reshapeWindowsForCNNnets(self): 
-
         """
-        Reshape the windows from multiple trials to be fitted for the CNN networks like EEGNet.
-        This method is only required if windows are processed for more than one trial and window (do not use for single window processing). 
+        This function reshapes the windows from multiple trials to be fitted for the CNN networks like EEGNet.
+        This method is only required if windows are processed for more than one trial and windwo (do not use for single window processing)
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 14.09.2023 (by Niklas Kueper)
-        """
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 22.11.2023 (by Niklas Kueper)  
+        """        
+
         reshaped_EEG_windows= np.zeros((self.windows.shape[0]*self.windows.shape[3], self.windows.shape[1], self.windows.shape[2], 1)) # (n_trials * n_windows, n_channels, n_sampels, 1). 
         
 
@@ -1502,6 +1647,19 @@ class EEGData:
         self.windows = reshaped_EEG_windows
 
     def labelsToCategorical(self, num_classes = 2): 
+        """
+        Missing
+
+        Parameters
+        ----------
+        num_classes : int, optional
+            Total number of classes. If None, this would be inferred as max(y) + 1, by default 2
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         y = to_categorical(self.labels, num_classes)
 
@@ -1509,18 +1667,89 @@ class EEGData:
 
 
     def getWindows(self): 
+        """
+        This function returns the windowed data as a numpy array
+
+        Returns
+        -------
+        Numpy array
+            windows
+                The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n_windows).
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         return self.windows
     
     def getWindowNames(self): 
+        """
+        This funcion returns the identifier of each window
+
+        Returns
+        -------
+        window_names : str
+            The names (indentifier) of each window as a list of strings (has same size as n_windows).
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """    
+
         return self.window_names
     
     def getFeatures(self): 
+        """
+        This functions returns the featuer vectors als floats
+
+        Returns
+        -------
+        feature_vec : float
+            A feature vector as numpy array, can have different shapes depending on the later used ML model (see ML class).
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         return self.feature_vec
 
     def getLabels(self): 
+        """
+        This functions returns the labels as a numpy array with floats
+
+        Returns
+        -------
+        labels : float
+            Numpy array of the labels
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         return self.labels
 
     def getTrainLabels(self): 
+        """
+        This functions returns the labels as a numpy array with floats
+
+        Returns
+        -------
+        labels : float
+            Missing
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
+
         return self.labels
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
@@ -1565,20 +1794,23 @@ class EEGData:
 
 
     def windowEEGEpochs(self, window_size = 1000, window_step = 50, no_channel_dim = False):
-
         """
-        This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel dimension). 
+        This function cuts (overlapping) windows from continues EEG-signals (currently only for postprocessing without channel deimension)
 
-        Arguments:
-            no_channel_dim(optional): Set to True if the EEG data (epochs) have no channel dimension. 
-            window_size: The size of the windows in ms to be cutout (standard: 1000). 
-            window_step: The stepsize of the sliding window (sliding step) in ms (standard: 25)
-            
+        Parameters
+        ----------
+        window_size : int, optional
+            The size of the windows in ms to be cutout, by default 1000
+        window_step : int, optional
+            The stepsize of the sliding window (slinding step) in ms, by default 50
+        no_channel_dim : bool, optional
+            Set to True if the EEG data (epochs) have no channel dimension, by default False
         
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 14.09.2023 (by Niklas Kueper)
-        """
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
 
         #if (with_channel_dim == False): 
         window_size_samp = int((window_size/1000) * self.__fsamp) 
@@ -1629,16 +1861,19 @@ class EEGData:
 
     def windowSelection(self, selected_windows): 
         """
-        Select windows and extract them from all windows segmented by specifying the windows names.  
+        This function selects windwos and extract them from all windows segmented by specifying the window names
 
-        Arguments:
-            selected_windows: The names of the windows (given after windowing) which are selected for further processing. 
+        Parameters
+        ----------
+        selected_windows : str
+            The names of the windows (given after windowing) which are selected for further processing
         
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 14.09.2023 (by Niklas Kueper)
-        """
-
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+       
         # interate over specified window names and extract the windows 
         indices_selected_winds = []
         for current_window_name in selected_windows: 
@@ -1650,6 +1885,21 @@ class EEGData:
         self.window_names = selected_windows
 
     def windowStandardization(self, norm = False, use_min_max_norm = False):
+        """
+        Missing
+
+        Parameters
+        ----------
+        norm : bool, optional
+            Missing, by default False
+        use_min_max_norm : bool, optional
+            Missing, by default False
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
         
         # shape: trials, channels, sampels, windows 
         for trial_idx in range(0, self.windows.shape[0]): 
@@ -1686,7 +1936,20 @@ class EEGData:
                     # print(np.max(current_wind_norm))
                     # print("")
 
-    def WindowMedianCorrection(self, ratio_len = 0.1): 
+    def WindowMedianCorrection(self, ratio_len = 0.1):
+        """
+        Missing
+
+        Parameters
+        ----------
+        ratio_len : float, optional
+            Missing, by default 0.1
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """         
 
         end_idx = int(self.windows.shape[2]*ratio_len)
 
@@ -1705,6 +1968,14 @@ class EEGData:
 
 
     def WindowMeanCorrection(self): 
+        """
+        Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         # shape: trials, channels, sampels, windows 
         for trial_idx in range(0, self.windows.shape[0]): 
@@ -1721,23 +1992,32 @@ class EEGData:
 
     
     def calcTestAccAndRates(self, prediction_labels, true_labels):
-
         """
-        Get metrics from classification output of the test data. Currently the accuracy, balanced accuracy,  tnr and tpr are calculated. 
+        This function returns the metrics from classification output of the test data. Currently the accuracy, balaned accuracy, tnr and tpr are calculated
 
-        Arguments:
-            prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
-            true_labels: The true labels as one dimensional numpy array (flatten the array if it has more dimensions). 
+        Parameters
+        ----------
+        prediction_labels : numpy array
+            The prediced labels as 1D numpy array (flatten the array if it has more dimensions)
+        true_labels : numpy array
+            The true labels as 1D numpy array (flatten the array if it has more dimensions)
 
-        Returns:
-            tnr: True negative rate 
-            tpr: True positive rate
-            acc: Accuracy
-            ba: Balanced accuracy
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
+        Returns
+        -------
+        tuple
+            tnr : float
+                True negative rate
+            tpr : float
+                True positive rate
+            acc : float
+                Accuracy
+            ba : float
+                Balanced accuracy
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2022 (by Niklas Kueper)
         """
 
         prediction_labels = prediction_labels.astype(int)
@@ -1762,7 +2042,38 @@ class EEGData:
         return tnr, tpr, acc, ba
 
 
-    def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels): 
+    def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
+        """
+        Missing
+
+        Parameters
+        ----------
+        window_wise_predicts : Missing
+            Missing
+        short_tresh : Missing
+            Missing
+        mid_tresh : Missing
+            Missing
+        long_tresh : Missing
+            Missing
+        short_sampels : Missing
+            Missing
+        mid_sampels : Missing
+            Missing
+        long_sampels : Missing
+            Missing
+
+        Returns
+        -------
+        Numpy array
+            classified_windows : float
+                Missing
+            
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """          
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
@@ -1784,6 +2095,29 @@ class EEGData:
         return classified_windows
     
     def xDAWNSpatialfilter(self, n_components = 2, processing_type="fit_apply", return_filter = True, xd = None): 
+        """
+        This function implements an Xdawn filter algorithm. You can choose between only fit, only apply or both.
+
+        Parameters
+        ----------
+        n_components : int, optional
+            The number of components to decompose the signals, by default 2
+        processing_type : str, optional
+            Determans how you would like to use the function. If "fit" is parsed the Xdawn filter will be only fitted, if "apply" is parsed the Xdawn filter will be only applyed, "filter_apply" does both, by default "fit_apply"
+        return_filter : bool, optional
+            Returns the, by default True
+        xd : instance of Xdawn, optional
+            Parsing an instance of Xdawn for "apply" only purpose, by default None
+
+        Returns
+        -------
+        xd : instance of Xdawn 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         if (processing_type == "fit_apply"): # assuming this is only for training data or the epochs it should be fitted on 
 
@@ -1817,7 +2151,22 @@ class EEGData:
             self.epochs = epochs_denoised[self.event_ids].get_data() 
 
 
-    def applyxDAWNToWindows(self, xd, n_components = 2): 
+    def applyxDAWNToWindows(self, xd, n_components = 2):
+        """
+        This function applies an Xdawn filter to a window 
+
+        Parameters
+        ----------
+        xd : instance of Xdawn
+            This is an instance of an Xdawn filter object
+        n_components : int, optional
+            The number of components to decompose the signals, by default 2
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """         
         
         new_windows = np.zeros((self.windows.shape[0], n_components, self.windows.shape[2], self.windows.shape[3])) # reduced channel dim
 
@@ -1827,7 +2176,33 @@ class EEGData:
 
         self.windows = new_windows # replace old windows 
 
-    def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
+    def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
+        """
+        Missing
+
+        Parameters
+        ----------
+        window_wise_predicts : Missing
+            Missing
+        high_tresh : Missing
+            Missing
+        low_tresh : Missing
+            Missing
+        short_samp : Missing
+            Missing
+        long_samp : Missing
+            Missing
+
+        Returns
+        -------
+        Missing
+            _description_
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """         
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
@@ -1853,8 +2228,31 @@ class EEGData:
         return classified_windows
 
 
-    def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp): 
+    def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
+        """
+        This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
 
+        Parameters
+        ----------
+        window_wise_predicts : Numpy array
+            Representing predictions for different trials, time steps, and windows
+        thresh : int
+            A threshold value used for decision making during postprocessing
+        start_samp : int
+            The starting sample inde
+
+        Returns
+        -------
+        Numpy array
+            classified_windows : float
+                A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
+        
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+        
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
         for trial_idx in range(0, window_wise_predicts.shape[0]): 
@@ -1874,7 +2272,36 @@ class EEGData:
         return classified_windows
 
 
-    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): 
+    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances):
+        """
+        This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds
+
+        Parameters
+        ----------
+        predict_scores : Missing
+            Missing
+        pos_class_start_time : Missing
+            Missing
+        f_samp : int
+            The samplerate in Hz
+        decision_bound : list
+            A list specifying the bounds for positive class predictions
+        num_class_instances : int
+            The number of positive class instances
+
+        Returns
+        -------
+        float
+            ba : Balanced accuracy
+            tnr : True negative rate
+            tpr : True positive rate
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """       
+
         pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
         tns = 0 
         tps = 0 
@@ -1909,22 +2336,36 @@ class EEGData:
         return ba, tnr, tpr 
     
 
-    def OnechannelFFT(self, one_channel_data, plot = False, window = "hamming", beta = 1, title = None): 
+    def OnechannelFFT(self, one_channel_data, plot = False, window = "hamming", beta = 1, title = None):
         """
-        This function calculates the FFT for one channel of timeseries data. 
-        Arguments:
-            one_channel_data: The data for one channel as 1D numpy array. 
-            plot: If True the FFT spectrum of the data is plotted. 
-            window: The windowing function (string) that can be applied before the fft is calculated (see usable scipy window functions). 
+        This function calculates the FFT for one channel of the timeseries data
 
-        Returns:
-            xf: The frequency axis as numpy array. 
-            yfn: The FFT magnitude values of the frequency spectrum.  
+        Parameters
+        ----------
+        one_channel_data : Numpy array
+            The data for one channel
+        plot : bool, optional
+            If True the FFT spectrum of the data is plotted, by default False
+        window : str, optional
+            The windowing function that can be applied before the FFT is calculated (see usable scipy window functions), by default "hamming"
+        beta : int, optional
+            Shape parameter, determines trade-off between main-lobe width and side lobe level. As beta gets large, the window narrows, by default 1
+        title : str, optional
+            The Title of the plot, by default None
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 22.11.2023
-        """
+        Returns
+        -------
+        Numpy array
+            xf : float
+            The frequency axis
+            yfn : float
+            The FFT magnitude values of the frequency spectrum
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 22.11.2023 (by Niklas Kueper)
+        """         
 
         N = len(one_channel_data)
         # sample spacing
@@ -1967,7 +2408,17 @@ class EEGData:
         return xf, yfn
      
     
-    def detrendWindows(self): 
+    def detrendWindows(self):
+        """
+        This funcition uses detrending to remove linear trends from each window of the data.
+        Self.windwos array will contain detrended time series data for each trial, window, and channel
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         # get the features in one dim for all trials and windows 
         for trial_idx in range(0, self.windows.shape[0]):
             for window_idx in range(0, self.windows.shape[3]):
@@ -1978,6 +2429,31 @@ class EEGData:
 
 
     def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper"): 
+        """
+        Missing
+
+        Parameters
+        ----------
+        feature_type : str, optional
+            _description_, by default "timepoints"
+        feature_indices_windows : Numpy array, optional
+            Numpy array with time feature indices, by default None
+        use_mean : bool, optional
+            Missing , by default False
+        N : int, optional
+            Missing, by default 1
+        add_neightbour_diffs : bool, optional
+            Missing, by default False
+        neighbours_list : list, optional
+            Missing, by default [("C1", "CZ")]
+        psd_method : str, optional
+            Missing, by default "multitaper"
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         # (n_trials, n_channels, n_sampels, n_windows).
 
@@ -2159,26 +2635,50 @@ class EEGData:
             self.feature_vec = x_train 
 
 
-    def addFeatures(self, x): 
+    def addFeatures(self, x):
+        """
+        This function add features to the feature_vec by concatinating them
+
+        Parameters
+        ----------
+        x : numpy array
+            The features that should be added. An array of floats with the same shape as feature_vec
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
+
         features = np.concatenate((self.feature_vec, x), axis = 1)
         self.feature_vec = features 
 
-    def printFeatureShape(self): 
+    def printFeatureShape(self):
+        """
+        This function prints the shape of feature_vec
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """   
+
         print("feature shape: ", self.feature_vec.shape)
 
-    def setWindowLabels(self, label_list): 
-
+    def setWindowLabels(self, label_list):
         """
-        Set/encode the class labels of segemented windows for the classification task.  
+        Set / encode the class labels of segmented windows fot the classifiction task
 
-        Arguments:
-            label_list: A list of labels that correspond to the windows class labels (e.g. [0.0, 0.0, 1.0, 1.0]). 
-        
-        
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 22.07.2023 (by Niklas Kueper)
-        """
+        Parameters
+        ----------
+        label_list : list of floats
+            A list of labels that correspond to the window class labels (e.g. [0.0, 0.0, 1.0, 1.0])
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 22.07.2023 (by Niklas Kueper)
+        """         
 
         y = np.zeros((self.windows.shape[0], self.windows.shape[3])).astype(dtype=np.float64)
         for trial_idx in range(0, y.shape[0]): 
@@ -2191,7 +2691,16 @@ class EEGData:
 
         self.labels = y 
 
-    def dtwFeatureVecWindows(self): 
+    def dtwFeatureVecWindows(self):
+        """
+        Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         # windows in trials, channel, sampels, windows 
         self.feature_vec = np.zeros((int(self.windows.shape[0]*self.windows.shape[3]), self.windows.shape[1], self.windows.shape[2]))
 
@@ -2200,7 +2709,27 @@ class EEGData:
                 self.feature_vec[:, channel_idx, sample_idx] = self.windows[:, channel_idx, sample_idx, :].flatten()
     
 
-    def calcEEGWindowOnset(self, window_predicts, num_pos_windows): 
+    def calcEEGWindowOnset(self, window_predicts, num_pos_windows):
+        """
+        The function returns a numpy array, indicating the onset of positive labels for each trial and window.
+
+        Parameters
+        ----------
+        window_predicts : Numpy array
+            Representing predicted labels for each trial and window
+        num_pos_windows : int
+            The number of consecutive positive windows required to trigger an onset
+
+        Returns
+        -------
+        Numpy array
+            onset_window_predicts : indicating the onset of positive labels for each trial and window
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """         
 
         onset_window_predicts = np.zeros(window_predicts.shape)
         trial_idx = 0
@@ -2221,7 +2750,33 @@ class EEGData:
 
         return onset_window_predicts
 
-    def calcTrialMetricWindows(self, predict_labels, bounds, num_class_instances): 
+    def calcTrialMetricWindows(self, predict_labels, bounds, num_class_instances):
+        """
+        This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds
+
+
+        Parameters
+        ----------
+        predict_labels : list   
+            A list of predicted labels for each trial
+        bounds : list
+            A list specifying the bounds for positive class predictions
+        num_class_instances : int
+            The number of positive class instances
+
+        Returns
+        -------
+        float
+            ba : Balanced accuracy
+            tnr : True negative rate
+            tpr : True positive rate
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """ 
+
         tns = 0 
         tps = 0 
         fns = 0 
@@ -2256,23 +2811,28 @@ class EEGData:
 
 
     def applyRelabelling(self, predicted_labels, determine_labels, searching_bounds):
-
         """
-        Apply the relabelling method to the classification output in order to get the "true ground truth" labels. This function should be carefully used since it creates new ground truth labels for the evaluation of the classifier! 
+        This function apllies the relabelling method to the classification output in order to get the "true ground truth" labels. This function schould be carefully use since it creates new ground truth labels for the evaluation of the classifier!
 
-        Arguments:
-            prediction_labels: The predicted labels as one dimensional numpy array (flatten the array if it has more dimensions).
-            determine_labels: The amount of negative classes that are counted from the right side (end of each epoch/trial) to specify the "label change point". 
-            searching_bounds: A list with boundaries ([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the windows for -1000 ms and 0 ms). 
+        Parameters
+        ----------
+        predicted_labels : Numpy array
+            The predicted labels as 1D-Numpy array (flatten the arry if it has more dimensions)
+        determine_labels : Missing
+            The amount of negative classes that are counted from the right side(end of each epoch/trial to specify the "label change point")
+        searching_bounds : list
+            A list with boundaries([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the window for -1000 ms and 0 ms)
 
-        Returns:
-            new_true_labels: A numpy array (shape: (n_trials, n_sampels)) containing the new ground truth labels (0.0 neg class; 1.0 pos class). 
+        Returns
+        -------
+        Numpy array
+            new_true_labels : Containing the new ground truth labels (0.0 neg class; 1.0 pos class) with shape (n_trials, n_samples)
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 28.11.2022 (by Niklas Kueper)
-        """ 
-
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 28.11.2022 (by Niklas Kueper)
+        """        
 
         new_true_labels = np.zeros(predicted_labels.shape)
         new_true_labels[:, -1] = 1.0 # last label has to be positive class 
@@ -2308,33 +2868,46 @@ class EEGData:
         return new_true_labels
 
 
-    def calcWindowMetrics(self, wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features, use_relabelling, determine_labels, searching_bounds): 
-
+    def calcWindowMetrics(self, wind_arr, evaluation_time_per_window, window_step, f_samp_eeg, n_samp_features, use_relabelling, determine_labels, searching_bounds):
         """
-        Calculate Metrics of a window wise classification output. 
+        This function calculates the metrics of a window wise classification output
 
-        Arguments:
-            wind_arr: The windowed class predictions as numpy array with shape (n_trials, n_sampels, n_windows). 
-            evaluation_time_per_window: The time in ms at the end of each window for which the window metric is calculated (-evaluation_time_per_window to 0 ms are used). 
-            window_step: The sliding step size of the windows in ms (standard 50 ms). 
-            f_samp_eeg: The sampling rate of the EEG-data in Hz. 
-            n_samp_features: The number of sampels that are used as features (-n_samp_features:0 of each epoch). 
-            use_relabelling: If this flag is set to True, the relabelling method is applied to calculate the metrics. This method should be treated with care since it effects the classification performance!
-            determine_labels: The number of consecutive negative classes that are counted when estimating the label change point of both classes. 
-            searching_bounds: A list of the lower and upper bound of window numbers ([lower bound, upper bound]) where the label change point is searched. 
+        Parameters
+        ----------
+        wind_arr : Numpy array
+            The windowes class predictions with shape (n_trials, n_samples, n_windows)
+        evaluation_time_per_window : int
+            The time in ms at the end of each window for which the window metric is calculated (-evaluation_time_per_window to 0 ms are used)
+        window_step : int
+            The slinding step size of the windows in ms (standard is 50 ms)
+        f_samp_eeg : int
+            The sampling rate of the EEG-data in Hz
+        n_samp_features : int
+            The number of samples that are used as features (-n_samp_features: 0 of each epoch)
+        use_relabelling : bool
+            If True, the relabelling method is applied to calculate the metrics. This method should be trated with care since it effects the classification perfomance!
+        determine_labels : int
+            The number of concecutive negative classes that are counted when estimating the label change point of both classes
+        searching_bounds : list
+            A list of the lower and upper bound of window numbers ([lower bound, upper bound]) where the label change point is searched
 
-        Returns:
-            tnr: True negative rate 
-            tpr: True positive rate 
-            acc: Accuracy 
-            ba: Balanced accuracy 
-            window_predictions: The prediction values (0 - 1) for all windows and trials 
-            window_eval_true_labels: The true labels that are specified or the new true labels when relabelling is used. 
+        Returns
+        -------
+        float
+            tnr : True negative rate
+            tpr : True positive rate
+            acc : Accuracy
+            ba : Balanced accuracy
+            window_predictions : The prediction values (0 - 1) for all windows and trials
+        Numpy array
+            window_eval_true_labels : float
+                The true labels that are specified or the new true labels when relabelling is used
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 29.11.2022 (by Niklas Kueper)
-        """ 
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 29.11.2022 (by Niklas Kueper)
+        """         
 
         window_step_samp = int((window_step/1000) * f_samp_eeg) 
         evaluation_samp_per_window = int((evaluation_time_per_window/1000) * f_samp_eeg) 
@@ -2364,8 +2937,42 @@ class EEGData:
 
 
 class OnlineEEG(EEGData): 
+    """
+    Missing
+
+    Parameters
+    ----------
+    channel_names : list
+        A list of the channel names
+    n_channels : int, optional
+        The number of channels, by default 34
+    n_samples : int, optional
+        The number of samples, by default 500
+    dt_process_data : float, optional
+        Missing, by default 0.05
+    f_samp_eeg : float, optional
+        The sample frequency of the EEG, by default 500.0
+
+    Parameters
+    ----------
+    EEGData : _type_
+        _description_
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    """    
 
     def __init__(self, channel_names, n_channels=34, n_samples= 500, dt_process_data = 0.05, f_samp_eeg = 500.0): 
+        """
+        The constructor of the OnlineEEG class
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
 
         self.n_channels = n_channels
         self.buffersize = n_samples
@@ -2377,15 +2984,28 @@ class OnlineEEG(EEGData):
 
     def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = "example_team", secret_id = 5, url = 'http://10.250.223.221:5000/results'):
         """
-        This function gathers all the relevant results and sends it to the host.
-        This function should be called everytime an error is detected.
+        This function gathers all the relevant results and sends it to the host
+        This function should be called every time aan error is detected
 
-        Attributes:
-            team_name (str)         : each team will be assigned a team name which 
-            secret_id (str)         : each team will be provided with a secret code
-            timestamp_buffer_vals   : subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
-            local_clock_time        : current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.
-        """
+        Parameters
+        ----------
+        timestamp_buffer_vals : int
+            Subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
+        local_clock_time : floar
+            Current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the helf of "local_clock()" call
+        team_name : str, optional
+            Each team will be assigned a team name, by default "example_team"
+        secret_id : int, optional
+            Each team will be provided with a secret code, by default 5
+        url : str, optional
+            The URL where the results are stored, by default 'http://10.250.223.221:5000/results'
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+    
         # calculate the final values for the timings 
         comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
         computation_time = local_clock_time - timestamp_buffer_vals[1]
@@ -2404,7 +3024,18 @@ class OnlineEEG(EEGData):
     def printStreamMetadata(self, stream_info_obj):
         """
         This function prints some basic meta data of the stream
-        """
+
+        Parameters
+        ----------
+        stream_info_obj : StreamInlet object
+            A pylsl StreamInlet object which contains alle the information of the stream
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+
         print("") 
         print("Meta data")
         print("Name:", stream_info_obj.name())
@@ -2419,18 +3050,23 @@ class OnlineEEG(EEGData):
     
     def updateBuffer(self, chunk, channel_indices = None, check_sample_loss = True):  #current_local_time, timestamp_offset, 
         """
-        This function provides the most recent data samples and timestamps in a buffer.  
-        (first val is oldest, last the newest) 
+        This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
 
-        Attributes:
-            chunk               : current data chunk (as list with dimensions (sampels, channels))
-            data_buffer         : data buffer array of shape (buffer_size, n_channels)
-            channel_indices     : if only selected channel indices should be extracted a list of integers. 
-            n_channels          : the number of total channels (including marker and sample index channels) that should be evaluated 
+        Parameters
+        ----------
+        chunk : list
+            Current data chunk with shape (samples, channels)
+        channel_indices : list, optional
+            If only selected channel indices should be extraced, by default None
+        check_sample_loss : bool, optional
+            If True the function is checkinf for sample losses, by default True
 
-        Returns:
-            data_window         : data buffer/window (numpy array) of shape (buffer_size, n_channels)
-        """
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """        
+
         #data 
         
         current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
@@ -2459,15 +3095,56 @@ class OnlineEEG(EEGData):
                 if sample_indices[i] + 1 != sample_indices[i+1]:
                     warnings.warn(f"Sample loss at {i}: {sample_indices[i:i+2]}")
 
-    def BufferToWindows(self, num_non_data_channels = 3): 
+    def BufferToWindows(self, num_non_data_channels = 3):
+        """
+        Missing
+
+        Parameters
+        ----------
+        num_non_data_channels : int, optional
+            Number of channels to be removed, by default 3
+        """         
 
         self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
 
     def getDataBuffer(self): 
+        """
+        This function returns the data_buffer
+
+        Returns
+        -------
+        Numpy array
+            data_butter : float
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         return self.data_buffer
     
     # ZMQ stuff 
     def startZMQServer(self, port_name):
+        """
+        This function creats a socket connection as a pubisher to send commands
+
+        Parameters
+        ----------
+        port_name : str
+           The address string. This has the form "tcp://interface:port"
+
+        Returns
+        -------
+        Missing
+            Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
         my_socket = my_context.socket(zmq.PUB)
@@ -2477,6 +3154,25 @@ class OnlineEEG(EEGData):
     
     #zmq server
     def establishZMQ(port_name):
+        """
+        This function creats a socket connection as a pubisher to send commands
+
+        Parameters
+        ----------
+        port_name : str
+           The address string. This has the form "tcp://interface:port"
+
+        Returns
+        -------
+        Missing
+            Missing
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        """  
+        
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
         my_socket = my_context.socket(zmq.PUB)
