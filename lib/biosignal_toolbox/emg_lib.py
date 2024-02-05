@@ -36,27 +36,15 @@ class EMGData:
 
     def __init__(self, format="ANTmini",data_path = None, filename = None, f_samp = None, channel_names = None): 
 
-        """_summary_
-        
-        Parameters
-        ----------
-        format : str, optional
-            _description_, by default "ANTmini"
-        data_path : _type_, optional
-            _description_, by default None
-        filename : _type_, optional
-            _description_, by default None
-        f_samp : _type_, optional
-            _description_, by default None
-        channel_names : _type_, optional
-            _description_, by default None
         """
+        The constructor of the EMG class
         
         Author
         ------
         Author : Niklas Kueper \n
         Last changed: Missing (by Niklas Kueper)
-        """        
+        """   
+    
 
         # parameter 
         self.__fsamp = f_samp
@@ -144,7 +132,7 @@ class EMGData:
         ------
         Author : Niklas Kueper \n
         Last changed: Missing (by Niklas Kueper)
-        """
+       """
 
         return self.__fsamp
 
@@ -233,6 +221,7 @@ class EMGData:
     
 
     def showEMGData(self):
+    
         """
         This function is plotting the EMG data
 

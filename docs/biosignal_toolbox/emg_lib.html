@@ -34,86 +34,208 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal as sig
+import warnings 
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
 class EMGData:
+    &#34;&#34;&#34;
+    This class includes useful methods for the processing and visualization of EMG data. It mainly depends on numpy.
+
+    Parameters
+    ----------
+    format : str, optional
+        The formal in which the data is loaded&#34;, by default &#34;ANTmini&#34;
+    data_path : str, optional
+        The path where the data is stored, by default None
+    filename : str, optional
+        The file to be loaded, by default None
+    f_samp : int, optional
+        The sampling rate of the EMG system in Hz, by default None
+    channel_names : list of str, optional
+        A list of strings with the channel names/muscles, by default None 
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;    
 
     def __init__(self, format=&#34;ANTmini&#34;,data_path = None, filename = None, f_samp = None, channel_names = None): 
+
+        &#34;&#34;&#34;
+        The constructor of the EMG class
         
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;   
+    
+
         # parameter 
         self.__fsamp = f_samp
         self.channel_names = channel_names
         self.data = None
+        self.__data_state = &#34;continious&#34; # the current state of processing of the data, can be &#34;continious&#34;, &#34;epochs&#34;, &#34;windows&#34;
 
         if(filename):
 
             if(format == &#34;ANTmini&#34;):
-                self.raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
             else: 
-                self.raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
-        self.data = self.raw_data
-        print(self.data.shape)
+        self.data = raw_data
+        # print(&#34;data shape:&#34;, self.data.shape)
 
     def getEMGData(self):
+        &#34;&#34;&#34;
+        Returns a tuple wit the EMG data and EMG time axis
+
+        Returns
+        -------
+        tuple
+            data : Numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : Numpy array
+                The time axis of the EMG data with shape (n_samples,)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.data, self.time_axis
     
     def getChannelNames(self): 
+        &#34;&#34;&#34;
+        Returns the EMG channel names
+
+        Returns
+        -------
+        Numpy arry
+            channel_names : str
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.channel_names
         
     def getEMGfiltered(self):
+        &#34;&#34;&#34;
+        Returns the filtered EMG data 
+
+        Returns
+        -------
+        Numpy array
+            emg_filtered : float
+                The filtered EMG data witch have the same shape as data with shape (n_samples, n_channel)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.emg_filtered
     
-    def getSamplingRate(self): 
+    def getSamplingRate(self):
+        &#34;&#34;&#34;
+        Returns the sampling rate of the EMG
+
+        Returns
+        -------
+        int
+            __fsamp
+                The sampling rate the data was recorded with
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+       &#34;&#34;&#34;
+
         return self.__fsamp
 
     def loadCometaEMGData(self, data_path, file_str):
-
         &#34;&#34;&#34;
-        This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
-        Arguments:
-            file_str: The file to load given as String. 
+        This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        tuple
+            emg_data_channel : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            emg_time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples, )
+            channel_names : numpy array
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
-        #seperate between data, meta and channel names 
-        emg_data = np.loadtxt(os.path.join(data_path, file_str), dtype = float, delimiter=None, skiprows=5)
+        filename = data_path+file_str
+        emg_data = np.loadtxt(filename, dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
-        channel_names = np.loadtxt(file_str, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
+        channel_names = np.loadtxt(filename, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
         channel_names = channel_names[1:-1] # cut off last and first values since they are not EMG channel names 
 
         emg_data_channel = emg_data[:, 1:] # channel dimensions 
         emg_time_axis = emg_data[:, 0] # time axis 
 
+        # calc sampling freq from data 
+        dt = emg_time_axis[1] - emg_time_axis[0]
+        self.__fsamp = float(1/dt)
+
+        emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
+
         return emg_data_channel, emg_time_axis, channel_names
 
-    
+
     def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
+        &#34;&#34;&#34;
+        TODO: No sampling rate given in the data
+        This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
 
-        &#34;&#34;&#34; TODO: No sampling rate given in the data 
-        This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
-        Arguments:
-            file_str: The file to load given as String. 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
+        f_samp : int
+            The sampling frequency in Hz
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Returns
+        -------
+        tuple
+            emg_data : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples,)
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         #seperate between data, meta and channel names 
@@ -121,17 +243,28 @@ class EMGData:
         emg_data = emg_data_raw[:-1, :-2]
         time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 
+        emg_data = emg_data.T # transpose for timeseries data format 
 
         return emg_data, time_axis 
+    
 
-    def showEMGData(self): 
+    def showEMGData(self):
+    
+        &#34;&#34;&#34;
+        This function is plotting the EMG data
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
 
         if (self.data.ndim &gt; 1): 
-            num_channels = self.data.shape[1]
+            num_channels = self.data.shape[0]
 
             for n_channel in range(0, num_channels): 
                 plt.figure()
-                plt.plot(self.time_axis, self.data[:, n_channel])
+                plt.plot(self.time_axis, self.data[n_channel, :])
                 plt.title(self.channel_names[n_channel])
                 plt.xlabel(&#34;Time in seconds&#34;)
                 plt.ylabel(&#34;Voltage in uV&#34;)
@@ -146,60 +279,167 @@ class EMGData:
 
 
     def channelSelection(self, selected_channels, inverse): 
+        &#34;&#34;&#34;
+        This function selects EMG channel and edits the EMG data
 
-        ch_indices = []
+        Parameters
+        ----------
+        selected_channels : list
+            A list of channels. If the given channels are kept oder dropped is defined by the inverse parameter
+        inverse : bool
+            If False only the given channels are kept. Otherwise the given channels are dropped
 
-        for selected_names in selected_channels: 
-            ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
 
-        if(inverse == True): 
-            new_ch_indices = np.arange(0, len(self.channel_names)-1)
-            ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
+    #     ch_indices = []
 
-        remaining_emg_data = self.data[:, ch_indices]
-        if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
-            remaining_emg_data = remaining_emg_data[:, 0]
+    #     for selected_names in selected_channels: 
+    #         ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
 
-        remaining_emg_channels = self.channel_names[ch_indices]
+    #     if(inverse == True): 
+    #         new_ch_indices = np.arange(0, len(self.channel_names)-1)
+    #         ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
 
-        self.data = remaining_emg_data
-        self.channel_names = remaining_emg_channels
+    #     remaining_emg_data = self.data[:, ch_indices]
+    #     if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
+    #         remaining_emg_data = remaining_emg_data[:, 0]
+
+    #     remaining_emg_channels = self.channel_names[ch_indices]
+
+    #     self.data = remaining_emg_data
+    #     self.channel_names = remaining_emg_channels
 
 
-    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
+    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg):
+        &#34;&#34;&#34;
+        This function is performing a downsampling to a given target frequency
+
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        time_axis : numpy array
+            The time axis of the EMG data with shape (n_samples, )
+        target_frequency : int
+            The target frequency to which it should be downsampled in Hz
+        fsamp_emg : int
+            The sampling frequency in Hz
+
+        Returns
+        -------
+        tuple
+            dec_emg_data : numpy array
+                The new downsampled EMG data with shape (n_samples, n_channel)
+            new_time_axis : numpy array
+                The new downsampled time axis of the EMG data with shape (n_samples)
         
-        down_factor = int(fsamp_emg/target_frequency)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
+        
+    #     down_factor = int(fsamp_emg/target_frequency)
 
-        if(emg_data.ndim &gt;1):
-            emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
+    #     if(emg_data.ndim &gt;1):
+    #         emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
 
-            for channel_idx in range(0, emg_data.shape[1]): 
-                emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
+    #         for channel_idx in range(0, emg_data.shape[1]): 
+    #             emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
 
-                # check for length differences 
-                if (len(emg_dec) == emg_decimated.shape[0]):
-                    emg_decimated[:, channel_idx] = emg_dec
-                else: 
-                    emg_decimated[:, channel_idx] = emg_dec[1:]
+    #             # check for length differences 
+    #             if (len(emg_dec) == emg_decimated.shape[0]):
+    #                 emg_decimated[:, channel_idx] = emg_dec
+    #             else: 
+    #                 emg_decimated[:, channel_idx] = emg_dec[1:]
 
             
-            dec_emg_data = emg_decimated
+    #         dec_emg_data = emg_decimated
+    #     else: 
+    #         dec_emg_data = sig.decimate(emg_data, down_factor)
+
+    #     # change time axis 
+    #     dt = (time_axis[1]-time_axis[0])*down_factor
+    #     new_time_axis = np.arange(time_axis[0], time_axis[-1], step = dt)
+
+    #     return dec_emg_data, new_time_axis
+    
+
+    def calcSampleLossFromSameSamples(self, num_allowed_samples = 5):
+        &#34;&#34;&#34;
+        A helping method for calculating how much samples are lost in a recording for the cometa system (wireless connection loss). 
+
+        Returns
+        -------
+        numpy ndarray
+            A numpy array with shape: (channels, sampels)) containing the numbers of samples that are lost for each recording channel and index. Only the total amount of lost samples are shown for each index. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 02.02.2024 (by Niklas Kueper)
+
+        &#34;&#34;&#34;
+
+        loss_count_local = 0 
+        loss_array = np.zeros(self.data.shape) 
+
+        if (self.__data_state == &#34;continious&#34;): 
+            for channel_idx in range(0, self.data.shape[0]): 
+                is_this_samp_loss = False
+                is_last_samp_loss = False
+                print(&#34;loss channel: &#34; +str(channel_idx))
+
+                for sample_idx in range (1, self.data.shape[1]): 
+                    is_last_samp_loss = is_this_samp_loss  # update 
+
+                    if(self.data[channel_idx, sample_idx] == self.data[channel_idx, sample_idx-1]): # same value as before 
+                        loss_count_local = loss_count_local+1
+                        is_this_samp_loss = True 
+                    else: 
+                        is_this_samp_loss = False
+
+                    
+                    if(is_last_samp_loss and not is_this_samp_loss): # the loss is over at this point 
+                        loss_array[channel_idx, sample_idx] = loss_count_local
+                        loss_count_local = 0 
+
+
+                loss_count = np.sum(loss_array[channel_idx, :] &gt; num_allowed_samples) # calc actual number of losses above threshold  
+
+                print(&#34;number of data losses: &#34;, loss_count)
+
+            return loss_array
+
         else: 
-            dec_emg_data = sig.decimate(emg_data, down_factor)
-
-        # change time axis 
-        dt = (time_axis[1]-time_axis[0])*down_factor
-        new_time_axis = np.arange(time_axis[0], time_axis[-1], step = dt)
-
-        return dec_emg_data, new_time_axis
+            warnings.warn(&#34;not implemented for other data stages, terminating ... &#34;)
+            return None
 
     
     def applyVarianceFilter(self, n_var):
+        &#34;&#34;&#34;
+        This function applies a variance filter to the EMG data
+
+        Parameters
+        ----------
+        n_var : int
+            The filter length of the variance filter
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;    
+
         # signal init 
         emg_filtered = np.zeros(self.data.shape)
 
         if(emg_filtered.ndim &gt; 1): 
-        
+            
             for channel in range(0, emg_filtered.shape[1]): 
 
                 for index in range(0, emg_filtered.shape[0]): 
@@ -220,73 +460,92 @@ class EMGData:
         self.data = emg_filtered
 
 
-    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
-
+    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         &#34;&#34;&#34;
-        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.  
-        Arguments:
-            emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            marker_indices: The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps or a EEG system)
-            fsamp: The sampling rate of the EMG data in Hz. 
-            t_start: The start time where the epoch starts in relation to the events (marker indices) in seconds. 
-            t_stop: The stop time where the epoch ends in relation to the events (marker indices) in seconds. 
+        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
 
-        Returns:
-            emg_epochs: The epoched EMG data as numpy array (shape (n_epochs, n_channel, n_samples)). 
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        marker_indices : int
+            The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps of a EEG system)
+        fsamp : int
+            The sampling rate of the EMG data in Hz
+        t_start : int
+            The start time where the epoch starts in relation to the events (marker indices) in seconds
+        t_stop : int
+            The stop time where the epoch ends in relation to the events (marker indices) in seconds
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        Numpy array
+            emg_epochs : float
+            The epoched EMG data with shape (n_epochs, n_channel, n_samples)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
-        start_samp = int(t_start)*fsamp # convert and then times sample rate 
-        stop_samp = int(t_stop)*fsamp # convert and then times sample rate
-        len_of_epoch = start_samp-stop_samp
+    #     start_samp = int(t_start)*fsamp # convert and then times sample rate 
+    #     stop_samp = int(t_stop)*fsamp # convert and then times sample rate
+    #     len_of_epoch = start_samp-stop_samp
 
-        # init array 
-        emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
+    #     # init array 
+    #     emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
 
-        for marker_idx in range(0, len(marker_indices)): 
-            for channel_idx in range(0, emg_data.shape[1]):
-                start_idx = marker_indices[marker_idx]+start_samp
-                stop_idx = marker_indices[marker_idx]+stop_samp
+    #     for marker_idx in range(0, len(marker_indices)): 
+    #         for channel_idx in range(0, emg_data.shape[1]):
+    #             start_idx = marker_indices[marker_idx]+start_samp
+    #             stop_idx = marker_indices[marker_idx]+stop_samp
 
-                emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
+    #             emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
 
-        return emg_epochs
+    #     return emg_epochs
 
 
     def applyBPFilter(self, f_high, f_low, N = 8):
-
         &#34;&#34;&#34;
-        This function... to be written !
-        
+        This function applies a bandpass filter to the EMG data
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 23.03.2023 (by Niklas Kueper)
+        Parameters
+        ----------
+        f_high : float
+            The high cutoff frequency in Hz
+        f_low : float
+            The lof cutoff frequency in Hz
+        N : int, optional
+            The order of the filter, by default 8
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 23.03.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
+
         #Calc filtercoeff.  
         b1, a1 = sig.butter(N, f_high, &#39;high&#39;, analog=False, fs = self.__fsamp)
         b2, a2 = sig.butter(N, f_low, &#39;low&#39;, analog=False, fs = self.__fsamp)
 
-        if (self.data.ndim &gt; 1): 
-            (sampels, channels) = self.data.shape
-            emg_data_processed = np.zeros((sampels, channels))
-            print(emg_data_processed.shape)
+    #     if (self.data.ndim &gt; 1): 
+    #         (sampels, channels) = self.data.shape
+    #         emg_data_processed = np.zeros((sampels, channels))
+    #         print(emg_data_processed.shape)
 
-            for channel_idx in range(0, channels): 
+    #         for channel_idx in range(0, channels): 
                 
-                filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
-                filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+    #             filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
+    #             filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
 
-                emg_data_processed[:, channel_idx] = filtered_emg
+    #             emg_data_processed[:, channel_idx] = filtered_emg
 
-        else: 
-            filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
-            emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
+    #     else: 
+    #         filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
+    #         emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
 
-        self.data = emg_data_processed</code></pre>
+    #     self.data = emg_data_processed</code></pre>
 </details>
 </section>
 <section>
@@ -303,87 +562,228 @@ class EMGData:
 <span>(</span><span>format='ANTmini', data_path=None, filename=None, f_samp=None, channel_names=None)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>This class includes useful methods for the processing and visualization of EMG data. It mainly depends on numpy.</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>format</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The formal in which the data is loaded", by default "ANTmini"</dd>
+<dt><strong><code>data_path</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The path where the data is stored, by default None</dd>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The file to be loaded, by default None</dd>
+<dt><strong><code>f_samp</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>The sampling rate of the EMG system in Hz, by default None</dd>
+<dt><strong><code>channel_names</code></strong> :&ensp;<code>list</code> of <code>str</code>, optional</dt>
+<dd>A list of strings with the channel names/muscles, by default None</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p>
+<p>The constructor of the EMG class</p>
+<h2 id="author_1">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class EMGData:
+    &#34;&#34;&#34;
+    This class includes useful methods for the processing and visualization of EMG data. It mainly depends on numpy.
+
+    Parameters
+    ----------
+    format : str, optional
+        The formal in which the data is loaded&#34;, by default &#34;ANTmini&#34;
+    data_path : str, optional
+        The path where the data is stored, by default None
+    filename : str, optional
+        The file to be loaded, by default None
+    f_samp : int, optional
+        The sampling rate of the EMG system in Hz, by default None
+    channel_names : list of str, optional
+        A list of strings with the channel names/muscles, by default None 
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;    
 
     def __init__(self, format=&#34;ANTmini&#34;,data_path = None, filename = None, f_samp = None, channel_names = None): 
+
+        &#34;&#34;&#34;
+        The constructor of the EMG class
         
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;   
+    
+
         # parameter 
         self.__fsamp = f_samp
         self.channel_names = channel_names
         self.data = None
+        self.__data_state = &#34;continious&#34; # the current state of processing of the data, can be &#34;continious&#34;, &#34;epochs&#34;, &#34;windows&#34;
 
         if(filename):
 
             if(format == &#34;ANTmini&#34;):
-                self.raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
             else: 
-                self.raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
-        self.data = self.raw_data
-        print(self.data.shape)
+        self.data = raw_data
+        # print(&#34;data shape:&#34;, self.data.shape)
 
     def getEMGData(self):
+        &#34;&#34;&#34;
+        Returns a tuple wit the EMG data and EMG time axis
+
+        Returns
+        -------
+        tuple
+            data : Numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : Numpy array
+                The time axis of the EMG data with shape (n_samples,)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.data, self.time_axis
     
     def getChannelNames(self): 
+        &#34;&#34;&#34;
+        Returns the EMG channel names
+
+        Returns
+        -------
+        Numpy arry
+            channel_names : str
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.channel_names
         
     def getEMGfiltered(self):
+        &#34;&#34;&#34;
+        Returns the filtered EMG data 
+
+        Returns
+        -------
+        Numpy array
+            emg_filtered : float
+                The filtered EMG data witch have the same shape as data with shape (n_samples, n_channel)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;
+
         return self.emg_filtered
     
-    def getSamplingRate(self): 
+    def getSamplingRate(self):
+        &#34;&#34;&#34;
+        Returns the sampling rate of the EMG
+
+        Returns
+        -------
+        int
+            __fsamp
+                The sampling rate the data was recorded with
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+       &#34;&#34;&#34;
+
         return self.__fsamp
 
     def loadCometaEMGData(self, data_path, file_str):
-
         &#34;&#34;&#34;
-        This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
-        Arguments:
-            file_str: The file to load given as String. 
+        This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        tuple
+            emg_data_channel : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            emg_time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples, )
+            channel_names : numpy array
+                The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
-        #seperate between data, meta and channel names 
-        emg_data = np.loadtxt(os.path.join(data_path, file_str), dtype = float, delimiter=None, skiprows=5)
+        filename = data_path+file_str
+        emg_data = np.loadtxt(filename, dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
-        channel_names = np.loadtxt(file_str, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
+        channel_names = np.loadtxt(filename, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
         channel_names = channel_names[1:-1] # cut off last and first values since they are not EMG channel names 
 
         emg_data_channel = emg_data[:, 1:] # channel dimensions 
         emg_time_axis = emg_data[:, 0] # time axis 
 
+        # calc sampling freq from data 
+        dt = emg_time_axis[1] - emg_time_axis[0]
+        self.__fsamp = float(1/dt)
+
+        emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
+
         return emg_data_channel, emg_time_axis, channel_names
 
-    
+
     def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
+        &#34;&#34;&#34;
+        TODO: No sampling rate given in the data
+        This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
 
-        &#34;&#34;&#34; TODO: No sampling rate given in the data 
-        This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
-        Arguments:
-            file_str: The file to load given as String. 
+        Parameters
+        ----------
+        data_path : str
+            The path where the data is stored
+        file_str : str
+            The file to load
+        f_samp : int
+            The sampling frequency in Hz
 
-        Returns: 
-            emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-            channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+        Returns
+        -------
+        tuple
+            emg_data : numpy array
+                The EMG data with shape (n_samples, n_channel)
+            time_axis : numpy array
+                The time axis of the EMG data with shape (n_samples,)
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         #seperate between data, meta and channel names 
@@ -391,17 +791,28 @@ class EMGData:
         emg_data = emg_data_raw[:-1, :-2]
         time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 
+        emg_data = emg_data.T # transpose for timeseries data format 
 
         return emg_data, time_axis 
+    
 
-    def showEMGData(self): 
+    def showEMGData(self):
+    
+        &#34;&#34;&#34;
+        This function is plotting the EMG data
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
 
         if (self.data.ndim &gt; 1): 
-            num_channels = self.data.shape[1]
+            num_channels = self.data.shape[0]
 
             for n_channel in range(0, num_channels): 
                 plt.figure()
-                plt.plot(self.time_axis, self.data[:, n_channel])
+                plt.plot(self.time_axis, self.data[n_channel, :])
                 plt.title(self.channel_names[n_channel])
                 plt.xlabel(&#34;Time in seconds&#34;)
                 plt.ylabel(&#34;Voltage in uV&#34;)
@@ -416,60 +827,167 @@ class EMGData:
 
 
     def channelSelection(self, selected_channels, inverse): 
+        &#34;&#34;&#34;
+        This function selects EMG channel and edits the EMG data
 
-        ch_indices = []
+        Parameters
+        ----------
+        selected_channels : list
+            A list of channels. If the given channels are kept oder dropped is defined by the inverse parameter
+        inverse : bool
+            If False only the given channels are kept. Otherwise the given channels are dropped
 
-        for selected_names in selected_channels: 
-            ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
 
-        if(inverse == True): 
-            new_ch_indices = np.arange(0, len(self.channel_names)-1)
-            ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
+    #     ch_indices = []
 
-        remaining_emg_data = self.data[:, ch_indices]
-        if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
-            remaining_emg_data = remaining_emg_data[:, 0]
+    #     for selected_names in selected_channels: 
+    #         ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
 
-        remaining_emg_channels = self.channel_names[ch_indices]
+    #     if(inverse == True): 
+    #         new_ch_indices = np.arange(0, len(self.channel_names)-1)
+    #         ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
 
-        self.data = remaining_emg_data
-        self.channel_names = remaining_emg_channels
+    #     remaining_emg_data = self.data[:, ch_indices]
+    #     if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
+    #         remaining_emg_data = remaining_emg_data[:, 0]
+
+    #     remaining_emg_channels = self.channel_names[ch_indices]
+
+    #     self.data = remaining_emg_data
+    #     self.channel_names = remaining_emg_channels
 
 
-    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
+    def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg):
+        &#34;&#34;&#34;
+        This function is performing a downsampling to a given target frequency
+
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        time_axis : numpy array
+            The time axis of the EMG data with shape (n_samples, )
+        target_frequency : int
+            The target frequency to which it should be downsampled in Hz
+        fsamp_emg : int
+            The sampling frequency in Hz
+
+        Returns
+        -------
+        tuple
+            dec_emg_data : numpy array
+                The new downsampled EMG data with shape (n_samples, n_channel)
+            new_time_axis : numpy array
+                The new downsampled time axis of the EMG data with shape (n_samples)
         
-        down_factor = int(fsamp_emg/target_frequency)
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;        
+        
+    #     down_factor = int(fsamp_emg/target_frequency)
 
-        if(emg_data.ndim &gt;1):
-            emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
+    #     if(emg_data.ndim &gt;1):
+    #         emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
 
-            for channel_idx in range(0, emg_data.shape[1]): 
-                emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
+    #         for channel_idx in range(0, emg_data.shape[1]): 
+    #             emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
 
-                # check for length differences 
-                if (len(emg_dec) == emg_decimated.shape[0]):
-                    emg_decimated[:, channel_idx] = emg_dec
-                else: 
-                    emg_decimated[:, channel_idx] = emg_dec[1:]
+    #             # check for length differences 
+    #             if (len(emg_dec) == emg_decimated.shape[0]):
+    #                 emg_decimated[:, channel_idx] = emg_dec
+    #             else: 
+    #                 emg_decimated[:, channel_idx] = emg_dec[1:]
 
             
-            dec_emg_data = emg_decimated
+    #         dec_emg_data = emg_decimated
+    #     else: 
+    #         dec_emg_data = sig.decimate(emg_data, down_factor)
+
+    #     # change time axis 
+    #     dt = (time_axis[1]-time_axis[0])*down_factor
+    #     new_time_axis = np.arange(time_axis[0], time_axis[-1], step = dt)
+
+    #     return dec_emg_data, new_time_axis
+    
+
+    def calcSampleLossFromSameSamples(self, num_allowed_samples = 5):
+        &#34;&#34;&#34;
+        A helping method for calculating how much samples are lost in a recording for the cometa system (wireless connection loss). 
+
+        Returns
+        -------
+        numpy ndarray
+            A numpy array with shape: (channels, sampels)) containing the numbers of samples that are lost for each recording channel and index. Only the total amount of lost samples are shown for each index. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 02.02.2024 (by Niklas Kueper)
+
+        &#34;&#34;&#34;
+
+        loss_count_local = 0 
+        loss_array = np.zeros(self.data.shape) 
+
+        if (self.__data_state == &#34;continious&#34;): 
+            for channel_idx in range(0, self.data.shape[0]): 
+                is_this_samp_loss = False
+                is_last_samp_loss = False
+                print(&#34;loss channel: &#34; +str(channel_idx))
+
+                for sample_idx in range (1, self.data.shape[1]): 
+                    is_last_samp_loss = is_this_samp_loss  # update 
+
+                    if(self.data[channel_idx, sample_idx] == self.data[channel_idx, sample_idx-1]): # same value as before 
+                        loss_count_local = loss_count_local+1
+                        is_this_samp_loss = True 
+                    else: 
+                        is_this_samp_loss = False
+
+                    
+                    if(is_last_samp_loss and not is_this_samp_loss): # the loss is over at this point 
+                        loss_array[channel_idx, sample_idx] = loss_count_local
+                        loss_count_local = 0 
+
+
+                loss_count = np.sum(loss_array[channel_idx, :] &gt; num_allowed_samples) # calc actual number of losses above threshold  
+
+                print(&#34;number of data losses: &#34;, loss_count)
+
+            return loss_array
+
         else: 
-            dec_emg_data = sig.decimate(emg_data, down_factor)
-
-        # change time axis 
-        dt = (time_axis[1]-time_axis[0])*down_factor
-        new_time_axis = np.arange(time_axis[0], time_axis[-1], step = dt)
-
-        return dec_emg_data, new_time_axis
+            warnings.warn(&#34;not implemented for other data stages, terminating ... &#34;)
+            return None
 
     
     def applyVarianceFilter(self, n_var):
+        &#34;&#34;&#34;
+        This function applies a variance filter to the EMG data
+
+        Parameters
+        ----------
+        n_var : int
+            The filter length of the variance filter
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: Missing (by Niklas Kueper)
+        &#34;&#34;&#34;    
+
         # signal init 
         emg_filtered = np.zeros(self.data.shape)
 
         if(emg_filtered.ndim &gt; 1): 
-        
+            
             for channel in range(0, emg_filtered.shape[1]): 
 
                 for index in range(0, emg_filtered.shape[0]): 
@@ -490,73 +1008,92 @@ class EMGData:
         self.data = emg_filtered
 
 
-    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
-
+    def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         &#34;&#34;&#34;
-        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.  
-        Arguments:
-            emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-            marker_indices: The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps or a EEG system)
-            fsamp: The sampling rate of the EMG data in Hz. 
-            t_start: The start time where the epoch starts in relation to the events (marker indices) in seconds. 
-            t_stop: The stop time where the epoch ends in relation to the events (marker indices) in seconds. 
+        This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
 
-        Returns:
-            emg_epochs: The epoched EMG data as numpy array (shape (n_epochs, n_channel, n_samples)). 
+        Parameters
+        ----------
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        marker_indices : int
+            The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps of a EEG system)
+        fsamp : int
+            The sampling rate of the EMG data in Hz
+        t_start : int
+            The start time where the epoch starts in relation to the events (marker indices) in seconds
+        t_stop : int
+            The stop time where the epoch ends in relation to the events (marker indices) in seconds
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 31.01.2023 (by Niklas Kueper)
+        Returns
+        -------
+        Numpy array
+            emg_epochs : float
+            The epoched EMG data with shape (n_epochs, n_channel, n_samples)
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 31.01.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
 
-        start_samp = int(t_start)*fsamp # convert and then times sample rate 
-        stop_samp = int(t_stop)*fsamp # convert and then times sample rate
-        len_of_epoch = start_samp-stop_samp
+    #     start_samp = int(t_start)*fsamp # convert and then times sample rate 
+    #     stop_samp = int(t_stop)*fsamp # convert and then times sample rate
+    #     len_of_epoch = start_samp-stop_samp
 
-        # init array 
-        emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
+    #     # init array 
+    #     emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
 
-        for marker_idx in range(0, len(marker_indices)): 
-            for channel_idx in range(0, emg_data.shape[1]):
-                start_idx = marker_indices[marker_idx]+start_samp
-                stop_idx = marker_indices[marker_idx]+stop_samp
+    #     for marker_idx in range(0, len(marker_indices)): 
+    #         for channel_idx in range(0, emg_data.shape[1]):
+    #             start_idx = marker_indices[marker_idx]+start_samp
+    #             stop_idx = marker_indices[marker_idx]+stop_samp
 
-                emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
+    #             emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
 
-        return emg_epochs
+    #     return emg_epochs
 
 
     def applyBPFilter(self, f_high, f_low, N = 8):
-
         &#34;&#34;&#34;
-        This function... to be written !
-        
+        This function applies a bandpass filter to the EMG data
 
-        Meta information: 
-            Author: Niklas Kueper 
-            Last changed: 23.03.2023 (by Niklas Kueper)
+        Parameters
+        ----------
+        f_high : float
+            The high cutoff frequency in Hz
+        f_low : float
+            The lof cutoff frequency in Hz
+        N : int, optional
+            The order of the filter, by default 8
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 23.03.2023 (by Niklas Kueper)
         &#34;&#34;&#34;
+
         #Calc filtercoeff.  
         b1, a1 = sig.butter(N, f_high, &#39;high&#39;, analog=False, fs = self.__fsamp)
         b2, a2 = sig.butter(N, f_low, &#39;low&#39;, analog=False, fs = self.__fsamp)
 
-        if (self.data.ndim &gt; 1): 
-            (sampels, channels) = self.data.shape
-            emg_data_processed = np.zeros((sampels, channels))
-            print(emg_data_processed.shape)
+    #     if (self.data.ndim &gt; 1): 
+    #         (sampels, channels) = self.data.shape
+    #         emg_data_processed = np.zeros((sampels, channels))
+    #         print(emg_data_processed.shape)
 
-            for channel_idx in range(0, channels): 
+    #         for channel_idx in range(0, channels): 
                 
-                filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
-                filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
+    #             filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
+    #             filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
 
-                emg_data_processed[:, channel_idx] = filtered_emg
+    #             emg_data_processed[:, channel_idx] = filtered_emg
 
-        else: 
-            filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
-            emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
+    #     else: 
+    #         filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
+    #         emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
 
-        self.data = emg_data_processed</code></pre>
+    #     self.data = emg_data_processed</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -564,62 +1101,84 @@ class EMGData:
 <span>def <span class="ident">applyBPFilter</span></span>(<span>self, f_high, f_low, N=8)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function&hellip; to be written !</p>
-<p>Meta information:
-Author: Niklas Kueper
-Last changed: 23.03.2023 (by Niklas Kueper)</p></div>
+<div class="desc"><p>This function applies a bandpass filter to the EMG data</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>f_high</code></strong> :&ensp;<code>float</code></dt>
+<dd>The high cutoff frequency in Hz</dd>
+<dt><strong><code>f_low</code></strong> :&ensp;<code>float</code></dt>
+<dd>The lof cutoff frequency in Hz</dd>
+<dt><strong><code>N</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd>The order of the filter, by default 8</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 23.03.2023 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def applyBPFilter(self, f_high, f_low, N = 8):
-
     &#34;&#34;&#34;
-    This function... to be written !
-    
+    This function applies a bandpass filter to the EMG data
 
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 23.03.2023 (by Niklas Kueper)
+    Parameters
+    ----------
+    f_high : float
+        The high cutoff frequency in Hz
+    f_low : float
+        The lof cutoff frequency in Hz
+    N : int, optional
+        The order of the filter, by default 8
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 23.03.2023 (by Niklas Kueper)
     &#34;&#34;&#34;
+
     #Calc filtercoeff.  
     b1, a1 = sig.butter(N, f_high, &#39;high&#39;, analog=False, fs = self.__fsamp)
-    b2, a2 = sig.butter(N, f_low, &#39;low&#39;, analog=False, fs = self.__fsamp)
-
-    if (self.data.ndim &gt; 1): 
-        (sampels, channels) = self.data.shape
-        emg_data_processed = np.zeros((sampels, channels))
-        print(emg_data_processed.shape)
-
-        for channel_idx in range(0, channels): 
-            
-            filtered_emg_1 = sig.filtfilt(b2, a2, self.data[:, channel_idx])
-            filtered_emg = sig.filtfilt(b1, a1, filtered_emg_1)
-
-            emg_data_processed[:, channel_idx] = filtered_emg
-
-    else: 
-        filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
-        emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
-
-    self.data = emg_data_processed</code></pre>
+    b2, a2 = sig.butter(N, f_low, &#39;low&#39;, analog=False, fs = self.__fsamp)</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter"><code class="name flex">
 <span>def <span class="ident">applyVarianceFilter</span></span>(<span>self, n_var)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>This function applies a variance filter to the EMG data</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>n_var</code></strong> :&ensp;<code>int</code></dt>
+<dd>The filter length of the variance filter</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def applyVarianceFilter(self, n_var):
+    &#34;&#34;&#34;
+    This function applies a variance filter to the EMG data
+
+    Parameters
+    ----------
+    n_var : int
+        The filter length of the variance filter
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;    
+
     # signal init 
     emg_filtered = np.zeros(self.data.shape)
 
     if(emg_filtered.ndim &gt; 1): 
-    
+        
         for channel in range(0, emg_filtered.shape[1]): 
 
             for index in range(0, emg_filtered.shape[0]): 
@@ -640,143 +1199,267 @@ Last changed: 23.03.2023 (by Niklas Kueper)</p></div>
     self.data = emg_filtered</code></pre>
 </details>
 </dd>
+<dt id="biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples"><code class="name flex">
+<span>def <span class="ident">calcSampleLossFromSameSamples</span></span>(<span>self, num_allowed_samples=5)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>A helping method for calculating how much samples are lost in a recording for the cometa system (wireless connection loss). </p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>numpy ndarray</code></dt>
+<dd>A numpy array with shape: (channels, sampels)) containing the numbers of samples that are lost for each recording channel and index. Only the total amount of lost samples are shown for each index.</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 02.02.2024 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def calcSampleLossFromSameSamples(self, num_allowed_samples = 5):
+    &#34;&#34;&#34;
+    A helping method for calculating how much samples are lost in a recording for the cometa system (wireless connection loss). 
+
+    Returns
+    -------
+    numpy ndarray
+        A numpy array with shape: (channels, sampels)) containing the numbers of samples that are lost for each recording channel and index. Only the total amount of lost samples are shown for each index. 
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 02.02.2024 (by Niklas Kueper)
+
+    &#34;&#34;&#34;
+
+    loss_count_local = 0 
+    loss_array = np.zeros(self.data.shape) 
+
+    if (self.__data_state == &#34;continious&#34;): 
+        for channel_idx in range(0, self.data.shape[0]): 
+            is_this_samp_loss = False
+            is_last_samp_loss = False
+            print(&#34;loss channel: &#34; +str(channel_idx))
+
+            for sample_idx in range (1, self.data.shape[1]): 
+                is_last_samp_loss = is_this_samp_loss  # update 
+
+                if(self.data[channel_idx, sample_idx] == self.data[channel_idx, sample_idx-1]): # same value as before 
+                    loss_count_local = loss_count_local+1
+                    is_this_samp_loss = True 
+                else: 
+                    is_this_samp_loss = False
+
+                
+                if(is_last_samp_loss and not is_this_samp_loss): # the loss is over at this point 
+                    loss_array[channel_idx, sample_idx] = loss_count_local
+                    loss_count_local = 0 
+
+
+            loss_count = np.sum(loss_array[channel_idx, :] &gt; num_allowed_samples) # calc actual number of losses above threshold  
+
+            print(&#34;number of data losses: &#34;, loss_count)
+
+        return loss_array
+
+    else: 
+        warnings.warn(&#34;not implemented for other data stages, terminating ... &#34;)
+        return None</code></pre>
+</details>
+</dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.channelSelection"><code class="name flex">
 <span>def <span class="ident">channelSelection</span></span>(<span>self, selected_channels, inverse)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>This function selects EMG channel and edits the EMG data</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>selected_channels</code></strong> :&ensp;<code>list</code></dt>
+<dd>A list of channels. If the given channels are kept oder dropped is defined by the inverse parameter</dd>
+<dt><strong><code>inverse</code></strong> :&ensp;<code>bool</code></dt>
+<dd>If False only the given channels are kept. Otherwise the given channels are dropped</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def channelSelection(self, selected_channels, inverse): 
+    &#34;&#34;&#34;
+    This function selects EMG channel and edits the EMG data
 
-    ch_indices = []
+    Parameters
+    ----------
+    selected_channels : list
+        A list of channels. If the given channels are kept oder dropped is defined by the inverse parameter
+    inverse : bool
+        If False only the given channels are kept. Otherwise the given channels are dropped
 
-    for selected_names in selected_channels: 
-        ch_indices.append(np.where(self.channel_names == selected_names)[0][0])
-
-    if(inverse == True): 
-        new_ch_indices = np.arange(0, len(self.channel_names)-1)
-        ch_indices = np.delete(new_ch_indices, np.array(ch_indices))
-
-    remaining_emg_data = self.data[:, ch_indices]
-    if(remaining_emg_data.shape[1] == 1): # if only one channel cut of second dimension 
-        remaining_emg_data = remaining_emg_data[:, 0]
-
-    remaining_emg_channels = self.channel_names[ch_indices]
-
-    self.data = remaining_emg_data
-    self.channel_names = remaining_emg_channels</code></pre>
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;        </code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.decimateEMGData"><code class="name flex">
 <span>def <span class="ident">decimateEMGData</span></span>(<span>self, emg_data, time_axis, target_frequency, fsamp_emg)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>This function is performing a downsampling to a given target frequency</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>emg_data</code></strong> :&ensp;<code>numpy array</code></dt>
+<dd>The EMG data with shape (n_samples, n_channel)</dd>
+<dt><strong><code>time_axis</code></strong> :&ensp;<code>numpy array</code></dt>
+<dd>The time axis of the EMG data with shape (n_samples, )</dd>
+<dt><strong><code>target_frequency</code></strong> :&ensp;<code>int</code></dt>
+<dd>The target frequency to which it should be downsampled in Hz</dd>
+<dt><strong><code>fsamp_emg</code></strong> :&ensp;<code>int</code></dt>
+<dd>The sampling frequency in Hz</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple</code></dt>
+<dd>dec_emg_data : numpy array
+The new downsampled EMG data with shape (n_samples, n_channel)
+new_time_axis : numpy array
+The new downsampled time axis of the EMG data with shape (n_samples)</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg): 
+<pre><code class="python">def decimateEMGData(self, emg_data, time_axis, target_frequency, fsamp_emg):
+    &#34;&#34;&#34;
+    This function is performing a downsampling to a given target frequency
+
+    Parameters
+    ----------
+    emg_data : numpy array
+        The EMG data with shape (n_samples, n_channel)
+    time_axis : numpy array
+        The time axis of the EMG data with shape (n_samples, )
+    target_frequency : int
+        The target frequency to which it should be downsampled in Hz
+    fsamp_emg : int
+        The sampling frequency in Hz
+
+    Returns
+    -------
+    tuple
+        dec_emg_data : numpy array
+            The new downsampled EMG data with shape (n_samples, n_channel)
+        new_time_axis : numpy array
+            The new downsampled time axis of the EMG data with shape (n_samples)
     
-    down_factor = int(fsamp_emg/target_frequency)
-
-    if(emg_data.ndim &gt;1):
-        emg_decimated = np.zeros((int(emg_data.shape[0]/down_factor), emg_data.shape[1]))
-
-        for channel_idx in range(0, emg_data.shape[1]): 
-            emg_dec = sig.decimate(emg_data[:, channel_idx], down_factor)
-
-            # check for length differences 
-            if (len(emg_dec) == emg_decimated.shape[0]):
-                emg_decimated[:, channel_idx] = emg_dec
-            else: 
-                emg_decimated[:, channel_idx] = emg_dec[1:]
-
-        
-        dec_emg_data = emg_decimated
-    else: 
-        dec_emg_data = sig.decimate(emg_data, down_factor)
-
-    # change time axis 
-    dt = (time_axis[1]-time_axis[0])*down_factor
-    new_time_axis = np.arange(time_axis[0], time_axis[-1], step = dt)
-
-    return dec_emg_data, new_time_axis</code></pre>
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;        </code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.epocheEMGData"><code class="name flex">
 <span>def <span class="ident">epocheEMGData</span></span>(<span>self, emg_data, marker_indices, fsamp, t_start, t_stop)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.
-</p>
-<h2 id="arguments">Arguments</h2>
-<p>emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)).
-marker_indices: The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps or a EEG system)
-fsamp: The sampling rate of the EMG data in Hz.
-t_start: The start time where the epoch starts in relation to the events (marker indices) in seconds.
-t_stop: The stop time where the epoch ends in relation to the events (marker indices) in seconds. </p>
+<div class="desc"><p>This function processes the EMG data by using the epoching technique on continous data according to marker/event indices</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>emg_data</code></strong> :&ensp;<code>numpy array</code></dt>
+<dd>The EMG data with shape (n_samples, n_channel)</dd>
+<dt><strong><code>marker_indices</code></strong> :&ensp;<code>int</code></dt>
+<dd>The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps of a EEG system)</dd>
+<dt><strong><code>fsamp</code></strong> :&ensp;<code>int</code></dt>
+<dd>The sampling rate of the EMG data in Hz</dd>
+<dt><strong><code>t_start</code></strong> :&ensp;<code>int</code></dt>
+<dd>The start time where the epoch starts in relation to the events (marker indices) in seconds</dd>
+<dt><strong><code>t_stop</code></strong> :&ensp;<code>int</code></dt>
+<dd>The stop time where the epoch ends in relation to the events (marker indices) in seconds</dd>
+</dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>emg_epochs</code></dt>
-<dd>The epoched EMG data as numpy array (shape (n_epochs, n_channel, n_samples)). </dd>
+<dt><code>Numpy array</code></dt>
+<dd>emg_epochs : float
+The epoched EMG data with shape (n_epochs, n_channel, n_samples)</dd>
 </dl>
-<p>Meta information:
-Author: Niklas Kueper
-Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop): 
-
+<pre><code class="python">def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
     &#34;&#34;&#34;
-    This function processes the EMG data by using the epoching technique on continous data according to marker/event indices.  
-    Arguments:
-        emg_data: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        marker_indices: The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps or a EEG system)
-        fsamp: The sampling rate of the EMG data in Hz. 
-        t_start: The start time where the epoch starts in relation to the events (marker indices) in seconds. 
-        t_stop: The stop time where the epoch ends in relation to the events (marker indices) in seconds. 
+    This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
 
-    Returns:
-        emg_epochs: The epoched EMG data as numpy array (shape (n_epochs, n_channel, n_samples)). 
+    Parameters
+    ----------
+    emg_data : numpy array
+        The EMG data with shape (n_samples, n_channel)
+    marker_indices : int
+        The marker indices i.e. the events for epoching the EMG data (e.g. can be derived from timestamps of a EEG system)
+    fsamp : int
+        The sampling rate of the EMG data in Hz
+    t_start : int
+        The start time where the epoch starts in relation to the events (marker indices) in seconds
+    t_stop : int
+        The stop time where the epoch ends in relation to the events (marker indices) in seconds
 
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
-    &#34;&#34;&#34;
+    Returns
+    -------
+    Numpy array
+        emg_epochs : float
+        The epoched EMG data with shape (n_epochs, n_channel, n_samples)
 
-    start_samp = int(t_start)*fsamp # convert and then times sample rate 
-    stop_samp = int(t_stop)*fsamp # convert and then times sample rate
-    len_of_epoch = start_samp-stop_samp
-
-    # init array 
-    emg_epochs = np.zeros((len(marker_indices), emg_data.shape[1], np.abs(len_of_epoch))) # emg epochs have shape (n_epochs, n_channel, n_samples) according to epochs from mne 
-
-    for marker_idx in range(0, len(marker_indices)): 
-        for channel_idx in range(0, emg_data.shape[1]):
-            start_idx = marker_indices[marker_idx]+start_samp
-            stop_idx = marker_indices[marker_idx]+stop_samp
-
-            emg_epochs[marker_idx, channel_idx, :] = emg_data[start_idx:stop_idx, channel_idx]
-
-    return emg_epochs</code></pre>
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 31.01.2023 (by Niklas Kueper)
+    &#34;&#34;&#34;</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.getChannelNames"><code class="name flex">
 <span>def <span class="ident">getChannelNames</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns the EMG channel names</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>Numpy arry</code></dt>
+<dd>channel_names : str
+The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def getChannelNames(self): 
+    &#34;&#34;&#34;
+    Returns the EMG channel names
+
+    Returns
+    -------
+    Numpy arry
+        channel_names : str
+            The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;
+
     return self.channel_names</code></pre>
 </details>
 </dd>
@@ -784,12 +1467,40 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <span>def <span class="ident">getEMGData</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns a tuple wit the EMG data and EMG time axis</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple</code></dt>
+<dd>data : Numpy array
+The EMG data with shape (n_samples, n_channel)
+time_axis : Numpy array
+The time axis of the EMG data with shape (n_samples,)</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def getEMGData(self):
+    &#34;&#34;&#34;
+    Returns a tuple wit the EMG data and EMG time axis
+
+    Returns
+    -------
+    tuple
+        data : Numpy array
+            The EMG data with shape (n_samples, n_channel)
+        time_axis : Numpy array
+            The time axis of the EMG data with shape (n_samples,)
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;
+
     return self.data, self.time_axis</code></pre>
 </details>
 </dd>
@@ -797,12 +1508,36 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <span>def <span class="ident">getEMGfiltered</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns the filtered EMG data </p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>Numpy array</code></dt>
+<dd>emg_filtered : float
+The filtered EMG data witch have the same shape as data with shape (n_samples, n_channel)</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def getEMGfiltered(self):
+    &#34;&#34;&#34;
+    Returns the filtered EMG data 
+
+    Returns
+    -------
+    Numpy array
+        emg_filtered : float
+            The filtered EMG data witch have the same shape as data with shape (n_samples, n_channel)
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;
+
     return self.emg_filtered</code></pre>
 </details>
 </dd>
@@ -810,12 +1545,36 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <span>def <span class="ident">getSamplingRate</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>Returns the sampling rate of the EMG</p>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>int</code></dt>
+<dd>__fsamp
+The sampling rate the data was recorded with</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def getSamplingRate(self): 
+<pre><code class="python">def getSamplingRate(self):
+    &#34;&#34;&#34;
+    Returns the sampling rate of the EMG
+
+    Returns
+    -------
+    int
+        __fsamp
+            The sampling rate the data was recorded with
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+   &#34;&#34;&#34;
+
     return self.__fsamp</code></pre>
 </details>
 </dd>
@@ -823,46 +1582,73 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <span>def <span class="ident">loadCometaEMGData</span></span>(<span>self, data_path, file_str)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function loads the EMG data recorded from the Cometa EMG system (as txt file). </p>
-<h2 id="arguments">Arguments</h2>
-<p>file_str: The file to load given as String. </p>
-<p>Returns:
-emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)).
-emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)).
-channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). </p>
-<p>Meta information:
-Author: Niklas Kueper
-Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
+<div class="desc"><p>This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>The path where the data is stored</dd>
+<dt><strong><code>file_str</code></strong> :&ensp;<code>str</code></dt>
+<dd>The file to load</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple</code></dt>
+<dd>emg_data_channel : numpy array
+The EMG data with shape (n_samples, n_channel)
+emg_time_axis : numpy array
+The time axis of the EMG data with shape (n_samples, )
+channel_names : numpy array
+The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def loadCometaEMGData(self, data_path, file_str):
-
     &#34;&#34;&#34;
-    This function loads the EMG data recorded from the Cometa EMG system (as txt file). 
-    Arguments:
-        file_str: The file to load given as String. 
+    This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
-    Returns: 
-        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-        channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+    Parameters
+    ----------
+    data_path : str
+        The path where the data is stored
+    file_str : str
+        The file to load
 
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
+    Returns
+    -------
+    tuple
+        emg_data_channel : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        emg_time_axis : numpy array
+            The time axis of the EMG data with shape (n_samples, )
+        channel_names : numpy array
+            The EMG channel names/muscles (names specified in the recording software) with shape (n_channels, )
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 31.01.2023 (by Niklas Kueper)
     &#34;&#34;&#34;
 
-    #seperate between data, meta and channel names 
-    emg_data = np.loadtxt(os.path.join(data_path, file_str), dtype = float, delimiter=None, skiprows=5)
+    filename = data_path+file_str
+    emg_data = np.loadtxt(filename, dtype = float, delimiter=None, skiprows=5)
 
     # extract EMG channel names 
-    channel_names = np.loadtxt(file_str, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
+    channel_names = np.loadtxt(filename, dtype = str, delimiter=&#39;:&#39;, max_rows=1, skiprows=4)
     channel_names = channel_names[1:-1] # cut off last and first values since they are not EMG channel names 
 
     emg_data_channel = emg_data[:, 1:] # channel dimensions 
     emg_time_axis = emg_data[:, 0] # time axis 
+
+    # calc sampling freq from data 
+    dt = emg_time_axis[1] - emg_time_axis[0]
+    self.__fsamp = float(1/dt)
+
+    emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
 
     return emg_data_channel, emg_time_axis, channel_names</code></pre>
 </details>
@@ -872,35 +1658,57 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 </code></dt>
 <dd>
 <div class="desc"><p>TODO: No sampling rate given in the data
-This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). </p>
-<h2 id="arguments">Arguments</h2>
-<p>file_str: The file to load given as String. </p>
-<p>Returns:
-emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)).
-emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)).
-channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). </p>
-<p>Meta information:
-Author: Niklas Kueper
-Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
+This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)</p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>data_path</code></strong> :&ensp;<code>str</code></dt>
+<dd>The path where the data is stored</dd>
+<dt><strong><code>file_str</code></strong> :&ensp;<code>str</code></dt>
+<dd>The file to load</dd>
+<dt><strong><code>f_samp</code></strong> :&ensp;<code>int</code></dt>
+<dd>The sampling frequency in Hz</dd>
+</dl>
+<h2 id="returns">Returns</h2>
+<dl>
+<dt><code>tuple</code></dt>
+<dd>emg_data : numpy array
+The EMG data with shape (n_samples, n_channel)
+time_axis : numpy array
+The time axis of the EMG data with shape (n_samples,)</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
+    &#34;&#34;&#34;
+    TODO: No sampling rate given in the data
+    This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
 
-    &#34;&#34;&#34; TODO: No sampling rate given in the data 
-    This function loads the EMG data recorded from the ANT EMG system (as txt file, recorded via SDK). 
-    Arguments:
-        file_str: The file to load given as String. 
+    Parameters
+    ----------
+    data_path : str
+        The path where the data is stored
+    file_str : str
+        The file to load
+    f_samp : int
+        The sampling frequency in Hz
 
-    Returns: 
-        emg_data_channel: The EMG data as numpy array (shape: (n_sampel, n_channel)). 
-        emg_time_axis: The time axis of the EMG data as numpy array (shape: (n_sampels,)). 
-        channel_names: The EMG channel names/muscles (names specified in the recording software) as numpy array (shape: (n_channels,)). 
+    Returns
+    -------
+    tuple
+        emg_data : numpy array
+            The EMG data with shape (n_samples, n_channel)
+        time_axis : numpy array
+            The time axis of the EMG data with shape (n_samples,)
 
-    Meta information: 
-        Author: Niklas Kueper 
-        Last changed: 31.01.2023 (by Niklas Kueper)
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 31.01.2023 (by Niklas Kueper)
     &#34;&#34;&#34;
 
     #seperate between data, meta and channel names 
@@ -908,6 +1716,7 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
     emg_data = emg_data_raw[:-1, :-2]
     time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 
+    emg_data = emg_data.T # transpose for timeseries data format 
 
     return emg_data, time_axis </code></pre>
 </details>
@@ -916,19 +1725,31 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <span>def <span class="ident">showEMGData</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p>This function is plotting the EMG data</p>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: Missing (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def showEMGData(self): 
+<pre><code class="python">def showEMGData(self):
+
+    &#34;&#34;&#34;
+    This function is plotting the EMG data
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: Missing (by Niklas Kueper)
+    &#34;&#34;&#34;        
 
     if (self.data.ndim &gt; 1): 
-        num_channels = self.data.shape[1]
+        num_channels = self.data.shape[0]
 
         for n_channel in range(0, num_channels): 
             plt.figure()
-            plt.plot(self.time_axis, self.data[:, n_channel])
+            plt.plot(self.time_axis, self.data[n_channel, :])
             plt.title(self.channel_names[n_channel])
             plt.xlabel(&#34;Time in seconds&#34;)
             plt.ylabel(&#34;Voltage in uV&#34;)
@@ -962,9 +1783,10 @@ Last changed: 31.01.2023 (by Niklas Kueper)</p></div>
 <ul>
 <li>
 <h4><code><a title="biosignal_toolbox.emg_lib.EMGData" href="#biosignal_toolbox.emg_lib.EMGData">EMGData</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyBPFilter" href="#biosignal_toolbox.emg_lib.EMGData.applyBPFilter">applyBPFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter" href="#biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter">applyVarianceFilter</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples" href="#biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples">calcSampleLossFromSameSamples</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.channelSelection" href="#biosignal_toolbox.emg_lib.EMGData.channelSelection">channelSelection</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.decimateEMGData" href="#biosignal_toolbox.emg_lib.EMGData.decimateEMGData">decimateEMGData</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.epocheEMGData" href="#biosignal_toolbox.emg_lib.EMGData.epocheEMGData">epocheEMGData</a></code></li>
