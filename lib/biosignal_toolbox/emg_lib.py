@@ -31,7 +31,7 @@ class EMGData:
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 02.02.2024 (by Niklas Kueper)
     """    
 
     def __init__(self, format="ANTmini",data_path = None, filename = None, f_samp = None, channel_names = None): 
@@ -42,9 +42,9 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """   
-    
+
 
         # parameter 
         self.__fsamp = f_samp
@@ -77,7 +77,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """
 
         return self.data, self.time_axis
@@ -95,7 +95,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """
 
         return self.channel_names
@@ -113,7 +113,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """
 
         return self.emg_filtered
@@ -131,7 +131,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
        """
 
         return self.__fsamp
@@ -228,7 +228,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """        
 
         if (self.data.ndim > 1): 
@@ -264,7 +264,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """        
 
     #     ch_indices = []
@@ -312,7 +312,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """        
         
     #     down_factor = int(fsamp_emg/target_frequency)
@@ -404,7 +404,7 @@ class EMGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         """    
 
         # signal init 
@@ -518,4 +518,5 @@ class EMGData:
     #         emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
 
     #     self.data = emg_data_processed
+
 

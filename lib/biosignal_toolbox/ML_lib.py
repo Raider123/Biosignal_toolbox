@@ -11,6 +11,7 @@ from dtw import *
 import copy 
 
 import tensorflow as tf
+import warnings
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -401,10 +402,10 @@ class MLModel:
 
 
                 else: 
-                    print("not implemented ... ")
+                    warnings.warn("not implemented yet .. ")
 
             else: 
-                print("not implemented")
+                warnings.warn("not implemented yet .. ")
             
 
     def getPerfResults(self):
@@ -438,6 +439,7 @@ class MLModel:
         self.model.summary()
 
     def getPredictionScores(self):
+        
         """
         This method returns the unprocessed prediction scores. This is usually a value betrween 0 and 1 from e.g. a sigmoidal fit
 
