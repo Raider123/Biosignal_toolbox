@@ -18,6 +18,7 @@ from pybv import write_brainvision
 import zmq 
 import warnings
 
+
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
@@ -411,11 +412,12 @@ class EEGData:
     def updatefromRawObject(self): 
         """
         This method can and should be used to update the class internal parameters and variables. Please make sure that this method is called whenever external methods (like mne raw methods) are executed to update the data. 
-            
+
         Author
         ------
         Author : Niklas Kueper \n
         Last changed: 12.11.2023 (by Niklas Kueper)
+        
         """
 
         # update parameter 
@@ -478,7 +480,7 @@ class EEGData:
         """
 
         return self.events
-    
+        
     def getSamplingRate(self): 
         """
         This method returns the sampling rate of the data in Hz. 
@@ -563,6 +565,17 @@ class EEGData:
         """
 
         self.__ch_names = list(ch_names)
+        
+        self.raw_obj.ch_names = list(ch_names)
+
+    def updateChannelNamesRaw(self, new_channel_names): 
+
+        
+        def lookUpTableMethod(): 
+
+            new_channel_names
+
+        
 
     def getChannelNames(self): 
         """
@@ -1188,7 +1201,8 @@ class EEGData:
             count = count+1
         plt.show()
 
-    def getDataFromChannels(self, channel_names, average = True, windowed_data = False, epoched_data = False):
+    def getDataFromChannels(self, channel_names, average = True, windowed_data = False, epoched_data = False): 
+        
         """
         This function returns data from the channels
 
@@ -1492,7 +1506,7 @@ class EEGData:
         else: # if epochs exist already  
             return self.time_axis_epochs
         
-    
+
     def splitTrainTestEpochs(self, n_test_epochs = 5):
         """
         Missing
