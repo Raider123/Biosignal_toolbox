@@ -39,6 +39,7 @@ from dtw import *
 import copy 
 
 import tensorflow as tf
+import warnings
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -429,10 +430,10 @@ class MLModel:
 
 
                 else: 
-                    print(&#34;not implemented ... &#34;)
+                    warnings.warn(&#34;not implemented yet .. &#34;)
 
             else: 
-                print(&#34;not implemented&#34;)
+                warnings.warn(&#34;not implemented yet .. &#34;)
             
 
     def getPerfResults(self):
@@ -466,6 +467,7 @@ class MLModel:
         self.model.summary()
 
     def getPredictionScores(self):
+        
         &#34;&#34;&#34;
         This method returns the unprocessed prediction scores. This is usually a value betrween 0 and 1 from e.g. a sigmoidal fit
 
@@ -905,10 +907,10 @@ Currently only a instance of keras model can be passed</dd>
 
 
                 else: 
-                    print(&#34;not implemented ... &#34;)
+                    warnings.warn(&#34;not implemented yet .. &#34;)
 
             else: 
-                print(&#34;not implemented&#34;)
+                warnings.warn(&#34;not implemented yet .. &#34;)
             
 
     def getPerfResults(self):
@@ -942,6 +944,7 @@ Currently only a instance of keras model can be passed</dd>
         self.model.summary()
 
     def getPredictionScores(self):
+        
         &#34;&#34;&#34;
         This method returns the unprocessed prediction scores. This is usually a value betrween 0 and 1 from e.g. a sigmoidal fit
 
@@ -1204,6 +1207,7 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def getPredictionScores(self):
+    
     &#34;&#34;&#34;
     This method returns the unprocessed prediction scores. This is usually a value betrween 0 and 1 from e.g. a sigmoidal fit
 
@@ -1412,10 +1416,10 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 
 
             else: 
-                print(&#34;not implemented ... &#34;)
+                warnings.warn(&#34;not implemented yet .. &#34;)
 
         else: 
-            print(&#34;not implemented&#34;)</code></pre>
+            warnings.warn(&#34;not implemented yet .. &#34;)</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.ML_lib.MLModel.trainModel"><code class="name flex">

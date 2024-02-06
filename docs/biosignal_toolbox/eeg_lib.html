@@ -55,6 +55,16 @@ import warnings
 class OnlineEEGUtils: # leave this for backward compability for now --&gt; deprecated 
 
     def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
+        &#34;&#34;&#34;_summary_ TODO: add description
+        Parameters
+        ----------
+        n_channels : int, optional
+            _description_, by default 34
+        n_samples : int, optional
+            _description_, by default 500
+        dt_process_data : float, optional
+            _description_, by default 0.05
+        &#34;&#34;&#34;
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
@@ -83,7 +93,7 @@ class OnlineEEGUtils: # leave this for backward compability for now --&gt; depre
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # calculate the final values for the timings 
@@ -113,7 +123,7 @@ class OnlineEEGUtils: # leave this for backward compability for now --&gt; depre
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         print(&#34;&#34;) 
@@ -144,7 +154,7 @@ class OnlineEEGUtils: # leave this for backward compability for now --&gt; depre
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         #data 
@@ -193,7 +203,7 @@ class OnlineEEGUtils: # leave this for backward compability for now --&gt; depre
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.data_buffer
@@ -210,9 +220,14 @@ class OnlineEEGUtils: # leave this for backward compability for now --&gt; depre
 
         Returns
         -------
-        Missing
-            Missing
-        &#34;&#34;&#34;     
+        Instance of class zmq socket
+            The instance (handle) of the created socket connection. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.02.2024 (by Niklas Kueper)
+        &#34;&#34;&#34; 
            
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
@@ -1288,13 +1303,13 @@ class EEGData:
             return self.raw_obj.get_data(picks=channel_names) # format is channels, sampels (numpy array shape)
 
 
-    def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
+    def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features):  #TODO: Move to ml_lib or remove duplicate 
         &#34;&#34;&#34;
-        Missing
+        Get the prediction results of the classifier after predicting on the test data (scores and predicted labels). 
 
         Parameters
         ----------
-        model : Sissing
+        model : The machine learning model instance, can be for example a keras or sklearn model. 
             The keras model object
         epochs : Numpy array
             The EEG-epochs as numpy array with shape (n_epochs, n_ channels, n_samples)
@@ -1342,27 +1357,27 @@ class EEGData:
         return predicted_labels, true_labels, prediction_scores
 
 
-    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp):
+    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp = 20): # 
         &#34;&#34;&#34;
         This function calculates the moving average prediction scores
 
         Parameters
         ----------
-        trial_prediction_test : Missing
-            Missing
-        n_samp : int
-            Missing
+        trial_prediction_test : numpy Ndarray 
+            The numpy array with shape (trials, channel, sampels). 
+        n_samp : int,  by default 20
+            The length of the moving average window (samples over with the average is calculated). 
 
         Returns
         -------
         Numpy array
             processed_trial_predictions : float
-                Missing
+                A numpy ndarray containing the postprocessed prediction scores (same shape as trial_prediction_test (input)). 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;   
 
         processed_trial_predictions = np.zeros(trial_prediction_test.shape)
@@ -1537,22 +1552,22 @@ class EEGData:
 
     def splitTrainTestEpochs(self, n_test_epochs = 5):
         &#34;&#34;&#34;
-        Missing
+        Split the epochs (data type epochs) into two seperate epoched data instances. This can be used for example to split the epochs into training and testing epochs as suggested by the name. 
 
         Parameters
         ----------
         n_test_epochs : int, optional
-            Missing, by default 5
+            The number of epochs to be splitted (e.g. for testing a classifier), by default 5
 
         Returns
         -------
-        Missing
-            _description_
+        Tuple of data objects of class EEGData (train and test)
+            The returned data objects of class EEGData, each including the specified number of trials. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -1574,26 +1589,26 @@ class EEGData:
 
     def timeShiftingLinearSpatialFilter(self, erp_value_type = &#34;min&#34;, replace_epochs = False, max_sample_diff = 200): 
         &#34;&#34;&#34;
-        Missing
+        A linear spatial filter with one remaining channel that additionally applies a timeshift to each individual channel according to the a minimum or maximum ERP magnitude. 
 
         Parameters
         ----------
         erp_value_type : str, optional
-            Missing, by default &#34;min&#34;
+            The erp value type for calculating the reference channel for the time shift. Can be &#34;min&#34; or &#34;max&#34; in order to find the channel with the maximum or minimum value for further calculations, by default &#34;min&#34;
         replace_epochs : bool, optional
-            Missing, by default False
+            A boolean flag indicating if the current epochs for the calculation should be replaced, by default False
         max_sample_diff : int, optional
-            Missing, by default 200
+            The maximum sample difference between channels that is still allowed for applying the time shift. Possible time shifts above this value will not be considered by setting it to the maximum value, by default 200
 
         Returns
         -------
-        _type_
-            _description_
+        Numpy ndarray 
+            A numpy array with the shape of epochs (trials, channels, sampels) after applying the spatial filter. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
         
         if(erp_value_type == &#34;min&#34;): 
@@ -1676,7 +1691,7 @@ class EEGData:
 
     def labelsToCategorical(self, num_classes = 2): 
         &#34;&#34;&#34;
-        Missing
+        This method converts the class labels into the one hot encoding style. 
 
         Parameters
         ----------
@@ -1686,14 +1701,14 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         y = to_categorical(self.labels, num_classes)
 
         self.labels = y
 
-
+        
     def getWindows(self): 
         &#34;&#34;&#34;
         This function returns the windowed data as a numpy array
@@ -1707,7 +1722,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.windows
@@ -1724,7 +1739,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;    
 
         return self.window_names
@@ -1741,7 +1756,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.feature_vec
@@ -1758,43 +1773,54 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.labels
 
-    def getTrainLabels(self): 
-        &#34;&#34;&#34;
-        This functions returns the labels as a numpy array with floats
+    # def getTrainLabels(self):  --&gt; not used anymore, use getLabels instead 
+    #     &#34;&#34;&#34;
+    #     This functions returns the labels as a numpy array with floats
 
-        Returns
-        -------
-        labels : float
-            Missing
+    #     Returns
+    #     -------
+    #     labels : 1D numpy array  
+    #         A 1D numpy array containing the
         
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34; 
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34; 
 
-        return self.labels
+    #     return self.labels
+
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
-
         &#34;&#34;&#34;
         Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
 
-        Arguments:  
-            Missing ... 
+        Parameters
+        ----------
+        window_wise_predicts : Numpy ndarray
+            A numpy array with the predictions made on each window. Has the shape (n_trials, n_windows). 
+        high_tresh : float 
+            The higher treshold where the linear decision function ends. 
+        low_tresh : float
+            The lower treshold where the linear decision function starts. 
+        short_samp : int
+            The short sampels reflect how short the latest part or smallest chunk of data of interest is (i.e. only the late part or motor potential of an LRP).
+        long_samp : int
+            The long sampels reflecting how long the maximum ERP to be detected possibly is.  
 
-
-        Returns:
-            Missing ...  
-
+        Returns
+        -------
+        Numpy ndarray 
+            A numpy ndarray with shape (n_trials, n_windows) including the classification decision in the form of class labels (e.g. 1.0 or 0.0 for binary classification)
+            
         Meta information: 
             Author: Niklas Kueper 
-            Last changed: 18.01.2023 (by Niklas Kueper)
+            Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
@@ -1837,7 +1863,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         #if (with_channel_dim == False): 
@@ -1899,7 +1925,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
        
         # interate over specified window names and extract the windows 
@@ -1914,19 +1940,19 @@ class EEGData:
 
     def windowStandardization(self, norm = False, use_min_max_norm = False):
         &#34;&#34;&#34;
-        Missing
+        This method can be used to standardize windowed time series data. 
 
         Parameters
         ----------
         norm : bool, optional
-            Missing, by default False
+            Boolean flag wheather to normalize the window after standadizing the data, by default False
         use_min_max_norm : bool, optional
-            Missing, by default False
+            If True, a minimum maximum normalization is applied to each window. Otherwise (default) the z-transform is applied, by default False
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
         
         # shape: trials, channels, sampels, windows 
@@ -1966,17 +1992,17 @@ class EEGData:
 
     def WindowMedianCorrection(self, ratio_len = 0.1):
         &#34;&#34;&#34;
-        Missing
+        Apply a median correction to each windowed timeseries data. 
 
         Parameters
         ----------
         ratio_len : float, optional
-            Missing, by default 0.1
+            The percentage of the window which is used for the median correction starting from the first point of each window (i.e. 0.1 reflects to the first 10% of the window used to calculated the median value to be corrected for), by default 0.1
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
 
         end_idx = int(self.windows.shape[2]*ratio_len)
@@ -1997,12 +2023,12 @@ class EEGData:
 
     def WindowMeanCorrection(self): 
         &#34;&#34;&#34;
-        Missing
+        Apply a mean correction on windowed time series data. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # shape: trials, channels, sampels, windows 
@@ -2070,57 +2096,58 @@ class EEGData:
         return tnr, tpr, acc, ba
 
 
-    def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
-        &#34;&#34;&#34;
-        Missing
+    # TODO: write this proper to be used 
+    # def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
+    #     &#34;&#34;&#34;
+    #     Missing
 
-        Parameters
-        ----------
-        window_wise_predicts : Missing
-            Missing
-        short_tresh : Missing
-            Missing
-        mid_tresh : Missing
-            Missing
-        long_tresh : Missing
-            Missing
-        short_sampels : Missing
-            Missing
-        mid_sampels : Missing
-            Missing
-        long_sampels : Missing
-            Missing
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Missing
+    #         Missing
+    #     short_tresh : Missing
+    #         Missing
+    #     mid_tresh : Missing
+    #         Missing
+    #     long_tresh : Missing
+    #         Missing
+    #     short_sampels : Missing
+    #         Missing
+    #     mid_sampels : Missing
+    #         Missing
+    #     long_sampels : Missing
+    #         Missing
 
-        Returns
-        -------
-        Numpy array
-            classified_windows : float
-                Missing
+    #     Returns
+    #     -------
+    #     Numpy array
+    #         classified_windows : float
+    #             Missing
             
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;          
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;          
 
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
-                mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
-                mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
-                mean_short_time_detections = np.mean(current_predicts[short_sampels:])
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
+    #             mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
+    #             mean_short_time_detections = np.mean(current_predicts[short_sampels:])
 
-                # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-                if((mean_long_time_detections &gt; long_tresh) or (mean_short_time_detections &gt; short_tresh) or (mean_mid_time_detections &gt; mid_tresh)): 
-                    classified_windows[trial_idx, window_idx] = 1.0 
-                else: 
-                    classified_windows[trial_idx, window_idx] = 0.0
+    #             # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+    #             if((mean_long_time_detections &gt; long_tresh) or (mean_short_time_detections &gt; short_tresh) or (mean_mid_time_detections &gt; mid_tresh)): 
+    #                 classified_windows[trial_idx, window_idx] = 1.0 
+    #             else: 
+    #                 classified_windows[trial_idx, window_idx] = 0.0
                 
-        return classified_windows
+    #     return classified_windows
     
     def xDAWNSpatialfilter(self, n_components = 2, processing_type=&#34;fit_apply&#34;, return_filter = True, xd = None): 
         &#34;&#34;&#34;
@@ -2144,7 +2171,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         if (processing_type == &#34;fit_apply&#34;): # assuming this is only for training data or the epochs it should be fitted on 
@@ -2181,7 +2208,7 @@ class EEGData:
 
     def applyxDAWNToWindows(self, xd, n_components = 2):
         &#34;&#34;&#34;
-        This function applies an Xdawn filter to a window 
+        This function applies an already trained Xdawn filter to windowed timeseries data. 
 
         Parameters
         ----------
@@ -2193,7 +2220,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
         
         new_windows = np.zeros((self.windows.shape[0], n_components, self.windows.shape[2], self.windows.shape[3])) # reduced channel dim
@@ -2204,112 +2231,114 @@ class EEGData:
 
         self.windows = new_windows # replace old windows 
 
-    def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
-        &#34;&#34;&#34;
-        Missing
+    # TODO: write this proper 
+    # def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
+    #     &#34;&#34;&#34;
+    #     Missing
 
-        Parameters
-        ----------
-        window_wise_predicts : Missing
-            Missing
-        high_tresh : Missing
-            Missing
-        low_tresh : Missing
-            Missing
-        short_samp : Missing
-            Missing
-        long_samp : Missing
-            Missing
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Missing
+    #         Missing
+    #     high_tresh : Missing
+    #         Missing
+    #     low_tresh : Missing
+    #         Missing
+    #     short_samp : Missing
+    #         Missing
+    #     long_samp : Missing
+    #         Missing
 
-        Returns
-        -------
-        Missing
-            _description_
+    #     Returns
+    #     -------
+    #     Missing
+    #         _description_
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;         
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;         
 
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
 
-                tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
-                #print(&#34;sampel range&#34;, tested_sampel_range)
-                tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
-                tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
-                #print(&#34;Tresh range&#34;, tested_tresh_range)
+    #             tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
+    #             #print(&#34;sampel range&#34;, tested_sampel_range)
+    #             tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
+    #             tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
+    #             #print(&#34;Tresh range&#34;, tested_tresh_range)
 
-                for index in range(0, len(tested_sampel_range)): 
-                    mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
+    #             for index in range(0, len(tested_sampel_range)): 
+    #                 mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
 
-                    if (mean_val &gt; tested_tresh_range[index]): 
-                        classified_windows[trial_idx, window_idx] = 1.0
-                        break
+    #                 if (mean_val &gt; tested_tresh_range[index]): 
+    #                     classified_windows[trial_idx, window_idx] = 1.0
+    #                     break
 
-        return classified_windows
+    #     return classified_windows
 
 
-    def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
-        &#34;&#34;&#34;
-        This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
+    # TODO: write this proper for integrating again in toolbox (do not remove completely)
+    # def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
+    #     &#34;&#34;&#34;
+    #     This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
 
-        Parameters
-        ----------
-        window_wise_predicts : Numpy array
-            Representing predictions for different trials, time steps, and windows
-        thresh : int
-            A threshold value used for decision making during postprocessing
-        start_samp : int
-            The starting sample inde
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Numpy array
+    #         Representing predictions for different trials, time steps, and windows
+    #     thresh : int
+    #         A threshold value used for decision making during postprocessing
+    #     start_samp : int
+    #         The starting sample inde
 
-        Returns
-        -------
-        Numpy array
-            classified_windows : float
-                A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
+    #     Returns
+    #     -------
+    #     Numpy array
+    #         classified_windows : float
+    #             A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
         
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;        
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;        
         
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
 
-                mean_detections = np.mean(current_predicts[start_samp:]) 
+    #             mean_detections = np.mean(current_predicts[start_samp:]) 
 
-                # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-                if(mean_detections &gt; thresh): 
-                    classified_windows[trial_idx, window_idx] = 1.0 
-                else: 
-                    classified_windows[trial_idx, window_idx] = 0.0
+    #             # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+    #             if(mean_detections &gt; thresh): 
+    #                 classified_windows[trial_idx, window_idx] = 1.0 
+    #             else: 
+    #                 classified_windows[trial_idx, window_idx] = 0.0
 
-        return classified_windows
+    #     return classified_windows
 
 
-    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances):
+    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): # TODO: Sample rate does not have to be a parameter here
         &#34;&#34;&#34;
         This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds
 
         Parameters
         ----------
-        predict_scores : Missing
-            Missing
-        pos_class_start_time : Missing
-            Missing
+        predict_scores : Numpy ndarray 
+            A numpy ndarray containing the prediction scores (shape: (n_trials, n_predictions)). 
+        pos_class_start_time : float
+            The time in ms where the positive class starts or is defined (binary classification only) in each trial. 
         f_samp : int
             The samplerate in Hz
         decision_bound : list
@@ -2327,7 +2356,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;       
 
         pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
@@ -2444,7 +2473,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         # get the features in one dim for all trials and windows 
@@ -2458,7 +2487,7 @@ class EEGData:
 
     def featureExtractionFromWindows(self,  feature_type = &#34;timepoints&#34;, feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [(&#34;C1&#34;, &#34;CZ&#34;)], psd_method = &#34;multitaper&#34;): 
         &#34;&#34;&#34;
-        Missing
+        Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
 
         Parameters
         ----------
@@ -4363,13 +4392,13 @@ A brief description of what the method does.</p>
             return self.raw_obj.get_data(picks=channel_names) # format is channels, sampels (numpy array shape)
 
 
-    def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
+    def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features):  #TODO: Move to ml_lib or remove duplicate 
         &#34;&#34;&#34;
-        Missing
+        Get the prediction results of the classifier after predicting on the test data (scores and predicted labels). 
 
         Parameters
         ----------
-        model : Sissing
+        model : The machine learning model instance, can be for example a keras or sklearn model. 
             The keras model object
         epochs : Numpy array
             The EEG-epochs as numpy array with shape (n_epochs, n_ channels, n_samples)
@@ -4417,27 +4446,27 @@ A brief description of what the method does.</p>
         return predicted_labels, true_labels, prediction_scores
 
 
-    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp):
+    def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp = 20): # 
         &#34;&#34;&#34;
         This function calculates the moving average prediction scores
 
         Parameters
         ----------
-        trial_prediction_test : Missing
-            Missing
-        n_samp : int
-            Missing
+        trial_prediction_test : numpy Ndarray 
+            The numpy array with shape (trials, channel, sampels). 
+        n_samp : int,  by default 20
+            The length of the moving average window (samples over with the average is calculated). 
 
         Returns
         -------
         Numpy array
             processed_trial_predictions : float
-                Missing
+                A numpy ndarray containing the postprocessed prediction scores (same shape as trial_prediction_test (input)). 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;   
 
         processed_trial_predictions = np.zeros(trial_prediction_test.shape)
@@ -4612,22 +4641,22 @@ A brief description of what the method does.</p>
 
     def splitTrainTestEpochs(self, n_test_epochs = 5):
         &#34;&#34;&#34;
-        Missing
+        Split the epochs (data type epochs) into two seperate epoched data instances. This can be used for example to split the epochs into training and testing epochs as suggested by the name. 
 
         Parameters
         ----------
         n_test_epochs : int, optional
-            Missing, by default 5
+            The number of epochs to be splitted (e.g. for testing a classifier), by default 5
 
         Returns
         -------
-        Missing
-            _description_
+        Tuple of data objects of class EEGData (train and test)
+            The returned data objects of class EEGData, each including the specified number of trials. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -4649,26 +4678,26 @@ A brief description of what the method does.</p>
 
     def timeShiftingLinearSpatialFilter(self, erp_value_type = &#34;min&#34;, replace_epochs = False, max_sample_diff = 200): 
         &#34;&#34;&#34;
-        Missing
+        A linear spatial filter with one remaining channel that additionally applies a timeshift to each individual channel according to the a minimum or maximum ERP magnitude. 
 
         Parameters
         ----------
         erp_value_type : str, optional
-            Missing, by default &#34;min&#34;
+            The erp value type for calculating the reference channel for the time shift. Can be &#34;min&#34; or &#34;max&#34; in order to find the channel with the maximum or minimum value for further calculations, by default &#34;min&#34;
         replace_epochs : bool, optional
-            Missing, by default False
+            A boolean flag indicating if the current epochs for the calculation should be replaced, by default False
         max_sample_diff : int, optional
-            Missing, by default 200
+            The maximum sample difference between channels that is still allowed for applying the time shift. Possible time shifts above this value will not be considered by setting it to the maximum value, by default 200
 
         Returns
         -------
-        _type_
-            _description_
+        Numpy ndarray 
+            A numpy array with the shape of epochs (trials, channels, sampels) after applying the spatial filter. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
         
         if(erp_value_type == &#34;min&#34;): 
@@ -4751,7 +4780,7 @@ A brief description of what the method does.</p>
 
     def labelsToCategorical(self, num_classes = 2): 
         &#34;&#34;&#34;
-        Missing
+        This method converts the class labels into the one hot encoding style. 
 
         Parameters
         ----------
@@ -4761,14 +4790,14 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         y = to_categorical(self.labels, num_classes)
 
         self.labels = y
 
-
+        
     def getWindows(self): 
         &#34;&#34;&#34;
         This function returns the windowed data as a numpy array
@@ -4782,7 +4811,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.windows
@@ -4799,7 +4828,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;    
 
         return self.window_names
@@ -4816,7 +4845,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.feature_vec
@@ -4833,43 +4862,54 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.labels
 
-    def getTrainLabels(self): 
-        &#34;&#34;&#34;
-        This functions returns the labels as a numpy array with floats
+    # def getTrainLabels(self):  --&gt; not used anymore, use getLabels instead 
+    #     &#34;&#34;&#34;
+    #     This functions returns the labels as a numpy array with floats
 
-        Returns
-        -------
-        labels : float
-            Missing
+    #     Returns
+    #     -------
+    #     labels : 1D numpy array  
+    #         A 1D numpy array containing the
         
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34; 
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34; 
 
-        return self.labels
+    #     return self.labels
+
 
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
-
         &#34;&#34;&#34;
         Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
 
-        Arguments:  
-            Missing ... 
+        Parameters
+        ----------
+        window_wise_predicts : Numpy ndarray
+            A numpy array with the predictions made on each window. Has the shape (n_trials, n_windows). 
+        high_tresh : float 
+            The higher treshold where the linear decision function ends. 
+        low_tresh : float
+            The lower treshold where the linear decision function starts. 
+        short_samp : int
+            The short sampels reflect how short the latest part or smallest chunk of data of interest is (i.e. only the late part or motor potential of an LRP).
+        long_samp : int
+            The long sampels reflecting how long the maximum ERP to be detected possibly is.  
 
-
-        Returns:
-            Missing ...  
-
+        Returns
+        -------
+        Numpy ndarray 
+            A numpy ndarray with shape (n_trials, n_windows) including the classification decision in the form of class labels (e.g. 1.0 or 0.0 for binary classification)
+            
         Meta information: 
             Author: Niklas Kueper 
-            Last changed: 18.01.2023 (by Niklas Kueper)
+            Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
@@ -4912,7 +4952,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         #if (with_channel_dim == False): 
@@ -4974,7 +5014,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
        
         # interate over specified window names and extract the windows 
@@ -4989,19 +5029,19 @@ A brief description of what the method does.</p>
 
     def windowStandardization(self, norm = False, use_min_max_norm = False):
         &#34;&#34;&#34;
-        Missing
+        This method can be used to standardize windowed time series data. 
 
         Parameters
         ----------
         norm : bool, optional
-            Missing, by default False
+            Boolean flag wheather to normalize the window after standadizing the data, by default False
         use_min_max_norm : bool, optional
-            Missing, by default False
+            If True, a minimum maximum normalization is applied to each window. Otherwise (default) the z-transform is applied, by default False
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
         
         # shape: trials, channels, sampels, windows 
@@ -5041,17 +5081,17 @@ A brief description of what the method does.</p>
 
     def WindowMedianCorrection(self, ratio_len = 0.1):
         &#34;&#34;&#34;
-        Missing
+        Apply a median correction to each windowed timeseries data. 
 
         Parameters
         ----------
         ratio_len : float, optional
-            Missing, by default 0.1
+            The percentage of the window which is used for the median correction starting from the first point of each window (i.e. 0.1 reflects to the first 10% of the window used to calculated the median value to be corrected for), by default 0.1
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
 
         end_idx = int(self.windows.shape[2]*ratio_len)
@@ -5072,12 +5112,12 @@ A brief description of what the method does.</p>
 
     def WindowMeanCorrection(self): 
         &#34;&#34;&#34;
-        Missing
+        Apply a mean correction on windowed time series data. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # shape: trials, channels, sampels, windows 
@@ -5145,57 +5185,58 @@ A brief description of what the method does.</p>
         return tnr, tpr, acc, ba
 
 
-    def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
-        &#34;&#34;&#34;
-        Missing
+    # TODO: write this proper to be used 
+    # def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
+    #     &#34;&#34;&#34;
+    #     Missing
 
-        Parameters
-        ----------
-        window_wise_predicts : Missing
-            Missing
-        short_tresh : Missing
-            Missing
-        mid_tresh : Missing
-            Missing
-        long_tresh : Missing
-            Missing
-        short_sampels : Missing
-            Missing
-        mid_sampels : Missing
-            Missing
-        long_sampels : Missing
-            Missing
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Missing
+    #         Missing
+    #     short_tresh : Missing
+    #         Missing
+    #     mid_tresh : Missing
+    #         Missing
+    #     long_tresh : Missing
+    #         Missing
+    #     short_sampels : Missing
+    #         Missing
+    #     mid_sampels : Missing
+    #         Missing
+    #     long_sampels : Missing
+    #         Missing
 
-        Returns
-        -------
-        Numpy array
-            classified_windows : float
-                Missing
+    #     Returns
+    #     -------
+    #     Numpy array
+    #         classified_windows : float
+    #             Missing
             
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;          
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;          
 
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
-                mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
-                mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
-                mean_short_time_detections = np.mean(current_predicts[short_sampels:])
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
+    #             mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
+    #             mean_short_time_detections = np.mean(current_predicts[short_sampels:])
 
-                # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-                if((mean_long_time_detections &gt; long_tresh) or (mean_short_time_detections &gt; short_tresh) or (mean_mid_time_detections &gt; mid_tresh)): 
-                    classified_windows[trial_idx, window_idx] = 1.0 
-                else: 
-                    classified_windows[trial_idx, window_idx] = 0.0
+    #             # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+    #             if((mean_long_time_detections &gt; long_tresh) or (mean_short_time_detections &gt; short_tresh) or (mean_mid_time_detections &gt; mid_tresh)): 
+    #                 classified_windows[trial_idx, window_idx] = 1.0 
+    #             else: 
+    #                 classified_windows[trial_idx, window_idx] = 0.0
                 
-        return classified_windows
+    #     return classified_windows
     
     def xDAWNSpatialfilter(self, n_components = 2, processing_type=&#34;fit_apply&#34;, return_filter = True, xd = None): 
         &#34;&#34;&#34;
@@ -5219,7 +5260,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         if (processing_type == &#34;fit_apply&#34;): # assuming this is only for training data or the epochs it should be fitted on 
@@ -5256,7 +5297,7 @@ A brief description of what the method does.</p>
 
     def applyxDAWNToWindows(self, xd, n_components = 2):
         &#34;&#34;&#34;
-        This function applies an Xdawn filter to a window 
+        This function applies an already trained Xdawn filter to windowed timeseries data. 
 
         Parameters
         ----------
@@ -5268,7 +5309,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
         
         new_windows = np.zeros((self.windows.shape[0], n_components, self.windows.shape[2], self.windows.shape[3])) # reduced channel dim
@@ -5279,112 +5320,114 @@ A brief description of what the method does.</p>
 
         self.windows = new_windows # replace old windows 
 
-    def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
-        &#34;&#34;&#34;
-        Missing
+    # TODO: write this proper 
+    # def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
+    #     &#34;&#34;&#34;
+    #     Missing
 
-        Parameters
-        ----------
-        window_wise_predicts : Missing
-            Missing
-        high_tresh : Missing
-            Missing
-        low_tresh : Missing
-            Missing
-        short_samp : Missing
-            Missing
-        long_samp : Missing
-            Missing
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Missing
+    #         Missing
+    #     high_tresh : Missing
+    #         Missing
+    #     low_tresh : Missing
+    #         Missing
+    #     short_samp : Missing
+    #         Missing
+    #     long_samp : Missing
+    #         Missing
 
-        Returns
-        -------
-        Missing
-            _description_
+    #     Returns
+    #     -------
+    #     Missing
+    #         _description_
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;         
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;         
 
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
 
-                tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
-                #print(&#34;sampel range&#34;, tested_sampel_range)
-                tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
-                tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
-                #print(&#34;Tresh range&#34;, tested_tresh_range)
+    #             tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
+    #             #print(&#34;sampel range&#34;, tested_sampel_range)
+    #             tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
+    #             tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
+    #             #print(&#34;Tresh range&#34;, tested_tresh_range)
 
-                for index in range(0, len(tested_sampel_range)): 
-                    mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
+    #             for index in range(0, len(tested_sampel_range)): 
+    #                 mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
 
-                    if (mean_val &gt; tested_tresh_range[index]): 
-                        classified_windows[trial_idx, window_idx] = 1.0
-                        break
+    #                 if (mean_val &gt; tested_tresh_range[index]): 
+    #                     classified_windows[trial_idx, window_idx] = 1.0
+    #                     break
 
-        return classified_windows
+    #     return classified_windows
 
 
-    def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
-        &#34;&#34;&#34;
-        This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
+    # TODO: write this proper for integrating again in toolbox (do not remove completely)
+    # def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
+    #     &#34;&#34;&#34;
+    #     This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
 
-        Parameters
-        ----------
-        window_wise_predicts : Numpy array
-            Representing predictions for different trials, time steps, and windows
-        thresh : int
-            A threshold value used for decision making during postprocessing
-        start_samp : int
-            The starting sample inde
+    #     Parameters
+    #     ----------
+    #     window_wise_predicts : Numpy array
+    #         Representing predictions for different trials, time steps, and windows
+    #     thresh : int
+    #         A threshold value used for decision making during postprocessing
+    #     start_samp : int
+    #         The starting sample inde
 
-        Returns
-        -------
-        Numpy array
-            classified_windows : float
-                A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
+    #     Returns
+    #     -------
+    #     Numpy array
+    #         classified_windows : float
+    #             A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
         
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;        
+    #     Author
+    #     ------
+    #     Author : Niklas Kueper \n
+    #     Last changed: Missing (by Niklas Kueper)
+    #     &#34;&#34;&#34;        
         
-        classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
+    #     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
 
-        for trial_idx in range(0, window_wise_predicts.shape[0]): 
-            for window_idx in range(0, window_wise_predicts.shape[2]): 
+    #     for trial_idx in range(0, window_wise_predicts.shape[0]): 
+    #         for window_idx in range(0, window_wise_predicts.shape[2]): 
                 
-                # get prediction scores of current trial and window 
-                current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
+    #             # get prediction scores of current trial and window 
+    #             current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
 
-                mean_detections = np.mean(current_predicts[start_samp:]) 
+    #             mean_detections = np.mean(current_predicts[start_samp:]) 
 
-                # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-                if(mean_detections &gt; thresh): 
-                    classified_windows[trial_idx, window_idx] = 1.0 
-                else: 
-                    classified_windows[trial_idx, window_idx] = 0.0
+    #             # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
+    #             if(mean_detections &gt; thresh): 
+    #                 classified_windows[trial_idx, window_idx] = 1.0 
+    #             else: 
+    #                 classified_windows[trial_idx, window_idx] = 0.0
 
-        return classified_windows
+    #     return classified_windows
 
 
-    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances):
+    def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): # TODO: Sample rate does not have to be a parameter here
         &#34;&#34;&#34;
         This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds
 
         Parameters
         ----------
-        predict_scores : Missing
-            Missing
-        pos_class_start_time : Missing
-            Missing
+        predict_scores : Numpy ndarray 
+            A numpy ndarray containing the prediction scores (shape: (n_trials, n_predictions)). 
+        pos_class_start_time : float
+            The time in ms where the positive class starts or is defined (binary classification only) in each trial. 
         f_samp : int
             The samplerate in Hz
         decision_bound : list
@@ -5402,7 +5445,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;       
 
         pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
@@ -5519,7 +5562,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         # get the features in one dim for all trials and windows 
@@ -5533,7 +5576,7 @@ A brief description of what the method does.</p>
 
     def featureExtractionFromWindows(self,  feature_type = &#34;timepoints&#34;, feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [(&#34;C1&#34;, &#34;CZ&#34;)], psd_method = &#34;multitaper&#34;): 
         &#34;&#34;&#34;
-        Missing
+        Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
 
         Parameters
         ----------
@@ -6153,22 +6196,22 @@ The FFT magnitude values of the frequency spectrum</dd>
 <span>def <span class="ident">WindowMeanCorrection</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>Apply a mean correction on windowed time series data. </p>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def WindowMeanCorrection(self): 
     &#34;&#34;&#34;
-    Missing
+    Apply a mean correction on windowed time series data. 
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     # shape: trials, channels, sampels, windows 
@@ -6189,32 +6232,32 @@ The FFT magnitude values of the frequency spectrum</dd>
 <span>def <span class="ident">WindowMedianCorrection</span></span>(<span>self, ratio_len=0.1)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>Apply a median correction to each windowed timeseries data. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>ratio_len</code></strong> :&ensp;<code>float</code>, optional</dt>
-<dd>Missing, by default 0.1</dd>
+<dd>The percentage of the window which is used for the median correction starting from the first point of each window (i.e. 0.1 reflects to the first 10% of the window used to calculated the median value to be corrected for), by default 0.1</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def WindowMedianCorrection(self, ratio_len = 0.1):
     &#34;&#34;&#34;
-    Missing
+    Apply a median correction to each windowed timeseries data. 
 
     Parameters
     ----------
     ratio_len : float, optional
-        Missing, by default 0.1
+        The percentage of the window which is used for the median correction starting from the first point of each window (i.e. 0.1 reflects to the first 10% of the window used to calculated the median value to be corrected for), by default 0.1
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;         
 
     end_idx = int(self.windows.shape[2]*ratio_len)
@@ -6357,7 +6400,7 @@ The FFT magnitude values of the frequency spectrum</dd>
 <span>def <span class="ident">applyxDAWNToWindows</span></span>(<span>self, xd, n_components=2)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function applies an Xdawn filter to a window </p>
+<div class="desc"><p>This function applies an already trained Xdawn filter to windowed timeseries data. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>xd</code></strong> :&ensp;<code>instance</code> of <code>Xdawn</code></dt>
@@ -6367,14 +6410,14 @@ The FFT magnitude values of the frequency spectrum</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def applyxDAWNToWindows(self, xd, n_components = 2):
     &#34;&#34;&#34;
-    This function applies an Xdawn filter to a window 
+    This function applies an already trained Xdawn filter to windowed timeseries data. 
 
     Parameters
     ----------
@@ -6386,7 +6429,7 @@ The FFT magnitude values of the frequency spectrum</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;         
     
     new_windows = np.zeros((self.windows.shape[0], n_components, self.windows.shape[2], self.windows.shape[3])) # reduced channel dim
@@ -6530,51 +6573,52 @@ The FFT magnitude values of the frequency spectrum</dd>
 </details>
 </dd>
 <dt id="biosignal_toolbox.eeg_lib.EEGData.calcMovingAveragePredictionScores"><code class="name flex">
-<span>def <span class="ident">calcMovingAveragePredictionScores</span></span>(<span>self, trial_prediction_test, n_samp)</span>
+<span>def <span class="ident">calcMovingAveragePredictionScores</span></span>(<span>self, trial_prediction_test, n_samp=20)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function calculates the moving average prediction scores</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>trial_prediction_test</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>n_samp</code></strong> :&ensp;<code>int</code></dt>
-<dd>Missing</dd>
+<dt><strong><code>trial_prediction_test</code></strong> :&ensp;<code>numpy Ndarray </code></dt>
+<dd>The numpy array with shape (trials, channel, sampels).</dd>
+<dt><strong><code>n_samp</code></strong> :&ensp;<code>int,
+by default 20</code></dt>
+<dd>The length of the moving average window (samples over with the average is calculated).</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
 <dt><code>Numpy array</code></dt>
 <dd>processed_trial_predictions : float
-Missing</dd>
+A numpy ndarray containing the postprocessed prediction scores (same shape as trial_prediction_test (input)).</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp):
+<pre><code class="python">def calcMovingAveragePredictionScores(self, trial_prediction_test, n_samp = 20): # 
     &#34;&#34;&#34;
     This function calculates the moving average prediction scores
 
     Parameters
     ----------
-    trial_prediction_test : Missing
-        Missing
-    n_samp : int
-        Missing
+    trial_prediction_test : numpy Ndarray 
+        The numpy array with shape (trials, channel, sampels). 
+    n_samp : int,  by default 20
+        The length of the moving average window (samples over with the average is calculated). 
 
     Returns
     -------
     Numpy array
         processed_trial_predictions : float
-            Missing
+            A numpy ndarray containing the postprocessed prediction scores (same shape as trial_prediction_test (input)). 
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;   
 
     processed_trial_predictions = np.zeros(trial_prediction_test.shape)
@@ -6681,10 +6725,10 @@ Balanced accuracy</dd>
 <div class="desc"><p>This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>predict_scores</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>pos_class_start_time</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
+<dt><strong><code>predict_scores</code></strong> :&ensp;<code>Numpy ndarray </code></dt>
+<dd>A numpy ndarray containing the prediction scores (shape: (n_trials, n_predictions)).</dd>
+<dt><strong><code>pos_class_start_time</code></strong> :&ensp;<code>float</code></dt>
+<dd>The time in ms where the positive class starts or is defined (binary classification only) in each trial.</dd>
 <dt><strong><code>f_samp</code></strong> :&ensp;<code>int</code></dt>
 <dd>The samplerate in Hz</dd>
 <dt><strong><code>decision_bound</code></strong> :&ensp;<code>list</code></dt>
@@ -6701,21 +6745,21 @@ tpr : True positive rate</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances):
+<pre><code class="python">def calcTrialMetric(self, predict_scores, pos_class_start_time, f_samp, decision_bound, num_class_instances): # TODO: Sample rate does not have to be a parameter here
     &#34;&#34;&#34;
     This function seperates, calculates and returns the prediction of posivie and negative classes based on the specified bounds
 
     Parameters
     ----------
-    predict_scores : Missing
-        Missing
-    pos_class_start_time : Missing
-        Missing
+    predict_scores : Numpy ndarray 
+        A numpy ndarray containing the prediction scores (shape: (n_trials, n_predictions)). 
+    pos_class_start_time : float
+        The time in ms where the positive class starts or is defined (binary classification only) in each trial. 
     f_samp : int
         The samplerate in Hz
     decision_bound : list
@@ -6733,7 +6777,7 @@ tpr : True positive rate</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;       
 
     pos_class_start_samp = int((pos_class_start_time/1000) * f_samp)
@@ -7257,7 +7301,7 @@ The true labels that are specified or the new true labels when relabelling is us
 Self.windwos array will contain detrended time series data for each trial, window, and channel</p>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -7270,7 +7314,7 @@ Self.windwos array will contain detrended time series data for each trial, windo
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     # get the features in one dim for all trials and windows 
@@ -7316,7 +7360,7 @@ Self.windwos array will contain detrended time series data for each trial, windo
 <span>def <span class="ident">featureExtractionFromWindows</span></span>(<span>self, feature_type='timepoints', feature_indices_windows=None, use_mean=False, N=1, add_neightbour_diffs=False, neighbours_list=[('C1', 'CZ')], psd_method='multitaper')</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>feature_type</code></strong> :&ensp;<code>str</code>, optional</dt>
@@ -7343,7 +7387,7 @@ Self.windwos array will contain detrended time series data for each trial, windo
 </summary>
 <pre><code class="python">def featureExtractionFromWindows(self,  feature_type = &#34;timepoints&#34;, feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [(&#34;C1&#34;, &#34;CZ&#34;)], psd_method = &#34;multitaper&#34;): 
     &#34;&#34;&#34;
-    Missing
+    Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
 
     Parameters
     ----------
@@ -7946,7 +7990,7 @@ Numpy array with the data from the selected channels. Can be either in the forma
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -7963,7 +8007,7 @@ Numpy array with the data from the selected channels. Can be either in the forma
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     return self.feature_vec</code></pre>
@@ -7973,10 +8017,10 @@ Numpy array with the data from the selected channels. Can be either in the forma
 <span>def <span class="ident">getKerasPredictionResultsLRP</span></span>(<span>self, model, epochs, n_samp_features)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>Get the prediction results of the classifier after predicting on the test data (scores and predicted labels). </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
-<dt><strong><code>model</code></strong> :&ensp;<code>Sissing</code></dt>
+<dt><strong><code>model</code></strong> :&ensp;<code>The machine learning model instance, can be for example a keras</code> or <code>sklearn model. </code></dt>
 <dd>The keras model object</dd>
 <dt><strong><code>epochs</code></strong> :&ensp;<code>Numpy array</code></dt>
 <dd>The EEG-epochs as numpy array with shape (n_epochs, n_ channels, n_samples)</dd>
@@ -8000,13 +8044,13 @@ The prediction scores of each classified datapoint</dd>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features): 
+<pre><code class="python">def getKerasPredictionResultsLRP(self, model, epochs, n_samp_features):  #TODO: Move to ml_lib or remove duplicate 
     &#34;&#34;&#34;
-    Missing
+    Get the prediction results of the classifier after predicting on the test data (scores and predicted labels). 
 
     Parameters
     ----------
-    model : Sissing
+    model : The machine learning model instance, can be for example a keras or sklearn model. 
         The keras model object
     epochs : Numpy array
         The EEG-epochs as numpy array with shape (n_epochs, n_ channels, n_samples)
@@ -8066,7 +8110,7 @@ The prediction scores of each classified datapoint</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -8083,7 +8127,7 @@ The prediction scores of each classified datapoint</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     return self.labels</code></pre>
@@ -8197,41 +8241,6 @@ The prediction scores of each classified datapoint</dd>
         return self.time_axis_epochs</code></pre>
 </details>
 </dd>
-<dt id="biosignal_toolbox.eeg_lib.EEGData.getTrainLabels"><code class="name flex">
-<span>def <span class="ident">getTrainLabels</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This functions returns the labels as a numpy array with floats</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><strong><code>labels</code></strong> :&ensp;<code>float</code></dt>
-<dd>Missing</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def getTrainLabels(self): 
-    &#34;&#34;&#34;
-    This functions returns the labels as a numpy array with floats
-
-    Returns
-    -------
-    labels : float
-        Missing
-    
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
-    &#34;&#34;&#34; 
-
-    return self.labels</code></pre>
-</details>
-</dd>
 <dt id="biosignal_toolbox.eeg_lib.EEGData.getWindowNames"><code class="name flex">
 <span>def <span class="ident">getWindowNames</span></span>(<span>self)</span>
 </code></dt>
@@ -8244,7 +8253,7 @@ The prediction scores of each classified datapoint</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -8261,7 +8270,7 @@ The prediction scores of each classified datapoint</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;    
 
     return self.window_names</code></pre>
@@ -8280,7 +8289,7 @@ The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -8298,7 +8307,7 @@ The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     return self.windows</code></pre>
@@ -8308,7 +8317,7 @@ The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n
 <span>def <span class="ident">labelsToCategorical</span></span>(<span>self, num_classes=2)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>This method converts the class labels into the one hot encoding style. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>num_classes</code></strong> :&ensp;<code>int</code>, optional</dt>
@@ -8316,14 +8325,14 @@ The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def labelsToCategorical(self, num_classes = 2): 
     &#34;&#34;&#34;
-    Missing
+    This method converts the class labels into the one hot encoding style. 
 
     Parameters
     ----------
@@ -8333,7 +8342,7 @@ The windowed data as numpy array with shape: (n_trials, n_channels, n_sampels, n
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     y = to_categorical(self.labels, num_classes)
@@ -8531,32 +8540,56 @@ Please the the wiki of mne for further informations about the methods. </p>
 </code></dt>
 <dd>
 <div class="desc"><p>Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. </p>
-<p>Arguments:<br>
-Missing &hellip; </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>window_wise_predicts</code></strong> :&ensp;<code>Numpy ndarray</code></dt>
+<dd>A numpy array with the predictions made on each window. Has the shape (n_trials, n_windows).</dd>
+<dt><strong><code>high_tresh</code></strong> :&ensp;<code>float </code></dt>
+<dd>The higher treshold where the linear decision function ends.</dd>
+<dt><strong><code>low_tresh</code></strong> :&ensp;<code>float</code></dt>
+<dd>The lower treshold where the linear decision function starts.</dd>
+<dt><strong><code>short_samp</code></strong> :&ensp;<code>int</code></dt>
+<dd>The short sampels reflect how short the latest part or smallest chunk of data of interest is (i.e. only the late part or motor potential of an LRP).</dd>
+<dt><strong><code>long_samp</code></strong> :&ensp;<code>int</code></dt>
+<dd>The long sampels reflecting how long the maximum ERP to be detected possibly is.</dd>
+</dl>
 <h2 id="returns">Returns</h2>
-<p>Missing &hellip;<br>
-Meta information:
-Author: Niklas Kueper
-Last changed: 18.01.2023 (by Niklas Kueper)</p></div>
+<dl>
+<dt><code>Numpy ndarray </code></dt>
+<dd>A numpy ndarray with shape (n_trials, n_windows) including the classification decision in the form of class labels (e.g. 1.0 or 0.0 for binary classification)</dd>
+<dt><code>Meta information:</code></dt>
+<dd>Author: Niklas Kueper
+Last changed: 05.02.2024 (by Niklas Kueper)</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
-
     &#34;&#34;&#34;
     Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
 
-    Arguments:  
-        Missing ... 
+    Parameters
+    ----------
+    window_wise_predicts : Numpy ndarray
+        A numpy array with the predictions made on each window. Has the shape (n_trials, n_windows). 
+    high_tresh : float 
+        The higher treshold where the linear decision function ends. 
+    low_tresh : float
+        The lower treshold where the linear decision function starts. 
+    short_samp : int
+        The short sampels reflect how short the latest part or smallest chunk of data of interest is (i.e. only the late part or motor potential of an LRP).
+    long_samp : int
+        The long sampels reflecting how long the maximum ERP to be detected possibly is.  
 
-
-    Returns:
-        Missing ...  
-
+    Returns
+    -------
+    Numpy ndarray 
+        A numpy ndarray with shape (n_trials, n_windows) including the classification decision in the form of class labels (e.g. 1.0 or 0.0 for binary classification)
+        
     Meta information: 
         Author: Niklas Kueper 
-        Last changed: 18.01.2023 (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;
 
     classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
@@ -8579,247 +8612,6 @@ Last changed: 18.01.2023 (by Niklas Kueper)</p></div>
                 if (mean_val &gt; tested_tresh_range[index]): 
                     classified_windows[trial_idx, window_idx] = 1.0
                     break
-
-    return classified_windows</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v1"><code class="name flex">
-<span>def <span class="ident">onlineWindowPredictionPostprocessing_v1</span></span>(<span>self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Missing</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>window_wise_predicts</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>short_tresh</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>mid_tresh</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>long_tresh</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>short_sampels</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>mid_sampels</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>long_sampels</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>Numpy array</code></dt>
-<dd>classified_windows : float
-Missing</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def onlineWindowPredictionPostprocessing_v1(self, window_wise_predicts, short_tresh, mid_tresh, long_tresh, short_sampels, mid_sampels, long_sampels):
-    &#34;&#34;&#34;
-    Missing
-
-    Parameters
-    ----------
-    window_wise_predicts : Missing
-        Missing
-    short_tresh : Missing
-        Missing
-    mid_tresh : Missing
-        Missing
-    long_tresh : Missing
-        Missing
-    short_sampels : Missing
-        Missing
-    mid_sampels : Missing
-        Missing
-    long_sampels : Missing
-        Missing
-
-    Returns
-    -------
-    Numpy array
-        classified_windows : float
-            Missing
-        
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
-    &#34;&#34;&#34;          
-
-    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
-
-    for trial_idx in range(0, window_wise_predicts.shape[0]): 
-        for window_idx in range(0, window_wise_predicts.shape[2]): 
-            
-            # get prediction scores of current trial and window 
-            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
-            mean_long_time_detections = np.mean(current_predicts[long_sampels:]) 
-            mean_mid_time_detections = np.mean(current_predicts[mid_sampels:])
-            mean_short_time_detections = np.mean(current_predicts[short_sampels:])
-
-            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-            if((mean_long_time_detections &gt; long_tresh) or (mean_short_time_detections &gt; short_tresh) or (mean_mid_time_detections &gt; mid_tresh)): 
-                classified_windows[trial_idx, window_idx] = 1.0 
-            else: 
-                classified_windows[trial_idx, window_idx] = 0.0
-            
-    return classified_windows</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v2"><code class="name flex">
-<span>def <span class="ident">onlineWindowPredictionPostprocessing_v2</span></span>(<span>self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>Missing</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>window_wise_predicts</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>high_tresh</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>low_tresh</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>short_samp</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-<dt><strong><code>long_samp</code></strong> :&ensp;<code>Missing</code></dt>
-<dd>Missing</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>Missing</code></dt>
-<dd><em>description</em></dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def onlineWindowPredictionPostprocessing_v2(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp):
-    &#34;&#34;&#34;
-    Missing
-
-    Parameters
-    ----------
-    window_wise_predicts : Missing
-        Missing
-    high_tresh : Missing
-        Missing
-    low_tresh : Missing
-        Missing
-    short_samp : Missing
-        Missing
-    long_samp : Missing
-        Missing
-
-    Returns
-    -------
-    Missing
-        _description_
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
-    &#34;&#34;&#34;         
-
-    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
-
-    for trial_idx in range(0, window_wise_predicts.shape[0]): 
-        for window_idx in range(0, window_wise_predicts.shape[2]): 
-            
-            # get prediction scores of current trial and window 
-            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
-
-            tested_sampel_range = np.arange(short_samp, long_samp, step = -1)
-            #print(&#34;sampel range&#34;, tested_sampel_range)
-            tresh_step = -1*(high_tresh-low_tresh)/len(tested_sampel_range) # from high to low tresh (short sampels to long sampels)
-            tested_tresh_range = np.arange(high_tresh, low_tresh, step = tresh_step)
-            #print(&#34;Tresh range&#34;, tested_tresh_range)
-
-            for index in range(0, len(tested_sampel_range)): 
-                mean_val = np.mean(current_predicts[tested_sampel_range[index]:]) 
-
-                if (mean_val &gt; tested_tresh_range[index]): 
-                    classified_windows[trial_idx, window_idx] = 1.0
-                    break
-
-    return classified_windows</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v3"><code class="name flex">
-<span>def <span class="ident">onlineWindowPredictionPostprocessing_v3</span></span>(<span>self, window_wise_predicts, thresh, start_samp)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>window_wise_predicts</code></strong> :&ensp;<code>Numpy array</code></dt>
-<dd>Representing predictions for different trials, time steps, and windows</dd>
-<dt><strong><code>thresh</code></strong> :&ensp;<code>int</code></dt>
-<dd>A threshold value used for decision making during postprocessing</dd>
-<dt><strong><code>start_samp</code></strong> :&ensp;<code>int</code></dt>
-<dd>The starting sample inde</dd>
-</dl>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>Numpy array</code></dt>
-<dd>classified_windows : float
-A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def onlineWindowPredictionPostprocessing_v3(self, window_wise_predicts, thresh, start_samp):
-    &#34;&#34;&#34;
-    This function determine the class label for each window in each trial based on the mean of the prediction scores in regard to a threshold.
-
-    Parameters
-    ----------
-    window_wise_predicts : Numpy array
-        Representing predictions for different trials, time steps, and windows
-    thresh : int
-        A threshold value used for decision making during postprocessing
-    start_samp : int
-        The starting sample inde
-
-    Returns
-    -------
-    Numpy array
-        classified_windows : float
-            A 2D NumPy array with shape (n_trials, n_windows), where each entry is either 0.0 or 1.0, indicating the class label assigned to a specific window in a particular trial.
-    
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
-    &#34;&#34;&#34;        
-    
-    classified_windows = np.zeros((window_wise_predicts.shape[0], window_wise_predicts.shape[2])) # output shape (n_trials, n_windows)
-
-    for trial_idx in range(0, window_wise_predicts.shape[0]): 
-        for window_idx in range(0, window_wise_predicts.shape[2]): 
-            
-            # get prediction scores of current trial and window 
-            current_predicts = window_wise_predicts[trial_idx, :, window_idx] # one second window data 
-
-            mean_detections = np.mean(current_predicts[start_samp:]) 
-
-            # if one of both criteriums (short or long detection) is fulfilled the window gets the positive class label  
-            if(mean_detections &gt; thresh): 
-                classified_windows[trial_idx, window_idx] = 1.0 
-            else: 
-                classified_windows[trial_idx, window_idx] = 0.0
 
     return classified_windows</code></pre>
 </details>
@@ -9243,42 +9035,42 @@ This method is only required if windows are processed for more than one trial an
 <span>def <span class="ident">splitTrainTestEpochs</span></span>(<span>self, n_test_epochs=5)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>Split the epochs (data type epochs) into two seperate epoched data instances. This can be used for example to split the epochs into training and testing epochs as suggested by the name. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>n_test_epochs</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd>Missing, by default 5</dd>
+<dd>The number of epochs to be splitted (e.g. for testing a classifier), by default 5</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Missing</code></dt>
-<dd><em>description</em></dd>
+<dt><code>Tuple</code> of <code>data objects</code> of <code>class <a title="biosignal_toolbox.eeg_lib.EEGData" href="#biosignal_toolbox.eeg_lib.EEGData">EEGData</a> (train and test)</code></dt>
+<dd>The returned data objects of class EEGData, each including the specified number of trials.</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def splitTrainTestEpochs(self, n_test_epochs = 5):
     &#34;&#34;&#34;
-    Missing
+    Split the epochs (data type epochs) into two seperate epoched data instances. This can be used for example to split the epochs into training and testing epochs as suggested by the name. 
 
     Parameters
     ----------
     n_test_epochs : int, optional
-        Missing, by default 5
+        The number of epochs to be splitted (e.g. for testing a classifier), by default 5
 
     Returns
     -------
-    Missing
-        _description_
+    Tuple of data objects of class EEGData (train and test)
+        The returned data objects of class EEGData, each including the specified number of trials. 
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     epochs_train = self.epochs[0:-n_test_epochs, :, :] 
@@ -9302,50 +9094,50 @@ This method is only required if windows are processed for more than one trial an
 <span>def <span class="ident">timeShiftingLinearSpatialFilter</span></span>(<span>self, erp_value_type='min', replace_epochs=False, max_sample_diff=200)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>A linear spatial filter with one remaining channel that additionally applies a timeshift to each individual channel according to the a minimum or maximum ERP magnitude. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>erp_value_type</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Missing, by default "min"</dd>
+<dd>The erp value type for calculating the reference channel for the time shift. Can be "min" or "max" in order to find the channel with the maximum or minimum value for further calculations, by default "min"</dd>
 <dt><strong><code>replace_epochs</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Missing, by default False</dd>
+<dd>A boolean flag indicating if the current epochs for the calculation should be replaced, by default False</dd>
 <dt><strong><code>max_sample_diff</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd>Missing, by default 200</dd>
+<dd>The maximum sample difference between channels that is still allowed for applying the time shift. Possible time shifts above this value will not be considered by setting it to the maximum value, by default 200</dd>
 </dl>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>_type_</code></dt>
-<dd><em>description</em></dd>
+<dt><code>Numpy ndarray </code></dt>
+<dd>A numpy array with the shape of epochs (trials, channels, sampels) after applying the spatial filter.</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def timeShiftingLinearSpatialFilter(self, erp_value_type = &#34;min&#34;, replace_epochs = False, max_sample_diff = 200): 
     &#34;&#34;&#34;
-    Missing
+    A linear spatial filter with one remaining channel that additionally applies a timeshift to each individual channel according to the a minimum or maximum ERP magnitude. 
 
     Parameters
     ----------
     erp_value_type : str, optional
-        Missing, by default &#34;min&#34;
+        The erp value type for calculating the reference channel for the time shift. Can be &#34;min&#34; or &#34;max&#34; in order to find the channel with the maximum or minimum value for further calculations, by default &#34;min&#34;
     replace_epochs : bool, optional
-        Missing, by default False
+        A boolean flag indicating if the current epochs for the calculation should be replaced, by default False
     max_sample_diff : int, optional
-        Missing, by default 200
+        The maximum sample difference between channels that is still allowed for applying the time shift. Possible time shifts above this value will not be considered by setting it to the maximum value, by default 200
 
     Returns
     -------
-    _type_
-        _description_
+    Numpy ndarray 
+        A numpy array with the shape of epochs (trials, channels, sampels) after applying the spatial filter. 
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
     
     if(erp_value_type == &#34;min&#34;): 
@@ -9545,7 +9337,7 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -9566,7 +9358,7 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34; 
 
     #if (with_channel_dim == False): 
@@ -9626,7 +9418,7 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -9643,7 +9435,7 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
    
     # interate over specified window names and extract the windows 
@@ -9661,36 +9453,36 @@ This method is only required if windows are processed for more than one trial an
 <span>def <span class="ident">windowStandardization</span></span>(<span>self, norm=False, use_min_max_norm=False)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>This method can be used to standardize windowed time series data. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>norm</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Missing, by default False</dd>
+<dd>Boolean flag wheather to normalize the window after standadizing the data, by default False</dd>
 <dt><strong><code>use_min_max_norm</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Missing, by default False</dd>
+<dd>If True, a minimum maximum normalization is applied to each window. Otherwise (default) the z-transform is applied, by default False</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def windowStandardization(self, norm = False, use_min_max_norm = False):
     &#34;&#34;&#34;
-    Missing
+    This method can be used to standardize windowed time series data. 
 
     Parameters
     ----------
     norm : bool, optional
-        Missing, by default False
+        Boolean flag wheather to normalize the window after standadizing the data, by default False
     use_min_max_norm : bool, optional
-        Missing, by default False
+        If True, a minimum maximum normalization is applied to each window. Otherwise (default) the z-transform is applied, by default False
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
     
     # shape: trials, channels, sampels, windows 
@@ -9752,7 +9544,7 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -9779,7 +9571,7 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     if (processing_type == &#34;fit_apply&#34;): # assuming this is only for training data or the epochs it should be fitted on 
@@ -10479,7 +10271,6 @@ This function should be called every time aan error is detected</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getRawObject" href="#biosignal_toolbox.eeg_lib.EEGData.getRawObject">getRawObject</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getSamplingRate" href="#biosignal_toolbox.eeg_lib.EEGData.getSamplingRate">getSamplingRate</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs" href="#biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs">getTimeAxisEpochs</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTrainLabels" href="#biosignal_toolbox.eeg_lib.EEGData.getTrainLabels">getTrainLabels</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindowNames" href="#biosignal_toolbox.eeg_lib.EEGData.getWindowNames">getWindowNames</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindows" href="#biosignal_toolbox.eeg_lib.EEGData.getWindows">getWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.labelsToCategorical" href="#biosignal_toolbox.eeg_lib.EEGData.labelsToCategorical">labelsToCategorical</a></code></li>
@@ -10487,9 +10278,6 @@ This function should be called every time aan error is detected</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawMethod" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawMethod">mneRawMethod</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision">mneRawToBrainvision</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineLRPWindowPredictionPostprocessing" href="#biosignal_toolbox.eeg_lib.EEGData.onlineLRPWindowPredictionPostprocessing">onlineLRPWindowPredictionPostprocessing</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v1" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v1">onlineWindowPredictionPostprocessing_v1</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v2" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v2">onlineWindowPredictionPostprocessing_v2</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v3" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v3">onlineWindowPredictionPostprocessing_v3</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.printFeatureShape" href="#biosignal_toolbox.eeg_lib.EEGData.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.rereferencingEpoching" href="#biosignal_toolbox.eeg_lib.EEGData.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.reshapeWindowsForCNNnets" href="#biosignal_toolbox.eeg_lib.EEGData.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
@@ -10514,7 +10302,17 @@ This function should be called every time aan error is detected</p>
 <span>(</span><span>n_channels=34, n_samples=500, dt_process_data=0.05)</span>
 </code></dt>
 <dd>
-<div class="desc"></div>
+<div class="desc"><p><em>summary</em> TODO: add description
+Parameters</p>
+<hr>
+<dl>
+<dt><strong><code>n_channels</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd><em>description</em>, by default 34</dd>
+<dt><strong><code>n_samples</code></strong> :&ensp;<code>int</code>, optional</dt>
+<dd><em>description</em>, by default 500</dd>
+<dt><strong><code>dt_process_data</code></strong> :&ensp;<code>float</code>, optional</dt>
+<dd><em>description</em>, by default 0.05</dd>
+</dl></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10522,6 +10320,16 @@ This function should be called every time aan error is detected</p>
 <pre><code class="python">class OnlineEEGUtils: # leave this for backward compability for now --&gt; deprecated 
 
     def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
+        &#34;&#34;&#34;_summary_ TODO: add description
+        Parameters
+        ----------
+        n_channels : int, optional
+            _description_, by default 34
+        n_samples : int, optional
+            _description_, by default 500
+        dt_process_data : float, optional
+            _description_, by default 0.05
+        &#34;&#34;&#34;
 
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
@@ -10550,7 +10358,7 @@ This function should be called every time aan error is detected</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # calculate the final values for the timings 
@@ -10580,7 +10388,7 @@ This function should be called every time aan error is detected</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         print(&#34;&#34;) 
@@ -10611,7 +10419,7 @@ This function should be called every time aan error is detected</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
 
         #data 
@@ -10660,7 +10468,7 @@ This function should be called every time aan error is detected</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.data_buffer
@@ -10677,9 +10485,14 @@ This function should be called every time aan error is detected</p>
 
         Returns
         -------
-        Missing
-            Missing
-        &#34;&#34;&#34;     
+        Instance of class zmq socket
+            The instance (handle) of the created socket connection. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 05.02.2024 (by Niklas Kueper)
+        &#34;&#34;&#34; 
            
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
@@ -10702,7 +10515,7 @@ This function should be called every time aan error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10719,7 +10532,7 @@ This function should be called every time aan error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     return self.data_buffer</code></pre>
@@ -10737,7 +10550,7 @@ This function should be called every time aan error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10754,7 +10567,7 @@ This function should be called every time aan error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34; 
 
     print(&#34;&#34;) 
@@ -10790,7 +10603,7 @@ This function should be called eveytime an error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10816,7 +10629,7 @@ This function should be called eveytime an error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     # calculate the final values for the timings 
@@ -10847,9 +10660,12 @@ This function should be called eveytime an error is detected</p>
 <p>The address string. This has the form "tcp://interface:port"</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Missing</code></dt>
-<dd>Missing</dd>
-</dl></div>
+<dt><code>Instance</code> of <code>class zmq socket</code></dt>
+<dd>The instance (handle) of the created socket connection.</dd>
+</dl>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10865,9 +10681,14 @@ This function should be called eveytime an error is detected</p>
 
     Returns
     -------
-    Missing
-        Missing
-    &#34;&#34;&#34;     
+    Instance of class zmq socket
+        The instance (handle) of the created socket connection. 
+
+    Author
+    ------
+    Author : Niklas Kueper \n
+    Last changed: 05.02.2024 (by Niklas Kueper)
+    &#34;&#34;&#34; 
        
     # create a socket connection as a publisher to send commands 
     my_context = zmq.Context()
@@ -10893,7 +10714,7 @@ This function should be called eveytime an error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10914,7 +10735,7 @@ This function should be called eveytime an error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;
 
     #data 
@@ -11004,7 +10825,6 @@ This function should be called eveytime an error is detected</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getRawObject" href="#biosignal_toolbox.eeg_lib.EEGData.getRawObject">getRawObject</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getSamplingRate" href="#biosignal_toolbox.eeg_lib.EEGData.getSamplingRate">getSamplingRate</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs" href="#biosignal_toolbox.eeg_lib.EEGData.getTimeAxisEpochs">getTimeAxisEpochs</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getTrainLabels" href="#biosignal_toolbox.eeg_lib.EEGData.getTrainLabels">getTrainLabels</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindowNames" href="#biosignal_toolbox.eeg_lib.EEGData.getWindowNames">getWindowNames</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getWindows" href="#biosignal_toolbox.eeg_lib.EEGData.getWindows">getWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.labelsToCategorical" href="#biosignal_toolbox.eeg_lib.EEGData.labelsToCategorical">labelsToCategorical</a></code></li>
@@ -11013,9 +10833,6 @@ This function should be called eveytime an error is detected</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawMethod" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawMethod">mneRawMethod</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision" href="#biosignal_toolbox.eeg_lib.EEGData.mneRawToBrainvision">mneRawToBrainvision</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineLRPWindowPredictionPostprocessing" href="#biosignal_toolbox.eeg_lib.EEGData.onlineLRPWindowPredictionPostprocessing">onlineLRPWindowPredictionPostprocessing</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v1" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v1">onlineWindowPredictionPostprocessing_v1</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v2" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v2">onlineWindowPredictionPostprocessing_v2</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v3" href="#biosignal_toolbox.eeg_lib.EEGData.onlineWindowPredictionPostprocessing_v3">onlineWindowPredictionPostprocessing_v3</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.printFeatureShape" href="#biosignal_toolbox.eeg_lib.EEGData.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.rereferencingEpoching" href="#biosignal_toolbox.eeg_lib.EEGData.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.reshapeWindowsForCNNnets" href="#biosignal_toolbox.eeg_lib.EEGData.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
