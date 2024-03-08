@@ -54,7 +54,7 @@ def main():
     # next make an outlet
     outlet = StreamOutlet(info)
 
-    start = 162135
+    start = 0
     for i in range(0, raw_data.shape[1] -chunksize): 
 
         print(i)
