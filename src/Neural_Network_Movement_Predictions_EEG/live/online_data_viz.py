@@ -94,19 +94,22 @@ def updateDataViz(i, data_chunk, inlet_viz, EEG_live_viz, EEGutils_live, legend_
         # EEG_live_viz.FilterWindows(filter_type="dc_removal")
         data_chunk = EEG_live_viz.windows[0, :, :, 0] # channels, sampels
         data_chunk = np.array(normalise_raw_data(data_chunk))
+        # 34 500
+        for channel_idx in range(0, data_chunk.shape[0]): 
+            data_chunk[channel_idx, :] = data_chunk[channel_idx, :]+channel_idx*10
 
     plt.cla() # clear the previous image
 
     plt.xlim([0, data_chunk.shape[1]]) # fix the x axis
-    plt.ylim([-100,100])
-    plt.title("Normalised Raw EEG data")
+    plt.ylim([-50,200])
+    plt.title("Raw EEG data")
     plt.xlabel("Data Samples")
     plt.ylabel("EEG Voltage (uV)")
     lines = plt.plot(data_chunk[:, :].T)
     plt.legend(lines,legend_names,loc='center left', bbox_to_anchor=(1, 0.5))
 
 
-def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 34, buffer_size = 500): 
+def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 37, buffer_size = 500): 
 
     # first resolve an EEG stream on the lab network
     print("looking for an LSL EEG stream for Visualization...")
@@ -140,11 +143,11 @@ def main():
 
 
     pr_dataViz = mp.Process(target=dataVisualization, args=(channel_names,))
-    pr_scoreViz = mp.Process(target=runZMQ)
+    #pr_scoreViz = mp.Process(target=runZMQ)
 
     # start the processes
     pr_dataViz.start()
-    pr_scoreViz.start()
+    #pr_scoreViz.start()
 
 
 

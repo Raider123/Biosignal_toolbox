@@ -25,7 +25,8 @@ setuptools.setup(
         'pybv', 
         'mne_features', 
         'pyzmq', 
-        'dtw-python'
+        'dtw-python', 
+        'pdoc3'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.6",
                  "Operating System :: OS independent"],

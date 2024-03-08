@@ -52,189 +52,190 @@ import warnings
 # *********************************************************************************
 
 
-class OnlineEEGUtils: # leave this for backward compability for now --&gt; deprecated 
+# not required anymore, will be removed fully soon 
+# class OnlineEEGUtils: # leave this for backward compability for now --&gt; deprecated 
 
-    def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
-        &#34;&#34;&#34;_summary_ TODO: add description
-        Parameters
-        ----------
-        n_channels : int, optional
-            _description_, by default 34
-        n_samples : int, optional
-            _description_, by default 500
-        dt_process_data : float, optional
-            _description_, by default 0.05
-        &#34;&#34;&#34;
+#     def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
+#         &#34;&#34;&#34;_summary_ TODO: add description
+#         Parameters
+#         ----------
+#         n_channels : int, optional
+#             _description_, by default 34
+#         n_samples : int, optional
+#             _description_, by default 500
+#         dt_process_data : float, optional
+#             _description_, by default 0.05
+#         &#34;&#34;&#34;
 
-        self.buffersize = n_samples
-        self.dt_process_data = dt_process_data
-        self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
-        warnings.warn(&#34;This class is deprecated, use OnlineEEG now!&#34;)
+#         self.buffersize = n_samples
+#         self.dt_process_data = dt_process_data
+#         self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+#         warnings.warn(&#34;This class is deprecated, use OnlineEEG now!&#34;)
         
 
-    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = &#34;example_team&#34;, secret_id = 5, url = &#39;http://10.250.223.221:5000/results&#39;):
-        &#34;&#34;&#34;
-        This function gathers all the relevant results and sends it to the host
-        This function should be called eveytime an error is detected
+#     def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = &#34;example_team&#34;, secret_id = 5, url = &#39;http://10.250.223.221:5000/results&#39;):
+#         &#34;&#34;&#34;
+#         This function gathers all the relevant results and sends it to the host
+#         This function should be called eveytime an error is detected
 
-        Parameters
-        ----------
-        timestamp_buffer_vals : Numpy array
-            subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
-        local_clock_time : float
-            current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of &#34;local_clock()&#34; call.
-        team_name : str, optional
-            Each team will be assigned a team name, by default &#34;example_team&#34;
-        secret_id : int, optional
-            Each team will be provided with a secret code, by default 5
-        url : str, optional
-            The URL where the resulst are stored, by default &#39;http://10.250.223.221:5000/results&#39;
+#         Parameters
+#         ----------
+#         timestamp_buffer_vals : Numpy array
+#             subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
+#         local_clock_time : float
+#             current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of &#34;local_clock()&#34; call.
+#         team_name : str, optional
+#             Each team will be assigned a team name, by default &#34;example_team&#34;
+#         secret_id : int, optional
+#             Each team will be provided with a secret code, by default 5
+#         url : str, optional
+#             The URL where the resulst are stored, by default &#39;http://10.250.223.221:5000/results&#39;
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;        
+#         Author
+#         ------
+#         Author : Niklas Kueper \n
+#         Last changed: 05.02.2024 (by Niklas Kueper)
+#         &#34;&#34;&#34;        
 
-        # calculate the final values for the timings 
-        comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
-        computation_time = local_clock_time - timestamp_buffer_vals[1]
+#         # calculate the final values for the timings 
+#         comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
+#         computation_time = local_clock_time - timestamp_buffer_vals[1]
 
-        # connection to API for sending the results online 
+#         # connection to API for sending the results online 
         
-        myobj = {&#39;team&#39;: team_name,
-                &#39;secret&#39;: secret_id,
-                &#39;host_timestamp&#39;: timestamp_buffer_vals[0], 
-                &#39;comp_time&#39;: computation_time, 
-                &#39;comm_delay&#39;: comm_delay}
+#         myobj = {&#39;team&#39;: team_name,
+#                 &#39;secret&#39;: secret_id,
+#                 &#39;host_timestamp&#39;: timestamp_buffer_vals[0], 
+#                 &#39;comp_time&#39;: computation_time, 
+#                 &#39;comm_delay&#39;: comm_delay}
 
-        x = requests.post(url, json = myobj)
-
-
-    def printStreamMetadata(self, stream_info_obj):
-        &#34;&#34;&#34;
-        This function prints some basic meta data of the stream
-
-        Parameters
-        ----------
-        stream_info_obj : StreamInlet object
-            A pylsl StreamInlet object which contains alle the information of the stream
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34; 
-
-        print(&#34;&#34;) 
-        print(&#34;Meta data&#34;)
-        print(&#34;Name:&#34;, stream_info_obj.name())
-        print(&#34;Type:&#34;, stream_info_obj.type())
-        print(&#34;Number of channels:&#34;, stream_info_obj.channel_count())
-        print(&#34;Nominal sampling rate:&#34;, stream_info_obj.nominal_srate())
-        print(&#34;Channel format:&#34;,stream_info_obj.channel_format())
-        print(&#34;Source_id:&#34;,stream_info_obj.source_id())
-        print(&#34;Version:&#34;,stream_info_obj.version())
-        print(&#34;&#34;)
+#         x = requests.post(url, json = myobj)
 
 
-    def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
-        &#34;&#34;&#34;
-        This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
+#     def printStreamMetadata(self, stream_info_obj):
+#         &#34;&#34;&#34;
+#         This function prints some basic meta data of the stream
 
-        Parameters
-        ----------
-        chunk : list
-            Current data chunk with shape (samples, channels)
-        channel_indices : list, optional
-            If only selected channel indices should be extraced, by default None
-        check_sample_loss : bool, optional
-            If True the function is checkinf for sample losses, by default True
+#         Parameters
+#         ----------
+#         stream_info_obj : StreamInlet object
+#             A pylsl StreamInlet object which contains alle the information of the stream
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;
+#         Author
+#         ------
+#         Author : Niklas Kueper \n
+#         Last changed: 05.02.2024 (by Niklas Kueper)
+#         &#34;&#34;&#34; 
 
-        #data 
+#         print(&#34;&#34;) 
+#         print(&#34;Meta data&#34;)
+#         print(&#34;Name:&#34;, stream_info_obj.name())
+#         print(&#34;Type:&#34;, stream_info_obj.type())
+#         print(&#34;Number of channels:&#34;, stream_info_obj.channel_count())
+#         print(&#34;Nominal sampling rate:&#34;, stream_info_obj.nominal_srate())
+#         print(&#34;Channel format:&#34;,stream_info_obj.channel_format())
+#         print(&#34;Source_id:&#34;,stream_info_obj.source_id())
+#         print(&#34;Version:&#34;,stream_info_obj.version())
+#         print(&#34;&#34;)
+
+
+#     def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
+#         &#34;&#34;&#34;
+#         This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
+
+#         Parameters
+#         ----------
+#         chunk : list
+#             Current data chunk with shape (samples, channels)
+#         channel_indices : list, optional
+#             If only selected channel indices should be extraced, by default None
+#         check_sample_loss : bool, optional
+#             If True the function is checkinf for sample losses, by default True
+
+#         Author
+#         ------
+#         Author : Niklas Kueper \n
+#         Last changed: 05.02.2024 (by Niklas Kueper)
+#         &#34;&#34;&#34;
+
+#         #data 
         
-        current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
+#         current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
         
-        #print(&#34;chunk shape&#34;, current_chunk.shape) # should be channels, sampels 
+#         #print(&#34;chunk shape&#34;, current_chunk.shape) # should be channels, sampels 
 
-        if(channel_indices): 
-            current_chunk = current_chunk[channel_indices, :]
+#         if(channel_indices): 
+#             current_chunk = current_chunk[channel_indices, :]
 
-        # #print(current_chunk.shape)
-        # current_chunk = current_chunk[0:n_channels, :] # use first n channels
+#         # #print(current_chunk.shape)
+#         # current_chunk = current_chunk[0:n_channels, :] # use first n channels
 
-        n_samples = current_chunk.shape[1] 
-        n_channels = current_chunk.shape[0] 
+#         n_samples = current_chunk.shape[1] 
+#         n_channels = current_chunk.shape[0] 
 
-        if (n_samples &gt; self.data_buffer.shape[2]): # print error message 
-            print(&#34;Buffer overflow&#34;)
+#         if (n_samples &gt; self.data_buffer.shape[2]): # print error message 
+#             print(&#34;Buffer overflow&#34;)
 
         
-        self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
-        self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --&gt; is this correct 
+#         self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
+#         self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --&gt; is this correct 
 
 
-        # check for sample loss 
-        sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
+#         # check for sample loss 
+#         sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
 
-        for i in range(0, len(sample_indices) -1): 
-            if sample_indices[i] + 1 != sample_indices[i+1]:
-                warnings.warn(f&#34;Sample loss at {i}: {sample_indices[i:i+2]}&#34;)
+#         for i in range(0, len(sample_indices) -1): 
+#             if sample_indices[i] + 1 != sample_indices[i+1]:
+#                 warnings.warn(f&#34;Sample loss at {i}: {sample_indices[i:i+2]}&#34;)
 
-        data_windows = self.data_buffer[:, 0:n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
+#         data_windows = self.data_buffer[:, 0:n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
 
-        return data_windows# , timestamp_buffer
+#         return data_windows# , timestamp_buffer
 
-    def getDataBuffer(self): 
-        &#34;&#34;&#34;
-        This function returns the data_buffer
+#     def getDataBuffer(self): 
+#         &#34;&#34;&#34;
+#         This function returns the data_buffer
 
-        Returns
-        -------
-        Numpy array
-            data_butter : float
+#         Returns
+#         -------
+#         Numpy array
+#             data_butter : float
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;  
+#         Author
+#         ------
+#         Author : Niklas Kueper \n
+#         Last changed: 05.02.2024 (by Niklas Kueper)
+#         &#34;&#34;&#34;  
 
-        return self.data_buffer
+#         return self.data_buffer
     
 
-    def startZMQServer(self, port_name):
-        &#34;&#34;&#34;
-        This function creats a socket connection as a pubisher to send commands
+#     def startZMQServer(self, port_name):
+#         &#34;&#34;&#34;
+#         This function creats a socket connection as a pubisher to send commands
 
-        Parameters
-        ----------
-        port_name : str
-           The address string. This has the form &#34;tcp://interface:port&#34;
+#         Parameters
+#         ----------
+#         port_name : str
+#            The address string. This has the form &#34;tcp://interface:port&#34;
 
-        Returns
-        -------
-        Instance of class zmq socket
-            The instance (handle) of the created socket connection. 
+#         Returns
+#         -------
+#         Instance of class zmq socket
+#             The instance (handle) of the created socket connection. 
 
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34; 
+#         Author
+#         ------
+#         Author : Niklas Kueper \n
+#         Last changed: 05.02.2024 (by Niklas Kueper)
+#         &#34;&#34;&#34; 
            
-        # create a socket connection as a publisher to send commands 
-        my_context = zmq.Context()
-        my_socket = my_context.socket(zmq.PUB)
-        my_socket.bind(&#34;tcp://*:&#34;+port_name)
-        print(&#34;Publisher ready&#34;)
-        return my_socket
+#         # create a socket connection as a publisher to send commands 
+#         my_context = zmq.Context()
+#         my_socket = my_context.socket(zmq.PUB)
+#         my_socket.bind(&#34;tcp://*:&#34;+port_name)
+#         print(&#34;Publisher ready&#34;)
+#         return my_socket
 
 class EEGData:    
     &#34;&#34;&#34;
@@ -2496,20 +2497,20 @@ class EEGData:
         feature_indices_windows : Numpy array, optional
             Numpy array with time feature indices, by default None
         use_mean : bool, optional
-            Missing , by default False
+            If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
-            Missing, by default 1
+            The numbers of samples when calculating mean features, by default 1
         add_neightbour_diffs : bool, optional
-            Missing, by default False
+            If True, the differences between channel features are added as additional features (e.g. for neighbour channels), by default False
         neighbours_list : list, optional
-            Missing, by default [(&#34;C1&#34;, &#34;CZ&#34;)]
+            A list of tuples specifying the neighbour channels for adding the neighbour features (only used when add_neighbour_diffs == True), by default [(&#34;C1&#34;, &#34;CZ&#34;)]
         psd_method : str, optional
-            Missing, by default &#34;multitaper&#34;
+            The method to be used for calculating psd features (see compute_pow_freq_bands of mne_features for detailled information), by default &#34;multitaper&#34;
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # (n_trials, n_channels, n_sampels, n_windows).
@@ -2704,7 +2705,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         features = np.concatenate((self.feature_vec, x), axis = 1)
@@ -2717,7 +2718,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;   
 
         print(&#34;feature shape: &#34;, self.feature_vec.shape)
@@ -2750,12 +2751,12 @@ class EEGData:
 
     def dtwFeatureVecWindows(self):
         &#34;&#34;&#34;
-        Missing
+        This method generates a feature vector for the dtw algorithm based on windowed data. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         # windows in trials, channel, sampels, windows 
@@ -2785,7 +2786,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
 
         onset_window_predicts = np.zeros(window_predicts.shape)
@@ -2831,7 +2832,7 @@ class EEGData:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         tns = 0 
@@ -2875,7 +2876,7 @@ class EEGData:
         ----------
         predicted_labels : Numpy array
             The predicted labels as 1D-Numpy array (flatten the arry if it has more dimensions)
-        determine_labels : Missing
+        determine_labels : int
             The amount of negative classes that are counted from the right side(end of each epoch/trial to specify the &#34;label change point&#34;)
         searching_bounds : list
             A list with boundaries([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the window for -1000 ms and 0 ms)
@@ -2995,7 +2996,7 @@ class EEGData:
 
 class OnlineEEG(EEGData): 
     &#34;&#34;&#34;
-    Missing
+    This class is based on the EEGData class and includes additional methods for online data processing and classification. 
 
     Parameters
     ----------
@@ -3006,7 +3007,7 @@ class OnlineEEG(EEGData):
     n_samples : int, optional
         The number of samples, by default 500
     dt_process_data : float, optional
-        Missing, by default 0.05
+        The time in s how fast the processing and classification loop is running, by default 0.05
     f_samp_eeg : float, optional
         The sample frequency of the EEG, by default 500.0
 
@@ -3018,17 +3019,17 @@ class OnlineEEG(EEGData):
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;    
 
     def __init__(self, channel_names, n_channels=34, n_samples= 500, dt_process_data = 0.05, f_samp_eeg = 500.0): 
         &#34;&#34;&#34;
-        The constructor of the OnlineEEG class
+        The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         self.n_channels = n_channels
@@ -3060,7 +3061,7 @@ class OnlineEEG(EEGData):
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
     
         # calculate the final values for the timings 
@@ -3090,7 +3091,7 @@ class OnlineEEG(EEGData):
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         print(&#34;&#34;) 
@@ -3121,7 +3122,7 @@ class OnlineEEG(EEGData):
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         #data 
@@ -3154,13 +3155,13 @@ class OnlineEEG(EEGData):
 
     def BufferToWindows(self, num_non_data_channels = 3):
         &#34;&#34;&#34;
-        Missing
+        This method converts the buffered data from the data_buffer into data windows for further processing.  
 
         Parameters
         ----------
         num_non_data_channels : int, optional
             Number of channels to be removed, by default 3
-        &#34;&#34;&#34;         
+        &#34;&#34;&#34;      
 
         self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
 
@@ -3176,31 +3177,32 @@ class OnlineEEG(EEGData):
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.data_buffer
     
     # ZMQ stuff 
+    #TODO: remove this in the future, it is implemented in another repository now which is marker_sync_utils 
     def startZMQServer(self, port_name):
         &#34;&#34;&#34;
-        This function creats a socket connection as a pubisher to send commands
-
+        This function creates a socket connection as a publisher to send commands
+        
         Parameters
         ----------
         port_name : str
-           The address string. This has the form &#34;tcp://interface:port&#34;
+            The address string. This has the form &#34;tcp://interface:port&#34;
 
         Returns
         -------
-        Missing
-            Missing
+        zmq.Socket instance
+            The created socket object for the zmq connection.
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;  
+        Last changed: 08.03.2024 (by Niklas Kueper)
+        &#34;&#34;&#34;
 
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
@@ -3210,6 +3212,7 @@ class OnlineEEG(EEGData):
         return my_socket
     
     #zmq server
+    #TODO: remove this in the future, it is implemented in another repository now which is marker_sync_utils 
     def establishZMQ(port_name):
         &#34;&#34;&#34;
         This function creats a socket connection as a pubisher to send commands
@@ -3221,13 +3224,13 @@ class OnlineEEG(EEGData):
 
         Returns
         -------
-        Missing
-            Missing
+        zmq.Socket instance
+            The created socket object for the zmq connection.
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
         
         # create a socket connection as a publisher to send commands 
@@ -5585,20 +5588,20 @@ A brief description of what the method does.</p>
         feature_indices_windows : Numpy array, optional
             Numpy array with time feature indices, by default None
         use_mean : bool, optional
-            Missing , by default False
+            If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
-            Missing, by default 1
+            The numbers of samples when calculating mean features, by default 1
         add_neightbour_diffs : bool, optional
-            Missing, by default False
+            If True, the differences between channel features are added as additional features (e.g. for neighbour channels), by default False
         neighbours_list : list, optional
-            Missing, by default [(&#34;C1&#34;, &#34;CZ&#34;)]
+            A list of tuples specifying the neighbour channels for adding the neighbour features (only used when add_neighbour_diffs == True), by default [(&#34;C1&#34;, &#34;CZ&#34;)]
         psd_method : str, optional
-            Missing, by default &#34;multitaper&#34;
+            The method to be used for calculating psd features (see compute_pow_freq_bands of mne_features for detailled information), by default &#34;multitaper&#34;
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         # (n_trials, n_channels, n_sampels, n_windows).
@@ -5793,7 +5796,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         features = np.concatenate((self.feature_vec, x), axis = 1)
@@ -5806,7 +5809,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;   
 
         print(&#34;feature shape: &#34;, self.feature_vec.shape)
@@ -5839,12 +5842,12 @@ A brief description of what the method does.</p>
 
     def dtwFeatureVecWindows(self):
         &#34;&#34;&#34;
-        Missing
+        This method generates a feature vector for the dtw algorithm based on windowed data. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         # windows in trials, channel, sampels, windows 
@@ -5874,7 +5877,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;         
 
         onset_window_predicts = np.zeros(window_predicts.shape)
@@ -5920,7 +5923,7 @@ A brief description of what the method does.</p>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34; 
 
         tns = 0 
@@ -5964,7 +5967,7 @@ A brief description of what the method does.</p>
         ----------
         predicted_labels : Numpy array
             The predicted labels as 1D-Numpy array (flatten the arry if it has more dimensions)
-        determine_labels : Missing
+        determine_labels : int
             The amount of negative classes that are counted from the right side(end of each epoch/trial to specify the &#34;label change point&#34;)
         searching_bounds : list
             A list with boundaries([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the window for -1000 ms and 0 ms)
@@ -6288,7 +6291,7 @@ The FFT magnitude values of the frequency spectrum</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -6305,7 +6308,7 @@ The FFT magnitude values of the frequency spectrum</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34; 
 
     features = np.concatenate((self.feature_vec, x), axis = 1)
@@ -6321,7 +6324,7 @@ The FFT magnitude values of the frequency spectrum</dd>
 <dl>
 <dt><strong><code>predicted_labels</code></strong> :&ensp;<code>Numpy array</code></dt>
 <dd>The predicted labels as 1D-Numpy array (flatten the arry if it has more dimensions)</dd>
-<dt><strong><code>determine_labels</code></strong> :&ensp;<code>Missing</code></dt>
+<dt><strong><code>determine_labels</code></strong> :&ensp;<code>int</code></dt>
 <dd>The amount of negative classes that are counted from the right side(end of each epoch/trial to specify the "label change point")</dd>
 <dt><strong><code>searching_bounds</code></strong> :&ensp;<code>list</code></dt>
 <dd>A list with boundaries([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the window for -1000 ms and 0 ms)</dd>
@@ -6346,7 +6349,7 @@ The FFT magnitude values of the frequency spectrum</dd>
     ----------
     predicted_labels : Numpy array
         The predicted labels as 1D-Numpy array (flatten the arry if it has more dimensions)
-    determine_labels : Missing
+    determine_labels : int
         The amount of negative classes that are counted from the right side(end of each epoch/trial to specify the &#34;label change point&#34;)
     searching_bounds : list
         A list with boundaries([lower bound, upper bound]) in which the label change point for the relabelling is searched (e.g. for LRP the numbers of the window for -1000 ms and 0 ms)
@@ -6525,7 +6528,7 @@ The FFT magnitude values of the frequency spectrum</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -6549,7 +6552,7 @@ The FFT magnitude values of the frequency spectrum</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;         
 
     onset_window_predicts = np.zeros(window_predicts.shape)
@@ -6838,7 +6841,7 @@ tpr : True positive rate</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -6867,7 +6870,7 @@ tpr : True positive rate</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34; 
 
     tns = 0 
@@ -7330,22 +7333,22 @@ Self.windwos array will contain detrended time series data for each trial, windo
 <span>def <span class="ident">dtwFeatureVecWindows</span></span>(<span>self)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>This method generates a feature vector for the dtw algorithm based on windowed data. </p>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def dtwFeatureVecWindows(self):
     &#34;&#34;&#34;
-    Missing
+    This method generates a feature vector for the dtw algorithm based on windowed data. 
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     # windows in trials, channel, sampels, windows 
@@ -7368,19 +7371,19 @@ Self.windwos array will contain detrended time series data for each trial, windo
 <dt><strong><code>feature_indices_windows</code></strong> :&ensp;<code>Numpy array</code>, optional</dt>
 <dd>Numpy array with time feature indices, by default None</dd>
 <dt><strong><code>use_mean</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Missing , by default False</dd>
+<dd>If True, the mean of the timepoints is calculated as features, by default False</dd>
 <dt><strong><code>N</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd>Missing, by default 1</dd>
+<dd>The numbers of samples when calculating mean features, by default 1</dd>
 <dt><strong><code>add_neightbour_diffs</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>Missing, by default False</dd>
+<dd>If True, the differences between channel features are added as additional features (e.g. for neighbour channels), by default False</dd>
 <dt><strong><code>neighbours_list</code></strong> :&ensp;<code>list</code>, optional</dt>
-<dd>Missing, by default [("C1", "CZ")]</dd>
+<dd>A list of tuples specifying the neighbour channels for adding the neighbour features (only used when add_neighbour_diffs == True), by default [("C1", "CZ")]</dd>
 <dt><strong><code>psd_method</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Missing, by default "multitaper"</dd>
+<dd>The method to be used for calculating psd features (see compute_pow_freq_bands of mne_features for detailled information), by default "multitaper"</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -7396,20 +7399,20 @@ Self.windwos array will contain detrended time series data for each trial, windo
     feature_indices_windows : Numpy array, optional
         Numpy array with time feature indices, by default None
     use_mean : bool, optional
-        Missing , by default False
+        If True, the mean of the timepoints is calculated as features, by default False
     N : int, optional
-        Missing, by default 1
+        The numbers of samples when calculating mean features, by default 1
     add_neightbour_diffs : bool, optional
-        Missing, by default False
+        If True, the differences between channel features are added as additional features (e.g. for neighbour channels), by default False
     neighbours_list : list, optional
-        Missing, by default [(&#34;C1&#34;, &#34;CZ&#34;)]
+        A list of tuples specifying the neighbour channels for adding the neighbour features (only used when add_neighbour_diffs == True), by default [(&#34;C1&#34;, &#34;CZ&#34;)]
     psd_method : str, optional
-        Missing, by default &#34;multitaper&#34;
+        The method to be used for calculating psd features (see compute_pow_freq_bands of mne_features for detailled information), by default &#34;multitaper&#34;
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     # (n_trials, n_channels, n_sampels, n_windows).
@@ -8623,7 +8626,7 @@ Last changed: 05.02.2024 (by Niklas Kueper)</dd>
 <div class="desc"><p>This function prints the shape of feature_vec</p>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -8635,7 +8638,7 @@ Last changed: 05.02.2024 (by Niklas Kueper)</dd>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;   
 
     print(&#34;feature shape: &#34;, self.feature_vec.shape)</code></pre>
@@ -9613,7 +9616,7 @@ This method is only required if windows are processed for more than one trial an
 <span>(</span><span>channel_names, n_channels=34, n_samples=500, dt_process_data=0.05, f_samp_eeg=500.0)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>This class is based on the EEGData class and includes additional methods for online data processing and classification. </p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>channel_names</code></strong> :&ensp;<code>list</code></dt>
@@ -9623,7 +9626,7 @@ This method is only required if windows are processed for more than one trial an
 <dt><strong><code>n_samples</code></strong> :&ensp;<code>int</code>, optional</dt>
 <dd>The number of samples, by default 500</dd>
 <dt><strong><code>dt_process_data</code></strong> :&ensp;<code>float</code>, optional</dt>
-<dd>Missing, by default 0.05</dd>
+<dd>The time in s how fast the processing and classification loop is running, by default 0.05</dd>
 <dt><strong><code>f_samp_eeg</code></strong> :&ensp;<code>float</code>, optional</dt>
 <dd>The sample frequency of the EEG, by default 500.0</dd>
 </dl>
@@ -9634,18 +9637,18 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p>
-<p>The constructor of the OnlineEEG class</p>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p>
+<p>The constructor of the OnlineEEG class. </p>
 <h2 id="author_1">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">class OnlineEEG(EEGData): 
     &#34;&#34;&#34;
-    Missing
+    This class is based on the EEGData class and includes additional methods for online data processing and classification. 
 
     Parameters
     ----------
@@ -9656,7 +9659,7 @@ This method is only required if windows are processed for more than one trial an
     n_samples : int, optional
         The number of samples, by default 500
     dt_process_data : float, optional
-        Missing, by default 0.05
+        The time in s how fast the processing and classification loop is running, by default 0.05
     f_samp_eeg : float, optional
         The sample frequency of the EEG, by default 500.0
 
@@ -9668,17 +9671,17 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;    
 
     def __init__(self, channel_names, n_channels=34, n_samples= 500, dt_process_data = 0.05, f_samp_eeg = 500.0): 
         &#34;&#34;&#34;
-        The constructor of the OnlineEEG class
+        The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         self.n_channels = n_channels
@@ -9710,7 +9713,7 @@ This method is only required if windows are processed for more than one trial an
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
     
         # calculate the final values for the timings 
@@ -9740,7 +9743,7 @@ This method is only required if windows are processed for more than one trial an
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         print(&#34;&#34;) 
@@ -9771,7 +9774,7 @@ This method is only required if windows are processed for more than one trial an
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
 
         #data 
@@ -9804,13 +9807,13 @@ This method is only required if windows are processed for more than one trial an
 
     def BufferToWindows(self, num_non_data_channels = 3):
         &#34;&#34;&#34;
-        Missing
+        This method converts the buffered data from the data_buffer into data windows for further processing.  
 
         Parameters
         ----------
         num_non_data_channels : int, optional
             Number of channels to be removed, by default 3
-        &#34;&#34;&#34;         
+        &#34;&#34;&#34;      
 
         self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
 
@@ -9826,31 +9829,32 @@ This method is only required if windows are processed for more than one trial an
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
 
         return self.data_buffer
     
     # ZMQ stuff 
+    #TODO: remove this in the future, it is implemented in another repository now which is marker_sync_utils 
     def startZMQServer(self, port_name):
         &#34;&#34;&#34;
-        This function creats a socket connection as a pubisher to send commands
-
+        This function creates a socket connection as a publisher to send commands
+        
         Parameters
         ----------
         port_name : str
-           The address string. This has the form &#34;tcp://interface:port&#34;
+            The address string. This has the form &#34;tcp://interface:port&#34;
 
         Returns
         -------
-        Missing
-            Missing
+        zmq.Socket instance
+            The created socket object for the zmq connection.
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
-        &#34;&#34;&#34;  
+        Last changed: 08.03.2024 (by Niklas Kueper)
+        &#34;&#34;&#34;
 
         # create a socket connection as a publisher to send commands 
         my_context = zmq.Context()
@@ -9860,6 +9864,7 @@ This method is only required if windows are processed for more than one trial an
         return my_socket
     
     #zmq server
+    #TODO: remove this in the future, it is implemented in another repository now which is marker_sync_utils 
     def establishZMQ(port_name):
         &#34;&#34;&#34;
         This function creats a socket connection as a pubisher to send commands
@@ -9871,13 +9876,13 @@ This method is only required if windows are processed for more than one trial an
 
         Returns
         -------
-        Missing
-            Missing
+        zmq.Socket instance
+            The created socket object for the zmq connection.
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: Missing (by Niklas Kueper)
+        Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;  
         
         # create a socket connection as a publisher to send commands 
@@ -9897,7 +9902,8 @@ This method is only required if windows are processed for more than one trial an
 <span>def <span class="ident">BufferToWindows</span></span>(<span>self, num_non_data_channels=3)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>Missing</p>
+<div class="desc"><p>This method converts the buffered data from the data_buffer into data windows for further processing.
+</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>num_non_data_channels</code></strong> :&ensp;<code>int</code>, optional</dt>
@@ -9909,13 +9915,13 @@ This method is only required if windows are processed for more than one trial an
 </summary>
 <pre><code class="python">def BufferToWindows(self, num_non_data_channels = 3):
     &#34;&#34;&#34;
-    Missing
+    This method converts the buffered data from the data_buffer into data windows for further processing.  
 
     Parameters
     ----------
     num_non_data_channels : int, optional
         Number of channels to be removed, by default 3
-    &#34;&#34;&#34;         
+    &#34;&#34;&#34;      
 
     self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)</code></pre>
 </details>
@@ -9933,12 +9939,12 @@ This method is only required if windows are processed for more than one trial an
 <p>The address string. This has the form "tcp://interface:port"</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Missing</code></dt>
-<dd>Missing</dd>
+<dt><code>zmq.Socket instance</code></dt>
+<dd>The created socket object for the zmq connection.</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -9954,13 +9960,13 @@ This method is only required if windows are processed for more than one trial an
 
     Returns
     -------
-    Missing
-        Missing
+    zmq.Socket instance
+        The created socket object for the zmq connection.
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
     
     # create a socket connection as a publisher to send commands 
@@ -9983,7 +9989,7 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10000,7 +10006,7 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;  
 
     return self.data_buffer</code></pre>
@@ -10018,7 +10024,7 @@ This method is only required if windows are processed for more than one trial an
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10035,7 +10041,7 @@ This method is only required if windows are processed for more than one trial an
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     print(&#34;&#34;) 
@@ -10071,7 +10077,7 @@ This function should be called every time aan error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10097,7 +10103,7 @@ This function should be called every time aan error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     # calculate the final values for the timings 
@@ -10119,44 +10125,43 @@ This function should be called every time aan error is detected</p>
 <span>def <span class="ident">startZMQServer</span></span>(<span>self, port_name)</span>
 </code></dt>
 <dd>
-<div class="desc"><p>This function creats a socket connection as a pubisher to send commands</p>
+<div class="desc"><p>This function creates a socket connection as a publisher to send commands</p>
 <h2 id="parameters">Parameters</h2>
 <dl>
 <dt><strong><code>port_name</code></strong> :&ensp;<code>str</code></dt>
-<dd>&nbsp;</dd>
+<dd>The address string. This has the form "tcp://interface:port"</dd>
 </dl>
-<p>The address string. This has the form "tcp://interface:port"</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>Missing</code></dt>
-<dd>Missing</dd>
+<dt><code>zmq.Socket instance</code></dt>
+<dd>The created socket object for the zmq connection.</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">def startZMQServer(self, port_name):
     &#34;&#34;&#34;
-    This function creats a socket connection as a pubisher to send commands
-
+    This function creates a socket connection as a publisher to send commands
+    
     Parameters
     ----------
     port_name : str
-       The address string. This has the form &#34;tcp://interface:port&#34;
+        The address string. This has the form &#34;tcp://interface:port&#34;
 
     Returns
     -------
-    Missing
-        Missing
+    zmq.Socket instance
+        The created socket object for the zmq connection.
 
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
-    &#34;&#34;&#34;  
+    Last changed: 08.03.2024 (by Niklas Kueper)
+    &#34;&#34;&#34;
 
     # create a socket connection as a publisher to send commands 
     my_context = zmq.Context()
@@ -10182,7 +10187,7 @@ This function should be called every time aan error is detected</p>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: Missing (by Niklas Kueper)</p></div>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -10203,7 +10208,7 @@ This function should be called every time aan error is detected</p>
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: Missing (by Niklas Kueper)
+    Last changed: 08.03.2024 (by Niklas Kueper)
     &#34;&#34;&#34;        
 
     #data 
@@ -10297,484 +10302,6 @@ This function should be called every time aan error is detected</p>
 </li>
 </ul>
 </dd>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils"><code class="flex name class">
-<span>class <span class="ident">OnlineEEGUtils</span></span>
-<span>(</span><span>n_channels=34, n_samples=500, dt_process_data=0.05)</span>
-</code></dt>
-<dd>
-<div class="desc"><p><em>summary</em> TODO: add description
-Parameters</p>
-<hr>
-<dl>
-<dt><strong><code>n_channels</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd><em>description</em>, by default 34</dd>
-<dt><strong><code>n_samples</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd><em>description</em>, by default 500</dd>
-<dt><strong><code>dt_process_data</code></strong> :&ensp;<code>float</code>, optional</dt>
-<dd><em>description</em>, by default 0.05</dd>
-</dl></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">class OnlineEEGUtils: # leave this for backward compability for now --&gt; deprecated 
-
-    def __init__(self, n_channels=34, n_samples= 500, dt_process_data = 0.05):
-        &#34;&#34;&#34;_summary_ TODO: add description
-        Parameters
-        ----------
-        n_channels : int, optional
-            _description_, by default 34
-        n_samples : int, optional
-            _description_, by default 500
-        dt_process_data : float, optional
-            _description_, by default 0.05
-        &#34;&#34;&#34;
-
-        self.buffersize = n_samples
-        self.dt_process_data = dt_process_data
-        self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
-        warnings.warn(&#34;This class is deprecated, use OnlineEEG now!&#34;)
-        
-
-    def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = &#34;example_team&#34;, secret_id = 5, url = &#39;http://10.250.223.221:5000/results&#39;):
-        &#34;&#34;&#34;
-        This function gathers all the relevant results and sends it to the host
-        This function should be called eveytime an error is detected
-
-        Parameters
-        ----------
-        timestamp_buffer_vals : Numpy array
-            subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
-        local_clock_time : float
-            current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of &#34;local_clock()&#34; call.
-        team_name : str, optional
-            Each team will be assigned a team name, by default &#34;example_team&#34;
-        secret_id : int, optional
-            Each team will be provided with a secret code, by default 5
-        url : str, optional
-            The URL where the resulst are stored, by default &#39;http://10.250.223.221:5000/results&#39;
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;        
-
-        # calculate the final values for the timings 
-        comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
-        computation_time = local_clock_time - timestamp_buffer_vals[1]
-
-        # connection to API for sending the results online 
-        
-        myobj = {&#39;team&#39;: team_name,
-                &#39;secret&#39;: secret_id,
-                &#39;host_timestamp&#39;: timestamp_buffer_vals[0], 
-                &#39;comp_time&#39;: computation_time, 
-                &#39;comm_delay&#39;: comm_delay}
-
-        x = requests.post(url, json = myobj)
-
-
-    def printStreamMetadata(self, stream_info_obj):
-        &#34;&#34;&#34;
-        This function prints some basic meta data of the stream
-
-        Parameters
-        ----------
-        stream_info_obj : StreamInlet object
-            A pylsl StreamInlet object which contains alle the information of the stream
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34; 
-
-        print(&#34;&#34;) 
-        print(&#34;Meta data&#34;)
-        print(&#34;Name:&#34;, stream_info_obj.name())
-        print(&#34;Type:&#34;, stream_info_obj.type())
-        print(&#34;Number of channels:&#34;, stream_info_obj.channel_count())
-        print(&#34;Nominal sampling rate:&#34;, stream_info_obj.nominal_srate())
-        print(&#34;Channel format:&#34;,stream_info_obj.channel_format())
-        print(&#34;Source_id:&#34;,stream_info_obj.source_id())
-        print(&#34;Version:&#34;,stream_info_obj.version())
-        print(&#34;&#34;)
-
-
-    def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
-        &#34;&#34;&#34;
-        This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
-
-        Parameters
-        ----------
-        chunk : list
-            Current data chunk with shape (samples, channels)
-        channel_indices : list, optional
-            If only selected channel indices should be extraced, by default None
-        check_sample_loss : bool, optional
-            If True the function is checkinf for sample losses, by default True
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;
-
-        #data 
-        
-        current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
-        
-        #print(&#34;chunk shape&#34;, current_chunk.shape) # should be channels, sampels 
-
-        if(channel_indices): 
-            current_chunk = current_chunk[channel_indices, :]
-
-        # #print(current_chunk.shape)
-        # current_chunk = current_chunk[0:n_channels, :] # use first n channels
-
-        n_samples = current_chunk.shape[1] 
-        n_channels = current_chunk.shape[0] 
-
-        if (n_samples &gt; self.data_buffer.shape[2]): # print error message 
-            print(&#34;Buffer overflow&#34;)
-
-        
-        self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
-        self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --&gt; is this correct 
-
-
-        # check for sample loss 
-        sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
-
-        for i in range(0, len(sample_indices) -1): 
-            if sample_indices[i] + 1 != sample_indices[i+1]:
-                warnings.warn(f&#34;Sample loss at {i}: {sample_indices[i:i+2]}&#34;)
-
-        data_windows = self.data_buffer[:, 0:n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
-
-        return data_windows# , timestamp_buffer
-
-    def getDataBuffer(self): 
-        &#34;&#34;&#34;
-        This function returns the data_buffer
-
-        Returns
-        -------
-        Numpy array
-            data_butter : float
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34;  
-
-        return self.data_buffer
-    
-
-    def startZMQServer(self, port_name):
-        &#34;&#34;&#34;
-        This function creats a socket connection as a pubisher to send commands
-
-        Parameters
-        ----------
-        port_name : str
-           The address string. This has the form &#34;tcp://interface:port&#34;
-
-        Returns
-        -------
-        Instance of class zmq socket
-            The instance (handle) of the created socket connection. 
-
-        Author
-        ------
-        Author : Niklas Kueper \n
-        Last changed: 05.02.2024 (by Niklas Kueper)
-        &#34;&#34;&#34; 
-           
-        # create a socket connection as a publisher to send commands 
-        my_context = zmq.Context()
-        my_socket = my_context.socket(zmq.PUB)
-        my_socket.bind(&#34;tcp://*:&#34;+port_name)
-        print(&#34;Publisher ready&#34;)
-        return my_socket</code></pre>
-</details>
-<h3>Methods</h3>
-<dl>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils.getDataBuffer"><code class="name flex">
-<span>def <span class="ident">getDataBuffer</span></span>(<span>self)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function returns the data_buffer</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>Numpy array</code></dt>
-<dd>data_butter : float</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def getDataBuffer(self): 
-    &#34;&#34;&#34;
-    This function returns the data_buffer
-
-    Returns
-    -------
-    Numpy array
-        data_butter : float
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: 05.02.2024 (by Niklas Kueper)
-    &#34;&#34;&#34;  
-
-    return self.data_buffer</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils.printStreamMetadata"><code class="name flex">
-<span>def <span class="ident">printStreamMetadata</span></span>(<span>self, stream_info_obj)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function prints some basic meta data of the stream</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>stream_info_obj</code></strong> :&ensp;<code>StreamInlet object</code></dt>
-<dd>A pylsl StreamInlet object which contains alle the information of the stream</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def printStreamMetadata(self, stream_info_obj):
-    &#34;&#34;&#34;
-    This function prints some basic meta data of the stream
-
-    Parameters
-    ----------
-    stream_info_obj : StreamInlet object
-        A pylsl StreamInlet object which contains alle the information of the stream
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: 05.02.2024 (by Niklas Kueper)
-    &#34;&#34;&#34; 
-
-    print(&#34;&#34;) 
-    print(&#34;Meta data&#34;)
-    print(&#34;Name:&#34;, stream_info_obj.name())
-    print(&#34;Type:&#34;, stream_info_obj.type())
-    print(&#34;Number of channels:&#34;, stream_info_obj.channel_count())
-    print(&#34;Nominal sampling rate:&#34;, stream_info_obj.nominal_srate())
-    print(&#34;Channel format:&#34;,stream_info_obj.channel_format())
-    print(&#34;Source_id:&#34;,stream_info_obj.source_id())
-    print(&#34;Version:&#34;,stream_info_obj.version())
-    print(&#34;&#34;)</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils.sendDetectedEventToAPI"><code class="name flex">
-<span>def <span class="ident">sendDetectedEventToAPI</span></span>(<span>self, timestamp_buffer_vals, local_clock_time, team_name='example_team', secret_id=5, url='http://10.250.223.221:5000/results')</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function gathers all the relevant results and sends it to the host
-This function should be called eveytime an error is detected</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>timestamp_buffer_vals</code></strong> :&ensp;<code>Numpy array</code></dt>
-<dd>subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array</dd>
-<dt><strong><code>local_clock_time</code></strong> :&ensp;<code>float</code></dt>
-<dd>current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of "local_clock()" call.</dd>
-<dt><strong><code>team_name</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>Each team will be assigned a team name, by default "example_team"</dd>
-<dt><strong><code>secret_id</code></strong> :&ensp;<code>int</code>, optional</dt>
-<dd>Each team will be provided with a secret code, by default 5</dd>
-<dt><strong><code>url</code></strong> :&ensp;<code>str</code>, optional</dt>
-<dd>The URL where the resulst are stored, by default 'http://10.250.223.221:5000/results'</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def sendDetectedEventToAPI(self, timestamp_buffer_vals, local_clock_time, team_name = &#34;example_team&#34;, secret_id = 5, url = &#39;http://10.250.223.221:5000/results&#39;):
-    &#34;&#34;&#34;
-    This function gathers all the relevant results and sends it to the host
-    This function should be called eveytime an error is detected
-
-    Parameters
-    ----------
-    timestamp_buffer_vals : Numpy array
-        subset of the timestamp_buffer array at the instant when you have predicted an error and want to send the current result. Basically the i-th element of the timestamp_buffer array
-    local_clock_time : float
-        current LSL local clock time when you have run your classifier and predicted an error. This can be determined with the help of &#34;local_clock()&#34; call.
-    team_name : str, optional
-        Each team will be assigned a team name, by default &#34;example_team&#34;
-    secret_id : int, optional
-        Each team will be provided with a secret code, by default 5
-    url : str, optional
-        The URL where the resulst are stored, by default &#39;http://10.250.223.221:5000/results&#39;
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: 05.02.2024 (by Niklas Kueper)
-    &#34;&#34;&#34;        
-
-    # calculate the final values for the timings 
-    comm_delay = timestamp_buffer_vals[1] -timestamp_buffer_vals[0] -timestamp_buffer_vals[2]
-    computation_time = local_clock_time - timestamp_buffer_vals[1]
-
-    # connection to API for sending the results online 
-    
-    myobj = {&#39;team&#39;: team_name,
-            &#39;secret&#39;: secret_id,
-            &#39;host_timestamp&#39;: timestamp_buffer_vals[0], 
-            &#39;comp_time&#39;: computation_time, 
-            &#39;comm_delay&#39;: comm_delay}
-
-    x = requests.post(url, json = myobj)</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils.startZMQServer"><code class="name flex">
-<span>def <span class="ident">startZMQServer</span></span>(<span>self, port_name)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function creats a socket connection as a pubisher to send commands</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>port_name</code></strong> :&ensp;<code>str</code></dt>
-<dd>&nbsp;</dd>
-</dl>
-<p>The address string. This has the form "tcp://interface:port"</p>
-<h2 id="returns">Returns</h2>
-<dl>
-<dt><code>Instance</code> of <code>class zmq socket</code></dt>
-<dd>The instance (handle) of the created socket connection.</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def startZMQServer(self, port_name):
-    &#34;&#34;&#34;
-    This function creats a socket connection as a pubisher to send commands
-
-    Parameters
-    ----------
-    port_name : str
-       The address string. This has the form &#34;tcp://interface:port&#34;
-
-    Returns
-    -------
-    Instance of class zmq socket
-        The instance (handle) of the created socket connection. 
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: 05.02.2024 (by Niklas Kueper)
-    &#34;&#34;&#34; 
-       
-    # create a socket connection as a publisher to send commands 
-    my_context = zmq.Context()
-    my_socket = my_context.socket(zmq.PUB)
-    my_socket.bind(&#34;tcp://*:&#34;+port_name)
-    print(&#34;Publisher ready&#34;)
-    return my_socket</code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.eeg_lib.OnlineEEGUtils.updateBuffer"><code class="name flex">
-<span>def <span class="ident">updateBuffer</span></span>(<span>self, chunk, channel_indices=None, num_non_data_channels=3)</span>
-</code></dt>
-<dd>
-<div class="desc"><p>This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)</p>
-<h2 id="parameters">Parameters</h2>
-<dl>
-<dt><strong><code>chunk</code></strong> :&ensp;<code>list</code></dt>
-<dd>Current data chunk with shape (samples, channels)</dd>
-<dt><strong><code>channel_indices</code></strong> :&ensp;<code>list</code>, optional</dt>
-<dd>If only selected channel indices should be extraced, by default None</dd>
-<dt><strong><code>check_sample_loss</code></strong> :&ensp;<code>bool</code>, optional</dt>
-<dd>If True the function is checkinf for sample losses, by default True</dd>
-</dl>
-<h2 id="author">Author</h2>
-<p>Author : Niklas Kueper </p>
-<p>Last changed: 05.02.2024 (by Niklas Kueper)</p></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def updateBuffer(self, chunk, channel_indices = None, num_non_data_channels = 3):  #current_local_time, timestamp_offset, 
-    &#34;&#34;&#34;
-    This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
-
-    Parameters
-    ----------
-    chunk : list
-        Current data chunk with shape (samples, channels)
-    channel_indices : list, optional
-        If only selected channel indices should be extraced, by default None
-    check_sample_loss : bool, optional
-        If True the function is checkinf for sample losses, by default True
-
-    Author
-    ------
-    Author : Niklas Kueper \n
-    Last changed: 05.02.2024 (by Niklas Kueper)
-    &#34;&#34;&#34;
-
-    #data 
-    
-    current_chunk = (np.array(chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
-    
-    #print(&#34;chunk shape&#34;, current_chunk.shape) # should be channels, sampels 
-
-    if(channel_indices): 
-        current_chunk = current_chunk[channel_indices, :]
-
-    # #print(current_chunk.shape)
-    # current_chunk = current_chunk[0:n_channels, :] # use first n channels
-
-    n_samples = current_chunk.shape[1] 
-    n_channels = current_chunk.shape[0] 
-
-    if (n_samples &gt; self.data_buffer.shape[2]): # print error message 
-        print(&#34;Buffer overflow&#34;)
-
-    
-    self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
-    self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --&gt; is this correct 
-
-
-    # check for sample loss 
-    sample_indices = self.data_buffer[0, -3, :, 0].astype(int) # sample indice channel
-
-    for i in range(0, len(sample_indices) -1): 
-        if sample_indices[i] + 1 != sample_indices[i+1]:
-            warnings.warn(f&#34;Sample loss at {i}: {sample_indices[i:i+2]}&#34;)
-
-    data_windows = self.data_buffer[:, 0:n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
-
-    return data_windows# , timestamp_buffer</code></pre>
-</details>
-</dd>
-</dl>
-</dd>
 </dl>
 </section>
 </article>
@@ -10861,16 +10388,6 @@ This function should be called eveytime an error is detected</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEG.sendDetectedEventToAPI" href="#biosignal_toolbox.eeg_lib.OnlineEEG.sendDetectedEventToAPI">sendDetectedEventToAPI</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEG.startZMQServer" href="#biosignal_toolbox.eeg_lib.OnlineEEG.startZMQServer">startZMQServer</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEG.updateBuffer" href="#biosignal_toolbox.eeg_lib.OnlineEEG.updateBuffer">updateBuffer</a></code></li>
-</ul>
-</li>
-<li>
-<h4><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils">OnlineEEGUtils</a></code></h4>
-<ul class="">
-<li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils.getDataBuffer" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils.getDataBuffer">getDataBuffer</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils.printStreamMetadata" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils.printStreamMetadata">printStreamMetadata</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils.sendDetectedEventToAPI" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils.sendDetectedEventToAPI">sendDetectedEventToAPI</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils.startZMQServer" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils.startZMQServer">startZMQServer</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.OnlineEEGUtils.updateBuffer" href="#biosignal_toolbox.eeg_lib.OnlineEEGUtils.updateBuffer">updateBuffer</a></code></li>
 </ul>
 </li>
 </ul>
