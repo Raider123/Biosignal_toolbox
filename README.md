@@ -85,3 +85,9 @@ This Python file creates boxplots of classification results that are stored in a
 
 ### OnlineEMGPrediction 
 This folder contains files for the online prediction of EMG data. 
+
+## Class structure of the toolbox 
+
+The class structure of the toolbox is visualized in the following image: 
+
+![Biosignal toolbox class structure](structure_docs/biosignal_toolbox_class_structure.png)

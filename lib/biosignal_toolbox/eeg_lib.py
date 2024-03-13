@@ -212,7 +212,7 @@ import warnings
 class EEGData:    
     """
     This class includes useful methods and paramters for the (pre)processing and viusalization of EEG data. It is mainly dependend on numpy, mne, scipy and additional utils (e.g. keras preprocessing)). 
-
+    
     Parameters
     ----------
     format : str
