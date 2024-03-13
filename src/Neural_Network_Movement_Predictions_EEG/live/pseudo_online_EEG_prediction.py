@@ -31,7 +31,7 @@ from biosignal_toolbox.models.MlpErp import MLP_Model
 print(tf.config.experimental.list_physical_devices('GPU'))
 
 # disable GPU for testing
-tf.config.set_visible_devices([], 'GPU') 
+#tf.config.set_visible_devices([], 'GPU') 
 
 
 #************************************************************

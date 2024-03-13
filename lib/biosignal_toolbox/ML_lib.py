@@ -144,19 +144,19 @@ class MLModel:
                 ax1.legend()
                 ax1.set_title("Loss values over trained epochs")
 
-                acc_values = history_dict["accuracy"]
-                val_acc_values = history_dict["val_accuracy"]
-
+                acc_values = history_dict[self.metrics]
+                val_acc_values = history_dict["val_"+self.metrics]
+                
                 ax2.plot(num_of_epochs, acc_values, "bo", label="Training accuracy")
                 ax2.plot(num_of_epochs, val_acc_values, "b", label="Validation accuracy")
                 ax2.set_xlabel("Epochs")
-                ax2.set_ylabel("Accuracy")
+                ax2.set_ylabel(self.metrics)
                 ax2.legend()
-                ax2.set_title("Accuracy over trained epochs")
+                ax2.set_title(self.metrics+" over trained epochs")
 
                 plt.show()
 
-            val_acc_values = history_dict["val_accuracy"]
+            val_acc_values = history_dict["val_"+self.metrics]
 
         if(save_trained_model): 
             save_model(self.model, model_filename+".h5") # save 
@@ -309,7 +309,7 @@ class MLModel:
                 print("")
 
     
-    def predict(self, data, labels = None,  encoding = "binary", n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None, treshold = None):
+    def predict(self, data, labels = None,  encoding = "binary", classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None, treshold = None):
         """
         This method is used to do predictions on new data using a trained model (if training is required)
 
@@ -337,7 +337,7 @@ class MLModel:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 17.11.2023 (by Niklas Kueper
+        Last changed: 09.03.2024 (by Niklas Kueper) 
         """
 
         if(self.type == "keras"): 
@@ -353,14 +353,22 @@ class MLModel:
                     time2 = perf_counter_ns()
                     print("pred time ms", (time2-time1)/1000000)
 
-                if (n_classes == 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="binary")
-                elif (n_classes > 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
+                if(classification): 
+                    if (n_classes == 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="binary")
+                    elif (n_classes > 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type="multiclass")
+                else: 
+                    self.prediction_scores = predictions # for regression this is the result 
 
+            
             elif(eval_type == "online"):
                 
-                self.prediction_scores =  np.array(self.model(data)).flatten()
+                if(classification): 
+                    self.prediction_scores =  np.array(self.model(data)).flatten()
+                else: 
+                    self.prediction_scores = predictions
+
 
         elif(self.type == "dtw"): 
             #templates have shape n_train, channel, sampels 
@@ -383,7 +391,6 @@ class MLModel:
                             dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method="sqeuclidean", step_pattern='symmetric2', window_type="sakoechiba", window_args={"window_size" : 20}) 
                             distances_neg_class.append(dtw_obj_neg_class.distance)
 
-                        
 
                         if(treshold): 
                             predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
@@ -457,3 +464,22 @@ class MLModel:
 
         return self.prediction_scores
 
+    def printKerasModelLayerNames(self): 
+
+        layer_names = [layer.name for layer in self.model.layers]
+
+        # Print the layer names
+        print("Layer names:")
+        for name in layer_names:
+            print(name)
+
+    def printKerasModelLayerWeights(self, layer_name): 
+
+        layer = self.model.get_layer(name=layer_name)
+
+        # Print the weights
+        weights = layer.get_weights()
+        print("Weights for layer '{}':".format(layer.name))
+        for w in weights:
+            print(w)
+        

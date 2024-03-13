@@ -308,7 +308,7 @@ if __name__ == "__main__":
                         print("*****")
                         print("move !!!!")
                         print("*****")
-
+                
                 if (send_marker): # write this continously 
                     my_socket.send(zmq_topic+str(prod_score).encode())
                     # print("send time:", perf_counter()*1000 -old_send_time)
