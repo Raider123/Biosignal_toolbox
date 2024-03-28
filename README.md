@@ -11,16 +11,29 @@ This repository should **ONLY** contain python scripts and no datasets, plots or
 ### Installation 
 To install the biosignal toolbox move to the **lib** folder run the following command to install the Python package: **pip install -e .** When using Visual Studio Code (VSC), please make sure to load the hole biosignal_toolbox repository as a project folder. Otherwise the installed python packages might not be found or detected properly by VSC.  
 
-### Intended use and writing new methods
+### Intended use and development of new methods
 The biosignal toolbox includes useful classes for the processing of data and should be extended by implementing new methods in the library files (_lib.py) in the lib folder as well as example scripts of working files in the src folder. The purpose of the toolbox is to extend, customize and create high level functionalities based on existing libraries like numpy, scipy and especially mne. Each class should (by now) have full compatibility to mne, to enable to use all existing methods based of the package but also enable the possibility to write own processing and other methods to make the data analysis, recording and visualization as easy as possible. Therefore, it is required to always update corresponding mne objects and the internal variables of the individual classes of the biosignal toolbox (e.g. changed mne_raw object --> update internal variables, changed internal variables (like epoched data), update mne_epochs object). Please also make sure that every new written method only has one specific job and is as minimalistic as possible to enable maximum reusability of the code. Also, please have a look at methods that are already implemented to avoid any duplications (see docu for example). Furthermore, pay attention to write proper comments in your code (in english) to allow others to understand and adapt your implementations. 
 
-### Data Structure 
+### Data Structure
 The methods of the biosignal toolbox are mainly based on the typical MNE classes such as Raw and Epochs as well as internal data structures. The internal data structures of the toolbox are "raw data", "epoched data" and "windowed data". Each of them is represented as a numpy array with the following shapes: 
 - **raw data:** numpy array with shape: (n_channels, n_sampels) <br />
 - **epoched data:** numpy array with shape: (n_trials, n_channels, n_sampels) <br />
 - **windowed data:** numpy array with shape: (n_trials, n_channels, n_sampels, n_windows) <br />
 
-When writing new methods for the toolbox it is of great importance to consider these data structures and their shape. Guidelines and examples for writing new implementations will follow soon.  
+When writing new methods for the toolbox it is of great importance to consider these data structures and their shape. 
+
+### Writing new methods 
+In order to write a new method for the toolbox, please go through the following steps and questions and guidelines to ensure that the implementation makes sense and is compatible with the intended use of the toolbox: 
+
+**1. Does the method or a similar method already exist (see docs) ?** <br />
+If true, do not write a duplicate and maybe extend the current implementation. <br />
+**2. Is the method already implemented in the mne package? (or other package)** <br />
+If true, use the according methode of the toolbox to call this method within the toolbox.<br />
+**3. If the method does not exist somewhere think of the intention of the new method and where the function belongs to.** <br />
+General methods for timeseries data (could be used for EEG, EMG or other timeseries data) belong to the timeseries classes while modality specific methods belong to the specifiy classes of the modalities. Same applies to the machine learning class etc.<br />
+**4. Choose a proper name for the method**<br />
+The name of the method should be written in Camel case (e.g. myFunc, see coding convetions for more information) and has to contain the data structure which it should process or operate on which are ***Raw***, ***Epochs*** or ***Windows***. Therefore, a method might be called *xyFilterEpochs()* where the name indicates its job and the processed data structure is clearly mentioned. If the method should be used for more then one data structure (e.g. can be used both for epoched and windowed data etc.) do not specify the name of the data structure and use the argument: *apply_to_structures* instead. It should contain a list with the data structures on which to apply the method as strings: *apply_to_structures = ["raw", "epochs", "windows"]*. The method should then function only on the specified data structures. <br />
+**5. Optimize the code and ensure the docstring (numpy style) is accordingly**
 
 
 ### Coding Conventions
