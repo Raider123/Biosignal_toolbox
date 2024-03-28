@@ -13,6 +13,7 @@ import serial
 import warnings
 import pyrock
 
+
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils, OnlineEEG
 from biosignal_toolbox.ML_lib import MLModel
@@ -103,7 +104,7 @@ if __name__ == "__main__":
     
     # dead time 
     dead_n_samples = deadtime/dt_read_buffer
-
+    
 
     # load models
     # load MLP model 
@@ -257,7 +258,7 @@ if __name__ == "__main__":
                     # print("send time:", perf_counter()*1000 -old_send_time)
                     # old_send_time = perf_counter()*1000
 
-            
+
             #*****************************************************
             #*********** End processing section  *****************
             #*****************************************************
