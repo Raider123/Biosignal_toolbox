@@ -3,7 +3,7 @@ import setuptools
 setuptools.setup(
     include_package_data=True,
     name='biosignal_toolbox',
-    version='0.1.0',
+    version='0.2.0',
     description='biosignal_toolbox',
     url='https://git.hb.dfki.de/dfki_ude/biosignal_toolbox.git',
     author='DFKI',

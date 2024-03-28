@@ -172,19 +172,19 @@ class MLModel:
                 ax1.legend()
                 ax1.set_title(&#34;Loss values over trained epochs&#34;)
 
-                acc_values = history_dict[&#34;accuracy&#34;]
-                val_acc_values = history_dict[&#34;val_accuracy&#34;]
-
+                acc_values = history_dict[self.metrics]
+                val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
+                
                 ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
                 ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
                 ax2.set_xlabel(&#34;Epochs&#34;)
-                ax2.set_ylabel(&#34;Accuracy&#34;)
+                ax2.set_ylabel(self.metrics)
                 ax2.legend()
-                ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+                ax2.set_title(self.metrics+&#34; over trained epochs&#34;)
 
                 plt.show()
 
-            val_acc_values = history_dict[&#34;val_accuracy&#34;]
+            val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
 
         if(save_trained_model): 
             save_model(self.model, model_filename+&#34;.h5&#34;) # save 
@@ -337,7 +337,7 @@ class MLModel:
                 print(&#34;&#34;)
 
     
-    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
+    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
         &#34;&#34;&#34;
         This method is used to do predictions on new data using a trained model (if training is required)
 
@@ -365,7 +365,7 @@ class MLModel:
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 17.11.2023 (by Niklas Kueper
+        Last changed: 09.03.2024 (by Niklas Kueper) 
         &#34;&#34;&#34;
 
         if(self.type == &#34;keras&#34;): 
@@ -381,14 +381,22 @@ class MLModel:
                     time2 = perf_counter_ns()
                     print(&#34;pred time ms&#34;, (time2-time1)/1000000)
 
-                if (n_classes == 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
-                elif (n_classes &gt; 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+                if(classification): 
+                    if (n_classes == 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                    elif (n_classes &gt; 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+                else: 
+                    self.prediction_scores = predictions # for regression this is the result 
 
+            
             elif(eval_type == &#34;online&#34;):
                 
-                self.prediction_scores =  np.array(self.model(data)).flatten()
+                if(classification): 
+                    self.prediction_scores =  np.array(self.model(data)).flatten()
+                else: 
+                    self.prediction_scores = predictions
+
 
         elif(self.type == &#34;dtw&#34;): 
             #templates have shape n_train, channel, sampels 
@@ -411,7 +419,6 @@ class MLModel:
                             dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
                             distances_neg_class.append(dtw_obj_neg_class.distance)
 
-                        
 
                         if(treshold): 
                             predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
@@ -483,7 +490,27 @@ class MLModel:
         Last changed: 17.11.2023 (by Niklas Kueper
         &#34;&#34;&#34;
 
-        return self.prediction_scores</code></pre>
+        return self.prediction_scores
+
+    def printKerasModelLayerNames(self): 
+
+        layer_names = [layer.name for layer in self.model.layers]
+
+        # Print the layer names
+        print(&#34;Layer names:&#34;)
+        for name in layer_names:
+            print(name)
+
+    def printKerasModelLayerWeights(self, layer_name): 
+
+        layer = self.model.get_layer(name=layer_name)
+
+        # Print the weights
+        weights = layer.get_weights()
+        print(&#34;Weights for layer &#39;{}&#39;:&#34;.format(layer.name))
+        for w in weights:
+            print(w)
+        </code></pre>
 </details>
 </section>
 <section>
@@ -649,19 +676,19 @@ Currently only a instance of keras model can be passed</dd>
                 ax1.legend()
                 ax1.set_title(&#34;Loss values over trained epochs&#34;)
 
-                acc_values = history_dict[&#34;accuracy&#34;]
-                val_acc_values = history_dict[&#34;val_accuracy&#34;]
-
+                acc_values = history_dict[self.metrics]
+                val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
+                
                 ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
                 ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
                 ax2.set_xlabel(&#34;Epochs&#34;)
-                ax2.set_ylabel(&#34;Accuracy&#34;)
+                ax2.set_ylabel(self.metrics)
                 ax2.legend()
-                ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+                ax2.set_title(self.metrics+&#34; over trained epochs&#34;)
 
                 plt.show()
 
-            val_acc_values = history_dict[&#34;val_accuracy&#34;]
+            val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
 
         if(save_trained_model): 
             save_model(self.model, model_filename+&#34;.h5&#34;) # save 
@@ -814,7 +841,7 @@ Currently only a instance of keras model can be passed</dd>
                 print(&#34;&#34;)
 
     
-    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
+    def predict(self, data, labels = None,  encoding = &#34;binary&#34;, classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
         &#34;&#34;&#34;
         This method is used to do predictions on new data using a trained model (if training is required)
 
@@ -842,7 +869,7 @@ Currently only a instance of keras model can be passed</dd>
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 17.11.2023 (by Niklas Kueper
+        Last changed: 09.03.2024 (by Niklas Kueper) 
         &#34;&#34;&#34;
 
         if(self.type == &#34;keras&#34;): 
@@ -858,14 +885,22 @@ Currently only a instance of keras model can be passed</dd>
                     time2 = perf_counter_ns()
                     print(&#34;pred time ms&#34;, (time2-time1)/1000000)
 
-                if (n_classes == 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
-                elif (n_classes &gt; 2): 
-                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+                if(classification): 
+                    if (n_classes == 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                    elif (n_classes &gt; 2): 
+                        self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+                else: 
+                    self.prediction_scores = predictions # for regression this is the result 
 
+            
             elif(eval_type == &#34;online&#34;):
                 
-                self.prediction_scores =  np.array(self.model(data)).flatten()
+                if(classification): 
+                    self.prediction_scores =  np.array(self.model(data)).flatten()
+                else: 
+                    self.prediction_scores = predictions
+
 
         elif(self.type == &#34;dtw&#34;): 
             #templates have shape n_train, channel, sampels 
@@ -888,7 +923,6 @@ Currently only a instance of keras model can be passed</dd>
                             dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
                             distances_neg_class.append(dtw_obj_neg_class.distance)
 
-                        
 
                         if(treshold): 
                             predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
@@ -960,7 +994,26 @@ Currently only a instance of keras model can be passed</dd>
         Last changed: 17.11.2023 (by Niklas Kueper
         &#34;&#34;&#34;
 
-        return self.prediction_scores</code></pre>
+        return self.prediction_scores
+
+    def printKerasModelLayerNames(self): 
+
+        layer_names = [layer.name for layer in self.model.layers]
+
+        # Print the layer names
+        print(&#34;Layer names:&#34;)
+        for name in layer_names:
+            print(name)
+
+    def printKerasModelLayerWeights(self, layer_name): 
+
+        layer = self.model.get_layer(name=layer_name)
+
+        # Print the weights
+        weights = layer.get_weights()
+        print(&#34;Weights for layer &#39;{}&#39;:&#34;.format(layer.name))
+        for w in weights:
+            print(w)</code></pre>
 </details>
 <h3>Methods</h3>
 <dl>
@@ -1291,7 +1344,7 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 </details>
 </dd>
 <dt id="biosignal_toolbox.ML_lib.MLModel.predict"><code class="name flex">
-<span>def <span class="ident">predict</span></span>(<span>self, data, labels=None, encoding='binary', n_classes=2, show_results=True, show_pred_time=False, eval_type='offline', templates=None, treshold=None)</span>
+<span>def <span class="ident">predict</span></span>(<span>self, data, labels=None, encoding='binary', classification=True, n_classes=2, show_results=True, show_pred_time=False, eval_type='offline', templates=None, treshold=None)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This method is used to do predictions on new data using a trained model (if training is required)</p>
@@ -1318,12 +1371,12 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: 17.11.2023 (by Niklas Kueper</p></div>
+<p>Last changed: 09.03.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def predict(self, data, labels = None,  encoding = &#34;binary&#34;, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
+<pre><code class="python">def predict(self, data, labels = None,  encoding = &#34;binary&#34;, classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = &#34;offline&#34;, templates = None, treshold = None):
     &#34;&#34;&#34;
     This method is used to do predictions on new data using a trained model (if training is required)
 
@@ -1351,7 +1404,7 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: 17.11.2023 (by Niklas Kueper
+    Last changed: 09.03.2024 (by Niklas Kueper) 
     &#34;&#34;&#34;
 
     if(self.type == &#34;keras&#34;): 
@@ -1367,14 +1420,22 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
                 time2 = perf_counter_ns()
                 print(&#34;pred time ms&#34;, (time2-time1)/1000000)
 
-            if (n_classes == 2): 
-                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
-            elif (n_classes &gt; 2): 
-                self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+            if(classification): 
+                if (n_classes == 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;binary&#34;)
+                elif (n_classes &gt; 2): 
+                    self.calcPerformance(predictions = predictions, encoding = encoding, show_results = show_results, labels=labels, type=&#34;multiclass&#34;)
+            else: 
+                self.prediction_scores = predictions # for regression this is the result 
 
+        
         elif(eval_type == &#34;online&#34;):
             
-            self.prediction_scores =  np.array(self.model(data)).flatten()
+            if(classification): 
+                self.prediction_scores =  np.array(self.model(data)).flatten()
+            else: 
+                self.prediction_scores = predictions
+
 
     elif(self.type == &#34;dtw&#34;): 
         #templates have shape n_train, channel, sampels 
@@ -1397,7 +1458,6 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
                         dtw_obj_neg_class = dtw(data[train_idx, channel_idx, :], y=templates[0][channel_idx, :], dist_method=&#34;sqeuclidean&#34;, step_pattern=&#39;symmetric2&#39;, window_type=&#34;sakoechiba&#34;, window_args={&#34;window_size&#34; : 20}) 
                         distances_neg_class.append(dtw_obj_neg_class.distance)
 
-                    
 
                     if(treshold): 
                         predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
@@ -1420,6 +1480,45 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 
         else: 
             warnings.warn(&#34;not implemented yet .. &#34;)</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerNames"><code class="name flex">
+<span>def <span class="ident">printKerasModelLayerNames</span></span>(<span>self)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def printKerasModelLayerNames(self): 
+
+    layer_names = [layer.name for layer in self.model.layers]
+
+    # Print the layer names
+    print(&#34;Layer names:&#34;)
+    for name in layer_names:
+        print(name)</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerWeights"><code class="name flex">
+<span>def <span class="ident">printKerasModelLayerWeights</span></span>(<span>self, layer_name)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def printKerasModelLayerWeights(self, layer_name): 
+
+    layer = self.model.get_layer(name=layer_name)
+
+    # Print the weights
+    weights = layer.get_weights()
+    print(&#34;Weights for layer &#39;{}&#39;:&#34;.format(layer.name))
+    for w in weights:
+        print(w)</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.ML_lib.MLModel.trainModel"><code class="name flex">
@@ -1552,19 +1651,19 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
             ax1.legend()
             ax1.set_title(&#34;Loss values over trained epochs&#34;)
 
-            acc_values = history_dict[&#34;accuracy&#34;]
-            val_acc_values = history_dict[&#34;val_accuracy&#34;]
-
+            acc_values = history_dict[self.metrics]
+            val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
+            
             ax2.plot(num_of_epochs, acc_values, &#34;bo&#34;, label=&#34;Training accuracy&#34;)
             ax2.plot(num_of_epochs, val_acc_values, &#34;b&#34;, label=&#34;Validation accuracy&#34;)
             ax2.set_xlabel(&#34;Epochs&#34;)
-            ax2.set_ylabel(&#34;Accuracy&#34;)
+            ax2.set_ylabel(self.metrics)
             ax2.legend()
-            ax2.set_title(&#34;Accuracy over trained epochs&#34;)
+            ax2.set_title(self.metrics+&#34; over trained epochs&#34;)
 
             plt.show()
 
-        val_acc_values = history_dict[&#34;val_accuracy&#34;]
+        val_acc_values = history_dict[&#34;val_&#34;+self.metrics]
 
     if(save_trained_model): 
         save_model(self.model, model_filename+&#34;.h5&#34;) # save </code></pre>
@@ -1590,7 +1689,7 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 <ul>
 <li>
 <h4><code><a title="biosignal_toolbox.ML_lib.MLModel" href="#biosignal_toolbox.ML_lib.MLModel">MLModel</a></code></h4>
-<ul class="two-column">
+<ul class="">
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.calcPerformance" href="#biosignal_toolbox.ML_lib.MLModel.calcPerformance">calcPerformance</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.calcTestAccAndRates" href="#biosignal_toolbox.ML_lib.MLModel.calcTestAccAndRates">calcTestAccAndRates</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.getPerfResults" href="#biosignal_toolbox.ML_lib.MLModel.getPerfResults">getPerfResults</a></code></li>
@@ -1598,6 +1697,8 @@ The prediction scores as a 1D-numpy array for every predicted instance (n_predic
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.loadModel" href="#biosignal_toolbox.ML_lib.MLModel.loadModel">loadModel</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.modelSummary" href="#biosignal_toolbox.ML_lib.MLModel.modelSummary">modelSummary</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.predict" href="#biosignal_toolbox.ML_lib.MLModel.predict">predict</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerNames" href="#biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerNames">printKerasModelLayerNames</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerWeights" href="#biosignal_toolbox.ML_lib.MLModel.printKerasModelLayerWeights">printKerasModelLayerWeights</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_lib.MLModel.trainModel" href="#biosignal_toolbox.ML_lib.MLModel.trainModel">trainModel</a></code></li>
 </ul>
 </li>

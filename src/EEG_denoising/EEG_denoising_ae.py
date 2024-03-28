@@ -1,21 +1,25 @@
-# *********************************************************************************
-# ************************* Imports ***********************************************
-# *********************************************************************************
 
-import matplotlib.pyplot as plt
-import numpy as np
-from tensorflow.keras import layers
-from tensorflow.keras.models import Model
+# # own libs 
+from biosignal_toolbox.eeg_lib import EEGData
+from biosignal_toolbox.ML_lib import MLModel
+import biosignal_toolbox.ML_pipelines_lib as pipeline
+import matplotlib.pyplot as plt 
+import copy 
+import numpy as np 
 import tensorflow as tf
-import sys
-from tensorflow.keras.datasets import mnist
-import matplotlib 
 
+# models 
+from biosignal_toolbox.models.autoencoderNet import Autoencoder_Net, FilterNet, Conv2D2KernelLayer, MLPFilter, FilterNetV2
+
+# *********************************************************************************
+# ************** User Parameters and data selection  ******************************
+# *********************************************************************************
 
 # own libs
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning"
-sys.path.append(proj_path+"/lib/biosignal_toolbox") # path to lib folder
-import eeg_lib_nc
+proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
+
+data_path = proj_path+"/data/"
+results_path = proj_path+"/results/"
 
 # disable GPU for testing
 #tf.config.set_visible_devices([], 'GPU')
@@ -25,236 +29,110 @@ import eeg_lib_nc
 # *********************************************************************************
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
-subject_names = ["JV43", "RA12", "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-interations = [0, 1, 2] # the evaluation numbers which train test permutations are used
-scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "32ch_05_40Hz"
-preprocessed_data_filename_end_test = "32ch_05_4Hz"
-train_windows = ["bis-2500", "bis-2050", "bis-2200", "bis-2000", "bis-150", "bis-100", "bis-50", "bis0"]
 
+train_file_list = ["20211210_r_JV43_intentional_unilateral_set1.vhdr","20211210_r_JV43_intentional_unilateral_set2.vhdr", "20211210_r_JV43_intentional_unilateral_set3.vhdr"]
+
+train_windows = ["bis-26", "bis-2526"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
 # window wise metric evaluation
-window_size = 1000 #windowsize in ms (analog to pySPACE evaluation)
-window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
+window_size = 1024 #windowsize in ms 
+window_step = 50 # stepsize in ms
 
+n_epochs = 200
+batch_size = 16 # 
+
+# training params 
+loss_fcn =  "mean_absolute_error" 
+optimizer  = "adam" # Nadam for MLP 
+metrics = "mean_absolute_error"
+
+# paradigm params 
+marker_number = 100
+error_number = 3
+channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+inverse_keep_channel = True # standard: True 
+# just remap the parameters (need to be adapted)
+t1 = -5.0
+t2 = 0.0
+
+early_stopping_patience = 50
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
 # *********************************************************************************
 
-# init performance results list
-perf_results_total = []
-max_val_indices = []
+EEG_data_raw = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
+EEG_data_processed = copy.deepcopy(EEG_data_raw) # make a copy before preprocessing 
 
-# load the time axis of the epoched data
-time_axis_eeg_batch = np.load(data_path+"time_axis_eeg_epochs.npy")
-ch_names = np.load(data_path+"remaining_eeg_channel_names.npy")
+# process as raw data 
+EEG_data_raw.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
+# process with filtering 
+EEG_data_processed.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 4.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 
-print( ch_names)
-print(list(ch_names).index("C1"))
-# params for now 
-iteration = interations[0]
-subject = subject_names[0]
+# windowing 
+EEG_data_raw.windowEEGEpochs(window_size = window_size, window_step = window_step)
+EEG_data_processed.windowEEGEpochs(window_size = window_size, window_step = window_step)
 
-# load each individual train, val and test sets (preprocessed)
-lrp_epochs_train_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_train_"+str(iteration)+".npy")
-lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_test+"_test_"+str(iteration)+".npy")
-lrp_epochs_test_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end_test+"_val_"+str(iteration)+".npy")
+EEG_data_raw.windowSelection(train_windows)
+EEG_data_processed.windowSelection(train_windows)
 
-avg_epoch_train = np.mean(lrp_epochs_train_scaled, axis = 0)
+# reshape for nets 
+EEG_data_raw.reshapeWindowsForCNNnets()
+EEG_data_processed.reshapeWindowsForCNNnets()
 
-
-#create target windows 
-target_lrp_epochs_train_scaled = np.zeros(lrp_epochs_train_scaled.shape)
-for trial_idx in range(0, target_lrp_epochs_train_scaled.shape[0]): 
-    target_lrp_epochs_train_scaled[trial_idx, :, :] = avg_epoch_train # just use the average as target for every single trial 
-
-target_lrp_epochs_val_scaled = np.zeros(lrp_epochs_val_scaled.shape)
-for trial_idx in range(0, target_lrp_epochs_val_scaled.shape[0]): 
-    target_lrp_epochs_val_scaled[trial_idx, :, :] = avg_epoch_train # is this correct ? # just use the average as target for every single trial 
-
-target_lrp_epochs_test_scaled = np.zeros(lrp_epochs_test_scaled.shape)
-for trial_idx in range(0, target_lrp_epochs_test_scaled.shape[0]): 
-    target_lrp_epochs_test_scaled[trial_idx, :, :] = avg_epoch_train # is this correct ? # just use the average as target for every single trial 
+print(EEG_data_raw.windows.shape)
 
 
-# preprocessing 
-train_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
-val_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
-test_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
+# get data for training 
+x_EEG_raw = EEG_data_raw.getWindows()
+x_EEG_processed = EEG_data_processed.getWindows()
 
-train_windows_EEG = eeg_lib_nc.windowSelection(train_windows_EEG, wind_names, train_windows)
-val_windows_EEG = eeg_lib_nc.windowSelection(val_windows_EEG, wind_names, train_windows)
-test_windows_EEG = eeg_lib_nc.windowSelection(test_windows_EEG, wind_names, train_windows)
+# init early stopping 
+early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0,patience=early_stopping_patience,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 
-#targets 
-target_train_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_train_scaled, f_samp_eeg, window_size, window_step)
-target_val_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_val_scaled, f_samp_eeg, window_size, window_step)
-target_test_windows_EEG, num_of_windows, wind_names = eeg_lib_nc.windowEEGEpochs(target_lrp_epochs_test_scaled, f_samp_eeg, window_size, window_step)
+AE_model = FilterNetV2() #FilterNet() # should simply be a bandpass filter 
+ml_model = MLModel(model = AE_model, type="keras")
+#ml_model.modelSummary()
 
-target_train_windows_EEG = eeg_lib_nc.windowSelection(target_train_windows_EEG, wind_names, train_windows)
-target_val_windows_EEG = eeg_lib_nc.windowSelection(target_val_windows_EEG, wind_names, train_windows)
-target_test_windows_EEG = eeg_lib_nc.windowSelection(target_test_windows_EEG, wind_names, train_windows)
+# # # train it 
+ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_processed, y_val = x_EEG_processed, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer) 
 
-# reshape to train input 
-x_train = np.reshape(train_windows_EEG, (train_windows_EEG.shape[0]*train_windows_EEG.shape[3], train_windows_EEG.shape[1], train_windows_EEG.shape[2],1))
-x_val = np.reshape(val_windows_EEG, (val_windows_EEG.shape[0]*val_windows_EEG.shape[3], val_windows_EEG.shape[1], val_windows_EEG.shape[2],1))
-x_test = np.reshape(test_windows_EEG, (test_windows_EEG.shape[0]*test_windows_EEG.shape[3], test_windows_EEG.shape[1], test_windows_EEG.shape[2], 1))
+trial = 20
+channel = 3
 
-x_train_target = np.reshape(target_train_windows_EEG, (target_train_windows_EEG.shape[0]*target_train_windows_EEG.shape[3], target_train_windows_EEG.shape[1], target_train_windows_EEG.shape[2],1))
-x_val_target = np.reshape(target_val_windows_EEG, (target_val_windows_EEG.shape[0]*target_val_windows_EEG.shape[3], target_val_windows_EEG.shape[1], target_val_windows_EEG.shape[2],1))
-x_test_target = np.reshape(target_test_windows_EEG, (target_test_windows_EEG.shape[0]*target_test_windows_EEG.shape[3], target_test_windows_EEG.shape[1], target_test_windows_EEG.shape[2],1))
+print(EEG_data_raw.windows.shape)
+window_to_predict = np.zeros((1, EEG_data_raw.windows.shape[1], EEG_data_raw.windows.shape[2], 1))
+window_to_predict[0, :, :, 0] = EEG_data_raw.windows[trial, :, :, 0]
 
-print(x_train.shape)
-print(x_train_target.shape)
-print(x_val.shape)
-print(x_val_target.shape)
+ml_model.predict(data = window_to_predict, classification = False, show_pred_time = True)
+output = ml_model.getPredictionScores()
 
-# #generate model 
-input_wind = layers.Input(shape=(32, 500, 1))
+print("output shape", output.shape)
 
-
-encoded = layers.Conv2D(10, (1, 10), strides=(1, 1), activation='relu', padding='same')(input_wind)
-#x = layers.MaxPooling2D((2, 2), padding='same')(x)
-# x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-# x = layers.MaxPooling2D((2, 2), padding='same')(x)
-#x = layers.Conv2D(10, (1, 500), activation='relu', padding='same')(x)
-#encoded = layers.MaxPooling2D((2, 2), padding='same')(x)
-
-# at this point the representation is (4, 4, 8) i.e. 128-dimensional
-
-x = layers.Conv2D(10, (1, 10), strides=(1, 1), activation='relu', padding='same')(encoded)
-#x = layers.UpSampling2D((2, 2))(x)
-# x = layers.Conv2D(8, (3, 3), activation='relu', padding='same')(x)
-# x = layers.UpSampling2D((2, 2))(x)
-#x = layers.Conv2D(10, (1, 500), activation='relu', padding='same')(x)
-#x = layers.UpSampling2D((2, 2))(x)
-decoded = layers.Conv2D(1, (1, 10), strides=(1, 1), activation='linear', padding='same')(x)
-
-
-autoencoder = Model(input_wind, decoded)
-autoencoder.compile(optimizer='adam', loss = tf.keras.losses.MeanSquaredError() )#loss='binary_crossentropy')
-autoencoder.summary()
-
-history = autoencoder.fit(
-    x=x_train,
-    y=x_train,
-    epochs=30,
-    batch_size=16,
-    shuffle=True,
-    validation_split=0.2, 
-)
-
-# history of training process
-history_dict = history.history
-loss_values = history_dict["loss"]
-val_loss_values = history_dict["val_loss"]
-num_of_epochs = range(1, len(loss_values)+1)
-
-
-show_training_results = True
-if(show_training_results):
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize =(6, 8))
-    fig.subplots_adjust(hspace = 0.3)
-    ax1.plot(num_of_epochs, loss_values, "bo", label="Training loss")
-    ax1.plot(num_of_epochs, val_loss_values, "b", label="Validation loss")
-    ax1.set_xlabel("Epochs")
-    ax1.set_ylabel("Loss")
-    ax1.legend()
-    ax1.set_title("Loss values over trained epochs")
-
-    # acc_values = history_dict["accuracy"]
-    # val_acc_values = history_dict["val_accuracy"]
-
-    # ax2.plot(num_of_epochs, acc_values, "bo", label="Training accuracy")
-    # ax2.plot(num_of_epochs, val_acc_values, "b", label="Validation accuracy")
-    # ax2.set_xlabel("Epochs")
-    # ax2.set_ylabel("Accuracy")
-    # ax2.legend()
-    # ax2.set_title("Accuracy over trained epochs")
-
-    plt.show()
-
-
-# show stuff 
-
-# average
+# show the signals before training 
 plt.figure()
-plt.imshow(avg_epoch_train, aspect="auto", cmap='gray')
-plt.title("average")
+plt.plot(EEG_data_raw.windows[trial, channel, :, 0])
+plt.plot(EEG_data_processed.windows[trial, channel, :, 0])
+plt.legend(["raw", "processed"])
+
+
+# show the signals before training 
+plt.figure()
+plt.plot(EEG_data_raw.windows[trial, channel, :, 0])
+plt.plot(output[0, 7, :, 0])
+plt.legend(["raw", "filter model"])
+
+
+# show the signals before training 
+plt.figure()
+plt.plot(EEG_data_processed.windows[trial, channel, :, 0])
+plt.plot(output[0, channel, :, 0])
+plt.legend(["processed", "filter model"])
 plt.show()
 
+# print layer names 
+ml_model.printKerasModelLayerNames()
+ml_model.printKerasModelLayerWeights(layer_name="time_distributed")
 
-plt.figure()
-plt.plot(avg_epoch_train[24, :])
-plt.title("average C1")
-plt.show()
-
-
-
-
-
-pred_denoise = autoencoder.predict(np.reshape( train_windows_EEG[10, :, :, -1], (1, train_windows_EEG[10, :, :, -1].shape[0], train_windows_EEG[10, :, :, -1].shape[1], 1)))
-
-# some single trials 
-plt.figure()
-plt.imshow(train_windows_EEG[10, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
-plt.title("raw")
-plt.show()
-
-plt.figure()
-plt.imshow(pred_denoise[0, :, :, 0], aspect="auto", cmap='gray', norm = "linear")
-plt.title("filtered")
-plt.show()
-
-plt.figure()
-plt.plot(train_windows_EEG[10, 24, :, -1])
-plt.title("C1 raw")
-plt.show()
-
-plt.figure()
-plt.plot(pred_denoise[0, 24, :, 0])
-plt.title("C1 filtered")
-plt.show()
-
-
-
-pred_denoise = autoencoder.predict(np.reshape(train_windows_EEG[20, :, :, -1], (1, train_windows_EEG[20, :, :, -1].shape[0], train_windows_EEG[20, :, :, -1].shape[1], 1)))
-print(pred_denoise.shape)
-
-plt.figure()
-plt.imshow(train_windows_EEG[20, :, :, -1], aspect="auto", cmap='gray', norm = "linear")
-plt.title("raw")
-plt.show()
-
-plt.figure()
-plt.imshow(pred_denoise[0, :, :, 0], aspect="auto", cmap='gray', norm = "linear")
-plt.title("filtered")
-plt.show()
-
-plt.figure()
-plt.plot(train_windows_EEG[20, 24, :, -1])
-plt.title("C1 raw")
-plt.show()
-
-plt.figure()
-plt.plot(pred_denoise[0, 24, :, 0])
-plt.title("C1 filtered")
-plt.show()
-
-
-
-pred_denoise = autoencoder.predict(np.reshape(train_windows_EEG[40, :, :, -1], (1, train_windows_EEG[20, :, :, -1].shape[0], train_windows_EEG[20, :, :, -1].shape[1], 1)))
-print(pred_denoise.shape)
-
-plt.figure()
-plt.plot(train_windows_EEG[40, 24, :, -1])
-plt.title("C1 raw")
-plt.show()
-
-plt.figure()
-plt.plot(pred_denoise[0, 24, :, 0])
-plt.title("C1 filtered")
-plt.show()

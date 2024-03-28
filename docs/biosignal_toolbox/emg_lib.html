@@ -35,6 +35,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal as sig
 import warnings 
+#from datetime import datetime
+import os
+
+from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -84,10 +88,12 @@ class EMGData:
 
             if(format == &#34;ANTmini&#34;):
                 raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
-            else: 
+                self.data = raw_data
+            elif(format == &#34;Cometa&#34;): 
                 raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
-
-        self.data = raw_data
+                self.data = raw_data
+                
+        
         # print(&#34;data shape:&#34;, self.data.shape)
 
     def getEMGData(self):
@@ -96,7 +102,7 @@ class EMGData:
 
         Returns
         -------
-        tuple
+        tuple 
             data : Numpy array
                 The EMG data with shape (n_samples, n_channel)
             time_axis : Numpy array
@@ -260,9 +266,9 @@ class EMGData:
         &#34;&#34;&#34;        
 
         if (self.data.ndim &gt; 1): 
-            num_channels = self.data.shape[0]
+            n_channels = self.data.shape[0]
 
-            for n_channel in range(0, num_channels): 
+            for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
                 plt.title(self.channel_names[n_channel])
@@ -420,7 +426,7 @@ class EMGData:
             return None
 
     
-    def applyVarianceFilter(self, n_var):
+    def applyVarianceFilter(self,  n_var = 20, on_windows = True):
         &#34;&#34;&#34;
         This function applies a variance filter to the EMG data
 
@@ -434,32 +440,48 @@ class EMGData:
         Author : Niklas Kueper \n
         Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;    
+        
+        if (on_windows): 
+            filtered_windows = np.zeros(self.windows.shape)
 
-        # signal init 
-        emg_filtered = np.zeros(self.data.shape)
+            for trial_idx in range(0, filtered_windows.shape[0]): 
+                for channel_idx in range(0, filtered_windows.shape[1]):
+                    for index in range(0, filtered_windows.shape[2]): 
+                        for window_idx in range(0, filtered_windows.shape[3]): 
 
-        if(emg_filtered.ndim &gt; 1): 
-            
-            for channel in range(0, emg_filtered.shape[1]): 
+                            if (index &lt; n_var): 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                            else: 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = np.var(self.windows[trial_idx, channel_idx, index-n_var:index, window_idx])
 
+            self.windows = filtered_windows
+        else: 
+
+            # signal init 
+            emg_filtered = np.zeros(self.data.shape)
+
+            if(emg_filtered.ndim &gt; 1): 
+                
+                for channel in range(0, emg_filtered.shape[1]): 
+
+                    for index in range(0, emg_filtered.shape[0]): 
+
+                        if (index &lt; n_var): 
+                            emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+
+            else: 
                 for index in range(0, emg_filtered.shape[0]): 
 
-                    if (index &lt; n_var): 
-                        emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+                        if (index &lt; n_var): 
+                            emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index] = np.var(self.data[index-n_var:index])
 
-        else: 
-            for index in range(0, emg_filtered.shape[0]): 
+            self.data = emg_filtered
 
-                    if (index &lt; n_var): 
-                        emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index] = np.var(self.data[index-n_var:index])
-
-        self.data = emg_filtered
-
-
+    
     def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         &#34;&#34;&#34;
         This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
@@ -545,7 +567,39 @@ class EMGData:
     #         filtered_emg_1 = sig.filtfilt(b2, a2, self.data)
     #         emg_data_processed = sig.filtfilt(b1, a1, filtered_emg_1)
 
-    #     self.data = emg_data_processed</code></pre>
+    #     self.data = emg_data_processed
+
+class OnlineEMG(OnlineTimeseriesStreaming, EMGData): 
+    &#34;&#34;&#34;
+    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
+
+    Parameters
+    ----------
+    OnlineTimeseriesStreaming : class
+        The OnlineTimeseriesStreaming includes 
+    EMGData : _type_
+        _description_
+    &#34;&#34;&#34;
+
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+        &#34;&#34;&#34;
+        The constructor of the OnlineEMG class. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 08.03.2024 (by Niklas Kueper)
+        &#34;&#34;&#34;        
+        
+        super().__init__(self)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)
+
+
+
+
+    
+
+  </code></pre>
 </details>
 </section>
 <section>
@@ -632,10 +686,12 @@ class EMGData:
 
             if(format == &#34;ANTmini&#34;):
                 raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
-            else: 
+                self.data = raw_data
+            elif(format == &#34;Cometa&#34;): 
                 raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
-
-        self.data = raw_data
+                self.data = raw_data
+                
+        
         # print(&#34;data shape:&#34;, self.data.shape)
 
     def getEMGData(self):
@@ -644,7 +700,7 @@ class EMGData:
 
         Returns
         -------
-        tuple
+        tuple 
             data : Numpy array
                 The EMG data with shape (n_samples, n_channel)
             time_axis : Numpy array
@@ -808,9 +864,9 @@ class EMGData:
         &#34;&#34;&#34;        
 
         if (self.data.ndim &gt; 1): 
-            num_channels = self.data.shape[0]
+            n_channels = self.data.shape[0]
 
-            for n_channel in range(0, num_channels): 
+            for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
                 plt.title(self.channel_names[n_channel])
@@ -968,7 +1024,7 @@ class EMGData:
             return None
 
     
-    def applyVarianceFilter(self, n_var):
+    def applyVarianceFilter(self,  n_var = 20, on_windows = True):
         &#34;&#34;&#34;
         This function applies a variance filter to the EMG data
 
@@ -982,32 +1038,48 @@ class EMGData:
         Author : Niklas Kueper \n
         Last changed: 05.02.2024 (by Niklas Kueper)
         &#34;&#34;&#34;    
+        
+        if (on_windows): 
+            filtered_windows = np.zeros(self.windows.shape)
 
-        # signal init 
-        emg_filtered = np.zeros(self.data.shape)
+            for trial_idx in range(0, filtered_windows.shape[0]): 
+                for channel_idx in range(0, filtered_windows.shape[1]):
+                    for index in range(0, filtered_windows.shape[2]): 
+                        for window_idx in range(0, filtered_windows.shape[3]): 
 
-        if(emg_filtered.ndim &gt; 1): 
-            
-            for channel in range(0, emg_filtered.shape[1]): 
+                            if (index &lt; n_var): 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                            else: 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = np.var(self.windows[trial_idx, channel_idx, index-n_var:index, window_idx])
 
+            self.windows = filtered_windows
+        else: 
+
+            # signal init 
+            emg_filtered = np.zeros(self.data.shape)
+
+            if(emg_filtered.ndim &gt; 1): 
+                
+                for channel in range(0, emg_filtered.shape[1]): 
+
+                    for index in range(0, emg_filtered.shape[0]): 
+
+                        if (index &lt; n_var): 
+                            emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+
+            else: 
                 for index in range(0, emg_filtered.shape[0]): 
 
-                    if (index &lt; n_var): 
-                        emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+                        if (index &lt; n_var): 
+                            emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index] = np.var(self.data[index-n_var:index])
 
-        else: 
-            for index in range(0, emg_filtered.shape[0]): 
+            self.data = emg_filtered
 
-                    if (index &lt; n_var): 
-                        emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index] = np.var(self.data[index-n_var:index])
-
-        self.data = emg_filtered
-
-
+    
     def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         &#34;&#34;&#34;
         This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
@@ -1095,6 +1167,10 @@ class EMGData:
 
     #     self.data = emg_data_processed</code></pre>
 </details>
+<h3>Subclasses</h3>
+<ul class="hlist">
+<li><a title="biosignal_toolbox.emg_lib.OnlineEMG" href="#biosignal_toolbox.emg_lib.OnlineEMG">OnlineEMG</a></li>
+</ul>
 <h3>Methods</h3>
 <dl>
 <dt id="biosignal_toolbox.emg_lib.EMGData.applyBPFilter"><code class="name flex">
@@ -1143,7 +1219,7 @@ class EMGData:
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter"><code class="name flex">
-<span>def <span class="ident">applyVarianceFilter</span></span>(<span>self, n_var)</span>
+<span>def <span class="ident">applyVarianceFilter</span></span>(<span>self, n_var=20, on_windows=True)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function applies a variance filter to the EMG data</p>
@@ -1159,7 +1235,7 @@ class EMGData:
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def applyVarianceFilter(self, n_var):
+<pre><code class="python">def applyVarianceFilter(self,  n_var = 20, on_windows = True):
     &#34;&#34;&#34;
     This function applies a variance filter to the EMG data
 
@@ -1173,30 +1249,46 @@ class EMGData:
     Author : Niklas Kueper \n
     Last changed: 05.02.2024 (by Niklas Kueper)
     &#34;&#34;&#34;    
+    
+    if (on_windows): 
+        filtered_windows = np.zeros(self.windows.shape)
 
-    # signal init 
-    emg_filtered = np.zeros(self.data.shape)
+        for trial_idx in range(0, filtered_windows.shape[0]): 
+            for channel_idx in range(0, filtered_windows.shape[1]):
+                for index in range(0, filtered_windows.shape[2]): 
+                    for window_idx in range(0, filtered_windows.shape[3]): 
 
-    if(emg_filtered.ndim &gt; 1): 
-        
-        for channel in range(0, emg_filtered.shape[1]): 
+                        if (index &lt; n_var): 
+                            filtered_windows[trial_idx, channel_idx, index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            filtered_windows[trial_idx, channel_idx, index, window_idx] = np.var(self.windows[trial_idx, channel_idx, index-n_var:index, window_idx])
 
+        self.windows = filtered_windows
+    else: 
+
+        # signal init 
+        emg_filtered = np.zeros(self.data.shape)
+
+        if(emg_filtered.ndim &gt; 1): 
+            
+            for channel in range(0, emg_filtered.shape[1]): 
+
+                for index in range(0, emg_filtered.shape[0]): 
+
+                    if (index &lt; n_var): 
+                        emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
+                    else: 
+                        emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+
+        else: 
             for index in range(0, emg_filtered.shape[0]): 
 
-                if (index &lt; n_var): 
-                    emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
-                else: 
-                    emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+                    if (index &lt; n_var): 
+                        emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
+                    else: 
+                        emg_filtered[index] = np.var(self.data[index-n_var:index])
 
-    else: 
-        for index in range(0, emg_filtered.shape[0]): 
-
-                if (index &lt; n_var): 
-                    emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
-                else: 
-                    emg_filtered[index] = np.var(self.data[index-n_var:index])
-
-    self.data = emg_filtered</code></pre>
+        self.data = emg_filtered</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples"><code class="name flex">
@@ -1470,7 +1562,7 @@ The EMG channel names/muscles (names specified in the recording software) with s
 <div class="desc"><p>Returns a tuple wit the EMG data and EMG time axis</p>
 <h2 id="returns">Returns</h2>
 <dl>
-<dt><code>tuple</code></dt>
+<dt><code>tuple </code></dt>
 <dd>data : Numpy array
 The EMG data with shape (n_samples, n_channel)
 time_axis : Numpy array
@@ -1489,7 +1581,7 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 
     Returns
     -------
-    tuple
+    tuple 
         data : Numpy array
             The EMG data with shape (n_samples, n_channel)
         time_axis : Numpy array
@@ -1745,9 +1837,9 @@ The time axis of the EMG data with shape (n_samples,)</dd>
     &#34;&#34;&#34;        
 
     if (self.data.ndim &gt; 1): 
-        num_channels = self.data.shape[0]
+        n_channels = self.data.shape[0]
 
-        for n_channel in range(0, num_channels): 
+        for n_channel in range(0, n_channels): 
             plt.figure()
             plt.plot(self.time_axis, self.data[n_channel, :])
             plt.title(self.channel_names[n_channel])
@@ -1764,6 +1856,87 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 </details>
 </dd>
 </dl>
+</dd>
+<dt id="biosignal_toolbox.emg_lib.OnlineEMG"><code class="flex name class">
+<span>class <span class="ident">OnlineEMG</span></span>
+<span>(</span><span>stream_type='data', channel_names=['1', '2', '3'], n_channels=3, n_samples=500, dt_process_data=0.05, f_samp=1000.0)</span>
+</code></dt>
+<dd>
+<div class="desc"><p>This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . </p>
+<h2 id="parameters">Parameters</h2>
+<dl>
+<dt><strong><code>OnlineTimeseriesStreaming</code></strong> :&ensp;<code>class</code></dt>
+<dd>The OnlineTimeseriesStreaming includes</dd>
+<dt><strong><code>EMGData</code></strong> :&ensp;<code>_type_</code></dt>
+<dd><em>description</em></dd>
+</dl>
+<p>The constructor of the OnlineEMG class. </p>
+<h2 id="author">Author</h2>
+<p>Author : Niklas Kueper </p>
+<p>Last changed: 08.03.2024 (by Niklas Kueper)</p></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">class OnlineEMG(OnlineTimeseriesStreaming, EMGData): 
+    &#34;&#34;&#34;
+    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
+
+    Parameters
+    ----------
+    OnlineTimeseriesStreaming : class
+        The OnlineTimeseriesStreaming includes 
+    EMGData : _type_
+        _description_
+    &#34;&#34;&#34;
+
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+        &#34;&#34;&#34;
+        The constructor of the OnlineEMG class. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 08.03.2024 (by Niklas Kueper)
+        &#34;&#34;&#34;        
+        
+        super().__init__(self)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)</code></pre>
+</details>
+<h3>Ancestors</h3>
+<ul class="hlist">
+<li><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming">OnlineTimeseriesStreaming</a></li>
+<li><a title="biosignal_toolbox.emg_lib.EMGData" href="#biosignal_toolbox.emg_lib.EMGData">EMGData</a></li>
+</ul>
+<h3>Inherited members</h3>
+<ul class="hlist">
+<li><code><b><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming">OnlineTimeseriesStreaming</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.bufferToWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.bufferToWindows">bufferToWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.ensureLoopFrequency" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.ensureLoopFrequency">ensureLoopFrequency</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk">getChunk</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming">startANTEegoStreaming</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer">updateBuffer</a></code></li>
+</ul>
+</li>
+<li><code><b><a title="biosignal_toolbox.emg_lib.EMGData" href="#biosignal_toolbox.emg_lib.EMGData">EMGData</a></b></code>:
+<ul class="hlist">
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyBPFilter" href="#biosignal_toolbox.emg_lib.EMGData.applyBPFilter">applyBPFilter</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter" href="#biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter">applyVarianceFilter</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples" href="#biosignal_toolbox.emg_lib.EMGData.calcSampleLossFromSameSamples">calcSampleLossFromSameSamples</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.channelSelection" href="#biosignal_toolbox.emg_lib.EMGData.channelSelection">channelSelection</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.decimateEMGData" href="#biosignal_toolbox.emg_lib.EMGData.decimateEMGData">decimateEMGData</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.epocheEMGData" href="#biosignal_toolbox.emg_lib.EMGData.epocheEMGData">epocheEMGData</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.getChannelNames" href="#biosignal_toolbox.emg_lib.EMGData.getChannelNames">getChannelNames</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.getEMGData" href="#biosignal_toolbox.emg_lib.EMGData.getEMGData">getEMGData</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.getEMGfiltered" href="#biosignal_toolbox.emg_lib.EMGData.getEMGfiltered">getEMGfiltered</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.getSamplingRate" href="#biosignal_toolbox.emg_lib.EMGData.getSamplingRate">getSamplingRate</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.loadCometaEMGData" href="#biosignal_toolbox.emg_lib.EMGData.loadCometaEMGData">loadCometaEMGData</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.loadMiniANTEMGData" href="#biosignal_toolbox.emg_lib.EMGData.loadMiniANTEMGData">loadMiniANTEMGData</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.showEMGData" href="#biosignal_toolbox.emg_lib.EMGData.showEMGData">showEMGData</a></code></li>
+</ul>
+</li>
+</ul>
 </dd>
 </dl>
 </section>
@@ -1798,6 +1971,9 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.loadMiniANTEMGData" href="#biosignal_toolbox.emg_lib.EMGData.loadMiniANTEMGData">loadMiniANTEMGData</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.showEMGData" href="#biosignal_toolbox.emg_lib.EMGData.showEMGData">showEMGData</a></code></li>
 </ul>
+</li>
+<li>
+<h4><code><a title="biosignal_toolbox.emg_lib.OnlineEMG" href="#biosignal_toolbox.emg_lib.OnlineEMG">OnlineEMG</a></code></h4>
 </li>
 </ul>
 </li>

@@ -1,0 +1,160 @@
+
+
+# *********************************************************************************
+# ************************* Imports ***********************************************
+# *********************************************************************************
+
+import matplotlib.pyplot as plt
+import numpy as np
+import time
+from mne_lsl.lsl import (StreamInfo, StreamInlet, StreamOutlet, local_clock, resolve_streams)
+
+
+import warnings 
+# # own libs 
+from biosignal_toolbox.emg_lib import OnlineEMG, AntEego
+from marker_sync.zmq_lib import ZMQEvents
+from time import perf_counter
+from pylsl import StreamInlet, resolve_stream, StreamOutlet, StreamInfo
+
+
+# own libs
+proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
+data_path = proj_path+"/data/"
+path_to_so_file = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/lib/biosignal_toolbox/clients"
+
+
+#************************************************************
+# ********************** user params ************************
+#************************************************************
+if __name__ == "__main__":
+    
+
+    # online params 
+    buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
+    dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
+    print_times = False
+    send_onset = True
+    f_samp = 1000
+    
+    got_baseline_values = False
+    # emg stream params 
+    channel_names = ['1', '2', '3', '4', '5', '6', '7', '8']
+
+    # E;G data params 
+    n_channels = 10
+    
+    thresh_value = 0 
+    factor = 30
+
+    # marker sync params 
+    zmq_port = "7000"
+    pub_topic   = "1"       # enter the topic as a string
+    pub_msg     = "1"       # enter the msg as a string
+
+    #************************************************************
+    # ********************** user params end ********************
+    #************************************************************
+
+    # init zmq 
+    zmq_publisher = ZMQEvents(type = "publisher", port = zmq_port)
+
+    # mne_LSL stuff 
+    sinfo = StreamInfo(name="my-stream",stype="eeg",n_channels=1,sfreq=f_samp,dtype="float32",source_id="myid")
+    sinfo.set_channel_names(channel_names)
+    sinfo.set_channel_types("eeg")
+    sinfo.set_channel_units("microvolts")
+
+    stream_outlet = StreamOutlet(sinfo)
+    
+
+    # LSL stuff 
+    # info = StreamInfo('ANT', 'EEG', channel_count = 1, nominal_srate=f_samp,  source_id="AntEEGO")
+    # print("created info")
+
+    # next make an outlet
+    # stream_outlet = StreamOutlet(info, chunk_size=20)
+
+    
+    # create online EEG utils Object  
+    EMG_live = OnlineEMG(f_samp=f_samp,n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer, channel_names=channel_names) # use this normally stream_info.channel_count()
+    Eegoclient = AntEego(path_to_so_file=path_to_so_file)
+    Eegoclient.init_amp(fsamp=f_samp)
+
+    old_send_time = perf_counter()
+
+    count = 0 
+    send_counter = 10
+    
+    running = True
+    while running:
+        
+        chunk = Eegoclient.get_data()
+        #print(np.array(chunk).shape)
+        if(chunk):#chunk # if list not empty (new data)
+            
+            print("chunk shape", np.array(chunk).shape)
+            stream_outlet.push_chunk(np.array(chunk)) # shape sampels, channels
+            
+            # read out buffer 
+            EMG_live.updateBuffer(chunk=chunk, check_sample_loss=False)#, channel_indices=[0])
+            EMG_live.bufferToWindows() # use only first channel
+            EMG_live.applyVarianceFilter(on_windows = True, n_var=20)
+
+            #print(np.expand_dims(EMG_live.windows[0, 0, -20:, 0], 0).shape)
+            #stream_outlet.push_chunk(np.expand_dims(EMG_live.windows[0, 0, -20:, 0], 0).T.tolist())# shape  trials, channels, sampels, windows
+            
+
+            if (not got_baseline_values and count >= 10): 
+                thresh_value = np.mean(np.abs(EMG_live.windows[0, 0, :, 0]))
+                print("tresh", thresh_value)
+                got_baseline_values = True
+                count = 10
+            
+            count = count+1
+
+
+            # check for onset detection 
+            if(np.mean(np.abs(EMG_live.windows[0, 0, :, 0]) > thresh_value * factor) and got_baseline_values and send_counter == 0): 
+                print("onset detected")
+                zmq_publisher.sendMessage(topic=pub_topic, message=pub_msg)
+                send_counter = 10
+                
+            else: 
+                print("resting")
+
+
+            send_counter = send_counter -1
+            if (send_counter <= 0 ): 
+                send_counter = 0
+            
+            
+            if(print_times): 
+                t1 = perf_counter()
+            
+            # *********** EMG processing and onset detection *****
+            
+
+
+            #*****************************************************
+            #*********** End processing section  *****************
+            #*****************************************************
+
+            if(print_times): 
+                print("model time(ms): ",(perf_counter()-t1)*1000)
+
+
+            # wait for some time to ensure a "fixed" frequency to read new data from buffer 
+            while((perf_counter()-old_time) < dt_read_buffer): 
+                pass
+            
+            if(print_times): 
+                print("loop time(ms):  ", (perf_counter() - old_time)*1000)
+            
+
+            # uncomment to record ALL data received (not required for participants)
+            #data_arr = data_arr+chunk
+            #time_stamp_arr = time_stamp_arr + timestamps
+
+        old_time = perf_counter()
+

@@ -7,6 +7,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal as sig
 import warnings 
+#from datetime import datetime
+import os
+
+from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -56,10 +60,12 @@ class EMGData:
 
             if(format == "ANTmini"):
                 raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
-            else: 
+                self.data = raw_data
+            elif(format == "Cometa"): 
                 raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
-
-        self.data = raw_data
+                self.data = raw_data
+                
+        
         # print("data shape:", self.data.shape)
 
     def getEMGData(self):
@@ -68,7 +74,7 @@ class EMGData:
 
         Returns
         -------
-        tuple
+        tuple 
             data : Numpy array
                 The EMG data with shape (n_samples, n_channel)
             time_axis : Numpy array
@@ -232,9 +238,9 @@ class EMGData:
         """        
 
         if (self.data.ndim > 1): 
-            num_channels = self.data.shape[0]
+            n_channels = self.data.shape[0]
 
-            for n_channel in range(0, num_channels): 
+            for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
                 plt.title(self.channel_names[n_channel])
@@ -392,7 +398,7 @@ class EMGData:
             return None
 
     
-    def applyVarianceFilter(self, n_var):
+    def applyVarianceFilter(self,  n_var = 20, on_windows = True):
         """
         This function applies a variance filter to the EMG data
 
@@ -406,32 +412,48 @@ class EMGData:
         Author : Niklas Kueper \n
         Last changed: 05.02.2024 (by Niklas Kueper)
         """    
+        
+        if (on_windows): 
+            filtered_windows = np.zeros(self.windows.shape)
 
-        # signal init 
-        emg_filtered = np.zeros(self.data.shape)
+            for trial_idx in range(0, filtered_windows.shape[0]): 
+                for channel_idx in range(0, filtered_windows.shape[1]):
+                    for index in range(0, filtered_windows.shape[2]): 
+                        for window_idx in range(0, filtered_windows.shape[3]): 
 
-        if(emg_filtered.ndim > 1): 
-            
-            for channel in range(0, emg_filtered.shape[1]): 
+                            if (index < n_var): 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                            else: 
+                                filtered_windows[trial_idx, channel_idx, index, window_idx] = np.var(self.windows[trial_idx, channel_idx, index-n_var:index, window_idx])
 
+            self.windows = filtered_windows
+        else: 
+
+            # signal init 
+            emg_filtered = np.zeros(self.data.shape)
+
+            if(emg_filtered.ndim > 1): 
+                
+                for channel in range(0, emg_filtered.shape[1]): 
+
+                    for index in range(0, emg_filtered.shape[0]): 
+
+                        if (index < n_var): 
+                            emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+
+            else: 
                 for index in range(0, emg_filtered.shape[0]): 
 
-                    if (index < n_var): 
-                        emg_filtered[index, channel] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index, channel] = np.var(self.data[index-n_var:index, channel])
+                        if (index < n_var): 
+                            emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
+                        else: 
+                            emg_filtered[index] = np.var(self.data[index-n_var:index])
 
-        else: 
-            for index in range(0, emg_filtered.shape[0]): 
+            self.data = emg_filtered
 
-                    if (index < n_var): 
-                        emg_filtered[index] = 0 # just set values to zero if filterlength is not reached yet 
-                    else: 
-                        emg_filtered[index] = np.var(self.data[index-n_var:index])
-
-        self.data = emg_filtered
-
-
+    
     def epocheEMGData(self, emg_data, marker_indices, fsamp, t_start, t_stop):
         """
         This function processes the EMG data by using the epoching technique on continous data according to marker/event indices
@@ -519,4 +541,34 @@ class EMGData:
 
     #     self.data = emg_data_processed
 
+class OnlineEMG(OnlineTimeseriesStreaming, EMGData): 
+    """
+    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
 
+    Parameters
+    ----------
+    OnlineTimeseriesStreaming : class
+        The OnlineTimeseriesStreaming includes 
+    EMGData : _type_
+        _description_
+    """
+
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+        """
+        The constructor of the OnlineEMG class. 
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 08.03.2024 (by Niklas Kueper)
+        """        
+        
+        super().__init__(self)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
+
+
+
+
+    
+
+  
