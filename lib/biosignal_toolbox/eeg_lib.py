@@ -1008,11 +1008,11 @@ class EEGData:
 
                             #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
                             elif(apply_method == "zero_phase_sos"): 
-                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding 
+                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1)#, padtype ="even") # normal filtering with padding 
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
                             elif(apply_method == "zero_phase_ba"): 
-                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding
+                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1)#, padtype ="even") # normal filtering with padding
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
                             elif(apply_method == "forward_filter"): 
@@ -3128,7 +3128,7 @@ class OnlineEEG(EEGData):
     def BufferToWindows(self, num_non_data_channels = 3):
         """
         This method converts the buffered data from the data_buffer into data windows for further processing.  
-
+        
         Parameters
         ----------
         num_non_data_channels : int, optional
