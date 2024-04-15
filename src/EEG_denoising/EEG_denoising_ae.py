@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 # models 
-from biosignal_toolbox.models.autoencoderNet import Autoencoder_Net, FilterNet, Conv2D2KernelLayer, MLPFilter, FilterNetV2
+from biosignal_toolbox.models.autoencoderNet import FilterNet, FilterNetRNN
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -40,7 +40,7 @@ f_samp_eeg = 500 #sample Frequency of eeg
 window_size = 1024 #windowsize in ms 
 window_step = 50 # stepsize in ms
 
-n_epochs = 200
+n_epochs = 100
 batch_size = 16 # 
 
 # training params 
@@ -76,6 +76,20 @@ EEG_data_raw.windowEEGEpochs(window_size = window_size, window_step = window_ste
 EEG_data_processed.windowEEGEpochs(window_size = window_size, window_step = window_step)
 
 EEG_data_raw.windowSelection(train_windows)
+# do some simple preprocessing 
+# windows = np.zeros(EEG_data_raw.getWindows().shape) # trials, channel, sampels, windows
+# for trial_idx in range(0, EEG_data_raw.windows.shape[0]): 
+#     for channel_idx in range(0, EEG_data_raw.windows.shape[1]):
+#         for sample_idx in range(0, EEG_data_raw.windows.shape[2]):
+#             for window_idx in range(0, EEG_data_raw.windows.shape[3]):
+                
+#                 if(sample_idx == 0):
+#                     windows[trial_idx, channel_idx, sample_idx, window_idx] = 0
+#                 else: 
+#                     windows[trial_idx, channel_idx, sample_idx, window_idx] = EEG_data_raw.windows[trial_idx, channel_idx, sample_idx, window_idx] -EEG_data_raw.windows[trial_idx, channel_idx, sample_idx-1, window_idx]
+
+# EEG_data_raw.windows = windows
+
 EEG_data_processed.windowSelection(train_windows)
 
 # reshape for nets 
@@ -92,9 +106,9 @@ x_EEG_processed = EEG_data_processed.getWindows()
 # init early stopping 
 early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0,patience=early_stopping_patience,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 
-AE_model = FilterNetV2() #FilterNet() # should simply be a bandpass filter 
+AE_model = FilterNet() #FilterNet() # should simply be a bandpass filter 
 ml_model = MLModel(model = AE_model, type="keras")
-#ml_model.modelSummary()
+ml_model.modelSummary()
 
 # # # train it 
 ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_processed, y_val = x_EEG_processed, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer) 
@@ -134,5 +148,5 @@ plt.show()
 
 # print layer names 
 ml_model.printKerasModelLayerNames()
-ml_model.printKerasModelLayerWeights(layer_name="time_distributed")
+#ml_model.printKerasModelLayerWeights(layer_name="time_distributed")
 

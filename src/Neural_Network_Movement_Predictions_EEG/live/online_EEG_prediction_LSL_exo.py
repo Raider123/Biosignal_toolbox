@@ -105,7 +105,7 @@ if __name__ == "__main__":
     # dead time 
     dead_n_samples = deadtime/dt_read_buffer
     
-
+    
     # load models
     # load MLP model 
     MLP_model = MLModel(type="keras") 

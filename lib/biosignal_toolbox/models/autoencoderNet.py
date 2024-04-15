@@ -1,7 +1,7 @@
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dropout, RepeatVector, SimpleRNN
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D, Conv2DTranspose
 from tensorflow.keras.layers import Lambda, LSTM, Reshape, TimeDistributed, Flatten, Dense, Input
 import keras.backend as K
 from tensorflow.keras import initializers
@@ -89,35 +89,6 @@ def Autoencoder_Net(Chans = 34, Samples =512, ks1= 7, ks2 = 5, ks3 = 3, F = 16):
     return model 
 
 
-
-def FilterNet(Chans = 34, kernel = 100, Samples =512, F = 8): 
-    
-    # Autoencoder setup
-    #**************************
-    #********Encoder***********
-    #**************************
-    # first block 
-    model = Sequential() # leaky_relu best 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', input_shape = (Chans, Samples, 1), use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(Conv2D(1, kernel_size = (1, kernel), padding = 'same', use_bias = False)) # offset correction 
-
-    return model 
-
-
-
 class AddArrayLayer(Layer):
     def __init__(self, array_initializer='ones', **kwargs):
         super(AddArrayLayer, self).__init__(**kwargs)
@@ -134,7 +105,7 @@ class AddArrayLayer(Layer):
         return input_shape
 
 
-def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8): 
+def FilterNet(Chans = 34, kernel = 100, Samples =512, F = 8): 
     
     # Autoencoder setup
     #**************************
@@ -146,7 +117,10 @@ def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8):
     model = Sequential() # leaky_relu best 
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', input_shape = (Chans, Samples, 1), use_bias = False))
     model.add(Activation('leaky_relu'))
+    model.add(Conv2D(F, kernel_size = (1, 3), padding = 'same', use_bias = False)) 
+    model.add(Activation('leaky_relu'))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
+    model.add(Lambda(lambda x: x *100))
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
     model.add(Activation('leaky_relu'))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
@@ -159,9 +133,64 @@ def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8):
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
     model.add(Activation('leaky_relu'))
     model.add(Conv2D(1, kernel_size = (1, kernel), padding = 'same', use_bias = False)) 
-    model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
+
+    #model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
     
     return model 
+
+
+def FilterNetRNN(Chans=34, kernel=100, Samples=512, F=8):
+    # Input layer
+        # Input layer
+    inputs = Input(shape=(Chans, Samples, 1))
+
+    # Convolutional layers
+    x = Conv2D(F, kernel_size=(1, kernel), padding='same', use_bias=False)(inputs)
+    x = Activation('relu')(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding='same', use_bias=False)(x)
+    x = Activation('relu')(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding='same', use_bias=False)(x)
+    x = Activation('relu')(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding='same', use_bias=False)(x)
+    x = Activation('relu')(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding='same', use_bias=False)(x)
+    x = Activation('relu')(x)
+
+    # Reshape for SimpleRNN
+    x = Reshape((Chans, -1))(x)
+
+    # Add SimpleRNN layer
+    rnn_units = 64  # Adjust the number of units according to your preference
+    x = SimpleRNN(rnn_units, activation='relu', return_sequences=True)(x)
+
+    # Reshape back to the 4D shape expected by the subsequent convolutional layer
+    x = Reshape((Chans, Samples // 4, rnn_units))(x)
+
+    # Final Conv2D layer with 1 filter
+    outputs = Conv2D(1, kernel_size=(1, kernel), padding='same', use_bias=False)(x)
+
+    # Create the model
+    model = Model(inputs=inputs, outputs=outputs)
+
+    return model
+
+# def LSTMFilter(Chans=34, Samples=512):
+#     # Input layer
+#     input_shape = (Chans, Samples, 1)
+#     inputs = Input(shape=input_shape)
+#     model = Sequential()
+#     model.add(LSTM(100, activation='relu', input_shape=input_shape))
+#     model.add(TimeDistributed(Dense(1)))
+ 
+#     return model
 
 def Conv2D2KernelLayer(Chans = 34, kernel =150, Samples =512, F = 4): 
     

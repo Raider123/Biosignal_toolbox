@@ -315,7 +315,7 @@ class EEGData:
         self.feature_vec = None
         self.calib_means = None
         self.calib_stds = None
-
+        
         
         if(filenames and format == "Brainvision"): 
             #create numpy array with file names 
@@ -1008,15 +1008,15 @@ class EEGData:
 
                             #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
                             elif(apply_method == "zero_phase_sos"): 
-                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1)#, padtype ="even") # normal filtering with padding 
+                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even")#, padtype ="even") # normal filtering with padding 
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
                             elif(apply_method == "zero_phase_ba"): 
-                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1)#, padtype ="even") # normal filtering with padding
+                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype ="even") # normal filtering with padding
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
 
-                            elif(apply_method == "forward_filter"): 
-                                filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())
+                            elif(apply_method == "forward_sos_filter"): 
+                                filtered_window = sig.sosfilt(sos, current_wind[channel_idx, :].copy())
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
    
 
@@ -1839,7 +1839,9 @@ class EEGData:
         Last changed: 05.02.2024 (by Niklas Kueper)
         """ 
 
+
         #if (with_channel_dim == False): 
+
         window_size_samp = int((window_size/1000) * self.__fsamp) 
         window_step_samp = int((window_step/1000) * self.__fsamp) 
 
@@ -1940,7 +1942,7 @@ class EEGData:
                         current_wind_norm = current_wind - self.calib_mins[channel_idx]
                         current_wind_norm = current_wind_norm/((self.calib_mins[channel_idx]*-1)+self.calib_maxs[channel_idx])
 
-
+                    
                     else: 
                         # apply z-transform 
                         #print(current_wind.shape)
@@ -2122,7 +2124,7 @@ class EEGData:
                 
     #     return classified_windows
     
-    def xDAWNSpatialfilter(self, n_components = 2, processing_type="fit_apply", return_filter = True, xd = None): 
+    def xDAWNSpatialfilter(self, n_components = 2, processing_type="fit_apply", return_filter = True, markernumber = 100, xd = None): 
         """
         This function implements an Xdawn filter algorithm. You can choose between only fit, only apply or both.
 
@@ -2156,7 +2158,7 @@ class EEGData:
             xd.fit(self.epoch_obj)
             # apply 
             epochs_denoised = xd.apply(self.epoch_obj)
-            self.epochs = epochs_denoised[self.event_ids].get_data()
+            self.epochs = epochs_denoised[markernumber].get_data()
             
 
             if(return_filter): 
@@ -2467,7 +2469,7 @@ class EEGData:
         feature_type : str, optional
             _description_, by default "timepoints"
         feature_indices_windows : Numpy array, optional
-            Numpy array with time feature indices, by default None
+            Numpy array with time feature indices inside the window in ms, by default None
         use_mean : bool, optional
             If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
@@ -2486,6 +2488,7 @@ class EEGData:
         """        
 
         # (n_trials, n_channels, n_sampels, n_windows).
+        #print("windows shape", self.windows.shape)
 
         if(feature_type == "timepoints"): 
             
@@ -2513,12 +2516,15 @@ class EEGData:
                         #  
                         current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] # use the first and las value only 
                         k = int(current_wind.shape[1]/N) 
+                        
 
                         for idx in range(0, N): 
                             mean_feat_buffer[:, idx] = np.mean(current_wind[:, (idx*k):((idx*k) +k)], axis = 1) 
 
                         x_train_features[trial_idx, window_idx, :] = mean_feat_buffer.flatten() # use mean of timepoints
+
                     else: 
+                        #print("feature_times_indices", feature_times_indices) 
                         x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, feature_times_indices, window_idx].flatten()
 
                     # neighbour diff features 
