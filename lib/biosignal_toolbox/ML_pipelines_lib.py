@@ -9,7 +9,25 @@ def firstStagePreprocessing(EEG_data, window_size, window_step, windows_selected
         EEG_data.windowSelection(windows_selected)
 
     #print("windows type: ", EEG_data.windows.dtype)
-    print("windows shape", EEG_data.windows.shape)
+    print("windows shape first stage", EEG_data.windows.shape)
+
+    return EEG_data
+
+def classicFirstStagePreprocessing(EEG_data, window_size, window_step, windows_selected, xd, xd_components): 
+    
+    # window EEG epochs 
+    EEG_data.windowEEGEpochs(window_size, window_step)
+
+    # spatial filter 
+    EEG_data.applyxDAWNToWindows(xd, n_components = xd_components)
+
+    
+    # window selection 
+    if not (windows_selected[0] == "all"): 
+        EEG_data.windowSelection(windows_selected)
+
+    #print("windows type: ", EEG_data.windows.dtype)
+    print("windows shape first stage", EEG_data.windows.shape)
 
     return EEG_data
     
@@ -45,6 +63,35 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
     y_MLP = EEG_MLP.getLabels()
     
     return x_MLP, y_MLP
+
+    
+def classicLRPpreprocessing(EEG, window_labels, feature_indices_windows): 
+
+    # ******** preprocessing *******************
+    
+    #sos = EEG.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
+    #EEG.filterWindows(sos = sos, apply_method = "zero_phase_sos") # bandpass filter (zero phase with padding)
+
+    #EEG.filterWindows(sos = sos, apply_method = "forward_sos_filter") # forward filter only 
+    #EEG.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
+
+    print(f"window shape after processing:{EEG.getWindows().shape}")
+    
+    # standardization
+    EEG.windowStandardization()
+    
+    # # specify the window labels (not needed)
+    EEG.setWindowLabels(window_labels)
+
+    # time domain features 
+    EEG.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
+
+
+    # input features network 
+    x = EEG.getFeatures()
+    y = EEG.getLabels()
+    
+    return x, y
 
 def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes): 
 

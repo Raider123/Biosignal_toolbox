@@ -9,15 +9,15 @@ import pandas as pd
 # ****** Datasets of all evaluations *****  
 
 # Resulting paths  
-result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
+result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
 title = "freq band test method" #"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"]
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
 xLabels = ["base old defs", "new winds"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_MLP_online_base",
-               "fcn_network_results_34ch_MLP_online_new_wind"]
+result_list = ["fcn_network_results_34ch_EEGNet_offline",
+               "fcn_network_results_34ch_EEGNet_offline_no_norm"]
 
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 
