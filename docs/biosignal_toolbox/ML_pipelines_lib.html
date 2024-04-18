@@ -37,10 +37,28 @@ def firstStagePreprocessing(EEG_data, window_size, window_step, windows_selected
         EEG_data.windowSelection(windows_selected)
 
     #print(&#34;windows type: &#34;, EEG_data.windows.dtype)
-    print(&#34;windows shape&#34;, EEG_data.windows.shape)
+    print(&#34;windows shape first stage&#34;, EEG_data.windows.shape)
 
     return EEG_data
 
+def classicFirstStagePreprocessing(EEG_data, window_size, window_step, windows_selected, xd, xd_components): 
+    
+    # window EEG epochs 
+    EEG_data.windowEEGEpochs(window_size, window_step)
+
+    # spatial filter 
+    EEG_data.applyxDAWNToWindows(xd, n_components = xd_components)
+
+    
+    # window selection 
+    if not (windows_selected[0] == &#34;all&#34;): 
+        EEG_data.windowSelection(windows_selected)
+
+    #print(&#34;windows type: &#34;, EEG_data.windows.dtype)
+    print(&#34;windows shape first stage&#34;, EEG_data.windows.shape)
+
+    return EEG_data
+    
 def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows): 
 
     # ******** MLP processing *******************
@@ -52,7 +70,7 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
     # EEG_MLP.windows[0, 0, :, 0] = EEG_MLP.windows[0, 0, :, 0] *wind_band
 
     sos = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
-    EEG_MLP.filterWindows(sos = sos, filter_type = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+    EEG_MLP.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
     EEG_MLP.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
     
     #EEG_MLP.windowStandardization()
@@ -70,9 +88,38 @@ def MLPProcessing(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows)
 
     # input features network 
     x_MLP = EEG_MLP.getFeatures()
-    y_MLP = EEG_MLP.getTrainLabels()
-
+    y_MLP = EEG_MLP.getLabels()
+    
     return x_MLP, y_MLP
+
+    
+def classicLRPpreprocessing(EEG, window_labels, feature_indices_windows): 
+
+    # ******** preprocessing *******************
+    
+    #sos = EEG.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
+    #EEG.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+
+    #EEG.filterWindows(sos = sos, apply_method = &#34;forward_sos_filter&#34;) # forward filter only 
+    #EEG.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
+
+    print(f&#34;window shape after processing:{EEG.getWindows().shape}&#34;)
+    
+    # standardization
+    EEG.windowStandardization()
+    
+    # # specify the window labels (not needed)
+    EEG.setWindowLabels(window_labels)
+
+    # time domain features 
+    EEG.featureExtractionFromWindows(feature_type = &#34;timepoints&#34;, feature_indices_windows = feature_indices_windows)
+
+
+    # input features network 
+    x = EEG.getFeatures()
+    y = EEG.getLabels()
+    
+    return x, y
 
 def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes): 
 
@@ -83,7 +130,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
     #EEG_EEGNet.windows[0, 0, :, 0] = EEG_EEGNet.windows[0, 0, :, 0] *wind_band
 
     sos = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
-    EEG_EEGNet.filterWindows(sos = sos, filter_type = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+    EEG_EEGNet.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
 
     EEG_EEGNet.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
 
@@ -95,7 +142,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 
     # get train windows 
     x_EEGNet = EEG_EEGNet.getWindows()
-    y_EEGNet = EEG_EEGNet.getTrainLabels()
+    y_EEGNet = EEG_EEGNet.getLabels()
 
 
     return x_EEGNet, y_EEGNet</code></pre>
@@ -126,7 +173,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
     #EEG_EEGNet.windows[0, 0, :, 0] = EEG_EEGNet.windows[0, 0, :, 0] *wind_band
 
     sos = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
-    EEG_EEGNet.filterWindows(sos = sos, filter_type = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+    EEG_EEGNet.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
 
     EEG_EEGNet.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
 
@@ -138,7 +185,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 
     # get train windows 
     x_EEGNet = EEG_EEGNet.getWindows()
-    y_EEGNet = EEG_EEGNet.getTrainLabels()
+    y_EEGNet = EEG_EEGNet.getLabels()
 
 
     return x_EEGNet, y_EEGNet</code></pre>
@@ -164,7 +211,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
     # EEG_MLP.windows[0, 0, :, 0] = EEG_MLP.windows[0, 0, :, 0] *wind_band
 
     sos = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
-    EEG_MLP.filterWindows(sos = sos, filter_type = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+    EEG_MLP.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
     EEG_MLP.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
     
     #EEG_MLP.windowStandardization()
@@ -182,9 +229,75 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 
     # input features network 
     x_MLP = EEG_MLP.getFeatures()
-    y_MLP = EEG_MLP.getTrainLabels()
-
+    y_MLP = EEG_MLP.getLabels()
+    
     return x_MLP, y_MLP</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_pipelines_lib.classicFirstStagePreprocessing"><code class="name flex">
+<span>def <span class="ident">classicFirstStagePreprocessing</span></span>(<span>EEG_data, window_size, window_step, windows_selected, xd, xd_components)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def classicFirstStagePreprocessing(EEG_data, window_size, window_step, windows_selected, xd, xd_components): 
+    
+    # window EEG epochs 
+    EEG_data.windowEEGEpochs(window_size, window_step)
+
+    # spatial filter 
+    EEG_data.applyxDAWNToWindows(xd, n_components = xd_components)
+
+    
+    # window selection 
+    if not (windows_selected[0] == &#34;all&#34;): 
+        EEG_data.windowSelection(windows_selected)
+
+    #print(&#34;windows type: &#34;, EEG_data.windows.dtype)
+    print(&#34;windows shape first stage&#34;, EEG_data.windows.shape)
+
+    return EEG_data</code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.ML_pipelines_lib.classicLRPpreprocessing"><code class="name flex">
+<span>def <span class="ident">classicLRPpreprocessing</span></span>(<span>EEG, window_labels, feature_indices_windows)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def classicLRPpreprocessing(EEG, window_labels, feature_indices_windows): 
+
+    # ******** preprocessing *******************
+    
+    #sos = EEG.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = &#34;scipy_butter&#34;, return_type = &#34;sos&#34;)
+    #EEG.filterWindows(sos = sos, apply_method = &#34;zero_phase_sos&#34;) # bandpass filter (zero phase with padding)
+
+    #EEG.filterWindows(sos = sos, apply_method = &#34;forward_sos_filter&#34;) # forward filter only 
+    #EEG.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
+
+    print(f&#34;window shape after processing:{EEG.getWindows().shape}&#34;)
+    
+    # standardization
+    EEG.windowStandardization()
+    
+    # # specify the window labels (not needed)
+    EEG.setWindowLabels(window_labels)
+
+    # time domain features 
+    EEG.featureExtractionFromWindows(feature_type = &#34;timepoints&#34;, feature_indices_windows = feature_indices_windows)
+
+
+    # input features network 
+    x = EEG.getFeatures()
+    y = EEG.getLabels()
+    
+    return x, y</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.ML_pipelines_lib.firstStagePreprocessing"><code class="name flex">
@@ -206,7 +319,7 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
         EEG_data.windowSelection(windows_selected)
 
     #print(&#34;windows type: &#34;, EEG_data.windows.dtype)
-    print(&#34;windows shape&#34;, EEG_data.windows.shape)
+    print(&#34;windows shape first stage&#34;, EEG_data.windows.shape)
 
     return EEG_data</code></pre>
 </details>
@@ -231,6 +344,8 @@ def EEGNetProcessing(EEG_EEGNet, window_labels, num_classes):
 <ul class="">
 <li><code><a title="biosignal_toolbox.ML_pipelines_lib.EEGNetProcessing" href="#biosignal_toolbox.ML_pipelines_lib.EEGNetProcessing">EEGNetProcessing</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_pipelines_lib.MLPProcessing" href="#biosignal_toolbox.ML_pipelines_lib.MLPProcessing">MLPProcessing</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_pipelines_lib.classicFirstStagePreprocessing" href="#biosignal_toolbox.ML_pipelines_lib.classicFirstStagePreprocessing">classicFirstStagePreprocessing</a></code></li>
+<li><code><a title="biosignal_toolbox.ML_pipelines_lib.classicLRPpreprocessing" href="#biosignal_toolbox.ML_pipelines_lib.classicLRPpreprocessing">classicLRPpreprocessing</a></code></li>
 <li><code><a title="biosignal_toolbox.ML_pipelines_lib.firstStagePreprocessing" href="#biosignal_toolbox.ML_pipelines_lib.firstStagePreprocessing">firstStagePreprocessing</a></code></li>
 </ul>
 </li>

@@ -4,7 +4,6 @@
 # *********************************************************************************
 
 import numpy as np
-import sys 
 import matplotlib.pyplot as plt
 import os 
 
@@ -24,17 +23,17 @@ from biosignal_toolbox.emg_lib import EMGData
 
 
 # Create an string with dataset file name (ANT and Cometa)
-file_str = "20211223_r_UP28_intentional_unilateral_set2.txt"
+file_str = ["20211223_r_UP28_intentional_unilateral_set2.txt"]
 
 
 # *** channel selection params (comment in for channel selection) ***
 #selected_channels =  []# ['\tR.Biceps Br.(uV)', '\tR.Ant.Deltoid(uV)', '\tR.Mid Delt.(uV)']
-inverse = False # define True for channel selection
+#inverse = False # define True for channel selection
 
 
 # for ANT Systems 
-emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
-selected_channels = ["EMG1", "EMG2"]
+#emg_ch_names = ["EMG1", "EMG2", "EMG3", "EMG4", "EMG5", "EMG6", "EMG7", "EMG8"]
+#selected_channels = ["EMG1", "EMG2"]
 
 
 # EMG sampling rate
@@ -45,7 +44,7 @@ selected_channels = ["EMG1", "EMG2"]
 # target_frequency = 500 # target frequency after downsampling (Cometa)
 
 # # variance filter length 
-# n_var = 170 # calc length of variance filter (default 170, tested for 500 Hz sampling rate)
+n_var = 50 # calc length of variance filter (default 170, tested for 500 Hz sampling rate)
 
 # # filter settings
 # f_high = 20 # in Hz
@@ -56,17 +55,21 @@ selected_channels = ["EMG1", "EMG2"]
 # *********************************************************************************
 
 # define the processing params
- 
+
 # create EMGData Object
-EMG = EMGData(data_path = data_path, format = "cometa", filename = file_str)
+EMG = EMGData(data_path = data_path, format = "cometa", filenames = file_str)
 
-#EMG.channelSelection(selected_channels, inverse)
+#downsampling 
+#EMG.mneRawMethod("resample", sfreq = 500.0) # show EMG data in mV (default unit is uV)
 
-#data, time = EMG.getEMGData()
+# filter raw data with variance filter 
+#EMG.applyVarianceFilter(n_var=n_var, apply_to_structures="raw")
 
-#EMG.applyBPFilter(f_high, f_low)
+# should be replaced later 
+#EMG.showEMGData()
 
-#data, time = EMG.getEMGData()
+# or use just mne's plot methods
+EMG.mneRawMethod("plot", scalings = dict(emg=1e+3), n_channels = 8) # show EMG data in mV (default unit is uV)
+plt.show()
 
-EMG.showEMGData()
 

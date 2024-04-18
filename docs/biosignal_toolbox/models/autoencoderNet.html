@@ -27,9 +27,9 @@
 <span>Expand source code</span>
 </summary>
 <pre><code class="python">import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dropout
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D
+from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.layers import Dropout, RepeatVector, SimpleRNN
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D, Conv2DTranspose
 from tensorflow.keras.layers import Lambda, LSTM, Reshape, TimeDistributed, Flatten, Dense, Input
 import keras.backend as K
 from tensorflow.keras import initializers
@@ -117,35 +117,6 @@ def Autoencoder_Net(Chans = 34, Samples =512, ks1= 7, ks2 = 5, ks3 = 3, F = 16):
     return model 
 
 
-
-def FilterNet(Chans = 34, kernel = 100, Samples =512, F = 8): 
-    
-    # Autoencoder setup
-    #**************************
-    #********Encoder***********
-    #**************************
-    # first block 
-    model = Sequential() # leaky_relu best 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, input_shape = (Chans, Samples, 1), use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(Conv2D(1, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False)) # offset correction 
-
-    return model 
-
-
-
 class AddArrayLayer(Layer):
     def __init__(self, array_initializer=&#39;ones&#39;, **kwargs):
         super(AddArrayLayer, self).__init__(**kwargs)
@@ -162,7 +133,7 @@ class AddArrayLayer(Layer):
         return input_shape
 
 
-def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8): 
+def FilterNet(Chans = 34, kernel = 100, Samples =512, F = 8): 
     
     # Autoencoder setup
     #**************************
@@ -174,7 +145,10 @@ def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8):
     model = Sequential() # leaky_relu best 
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, input_shape = (Chans, Samples, 1), use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
+    model.add(Conv2D(F, kernel_size = (1, 3), padding = &#39;same&#39;, use_bias = False)) 
+    model.add(Activation(&#39;leaky_relu&#39;))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
+    model.add(Lambda(lambda x: x *100))
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
@@ -187,9 +161,64 @@ def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8):
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
     model.add(Conv2D(1, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False)) 
-    model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
+
+    #model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
     
     return model 
+
+
+def FilterNetRNN(Chans=34, kernel=100, Samples=512, F=8):
+    # Input layer
+        # Input layer
+    inputs = Input(shape=(Chans, Samples, 1))
+
+    # Convolutional layers
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(inputs)
+    x = Activation(&#39;relu&#39;)(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+
+    # Reshape for SimpleRNN
+    x = Reshape((Chans, -1))(x)
+
+    # Add SimpleRNN layer
+    rnn_units = 64  # Adjust the number of units according to your preference
+    x = SimpleRNN(rnn_units, activation=&#39;relu&#39;, return_sequences=True)(x)
+
+    # Reshape back to the 4D shape expected by the subsequent convolutional layer
+    x = Reshape((Chans, Samples // 4, rnn_units))(x)
+
+    # Final Conv2D layer with 1 filter
+    outputs = Conv2D(1, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+
+    # Create the model
+    model = Model(inputs=inputs, outputs=outputs)
+
+    return model
+
+# def LSTMFilter(Chans=34, Samples=512):
+#     # Input layer
+#     input_shape = (Chans, Samples, 1)
+#     inputs = Input(shape=input_shape)
+#     model = Sequential()
+#     model.add(LSTM(100, activation=&#39;relu&#39;, input_shape=input_shape))
+#     model.add(TimeDistributed(Dense(1)))
+ 
+#     return model
 
 def Conv2D2KernelLayer(Chans = 34, kernel =150, Samples =512, F = 4): 
     
@@ -235,87 +264,7 @@ def MLPFilter(Chans = 34, Samples =512):
     model.add(BatchNormalization())
     # model.add(BatchNormalization())
     model.add(layers.TimeDistributed((Dense(units=Samples, use_bias=False))))
-    return model
-
-
-
-
-
-# # if you want to write your own one 
-# class IdentityLayer(Layer):
-#     def __init__(self, **kwargs):
-#         super(IdentityLayer, self).__init__(**kwargs)
-
-#     def call(self, inputs):
-#         return inputs
-
-#     def compute_output_shape(self, input_shape):
-#         return input_shape
-
-# def ExampleLayer(Chans = 34, Samples =512): 
-
-#     model = Sequential() # leaky_relu best 
-#     model.add(IdentityLayer(input_shape=(Chans, Samples, 1)))
-#     return model
-
-
-
-# class NumpyLayer(Layer):
-#     def __init__(self, **kwargs):
-#         super(NumpyLayer, self).__init__(**kwargs)
-        
-
-#     def call(self, inputs):
-#         print(&#34;shape tensor&#34;, tf.shape(inputs))
-#         print(&#34;is tensor&#34;, tf.is_tensor(inputs))
-#         tf.compat.v1.disable_eager_execution()
-
-#         with tf.compat.v1.Session() as sess:
-#             tensor_value = sess.run(inputs)
-
-#         print(&#34;numpy arr&#34;, tensor_value.shape)
-
-#         outputs = inputs 
-        
-#         return outputs
-
-#     def compute_output_shape(self, input_shape):
-#         return input_shape
-
-
-# def SimpleNumpyLayer(Chans = 34, Samples =512): 
-
-#     model = Sequential() # leaky_relu best 
-#     model.add(Input(shape = (Chans, Samples, 1)))
-#     model.add(NumpyLayer())
-#     return model
-
-
-# class Conv2DWithTwoKernels(layers.Layer):
-#     def __init__(self, filters, kernel_size, strides=(1, 1), padding=&#39;valid&#39;, data_format=None, dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer=&#39;glorot_uniform&#39;, bias_initializer=&#39;zeros&#39;, kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None, kernel_constraint=None, bias_constraint=None, **kwargs):
-#         super(Conv2DWithTwoKernels, self).__init__()
-#         self.filters = filters
-#         self.kernel_size = kernel_size
-#         self.strides = strides
-#         self.padding = padding
-#         self.data_format = data_format
-#         self.dilation_rate = dilation_rate
-#         self.activation = activation
-#         self.use_bias = use_bias
-#         self.kernel_initializer = kernel_initializer
-#         self.bias_initializer = bias_initializer
-#         self.kernel_regularizer = kernel_regularizer
-#         self.bias_regularizer = bias_regularizer
-#         self.activity_regularizer = activity_regularizer
-#         self.kernel_constraint = kernel_constraint
-#         self.bias_constraint = bias_constraint
-#         self.conv1 = layers.Conv2D(filters=self.filters, kernel_size=self.kernel_size, strides=self.strides, padding=self.padding, data_format=self.data_format, dilation_rate=self.dilation_rate, activation=self.activation, use_bias=self.use_bias, kernel_initializer=self.kernel_initializer, bias_initializer=self.bias_initializer, kernel_regularizer=self.kernel_regularizer, bias_regularizer=self.bias_regularizer, activity_regularizer=self.activity_regularizer, kernel_constraint=self.kernel_constraint, bias_constraint=self.bias_constraint, **kwargs)
-#         self.conv2 = layers.Conv2D(filters=self.filters, kernel_size=self.kernel_size, strides=self.strides, padding=self.padding, data_format=self.data_format, dilation_rate=self.dilation_rate, activation=self.activation, use_bias=self.use_bias, kernel_initializer=self.kernel_initializer, bias_initializer=self.bias_initializer, kernel_regularizer=self.kernel_regularizer, bias_regularizer=self.bias_regularizer, activity_regularizer=self.activity_regularizer, kernel_constraint=self.kernel_constraint, bias_constraint=self.bias_constraint, **kwargs)
-
-#     def call(self, inputs):
-
-#         out = self.conv1(inputs)
-#         return out #/ self.conv2(out)</code></pre>
+    return model </code></pre>
 </details>
 </section>
 <section>
@@ -463,49 +412,16 @@ def MLPFilter(Chans = 34, Samples =512):
     #**************************
     #********Encoder***********
     #**************************
-    # first block 
-    model = Sequential() # leaky_relu best 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, input_shape = (Chans, Samples, 1), use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
-    model.add(Activation(&#39;leaky_relu&#39;))
-    model.add(Conv2D(1, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False)) # offset correction 
-
-    return model </code></pre>
-</details>
-</dd>
-<dt id="biosignal_toolbox.models.autoencoderNet.FilterNetV2"><code class="name flex">
-<span>def <span class="ident">FilterNetV2</span></span>(<span>Chans=34, kernel=100, Samples=512, F=8)</span>
-</code></dt>
-<dd>
-<div class="desc"></div>
-<details class="source">
-<summary>
-<span>Expand source code</span>
-</summary>
-<pre><code class="python">def FilterNetV2(Chans = 34, kernel = 100, Samples =512, F = 8): 
-    
-    # Autoencoder setup
-    #**************************
-    #********Encoder***********
-    #**************************
     #offset_value = tf.Variable(initial_value=0.01, trainable=True) # use offset to be trained later 
 
     # first block 
     model = Sequential() # leaky_relu best 
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, input_shape = (Chans, Samples, 1), use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
+    model.add(Conv2D(F, kernel_size = (1, 3), padding = &#39;same&#39;, use_bias = False)) 
+    model.add(Activation(&#39;leaky_relu&#39;))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
+    model.add(Lambda(lambda x: x *100))
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
@@ -518,9 +434,63 @@ def MLPFilter(Chans = 34, Samples =512):
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False))
     model.add(Activation(&#39;leaky_relu&#39;))
     model.add(Conv2D(1, kernel_size = (1, kernel), padding = &#39;same&#39;, use_bias = False)) 
-    model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
+
+    #model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
     
     return model </code></pre>
+</details>
+</dd>
+<dt id="biosignal_toolbox.models.autoencoderNet.FilterNetRNN"><code class="name flex">
+<span>def <span class="ident">FilterNetRNN</span></span>(<span>Chans=34, kernel=100, Samples=512, F=8)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def FilterNetRNN(Chans=34, kernel=100, Samples=512, F=8):
+    # Input layer
+        # Input layer
+    inputs = Input(shape=(Chans, Samples, 1))
+
+    # Convolutional layers
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(inputs)
+    x = Activation(&#39;relu&#39;)(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = AveragePooling2D(pool_size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+    x = UpSampling2D(size=(1, 2))(x)
+
+    x = Conv2D(F, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+    x = Activation(&#39;relu&#39;)(x)
+
+    # Reshape for SimpleRNN
+    x = Reshape((Chans, -1))(x)
+
+    # Add SimpleRNN layer
+    rnn_units = 64  # Adjust the number of units according to your preference
+    x = SimpleRNN(rnn_units, activation=&#39;relu&#39;, return_sequences=True)(x)
+
+    # Reshape back to the 4D shape expected by the subsequent convolutional layer
+    x = Reshape((Chans, Samples // 4, rnn_units))(x)
+
+    # Final Conv2D layer with 1 filter
+    outputs = Conv2D(1, kernel_size=(1, kernel), padding=&#39;same&#39;, use_bias=False)(x)
+
+    # Create the model
+    model = Model(inputs=inputs, outputs=outputs)
+
+    return model</code></pre>
 </details>
 </dd>
 <dt id="biosignal_toolbox.models.autoencoderNet.MLPFilter"><code class="name flex">
@@ -550,7 +520,7 @@ def MLPFilter(Chans = 34, Samples =512):
     model.add(BatchNormalization())
     # model.add(BatchNormalization())
     model.add(layers.TimeDistributed((Dense(units=Samples, use_bias=False))))
-    return model</code></pre>
+    return model </code></pre>
 </details>
 </dd>
 </dl>
@@ -902,7 +872,7 @@ instead of an integer.</dd>
 <li><code><a title="biosignal_toolbox.models.autoencoderNet.Autoencoder_Net" href="#biosignal_toolbox.models.autoencoderNet.Autoencoder_Net">Autoencoder_Net</a></code></li>
 <li><code><a title="biosignal_toolbox.models.autoencoderNet.Conv2D2KernelLayer" href="#biosignal_toolbox.models.autoencoderNet.Conv2D2KernelLayer">Conv2D2KernelLayer</a></code></li>
 <li><code><a title="biosignal_toolbox.models.autoencoderNet.FilterNet" href="#biosignal_toolbox.models.autoencoderNet.FilterNet">FilterNet</a></code></li>
-<li><code><a title="biosignal_toolbox.models.autoencoderNet.FilterNetV2" href="#biosignal_toolbox.models.autoencoderNet.FilterNetV2">FilterNetV2</a></code></li>
+<li><code><a title="biosignal_toolbox.models.autoencoderNet.FilterNetRNN" href="#biosignal_toolbox.models.autoencoderNet.FilterNetRNN">FilterNetRNN</a></code></li>
 <li><code><a title="biosignal_toolbox.models.autoencoderNet.MLPFilter" href="#biosignal_toolbox.models.autoencoderNet.MLPFilter">MLPFilter</a></code></li>
 </ul>
 </li>

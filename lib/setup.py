@@ -3,7 +3,7 @@ import setuptools
 setuptools.setup(
     include_package_data=True,
     name='biosignal_toolbox',
-    version='0.2.0',
+    version='1.0.0',
     description='biosignal_toolbox',
     url='https://git.hb.dfki.de/dfki_ude/biosignal_toolbox.git',
     author='DFKI',
@@ -26,8 +26,9 @@ setuptools.setup(
         'mne_features', 
         'pyzmq', 
         'dtw-python', 
-        'pdoc3'
+        'pdoc3', 
+        'mne-lsl'
     ],
-    classifiers=["Programming langugage :: Python :: Version > 3.6",
+    classifiers=["Programming langugage :: Python :: Version > 3.9",
                  "Operating System :: OS independent"],
 )
