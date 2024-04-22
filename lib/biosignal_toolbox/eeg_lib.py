@@ -148,7 +148,7 @@ class EEGData(Timeseries):
             #scalings = {'eeg': 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
             self.raw_obj = raw
-
+            
             # set annotation events (markers)
             event_channel = data[-1, :]
             marker_indices = np.where(event_channel > 0)[0]
@@ -190,7 +190,7 @@ class EEGData(Timeseries):
         Author : Niklas Kueper \n
         Last changed: 06.07.2022 (by Niklas Kueper)
         """
-
+        
         if (len(dataset_list) > 1): 
             raw_list = []
             for dataset in dataset_list: 

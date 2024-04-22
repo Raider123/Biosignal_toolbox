@@ -115,7 +115,7 @@ class MLModel:
         self.optimizer = optimizer
         self.metrics = metrics 
         self.perf_results = None
-
+        
         # compile model 
         if (self.type == "keras"): 
             self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
