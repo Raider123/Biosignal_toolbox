@@ -27,7 +27,8 @@ setuptools.setup(
         'pyzmq', 
         'dtw-python', 
         'pdoc3', 
-        'mne-lsl'
+        'mne-lsl', 
+        'pyqt5'
     ],
     classifiers=["Programming langugage :: Python :: Version > 3.9",
                  "Operating System :: OS independent"],

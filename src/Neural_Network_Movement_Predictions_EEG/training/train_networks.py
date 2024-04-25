@@ -16,6 +16,7 @@ from biosignal_toolbox.models.autoencoderNet import FilterNet
 from biosignal_toolbox.models.CNNnets import EEGNet
 # own model 
 from biosignal_toolbox.models.MlpErp import MLP_Model
+from biosignal_toolbox.models.autoencoderNet import FilterNet
 
 print(tf.config.experimental.list_physical_devices('GPU'))
 
@@ -40,7 +41,12 @@ val_test_file_list = ["20211210_r_JV43_intentional_unilateral_set3.vhdr"]
 subject = "JV43"
 # names for saving 
 scenario_name = "intentional_unilateral"
-result_file_name = "online_filter"
+result_file_name = "offline_reshape"
+
+
+# filter model name 
+filter_model_name_05_4Hz = "JV43_filterNet_train12_test3"
+filter_model_name_05_40Hz = "JV43_40Hz_filterNet_train12_test3"
 
 
 # *********************************************************************************
@@ -82,7 +88,7 @@ use_norm_layer = True # use the input norm layer
 n_test_trials = 20 
 
 # window wise metric evaluation
-window_size = 1100 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
+window_size = 1200 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
 window_step = 50 # stepsize in ms (analog to pySPACE evaluation)
 
 f_samp_eeg = 500.0 #sample Frequency of eeg
@@ -106,7 +112,9 @@ f_lowpass_MLP = 4.0
 f_lowpass_EEGNet = 40.0
 
 # switch between online and offline preprocessing 
-use_offline_processing = False
+use_offline_processing = True
+use_net = False # use the autoencoder net for preprocessing 
+
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
@@ -126,6 +134,12 @@ early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0
 # *********************************************************************************
 # ***************** Load train, test, val sets for every iteration ****************
 # *********************************************************************************
+
+# load ML model for preprocessing 
+filter_model_05_4Hz = MLModel(type = "keras") 
+filter_model_05_4Hz.loadModel(filename=filter_model_name_05_4Hz, path=data_path)
+filter_model_05_40Hz = MLModel(type = "keras") 
+filter_model_05_40Hz.loadModel(filename=filter_model_name_05_40Hz, path=data_path)
 
 
 #  loading and epoching for training   
@@ -171,15 +185,20 @@ if (use_offline_processing):
     x_test_MLP, y_test_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_test_05_4Hz), copy.deepcopy(EEG_data_test_05_40Hz), window_labels_train, feature_indices_windows)
 
 else: 
-    x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows)
-    x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows)
-    x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows)
+    if(not use_net): 
+        x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows)
+        x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows)
+        x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows)
+    else: 
+        x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
+        x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
+        x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
 
 
 # Load model with norm layer and train model  
 MLP = MLP_Model(x_train_MLP, use_norm_layer = use_norm_layer)
 MLP_model = MLModel(model = MLP, type= "keras")
-MLP_model.trainModel(save_trained_model = False, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_", train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
+MLP_model.trainModel(save_trained_model = False, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_", train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
 
 
 # predict and get results 
@@ -198,9 +217,16 @@ if (use_offline_processing):
     x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOffline(EEG_data_val_05_40Hz, window_labels_train, num_classes)
     x_test_EEGNet, y_test_EEGNet = pipeline.EEGNetProcessingOffline(EEG_data_test_05_40Hz, window_labels_train, num_classes)
 else: 
-    x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_train), window_labels_train, num_classes)
-    x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_val), window_labels_train, num_classes)
-    x_test_EEGNet, y_test_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_test), window_labels_train, num_classes)
+    if(not use_net): 
+        x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_train), window_labels_train, num_classes)
+        x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_val), window_labels_train, num_classes)
+        x_test_EEGNet, y_test_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_test), window_labels_train, num_classes)
+
+    else: 
+        #  use filterNet 
+        x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessingOnlineFilterNet(copy.deepcopy(EEG_data_train), window_labels_train, num_classes, filter_model=filter_model_05_40Hz)
+        x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOnlineFilterNet(copy.deepcopy(EEG_data_val), window_labels_train, num_classes, filter_model=filter_model_05_40Hz)
+        x_test_EEGNet, y_test_EEGNet = pipeline.EEGNetProcessingOnlineFilterNet(copy.deepcopy(EEG_data_test), window_labels_train, num_classes, filter_model=filter_model_05_40Hz)
 
 
 shape_input = x_train_EEGNet.shape # get train data shape for network 
@@ -208,7 +234,8 @@ shape_input = x_train_EEGNet.shape # get train data shape for network
 print("EEGNet Input shape", shape_input)
 model_EEGNet = EEGNet(nb_classes=num_classes,Chans=shape_input[1], Samples=shape_input[2], dropoutRate=dropout_EEGNet, kernLength=kern_length_EEGNET, F1=F1, D=D, F2=F2,dropoutType='Dropout', x_train = x_train_EEGNet, use_norm_layer = use_norm_layer)
 EEGNet_model = MLModel(model = model_EEGNet, type="keras")
-EEGNet_model.trainModel(save_trained_model = False, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_EEGNet", train_epochs= n_epochs, batch_size=n_batch_size_EEGNet, class_weights=None, x_train=x_train_EEGNet, y_train= y_train_EEGNet, x_val = x_val_EEGNet, y_val = y_val_EEGNet, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
+EEGNet_model.trainModel(save_trained_model = False, show_train_results=True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_EEGNet", train_epochs= n_epochs, batch_size=n_batch_size_EEGNet, class_weights=None, x_train=x_train_EEGNet, y_train= y_train_EEGNet, x_val = x_val_EEGNet, y_val = y_val_EEGNet, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
+
 
 # # predict and get results 
 print("predict EEGNet")

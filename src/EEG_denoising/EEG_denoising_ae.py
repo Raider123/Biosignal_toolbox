@@ -32,14 +32,14 @@ results_path = proj_path+"/results/"
 
 train_file_list = ["20211210_r_JV43_intentional_unilateral_set1.vhdr","20211210_r_JV43_intentional_unilateral_set2.vhdr"]
 val_test_file_list = ["20211210_r_JV43_intentional_unilateral_set3.vhdr"]
-subject = "JV43"
+filename_model = "JV43_40Hz"
 
 train_windows = ['bis-200', 'bis-150', 'bis-100', 'bis-50', 'bis0', 'bis-2550', 'bis-2500', 'bis-2450', 'bis-2400', 'bis-2350']
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
 # window wise metric evaluation
-window_size = 1400 #windowsize in ms 
+window_size = 1200 #windowsize in ms 
 window_step = 50 # stepsize in ms
 
 n_epochs = 100
@@ -54,11 +54,11 @@ metrics = "mean_absolute_error"
 # paradigm params 
 marker_number = 100
 error_number = 3
-channel_list = ["x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 inverse_keep_channel = True # standard: True 
 # just remap the parameters (need to be adapted)
 t1 = -5.0
-t2 = 0.0
+t2 = 0.05
 
 early_stopping_patience = 50
 
@@ -76,13 +76,13 @@ EEG_data_processed_val_test = copy.deepcopy(EEG_data_raw_val_test) # make a copy
 # process as raw data 
 EEG_data_raw.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 # process with filtering 
-EEG_data_processed.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 4.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
+EEG_data_processed.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 40.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 
 # for validation data 
 # process as raw data 
 EEG_data_raw_val_test.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 # process with filtering 
-EEG_data_processed_val_test.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 4.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
+EEG_data_processed_val_test.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 40.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 
 # split train and test epochs 
 EEG_data_raw_val, EEG_data_raw_test = EEG_data_raw_val_test.splitTrainTestEpochs(n_test_epochs=20) 
@@ -118,6 +118,7 @@ EEG_data_raw_test.windowSelection(train_windows)
 EEG_data_processed_val.windowSelection(train_windows)
 EEG_data_processed_test.windowSelection(train_windows)
 
+
 # reshape for nets 
 EEG_data_raw.reshapeWindowsForCNNnets()
 EEG_data_processed.reshapeWindowsForCNNnets()
@@ -141,12 +142,12 @@ x_EEG_processed_test = EEG_data_processed_test.getWindows()
 # init early stopping 
 early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0,patience=early_stopping_patience,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 
-AE_model = FilterNet(Samples = int(window_size/2))#FilterNet() # should simply be a bandpass filter 
+AE_model = FilterNet(Samples = int(window_size/2), Chans = len(EEG_data_raw.getChannelNames())) #FilterNet() # should simply be a bandpass filter 
 ml_model = MLModel(model = AE_model, type="keras")
 ml_model.modelSummary()
 
 # # # train it 
-ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_raw_val, y_val =x_EEG_processed_val, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer,save_trained_model=True, model_filename=subject+"_filterNet_train12_test3") 
+ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_raw_val, y_val =x_EEG_processed_val, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer,save_trained_model=True, model_filename=filename_model+"_filterNet_train12_test3") 
 
 trial = 6
 channel = 3

@@ -111,7 +111,10 @@ class Timeseries():
         self.calib_stds = None
 
         # mne objects 
-        self.mne_info = raw_obj.info
+        if(self.raw_obj): 
+            self.mne_info = raw_obj.info
+        else: 
+            self.mne_info = None
 
 
     def rereferencingEpoching(self, marker_number, error_number, channel_list, inverse_keep_channel, t1, t2, reref_channels = [], apply_filter=False, f_highpass = None, f_lowpass= None, apply_baseline_correction = False,  t0_baseline = None, t1_baseline= None, apply_ica = False, n_ica_comp = 20, exclude_ica_comp = [0, 1]): 
@@ -784,8 +787,8 @@ class Timeseries():
 
                             elif(apply_method == "forward_sos_filter"): 
                                 filtered_window = sig.sosfilt(sos, current_wind[channel_idx, :].copy())
-                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
-   
+                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window              
+    
 
     def minMaxNormWindows(self): 
         """
@@ -817,6 +820,7 @@ class Timeseries():
     def cutWindows(self, n_samples_start = 25, n_samples_end = 25): 
         """
         This function can be used to cut the length of the windowed data (sample dimension).
+        The method can also be used for reshaped windows (see reshapeWindowsForCNNnets)
 
         Parameters
         ----------
@@ -1861,12 +1865,11 @@ class Timeseries():
 
                 for feature_idx in range(0, x_train_features_add.shape[2]):
                     x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
-
+        
             # flatten data 
             for feature_idx in range(0, x_train_features.shape[2]):
-                x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten()
-
-
+                x_train[:, feature_idx] = x_train_features[:, :, feature_idx].flatten() #(n_train, features)
+            
 
         elif(feature_type == "meanfreqs" or feature_type == "medianfreqs"): #fix this 
 
@@ -1974,6 +1977,65 @@ class Timeseries():
         else: 
             self.feature_vec = x_train 
 
+
+    def featureExtractionReshapedWindows(self,  feature_type = "timepoints", feature_indices_windows = None, psd_method = "multitaper"): 
+        """
+        Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
+        It is the similar to featureExtractionFromWindows but operates on reshaped windows for CNN nets. Neighbour channel diffs and mean features are no longer supported (not used). 
+        
+        Parameters
+        ----------
+        feature_type : str, optional
+            _description_, by default "timepoints"
+        feature_indices_windows : Numpy array, optional
+            Numpy array with time feature indices inside the window in ms, by default None
+        psd_method : str, optional
+            The method to be used for calculating psd features (see compute_pow_freq_bands of mne_features for detailled information), by default "multitaper"
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 24.04.2024 (by Niklas Kueper)
+        """        
+
+        # (n_trials, n_channels, n_sampels, n_windows).
+        #print("windows shape", self.windows.shape)
+
+        if(feature_type == "timepoints"): 
+            
+            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            # windows have now shape: (trials, channels, sampels, windows)
+            shape_windows = self.windows.shape
+
+            #x_train_features = copy.deepcopy(self.windows).reshape((shape_windows[0]*shape_windows[3], shape_windows[1], shape_windows[2])) # is now only (windows, channels, sampels)
+
+            x_train_extracted = copy.deepcopy(self.windows[:, :, feature_times_indices, 0]) 
+            x_train = x_train_extracted.reshape((x_train_extracted.shape[0], x_train_extracted.shape[1]*x_train_extracted.shape[2])) # join channels and sampels together 
+            
+            # set this ? 
+            self.feature_vec = x_train 
+            
+        elif(feature_type == "freqBandPower"): 
+
+            #windows (n_trials, n_channels, n_sampels, n_windows).
+
+            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            num_of_freq_bands = len(freq_bands)-1
+
+            x_train_features = copy.deepcopy(self.windows[:, :,:, 0]) # make a copy 
+            shape_features = x_train_features.shape
+            #x_train_extracted = np.zeros((shape_features[0], num_of_freq_bands, shape_features[1])) # is now shape: (instances, features, channels) 
+            x_train = np.zeros((shape_features[0], shape_features[1]*num_of_freq_bands)) # final shape is (instances, features)
+            
+            # get the features in one dim for all trials and windows 
+            for window_idx in range(0, shape_features[0]): # over all training instances 
+                
+                features_window = mne_feat.compute_pow_freq_bands(sfreq = self.__fsamp, data =x_train_features[window_idx,:,:], freq_bands=freq_bands, normalize = False, psd_method = psd_method)
+                x_train[window_idx, :] = features_window.flatten()
+
+        self.feature_vec = x_train 
+
+
     def addFeatures(self, x):
         """
         This function add features to the feature_vec by concatinating them
@@ -2006,7 +2068,8 @@ class Timeseries():
 
     def setWindowLabels(self, label_list):
         """
-        Set / encode the class labels of segmented windows fot the classifiction task
+        Set /encode the class labels of segmented windows for the classifiction task. 
+        The labels are reshaped to generate the same shape as after the feature extraction or after using the reshapeWindows
 
         Parameters
         ----------
@@ -2017,10 +2080,10 @@ class Timeseries():
         ------
         Author : Niklas Kueper \n
         Last changed: 22.07.2023 (by Niklas Kueper)
-        """         
-
-        y = np.zeros((self.windows.shape[0], self.windows.shape[3])).astype(dtype=np.float64)
-        for trial_idx in range(0, y.shape[0]): 
+        """
+        
+        y = np.zeros((self.windows.shape[0], self.windows.shape[3])) # shapes trials, windows 
+        for trial_idx in range(0, y.shape[0]): # over trials 
             y[trial_idx, :] = np.array(label_list)  # shape: trials, window labels
 
         y = y.flatten() # flatten the labels
@@ -2029,6 +2092,19 @@ class Timeseries():
         y = y_temp
 
         self.labels = y 
+    
+    def setWindows(self, windows): 
+        """
+        Set the windows (numpy) array of the class 
+
+        Parameters
+        ----------
+        windows : Numpy ndarray
+            A numpy ndarray with shape: (trials, channels, sampels, windows)
+        """
+
+        self.windows = windows
+
 
     def dtwFeatureVecWindows(self):
         """
@@ -2445,6 +2521,7 @@ class OnlineTimeseriesStreaming():
                 # TODO: send synchronization event when starting the measurement 
 
                 self.n_channels = len(self.data_stream.getChannelList())
+                print("data stream has detecte n channels:", self.n_channels)
 
             elif(self.stream_type == "impedance"): 
 
@@ -2482,13 +2559,14 @@ class OnlineTimeseriesStreaming():
              
             try:
                 if(self.stream_type == "data"):
-                    self.data_chunk = list(self.data_stream.getData()) # read EMG/EEG data out of buffer
+                    self.data_chunk = (self.data_stream.getData()) # read EMG/EEG data out of buffer
+                    
                     if(return_chunk): 
-                        return self.data_chunk
+                        return np.array(self.data_chunk) 
                 else: 
-                    self.impedance_chunk = list(self.impedance_stream.getData()) # read EMG/EEG data out of buffer
+                    self.impedance_chunk = (self.impedance_stream.getData()) # read EMG/EEG data out of buffer
                     if(return_chunk):
-                        return self.impedance_chunk
+                        return np.array(self.impedance_chunk) 
 
             except Exception as e:
                 print('error: {}'.format(e))
@@ -2518,24 +2596,27 @@ class OnlineTimeseriesStreaming():
         """        
 
         #data 
+        #print("type of chunk 1", type(self.data_chunk))
         if(self.data_chunk): # only to this if new data is received 
-            current_chunk = (np.array(self.data_chunk)) # chunk is sampels, channels, after transpose then channels, sampels !
-            if(show_data_shape): 
-                print("data chunk shape:", current_chunk.shape) # should be in channels, sampels 
+            current_chunk = (np.array(self.data_chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
 
 
             if(channel_indices): 
                 current_chunk = current_chunk[channel_indices, :]
 
+            if(show_data_shape):
+                print("data chunk shape:", current_chunk.shape) # should be in channels, sampels
+
             # #print(current_chunk.shape)
             # current_chunk = current_chunk[0:n_channels, :] # use first n channels
 
-            n_samples = current_chunk.shape[1] 
+            n_samples = current_chunk.shape[1] # how much new samples 
 
             if (n_samples > self.data_buffer.shape[2]): # print error message 
                 print("Buffer overflow")
 
-            
+            #print("self.data_buffer.shape", self.data_buffer.shape)
+
             self.data_buffer = np.roll(self.data_buffer, shift = int(-1*n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
             self.data_buffer[0, :, int(-1*n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
 

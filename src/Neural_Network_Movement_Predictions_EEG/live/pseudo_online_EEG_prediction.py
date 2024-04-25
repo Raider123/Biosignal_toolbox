@@ -146,7 +146,7 @@ if __name__ == "__main__":
             
             # get the most recent buffer_size amount of values with a rate of dt_read_buffer, logs all important values for some time
             EEG_live.updateBuffer(chunk, check_sample_loss = False)  #list(channel_indices)
-            EEG_live.BufferToWindows(num_non_data_channels = ignore_n_last_channels)
+            EEG_live.BufferToWindows(num_non_data_channels = ignore_n_last_channels) 
             
             # here with samples counter 
             markers = EEG_live.data_buffer[0, -1, :, 0].astype(int)

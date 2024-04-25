@@ -348,7 +348,7 @@ class MLModel:
                 
                 print("data shape input ", data.shape)
                 predictions = self.model(data) # call the model, is a lot faster than using predict method 
-
+                
                 if(show_pred_time): 
                     time2 = perf_counter_ns()
                     print("pred time ms", (time2-time1)/1000000)
@@ -461,8 +461,8 @@ class MLModel:
         Author : Niklas Kueper \n
         Last changed: 17.11.2023 (by Niklas Kueper
         """
-
-        return self.prediction_scores
+        
+        return np.array(self.prediction_scores) 
 
     def printKerasModelLayerNames(self): 
 
