@@ -12,12 +12,12 @@ import pandas as pd
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "freq band test method" #"Training trials compare pooling"
-#xLabels = ["within sub", "cross sub"]
+title = "offline vs. online performance" #"Training trials compare pooling"
+#xLabels = ["within sub", "cross sub"] 
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["base old defs", "new winds"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
-result_list = ["fcn_network_results_34ch_EEGNet_offline",
-               "fcn_network_results_34ch_EEGNet_offline_no_norm"]
+xLabels = ["offline EEGNet", "offline MLP", "zerophasebutterWhole", "zerophasebutterWindows", "zerophasegustav", "zerophasegustav1", "forwardButter100msshift", "forwardButter200msshift", "zerogustav50ms"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+result_list = ["offline_model25ms_EEGNet", "offline_model25ms_MLP", "zerophaseButterwholeseg_MLP_2024-06-12_23-10-10", "zerophaseButterWindows_MLP_2024-06-13_14-01-49", "zerophaseButterWindowsGustav_MLP_2024-06-13_14-42-55", "meanCorrZeroGustav_MLP_2024-06-11_22-07-06", "forwardButter100msShift_MLP_2024-06-13_15-56-26", "forwardButter200msShift_MLP_2024-06-13_16-27-52", "zeroGustavCut50ms_MLP_2024-06-13_22-04-30"] 
+
 
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]
 

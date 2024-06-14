@@ -145,8 +145,8 @@ for subject in subject_names:
 
         lrp_epochs_val_scaled = np.load(data_path+subject+"_"+scenario_name+preprocessed_data_filename_end+"_test_"+str(iteration)+".npy")
         channel_names = np.load(data_path+"remaining_eeg_channel_names"+".npy")
-
-
+        
+        
         # **********************************************************************************
         # ********************* Preprocessing for data of both networks ********************
         # **********************************************************************************

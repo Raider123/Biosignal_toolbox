@@ -30,17 +30,25 @@ results_path = proj_path+"/results/"
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
-train_file_list = ["20211210_r_JV43_intentional_unilateral_set1.vhdr","20211210_r_JV43_intentional_unilateral_set2.vhdr"]
-val_test_file_list = ["20211210_r_JV43_intentional_unilateral_set3.vhdr"]
-filename_model = "JV43_40Hz"
+train_file_list = ["20211210_r_JV43_intentional_unilateral_set1.vhdr","20211210_r_JV43_intentional_unilateral_set2.vhdr", 
+                   "20211216_r_RA12_intentional_unilateral_set1.vhdr", "20211216_r_RA12_intentional_unilateral_set2.vhdr", "20211216_r_RA12_intentional_unilateral_set3.vhdr", 
+                   "20211220_r_AV82_intentional_unilateral_set1.vhdr", "20211220_r_AV82_intentional_unilateral_set2.vhdr", "20211220_r_AV82_intentional_unilateral_set3.vhdr", 
+                   "20220107_r_QS70_intentional_unilateral_set1.vhdr", "20220107_r_QS70_intentional_unilateral_set2.vhdr", "20220107_r_QS70_intentional_unilateral_set3.vhdr", 
+                   "20211222_r_XP01_intentional_unilateral_set1.vhdr", "20211222_r_XP01_intentional_unilateral_set2.vhdr", "20211222_r_XP01_intentional_unilateral_set3.vhdr", "20211222_r_XP01_intentional_unilateral_set4.vhdr", 
+                   "20220107_r_QS70_intentional_unilateral_set1.vhdr", "20220107_r_QS70_intentional_unilateral_set2.vhdr", "20220107_r_QS70_intentional_unilateral_set3.vhdr", 
+                   "20220104_r_ZS27_intentional_unilateral_set1.vhdr", "20220104_r_ZS27_intentional_unilateral_set2.vhdr", "20220104_r_ZS27_intentional_unilateral_set3.vhdr", 
+                   "20211220_r_AV82_intentional_unilateral_set1.vhdr", "20211220_r_AV82_intentional_unilateral_set2.vhdr", "20211220_r_AV82_intentional_unilateral_set3.vhdr"]
 
-train_windows = ['bis-200', 'bis-150', 'bis-100', 'bis-50', 'bis0', 'bis-2550', 'bis-2500', 'bis-2450', 'bis-2400', 'bis-2350']
+val_test_file_list = ["20211210_r_JV43_intentional_unilateral_set3.vhdr"]
+filename_model = "pooling_model_filterNet_05_040Hz_1000ms"
+
+train_windows = ["bis-2500", "bis-2400", "bis-2300", "bis-2000", "bis-1900", "bis-1800", "bis-100", "bis-80", "bis-60", "bis-40", "bis-20", "bis0"]
 
 f_samp_eeg = 500 #sample Frequency of eeg
 
 # window wise metric evaluation
-window_size = 1200 #windowsize in ms 
-window_step = 50 # stepsize in ms
+window_size = 1000 #windowsize in ms 
+window_step = 20 # stepsize in ms
 
 n_epochs = 100
 batch_size = 16 # 
@@ -58,9 +66,13 @@ channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7",
 inverse_keep_channel = True # standard: True 
 # just remap the parameters (need to be adapted)
 t1 = -5.0
-t2 = 0.05
+t2 = 0.0
 
 early_stopping_patience = 50
+
+target_flowpass = 40.0
+target_fhighpass = 0.5
+
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
@@ -76,13 +88,13 @@ EEG_data_processed_val_test = copy.deepcopy(EEG_data_raw_val_test) # make a copy
 # process as raw data 
 EEG_data_raw.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 # process with filtering 
-EEG_data_processed.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 40.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
+EEG_data_processed.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = target_fhighpass, f_lowpass= target_flowpass, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 
 # for validation data 
 # process as raw data 
 EEG_data_raw_val_test.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 # process with filtering 
-EEG_data_processed_val_test.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = 0.5, f_lowpass= 40.0, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
+EEG_data_processed_val_test.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=True, f_highpass = target_fhighpass, f_lowpass= target_flowpass, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2) 
 
 # split train and test epochs 
 EEG_data_raw_val, EEG_data_raw_test = EEG_data_raw_val_test.splitTrainTestEpochs(n_test_epochs=20) 
@@ -147,7 +159,7 @@ ml_model = MLModel(model = AE_model, type="keras")
 ml_model.modelSummary()
 
 # # # train it 
-ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_raw_val, y_val =x_EEG_processed_val, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer,save_trained_model=True, model_filename=filename_model+"_filterNet_train12_test3") 
+ml_model.trainModel(show_train_results=True, callbacks=early_callback, train_epochs=n_epochs, shuffle = True, x_train =  x_EEG_raw, y_train =x_EEG_processed, x_val = x_EEG_raw_val, y_val =x_EEG_processed_val, loss_fcn = loss_fcn, metrics = metrics, optimizer = optimizer,save_trained_model=True, model_filename=data_path+filename_model) 
 
 trial = 6
 channel = 3
