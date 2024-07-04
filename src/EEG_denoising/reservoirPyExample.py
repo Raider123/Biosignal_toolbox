@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 
 
 reservoir_size = 1000
-leak_rate = 1 # 0.5 
-spectral_radius = 0.9 #0.9 
+leak_rate = 0.5 # 0.5 
+spectral_radius = 0.4 #0.9 
 
 
 # ******************************
@@ -43,6 +43,7 @@ esn_model = data >> readout
 # load real EEG train data 
 X_EEG = np.load("X.npy", allow_pickle=False) # trials, channels, sampels , windows 
 Y_EEG = np.load("Y.npy", allow_pickle=False)
+
 X_EEG_test = np.load("X_test.npy", allow_pickle=False)
 Y_EEG_test = np.load("Y_test.npy", allow_pickle=False)
 
@@ -61,6 +62,9 @@ Y_train = np.expand_dims(Y_EEG, axis= 1)
 X_test = np.expand_dims(X_EEG_test, axis= 1) 
 Y_test = np.expand_dims(Y_EEG_test, axis= 1) 
 
+print("train shape x: ", X_train.shape) 
+X_train_new = X_train[0:500, :]
+Y_train_new = X_train[1:501, :]
 
 # train data
 # X_train = X[0:50]
@@ -69,35 +73,35 @@ Y_test = np.expand_dims(Y_EEG_test, axis= 1)
 # Y_test =  Y[51:]
 
 # train model 
-esn_model = esn_model.fit(X_train, Y_train, warmup=10)
+esn_model = esn_model.fit(X_train_new, Y_train_new, warmup=10)
 # print flags for checking 
 print(reservoir.is_initialized, readout.is_initialized, readout.fitted)
 
 
 # predict on new samples 
-Y_pred = esn_model.run(X_train)
+Y_pred = esn_model.run(X_train_new)
 
 plt.figure(figsize=(10, 3))
 plt.title("A sine wave and its future.")
 plt.xlabel("$t$")
 plt.plot(Y_pred, label="Y predict", color="purple")
-plt.plot(X_train, label="X", color="blue")
-plt.plot(Y_train, label="Y", color="red")
+plt.plot(X_train_new, label="X", color="blue")
+plt.plot(Y_train_new, label="Y target", color="red")
 plt.legend()
 
-
-
-
-# predict on new samples 
-Y_pred = esn_model.run(X_test)
-
-
-plt.figure(figsize=(10, 3))
-plt.title("A sine wave and its future.")
-plt.xlabel("$t$")
-plt.plot(Y_pred, label="Y predict", color="purple")
-plt.plot(Y_test, label="Y_test (target)", color="red")
-plt.plot(X_test, label="X_test", color="blue")
-plt.legend()
 plt.show()
+
+
+# # predict on new samples 
+# Y_pred = esn_model.run(X_test)
+
+
+# plt.figure(figsize=(10, 3))
+# plt.title("A sine wave and its future.")
+# plt.xlabel("$t$")
+# plt.plot(Y_pred, label="Y predict", color="purple")
+# plt.plot(Y_test, label="Y_test (target)", color="red")
+# plt.plot(X_test, label="X_test", color="blue")
+# plt.legend()
+# plt.show()
 

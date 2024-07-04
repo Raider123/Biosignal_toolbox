@@ -9,6 +9,7 @@ import copy
 import mne 
 from scipy import signal as sig
 from time import perf_counter
+from PyEMD import EMD, EEMD
 
 # set paths
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
@@ -35,8 +36,9 @@ def getFilterCharakteristicsFreq(b, a, f_samp):
 f_samp_eeg = 500.0
 numtaps = 43 
 # window wise metric evaluation
-window_size = 3000 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
+window_size = 5000 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
 window_step = 20 # stepsize in ms (analog to pySPACE evaluation)
+
 
 f_samp_eeg = 500.0 #sample Frequency of eeg
 marker_number = 22 # onset markernumber (Qualisys)
@@ -50,7 +52,7 @@ channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7",
 
 
 # just remap the parameters (need to be adapted)
-t1 = -5.0
+t1 = -10.0
 t2 = 0.0 # to cut this off later 
 
 # filter settings 
@@ -102,37 +104,6 @@ channel_list = ["C1", "FC1"]
 # filter settings 
 f_highpass = None
 f_lowpass_MLP = None
-# #f_lowpass_EEGNet = NonegetFilterCharakteristicsFreq(b_window_hamming, a, f_samp_eeg)
-# w_black, h_black, x_black, db_black, gd_black = getFilterCharakteristicsFreq(b_window_blackman, a, f_samp_eeg)
-# w_ls, h_ls, x_ls, db_ls, gd_ls = getFilterCharakteristicsFreq(b_ls, a, f_samp_eeg)
-
-# w_ave, h_ave, x_ave, db_ave, gd_ave = getFilterCharakteristicsFreq(b, a, f_samp_eeg)
-
-# plt.figure()
-# plt.plot(x_ham, db_ham)
-# plt.plot(x_black, db_black)
-# plt.plot(x_ls, db_ls)
-# plt.legend(["wind hamming", "wind blackman", "ls"] ) #"fir remez", "fir least squares", 
-# plt.ylim(-75, 5)
-# plt.grid(True)
-# plt.title("fir methods comparison")
-# plt.yticks([0, -20, -40, -60])
-# plt.ylabel('Gain [dB]')
-# plt.title('Frequency Response')
-# plt.show()
-
-# #moving average filter 
-# plt.figure()
-# plt.plot(x_ave, db_ave)
-# plt.legend(["moving ave"]) #"fir remez", "fir least squares", 
-# plt.ylim(-75, 5)
-# plt.grid(True)
-# plt.title("fir methods comparison")
-# plt.yticks([0, -20, -40, -60])
-# plt.ylabel('Gain [dB]')
-# plt.title('Frequency Response')
-# plt.show()
-
 
 
 # # # test with data 
@@ -162,7 +133,11 @@ sinewave_res = sinewave+sinewave_1
 EEG_data = EEGData(format = "Brainvision", filenames = ["31102023_BR60D_unilateral_set1.vhdr"], data_path = data_path)
 EEG_data_offline_filter = copy.deepcopy(EEG_data)
 EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
-EEG_data_offline_filter.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2, f_lowpass=4.0, f_highpass = 0.5, apply_filter = True)
+
+
+b, a = EEG_data_offline_filter.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
+EEG_data_offline_filter.filterRawData(b= b, a = a, apply_method = "zero_phase_ba", padtype = "even")
+EEG_data_offline_filter.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2, f_lowpass=4.0, f_highpass = 0.5, apply_filter = False)
 
 
 EEG_data.windowEEGEpochs(window_size, window_step)
@@ -198,17 +173,41 @@ EEG_data_filter_var = copy.deepcopy(EEG_data)
 
 #EEG_data.reverseWindows()
 #sos = EEG_data.designFilter(f_low = 9.0, f_high = 0.2, order = 1, filter_type = "scipy_butter", return_type = "sos")
+#b, a = EEG_data.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
+# b1 = [-0.5, 1, -0.5]
+# a1= [1]
+
+
+
+EEG_data.windowSelection(["bis0"])
+#EEG_data.reverseWindows()
+
+#EEG_data.filterWindows(b = b1, a = a1, apply_method = "forward_ba_filter") # bandpass filter (zero phase with padding) 
+#EEG_data.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding) 
+
+#b, a = EEG_data.designFilter(f_low = 4.0, f_high = None, order = 39, filter_type = "fir_hann", return_type = "ba")
 b, a = EEG_data.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
 
-#sos = EEG_data.designFilter(f_low = 4.0, f_high = 0.2, order = 1, filter_type = "scipy_ellip", return_type = "sos", rp = 0.1, rs = 80.0)
-EEG_data.windowSelection(["bis0"])
+
 EEG_data.WindowMeanCorrection()
 
-#EEG_data.filterWindows(sos = sos, apply_method = "forward_sos_filter") # bandpass filter (zero phase with padding) 
-EEG_data.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding) 
+EEG_data.filterWindows(b = b, a = a, apply_method = "gustav", padtype = "own") # bandpass filter (zero phase with padding) 
+# EEG_data.cutWindows(2000, 2000)
+#EEG_data.detrendWindows()
 
+# EEG_data.filterWindows(sos = sos, apply_method = "forward_sos_filter")
+# EEG_data.filterWindows(b = b, a = a, apply_method = "forward_ba_filter")
+
+# emd = EMD(max_imf=10)
+
+# IMF = emd.emd(EEG_data.windows[3, 4, :, 0])
+# print("shape IMF:", IMF.shape)
+
+#EEG_data.reverseWindows()
 
 #EEG_data.reverseWindows() # reverse window back 
+
+#EEG_data.windows[2, 4, :, 0] = IMF[-1, :]
 
 # apply fir filter after reversing array to compensate  for the delay 
 #EEG_data.applyMovingAverageFilter(n = 19, apply_to_structures = "windows")
@@ -224,20 +223,30 @@ EEG_data.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter 
 #EEG_data.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter
 #EEG_data_filter_var.applyMovingAverageFilter(apply_to_structures="windows", n = n_moving_ave)
 
-# filtered_sinewave = sig.lfilter(b_window_hamming, [1.0], sinewave_res)
-print(EEG_data.windows.shape)
 
 plt.figure()
 #plt.plot(EEG_data_raw.windows[0, 0, :, 0], linewidth = 1)
-plt.plot(EEG_data_offline_filter.windows[0, 4, :, 0], linewidth = 3)
 #plt.plot(EEG_data_filter1.windows[0, 0, :, 0], linewidth = 3)
-plt.plot(EEG_data.windows[0, 4, :, 0], linewidth = 3)
+plt.plot(EEG_data.windows[3, 4, :, 0], linewidth = 3)
+#plt.plot(EEG_data.windows[2, 4, :, 0], linewidth = 3)#
+plt.plot(EEG_data_offline_filter.windows[3, 4, :, 0], linewidth = 3)
+
+
+print("shape online wind", EEG_data.windows.shape)
+print("shape offline wind", EEG_data_offline_filter.windows.shape)
+
 # plt.plot(EEG_data_filter_var.windows[0, 0, :, 0], linewidth = 3)
-plt.legend(["offline filt", "gustav"])
+plt.legend(["Gustav", "offline filt"])
 #plt.legend(["sine 1", "sine 2", "raw", "filter zero"])
 
+window_diffs =  EEG_data_offline_filter.windows -EEG_data.windows
+
+for i in range(0, window_diffs.shape[0]): 
+    plt.figure()
+    plt.plot(window_diffs[i, 4, :, 0])
+
 # plt.figure()
-# plt.plot(EEG_data_filter_var.windows[0, 0, :, 0], linewidth = 3)
+# plt.plot(IMF[-1, :], linewidth = 3)
 
 
 # plt.figure()
