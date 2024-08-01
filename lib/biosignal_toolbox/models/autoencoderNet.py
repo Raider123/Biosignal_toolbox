@@ -1,7 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.layers import Dropout, RepeatVector, SimpleRNN
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D, Conv2DTranspose
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, AveragePooling2D, BatchNormalization, Activation, UpSampling2D, Layer, Conv1D, Conv2DTranspose, Reshape
 from tensorflow.keras.layers import Lambda, LSTM, Reshape, TimeDistributed, Flatten, Dense, Input
 import keras.backend as K
 from tensorflow.keras import initializers
@@ -105,34 +105,71 @@ class AddArrayLayer(Layer):
         return input_shape
 
 
-def FilterNet(Chans = 34, kernel = 100, Samples =512, F = 8): 
+class CustomScalingLayer(tf.keras.layers.Layer):
+    def __init__(self, Samples, **kwargs):
+        super(CustomScalingLayer, self).__init__(**kwargs)
+        self.Samples = Samples
+
+    def build(self, input_shape):
+        self.offset_factors = self.add_weight(name='offset_factors',shape=(self.Samples), initializer='zeros', trainable=True)
+        self.scale_factors = self.add_weight(name='scale_factors',shape=(self.Samples), initializer='ones', trainable=True)
+        super(CustomScalingLayer, self).build(input_shape)
+
+    def call(self, inputs):
+        #print("type of input", inputs.shape)
+        #print("shape of scale factors: ", tf.reshape(self.scale_factors, [1, 1, -1]))
+        return (inputs *  tf.reshape(self.scale_factors, [1, 1, -1])) + tf.reshape(self.offset_factors, [1, 1, -1]) # scale the final outputs 
+
+def toUV(x): 
+    return x*1000000
+
+def toVolts(x): 
+    return x/1000000
+
+# Define a custom constraint class
+class NormalizeWeightsConstraint(tf.keras.constraints.Constraint):
+    def __call__(self, w):
+        return w / tf.reduce_sum(w)
+
+
+def FilterNet(Chans = 34, kernel = 200, kernel1 = 10, kernel2 = 5, kernel3 = 100, Samples =1024, F = 4, F1 = 16): 
     
     # Autoencoder setup
     #**************************
     #********Encoder***********
     #**************************
     #offset_value = tf.Variable(initial_value=0.01, trainable=True) # use offset to be trained later 
-
+    
     # first block 
-    model = Sequential() # leaky_relu best 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', input_shape = (Chans, Samples, 1), use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(Conv2D(F, kernel_size = (1, 3), padding = 'same', use_bias = False)) 
-    model.add(Activation('leaky_relu'))
+    model = Sequential() # linear best 
+    model.add(Conv2D(F, kernel_size = (1, kernel1), padding = 'same', input_shape = (Chans, Samples, 1), use_bias = False))
+    model.add(Activation('linear'))
+    model.add(Lambda(toUV)) # ensure that the calculations are in range 
+    model.add(Conv2D(F, kernel_size = (1, kernel2), padding = 'same', use_bias = False))#, kernel_constraint=NormalizeWeightsConstraint()))
+    model.add(Activation('linear'))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Lambda(lambda x: x *100))
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
+    # model.add(Lambda(lambda x: x *100))
+    model.add(Conv2D(F, kernel_size = (1, kernel3), padding = 'same', use_bias = False))#, kernel_constraint=NormalizeWeightsConstraint()))
+    model.add(Activation('linear'))
     model.add(AveragePooling2D(pool_size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
+    # maximal pooled here 
+    model.add(Conv2D(F1, kernel_size = (1, kernel), padding = 'same', use_bias = False))#, kernel_constraint=NormalizeWeightsConstraint()))
+    model.add(Activation('linear'))
     model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
+    model.add(Conv2D(F, kernel_size = (1, kernel3), padding = 'same', use_bias = False))#, kernel_constraint=NormalizeWeightsConstraint()))
+    model.add(Activation('linear'))
     model.add(UpSampling2D(size=(1, 2))) 
-    model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))
-    model.add(Activation('leaky_relu'))
-    model.add(Conv2D(1, kernel_size = (1, kernel), padding = 'same', use_bias = False)) 
+    model.add(Conv2D(1, kernel_size = (1, kernel1), padding = 'same', use_bias = False))#, kernel_constraint=NormalizeWeightsConstraint()))
+    model.add(Lambda(toVolts))
+    # # extra custom layer
+    # model.add(Reshape((Chans, Samples)))  # reshape input 
+    # model.add(CustomScalingLayer(Samples)) 
+    # model.add(Reshape((Chans, Samples, 1)))  # reshape input
+    # model.add(Conv2D(F, kernel_size = (1, kernel3), padding = 'same', use_bias = False))
+    # model.add(Activation('linear'))
+    # model.add(Conv2D(1, kernel_size = (1, 1), padding = 'same', use_bias = False)) 
+    # model.add(Lambda(toVolts))
+    
 
     #model.add(TimeDistributed(AddArrayLayer())) #layer wise offset correction at the end
     
@@ -208,7 +245,7 @@ def Conv2D2KernelLayer(Chans = 34, kernel =150, Samples =512, F = 4):
     plt.show()
 
     # first block 
-    model = Sequential() # leaky_relu best 
+    model = Sequential() # linear best 
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', input_shape = (Chans, Samples, 1), use_bias = False, kernel_initializer=custom_initializer))#custom_initializer))
     model.add(Activation('linear'))
     model.add(Conv2D(F, kernel_size = (1, kernel), padding = 'same', use_bias = False))#custom_initializer))
@@ -223,16 +260,16 @@ def MLPFilter(Chans = 34, Samples =512):
     #layers.TimeDistributed(layer)
 
     # first block 
-    model = Sequential() # leaky_relu best 
+    model = Sequential() # linear best 
     model.add(Input(shape = (Chans, Samples, 1)))
     model.add(layers.TimeDistributed((Dense(units=32, use_bias=False))))#custom_initializer))
-    model.add(Activation('leaky_relu'))
+    model.add(Activation('linear'))
     model.add(BatchNormalization())
     model.add(layers.TimeDistributed((Dense(units=4, use_bias=False))))#custom_initializer))
-    model.add(Activation('leaky_relu'))
+    model.add(Activation('linear'))
     model.add(BatchNormalization())
     model.add(layers.TimeDistributed((Dense(units=32, use_bias=False))))#custom_initializer))
-    model.add(Activation('leaky_relu'))
+    model.add(Activation('linear'))
     model.add(BatchNormalization())
     # model.add(BatchNormalization())
     model.add(layers.TimeDistributed((Dense(units=Samples, use_bias=False))))

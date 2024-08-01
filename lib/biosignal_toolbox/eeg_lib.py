@@ -31,7 +31,7 @@ class EEGData(Timeseries):
     def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
         """
         The constructor of the EEGData class. 
-
+        
         Parameters
         ----------
         format : str, optional
@@ -97,7 +97,7 @@ class EEGData(Timeseries):
             data_str_arr = np.array(data_str_arr)
 
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
-
+            
             # update parameter 
             #basic params 
             self.__channel_names = self.raw_obj.ch_names
@@ -148,7 +148,7 @@ class EEGData(Timeseries):
             #scalings = {'eeg': 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
             self.raw_obj = raw
-
+            
             # set annotation events (markers)
             event_channel = data[-1, :]
             marker_indices = np.where(event_channel > 0)[0]
@@ -190,7 +190,7 @@ class EEGData(Timeseries):
         Author : Niklas Kueper \n
         Last changed: 06.07.2022 (by Niklas Kueper)
         """
-
+        
         if (len(dataset_list) > 1): 
             raw_list = []
             for dataset in dataset_list: 
@@ -249,7 +249,7 @@ class EEGData(Timeseries):
         # seperate Standard digs and EEG digs 
         easy_cap_dig_standard = easy_cap_dig[0:3]
         easy_cap_dig_eeg = easy_cap_dig[3:]
-
+        
         #delete Channels not there for acticap
         indizes_to_removing_channel_sorted = sorted(indizes_to_removing_channel, reverse= True)
         for indizes in indizes_to_removing_channel_sorted:
@@ -274,8 +274,8 @@ class EEGData(Timeseries):
         if(set_montage): 
             self.epoch_obj.set_montage(self.__montage)
 
-
-    def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06):
+    
+    def topoplot(self, times, title_str = "Topoplot at selected times", min_val = -6e-06, max_val = 6e-06, save_figure = False, filename = "test.png", path = ""):
                  
         """
         This method creates a topoplot at different times in relation to an specific event. 
@@ -290,11 +290,17 @@ class EEGData(Timeseries):
             The minimum value of the colorbar in the units of the data, by default -6e-06
         max_val : float, optional
             The maximum value of the colorbar in the units of the data, by default 6e-06
+        save_figure : bool, optional
+            Wheather to save the figure or not. 
+        filename : str, optional 
+            If save_figure is True, the name under which the figure is saved. 
+        path : str, optional
+            The path where to save the figure if save_figure is True. 
         
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 28.11.2023 (by Niklas Kueper)
+        Last changed: 17.05.2024 (by Niklas Kueper)
         """
         
         mean_epochs = np.mean(self.epochs, axis = 0)
@@ -326,9 +332,12 @@ class EEGData(Timeseries):
             cbar.set_label("in uV")
             count = count+1
         plt.show()
+
+        if(save_figure): 
+            fig.savefig(path +filename)
         
 
-    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, baseline = (None, -0.2)):
+    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = ["FP1", "FP2"], plot_steps = False, apply_baseline = False, baseline = (None, -0.2)):
         """
         This function automatically detects EOG artifacts in the given rereferenced EEG-signal using an ICA.
         The decisive components are marked and removed.
@@ -363,7 +372,9 @@ class EEGData(Timeseries):
 
         # creating epochs around the EOG-artifacts
         eog_evoked = mne.preprocessing.create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
-        eog_evoked.apply_baseline(baseline=baseline)
+
+        if(apply_baseline): 
+            eog_evoked.apply_baseline(baseline=baseline)
 
         # creating the ICA and fitting it to the epoched raw data: 
         ica = ICA(n_components=n_components, max_iter="auto", random_state=97)

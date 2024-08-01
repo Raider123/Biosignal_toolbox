@@ -9,9 +9,9 @@ import csv
 # ****** Datasets of all evaluations ***** 
 
 # Resulting paths  
-result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/mne_machine_learning/results/"
+result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/results/"
 
-filename = "fcn_network_results_34ch_MLP_online_freq_band_test"
+filename = "offline_oldwindows_EEGNet"
 
 result_arr1 = np.loadtxt(result_path+filename, dtype = float, delimiter= ',')
 

@@ -86,12 +86,16 @@ class EMGData(Timeseries):
             if(format == "ANTmini"):
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
                 raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
+
             else: 
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
                 raw_data, self.time_axis, self.__channel_names = self.loadCometaEMGData(data_path, filename)
 
-        self.data = raw_data # store data in numpy array 
-        self.createMNERaw()
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
 
 
         # print("data shape:", self.data.shape)
@@ -299,7 +303,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         _description_
     """
 
-    def __init__(self): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         The constructor of the OnlineEMG class. 
 
@@ -308,8 +312,9 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
         """        
+
         
-        super().__init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
         EMGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
 
 
