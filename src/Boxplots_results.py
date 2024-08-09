@@ -15,9 +15,9 @@ result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosig
 title = "offline vs. online performance" #"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"] 
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
-xLabels = ["offline EEGNet", "offline MLP", "zerophasebutterWhole", "zerophasegustav1", "forwardButter200msshift", "zerogustav50ms", "zerophasepaddMeanCorr", "zeroGustDetrend", "gustavZeroOwnPad", "ZeroOwnPadEven", "contiousZeroPhase"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
+xLabels = ["offline EEGNet", "offline MLP", "zerophasebutterWhole", "zerophasegustav1", "forwardButter200msshift", "zerogustav50ms", "zerophasepaddMeanCorr", "zeroGustDetrend", "gustavZeroOwnPad", "ZeroOwnPadEven", "contiousZeroPhase", "baseline MLP", "MLP add PSD Bands", "8 ch"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]
 result_list = ["offline_model25ms_EEGNet", "offline_model25ms_MLP", "zerophaseButterwholeseg_MLP_2024-06-12_23-10-10","meanCorrZeroGustav_MLP_2024-06-11_22-07-06", "forwardButter200msShift_MLP_2024-06-13_16-27-52", "zeroGustavCut50ms_MLP_2024-06-13_22-04-30", "zeroPhasePaddingMeanCorr_MLP_2024-06-14_10-04-35", 
-               "zeroPhaseGustavDetrendAfter_MLP_2024-06-14_14-13-39", "zeroPhaseGustavOwnPadding_MLP_2024-06-16_18-36-30", "zeroPhaseOwnPaddingEvenNoMeanCorr_MLP_2024-06-16_20-16-17", "continousZeroPhaseTest_MLP_2024-06-28_10-50-49"] 
+               "zeroPhaseGustavDetrendAfter_MLP_2024-06-14_14-13-39", "zeroPhaseGustavOwnPadding_MLP_2024-06-16_18-36-30", "zeroPhaseOwnPaddingEvenNoMeanCorr_MLP_2024-06-16_20-16-17", "continousZeroPhaseTest_MLP_2024-06-28_10-50-49", "baselineZeroPhaseEvenPadMLP_MLP_2024-08-08_14-55-44", "MLPAdditionalPSDBands_MLP_2024-08-08_17-34-36", "Use8ChannelTest_MLP_2024-08-08_20-05-41"]
 
 
 # "fcn_network_results_40_train_trials","fcn_network_results_30_train_trials", "fcn_network_results_20_train_trials", "fcn_network_results_10_train_trials", "fcn_network_results_5_train_trials"]# "fcn_network_results_eeg_all_subs", "fcn_network_results_eeg_emg_all_subs"]

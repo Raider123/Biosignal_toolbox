@@ -15,7 +15,7 @@ results_path = proj_path+"/results/"
 
 # names for saving 
 scenario_name = "intentional_unilateral"
-result_file_name = "wrongFrequenciesTest"
+result_file_name = "MLP3CH"
 
 
 # filter model name 
@@ -58,7 +58,7 @@ train_windows = ["bis-2500", "bis-1900", "bis-2300", "bis-2000", "bis-1700", "bi
 window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
-feature_indices_windows = np.arange(900, 1000, step = 2) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+feature_indices_windows = np.arange(900, 1000, step = 2) # (900, 1000) means last 100 ms of a window are used 
 use_norm_layer = True # use the input norm layer 
 
 show_train_results = False
@@ -67,7 +67,7 @@ show_train_results = False
 n_test_trials = 20 
 
 # window wise metric evaluation
-window_size = 3000 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
+window_size = 1000 # windowsize in ms (analog to pySPACE evaluation) + add 100 ms for cutting after filtering 
 window_step = 20 # stepsize in ms (analog to pySPACE evaluation)
 
 f_samp_eeg = 500.0 #sample Frequency of eeg
@@ -76,13 +76,15 @@ error_number = 3 # number of the error marker
 
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
-inverse_keep_channel = True # standard: True 
-#channel_list = [] # do not drop channels
-channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+inverse_keep_channel = False # standard: True 
+channel_list = ["FC1", "C1", "C3"] # only use 8 channels (paper)
+
+#standard 32 channel
+#channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 
 
 # just remap the parameters (need to be adapted)
-t1 = -7.0
+t1 = -5.0
 t2 = 0.0 # to cut this off later
 
 

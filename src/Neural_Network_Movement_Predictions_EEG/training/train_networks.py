@@ -263,27 +263,34 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     # get features by running processing pipeline 
     
     if (use_offline_processing): 
+        print(f"using Offline processing and filtering")
         x_train_MLP, y_train_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_train_05_4Hz), copy.deepcopy(EEG_data_train_05_40Hz), window_labels_train, feature_indices_windows)
         x_val_MLP, y_val_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_val_05_4Hz), copy.deepcopy(EEG_data_val_05_40Hz), window_labels_train, feature_indices_windows)
         x_test_MLP, y_test_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_test_05_4Hz), copy.deepcopy(EEG_data_test_05_40Hz), window_labels_train, feature_indices_windows)
         
     else: 
         if(not use_net): 
-            print(f"using moving ave filter")
+            print(f"using Online processing with iir processing")
             x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, None, xd_components= None)
             x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, None, xd_components = None)
             x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows, None, xd_components = None)
         else: 
-            print(f"using filterNet")
+            print(f"using Online processing with filterNet processing")
             x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
             x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
             x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
 
 
     # Load model with norm layer and train model  
-    #MLP = MLP_Model_reduced(x_train_MLP, use_norm_layer = use_norm_layer)
+    #MLP = MLP_Huge(x_train_MLP, use_norm_layer = use_norm_layer)
     MLP = MLP_Model_reduced(x_train_MLP, use_norm_layer = use_norm_layer)
-    MLP_model = MLModel(model = MLP, type= "keras")
+    # from tensorflow.keras.utils import plot_model
+    
+    # # Plot and save the model architecture to a file
+    # plot_model(MLP, to_file='MLP_architecture.png', show_shapes=True, show_layer_names=True)
+
+
+    MLP_model = MLModel(model = MLP, type= "keras", model_summary = False)
     print(f"shape of train data {x_train_MLP.shape}")
     MLP_model.trainModel(save_trained_model = False, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_", train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=show_train_results)
 

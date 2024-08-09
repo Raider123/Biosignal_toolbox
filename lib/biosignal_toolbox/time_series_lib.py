@@ -2227,10 +2227,11 @@ class Timeseries():
 
 
         elif(feature_type == "freqBandPower"): 
-
+            
             #windows (n_trials, n_channels, n_sampels, n_windows).
-
-            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            
+            #freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
             num_of_freq_bands = len(freq_bands)-1
 
             if(add_neightbour_diffs): 
@@ -2262,7 +2263,6 @@ class Timeseries():
 
                 for feature_idx in range(0, x_train_features_add.shape[2]):
                     x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
-
 
 
         # how to proceed with features (both conditions)
