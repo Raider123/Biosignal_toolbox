@@ -219,13 +219,14 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     else: # no 
         print(f"using online preprocessing")
         # do rereferencing here since in real online case no epoching is done ! 
-        if(current_condition_idx >1): 
-            EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
-        else: 
-            # do not do extra stuff currently 
-            EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list = [], inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
-
-
+        # if(current_condition_idx >1): 
+        #     EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        # else: 
+        #     # do not do extra stuff currently 
+        #    EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list = [], inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        
+            
 
         # freqs = np.arange(0.5, 4, 0.5) # at 2 Hz
         # tfr = tfr_array_morlet(EEG_data_train.epochs, sfreq = EEG_data_train.getSamplingRate(), freqs = freqs, n_cycles = 1)

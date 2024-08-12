@@ -15,7 +15,7 @@ results_path = proj_path+"/results/"
 
 # names for saving 
 scenario_name = "intentional_unilateral"
-result_file_name = "MLP3CH"
+result_file_name = "MLP_for_eval_red_time_feat_further"
 
 
 # filter model name 
@@ -58,7 +58,11 @@ train_windows = ["bis-2500", "bis-1900", "bis-2300", "bis-2000", "bis-1700", "bi
 window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
-feature_indices_windows = np.arange(900, 1000, step = 2) # (900, 1000) means last 100 ms of a window are used 
+#feature_indices_windows = np.arange(900, 1000, step = 4) # (900, 1000) means last 100 ms of a window are used 
+
+# reduced feature number 
+#feature_indices_windows = np.array([900, 910, 920, 930, 940, 950, 960, 964, 968, 972, 976, 980, 984, 988, 992, 996, 998, 999])
+feature_indices_windows = np.array([900, 920, 940, 960, 965, 970, 975, 980, 985, 990, 995, 999])
 use_norm_layer = True # use the input norm layer 
 
 show_train_results = False
@@ -76,11 +80,11 @@ error_number = 3 # number of the error marker
 
 
 # eeg channel that are kept (inverse_keep_channel = False) or dropped (inverse_keep_channel = True) for further evaluations, empty list meaning all channels are kept 
-inverse_keep_channel = False # standard: True 
-channel_list = ["FC1", "C1", "C3"] # only use 8 channels (paper)
+inverse_keep_channel = True # standard: True 
+#channel_list = ["FC1", "C1", "C3"] # only use 8 channels (paper)
 
 #standard 32 channel
-#channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
+channel_list = ["F5", "F6", "x_dir", "y_dir", "z_dir", "FP1", "FP2", "F8", "T7", "T8", "TP9", "TP10", "P7", "P8", "PO9", "O1", "OZ", "O2", "PO10", "AF7", "AF3", "AF4", "AF8", "FT9", "FT7", "FT8", "FT10", "TP7", "TP8", "PO7", "PO3", "POZ", "PO4", "PO8", "F7"]
 
 
 # just remap the parameters (need to be adapted)
@@ -104,8 +108,8 @@ use_net = False # use the autoencoder net for preprocessing
 # train_test iterations (mapping of train test sets)
 train_test_conditions = [
     #extra one
-    {"train": ["31102023_BR60D_unilateral_set1.vhdr"], "test": ["31102023_BR60D_unilateral_set2.vhdr"]}, 
-    {"train": ["31102023_BR60D_unilateral_set2.vhdr"], "test": ["31102023_BR60D_unilateral_set1.vhdr"]},
+    # {"train": ["31102023_BR60D_unilateral_set1.vhdr"], "test": ["31102023_BR60D_unilateral_set2.vhdr"]}, 
+    # {"train": ["31102023_BR60D_unilateral_set2.vhdr"], "test": ["31102023_BR60D_unilateral_set1.vhdr"]},
     # JV43 
     {"train": ["20211210_r_JV43_intentional_unilateral_set1.vhdr", "20211210_r_JV43_intentional_unilateral_set2.vhdr"], "test": ["20211210_r_JV43_intentional_unilateral_set3.vhdr"]},
     {"train": ["20211210_r_JV43_intentional_unilateral_set2.vhdr", "20211210_r_JV43_intentional_unilateral_set3.vhdr"], "test": ["20211210_r_JV43_intentional_unilateral_set1.vhdr"]}, 

@@ -255,6 +255,7 @@ class Timeseries():
         
         #get data out as numpy array for further processing 
         self.epochs = eeg_epochs.get_data()#units = "uV") 
+        # change here to float32 ? 
         self.average_epochs = np.mean(self.epochs, axis = 0)
         self.event_id = event_id_used 
         
@@ -2230,8 +2231,8 @@ class Timeseries():
             
             #windows (n_trials, n_channels, n_sampels, n_windows).
             
-            #freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
-            freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
+            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            #freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
             num_of_freq_bands = len(freq_bands)-1
 
             if(add_neightbour_diffs): 
