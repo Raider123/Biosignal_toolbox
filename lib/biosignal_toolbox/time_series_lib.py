@@ -318,6 +318,8 @@ class Timeseries():
         self.events, a = mne.events_from_annotations(self.raw_obj)
 
     # def updateRawObject(self): 
+    
+
 
     #     self.raw_obj = mne.io.RawArray(self.data, self.mne_info)
 
@@ -1620,6 +1622,36 @@ class Timeseries():
         #self.num_windows = num_of_windows
         self.window_names = wind_names
 
+
+
+    def windowContinousData(self, startmarkernumber = 1, stopmarkernumber = 1, window_size= 1000, window_step =50, start_index_offset = 0, return_window_end_indices = True): 
+        
+        # windows have shape trials, channels, sampels, windows 
+        #print(self.events.shape)
+        start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0][0]
+        stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0][-1]
+
+        start_idx = self.events[start_marker_index, 0]
+        stop_idx = self.events[stop_marker_index, 0]
+        end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
+        #print(end_indices)
+        windows = []
+        wind_names = []
+        counter = 0 
+        for end_index in end_indices: 
+            current_window = self.data[:, end_index-window_size:end_index] # data in channels, sampels 
+            windows.append(current_window)
+            wind_names.append(str(counter)) # just numerate the windows
+            
+
+        np_windows = np.array(windows)  # has wrong shape here 
+        self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
+        self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
+        self.window_names = wind_names
+
+        if(return_window_end_indices): 
+            return end_indices
+        
 
     def windowSelection(self, selected_windows): 
         """
