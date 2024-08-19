@@ -26,19 +26,19 @@ from biosignal_toolbox.models.AANModel import AAN_Model
 # *********************************************************************************
 
 # own libs
-proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
+proj_path = "/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox"
 
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
 # use LSL file recorded 
-train_file = ["HW90/20170317_r_HW90_EMG_Assist_as_needed_complex_0g.vhdr"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+train_file = ["aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_complex_0g.vhdr"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
 
 
 # subject params 
 subject = "current"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-scenario_name = "intentional_unilateral"
-result_file_name = "_live"
+# scenario_name = "intentional_unilateral"
+# result_file_name = "_live"
 
 
 # fcn model parameter 
@@ -46,7 +46,7 @@ n_epochs = 20 #20 training epochs
 n_batch_size = 8
 
 # training params 
-loss_fcn =  "mse" #--> need ti check 
+loss_fcn =  "mse" #--> need to check 
 optimizer  = "nadam" # Nadam for MLP 
 metrics = "mse"
 
@@ -57,12 +57,12 @@ metrics = "mse"
 # window_target_values = [0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 
 # might be used for feature extraction !
-feature_indices_windows = np.arange(980, 1000, step = 1) # 900, 1000 numpy array with time feature indices, (950, 1000) means last 100 ms of a window are used 
+feature_indices_windows = np.arange(980, 1000, step = 1) #980,1000 means last 20 samples will be extracted from a window as a sample
 
 
 # window wise metric evaluation
-window_size = 1000 # windowsize in sampels 
-window_step = 1000
+window_size = 1000 # windowsize in samples 
+window_step = 100
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
@@ -94,7 +94,7 @@ print("")
 # ********************* Preprocessing for data of both networks ********************
 # **********************************************************************************
 
-window_end_indices = EMG_Data.windowContinousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size, window_step = window_step, start_index_offset = 0, return_window_end_indices = True)
+window_end_indices = EMG_Data.windowContinousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size, window_step = window_step, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
 # use the EMG_Data.windows if you want to access the windowed data 
 
 EMG_Data.applyVarianceFilter(n_var = 20, apply_to_structures="windows")
@@ -108,6 +108,7 @@ EMG_Data.featureExtractionFromWindows(feature_type = "timepoints", feature_indic
 
 # input features network 
 x = EMG_Data.getFeatures()
+print(f"Input Feature Dim: {x.shape}")
 # y = EMG_Data.getLabels()
 
 
