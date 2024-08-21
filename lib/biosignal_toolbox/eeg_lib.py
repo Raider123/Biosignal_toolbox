@@ -5,6 +5,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import mne
+mne.set_log_level('WARNING')
 import os 
 from mne.preprocessing import ICA 
 import warnings
@@ -102,7 +103,8 @@ class EEGData(Timeseries):
             #basic params 
             self.__channel_names = self.raw_obj.ch_names
             self.__fsamp = self.raw_obj.info['sfreq']
-            self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
+            self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
+            print(f"EMG Data Shape: {self.data.shape}") 
             #events epochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
 
@@ -121,19 +123,23 @@ class EEGData(Timeseries):
             self.__channel_names = channel_names
 
         elif(format == "Recorded_LSL_stream"): 
-            
             if(filenames): # implement running over all files and appending data to each other 
 
                 if(len(filenames) > 1): 
                     concat_list = []
                     for filename in filenames: 
-                        concat_list.append(np.load(data_path +filename+".npy"))
+                        concat_list.append(np.load(data_path +filename+".npy",allow_pickle=True, encoding='bytes'))
                     
                     data = np.concatenate(concat_list)
                 else: 
-                    data = np.load(data_path +filenames[0]+".npy")
-
-            
+                    data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()['0']['complex']
+            # Adding an extra event channel at the end
+            column_of_no_markers = -1 * np.ones((data.shape[0],1))
+            data = np.hstack((data,column_of_no_markers))
+            # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
+            data[0,-1] = 1
+            data[-5,-1] = 1
+            print(f"Data: {data.shape}")
             self.__fsamp = f_samp
             self.__channel_names = channel_names
 
