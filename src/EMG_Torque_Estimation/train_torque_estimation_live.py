@@ -144,9 +144,9 @@ y = Quali_Data_Elbow.getFeatures()[:,0:2]
 #! Ensure same number of rows for imput and target features
 end_idx = x.shape[0] if x.shape[0] <= y.shape[0] else y.shape[0]
 x = x[0:end_idx,:]
-y = y[0:end_idx,1]
-# print(f"Input Feature Dim: {x.shape}")
-# print(f"Output Feature Dim: {y}")
+y = y[0:end_idx,0:2]
+print(f"Input Feature Dim: {x.shape}")
+print(f"Output Feature Dim: {y.shape}")
 
 #! Split data into training and validation
 # Creating empty train and val arrays
@@ -172,7 +172,7 @@ for idx in range(end_idx):
 #! Load model with norm layer  
 model = AAN_Model()
 MLP_model = MLModel(model = model, type= "keras")
-MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x, y_train= y, x_val = None, y_val = None, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics)
+MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], x_val = x_val, y_val = y_val[:,0], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
 print("all done")
 
 
