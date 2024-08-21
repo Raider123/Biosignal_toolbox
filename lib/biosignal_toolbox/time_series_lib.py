@@ -491,13 +491,15 @@ class Timeseries():
 
             for trial_idx in range(0, filtered_windows.shape[0]): 
                 for channel_idx in range(0, filtered_windows.shape[1]):
-                    for index in range(0, filtered_windows.shape[2]): 
-                        for window_idx in range(0, filtered_windows.shape[3]): 
+                    for window_idx in range(0, filtered_windows.shape[3]): 
+                        for sample_index in range(0, filtered_windows.shape[2]): 
 
-                            if (index < n_var): 
-                                filtered_windows[trial_idx, channel_idx, index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                            if (sample_index < n_var): 
+                                filtered_windows[trial_idx, channel_idx, sample_index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
                             else: 
-                                filtered_windows[trial_idx, channel_idx, index, window_idx] = np.var(self.windows[trial_idx, channel_idx, index-n_var:index, window_idx])
+                                window_var = np.var(self.windows[trial_idx, channel_idx, (sample_index-n_var):sample_index, window_idx])
+                                # print(f"Window var: {window_var}")
+                                filtered_windows[trial_idx, channel_idx, sample_index, window_idx] = window_var
 
             self.windows = filtered_windows
 
@@ -528,6 +530,8 @@ class Timeseries():
                             filtered_epochs[trial_idx, channel_idx, sample_idx] = np.var(self.epochs[trial_idx, channel_idx, sample_idx-n_var:sample_idx])
 
             self.epochs = filtered_epochs
+    
+
 
     def applyMovingAverageFilter(self,  n = 20, apply_to_structures = "windows"): 
 
@@ -1624,7 +1628,7 @@ class Timeseries():
 
 
 
-    def windowContinousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True): 
+    def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True): 
         
         # windows have shape trials, channels, sampels, windows 
         # print(self.events.shape)
@@ -1635,7 +1639,6 @@ class Timeseries():
         stop_idx = self.events[stop_marker_index, 0]
         # print(f"Stop Index EMG: {stop_idx}")
         end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
-        # print(f"End Indices: {end_indices}")
         windows = []
         wind_names = []
         counter = 0
@@ -1679,16 +1682,18 @@ class Timeseries():
         self.windows = selected_windows_arr
         self.window_names = selected_windows
 
-    def windowStandardization(self, norm = False, use_min_max_norm = False):
+    def windowStandardization(self, norm=False, method='z-score'):
         """
         This method can be used to standardize windowed time series data. 
 
         Parameters
         ----------
         norm : bool, optional
-            Boolean flag wheather to normalize the window after standadizing the data, by default False
-        use_min_max_norm : bool, optional
-            If True, a minimum maximum normalization is applied to each window. Otherwise (default) the z-transform is applied, by default False
+            Boolean flag wheather to normalize the window after standardizing the data, by default False
+        method : str, optional
+            If min_max_norm, a minimum maximum normalization is applied to each window.
+            If max_norm, a normalization using the maximas is applied to each window.
+            Otherwise (default) the z-score normalization is applied.
 
         Author
         ------
@@ -1703,14 +1708,16 @@ class Timeseries():
                     # get current window 
                     current_wind = self.windows[trial_idx, channel_idx, :, window_idx]
                     
-                    if(use_min_max_norm): 
+                    if(method == 'use_min_max_norm'): 
                         
                         current_wind_norm = current_wind - self.calib_mins[channel_idx]
-                        current_wind_norm = current_wind_norm/((self.calib_mins[channel_idx]*-1)+self.calib_maxs[channel_idx])
+                        current_wind_norm_out = current_wind_norm/((self.calib_mins[channel_idx]*-1)+self.calib_maxs[channel_idx])
 
-
+                    elif(method == "max_norm"):
+                        current_wind_norm_out = current_wind/self.calib_maxs[channel_idx]
+                
                     else: 
-                        # apply z-transform 
+                        # apply z-score normalisation 
                         current_wind_norm = current_wind - self.calib_means[channel_idx] 
                         current_wind_norm_out = current_wind_norm/self.calib_stds[channel_idx]  
                         

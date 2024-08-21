@@ -121,12 +121,35 @@ print("")
 # ********************* Preprocessing for data of both networks ********************
 # **********************************************************************************
 
-window_end_indices_x = EMG_Data.windowContinousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 20, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+window_end_indices_x = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 20, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
 
-window_end_indices_y = Quali_Data_Elbow.windowContinousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+window_end_indices_y = Quali_Data_Elbow.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
 # use the EMG_Data.windows if you want to access the windowed data 
 
+#! Plot specific unfiltered windows for debugging
+# plt.plot(EMG_Data.getWindows()[0,2,:,18])
+# plt.show()
+
+#! Variance Filter
+print("Applying Variance filter ...")
 EMG_Data.applyVarianceFilter(n_var = 20, apply_to_structures="windows")
+print("Variance Filter applied!!")
+
+
+#! Plot and print specific variance filtered windows 
+# var_filtered_window_x = EMG_Data.getWindows()
+# print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
+# print(f"Variance filtered windows: {var_filtered_window_x[0,2,:,18]}")
+# plt.plot(var_filtered_window_x[0,2,:,18])
+# plt.show()
+
+#! Normalisation
+#Calculate the maximum value of the entire data (channel-wise)
+EMG_Data.calcCalibStats()
+#Get the max values of each channel from the flattened windows(overlapping)
+_,_,_, data_maxima = EMG_Data.getCalibStats()
+#Normalise the data
+EMG_Data.windowStandardization(method='max_norm')
 
 # here you could actually set the target values I think !
 #EMG_Data.setWindowLabels(target_values_list)
@@ -149,12 +172,12 @@ print(f"Input Feature Dim: {x.shape}")
 print(f"Output Feature Dim: {y.shape}")
 
 #! Split data into training and validation
-# Creating empty train and val arrays
+#Creating empty train and val arrays
 x_train = np.empty(shape=[0,x.shape[1]])
 x_val   = np.empty(shape=[0,x.shape[1]])
 y_train = np.empty(shape=[0,y.shape[1]])
 y_val   = np.empty(shape=[0,y.shape[1]])
-# Loop over the data and split it
+#Loop over the data and split it
 for idx in range(end_idx):
     if idx <= round(split_ratio*end_idx):
         x_train = np.vstack((x_train, x[idx,:]))
@@ -174,7 +197,6 @@ model = AAN_Model()
 MLP_model = MLModel(model = model, type= "keras")
 MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], x_val = x_val, y_val = y_val[:,0], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
 print("all done")
-
 
 
 #! Predict and get results 
