@@ -144,20 +144,26 @@ print("Variance Filter applied!!")
 # plt.show()
 
 #! Normalisation
+print("Performing Normalization with Max Voluntary Contraction ...")
 #Calculate the maximum value of the entire data (channel-wise)
 EMG_Data.calcCalibStats()
 #Get the max values of each channel from the flattened windows(overlapping)
 _,_,_, data_maxima = EMG_Data.getCalibStats()
 #Normalise the data
 EMG_Data.windowStandardization(method='max_norm')
+print("Normalization with Max Voluntary Contraction performed !!")
 
-# here you could actually set the target values I think !
-#EMG_Data.setWindowLabels(target_values_list)
+#! Calculate Neural Activation Force
+print("Replacing sample with its force activation value ...")
+EMG_Data.calculateActivationForceFunction(d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-2)
+print("Replaced each sample with its force activation value !!")
 
 
 #! time domain feature extraction
+print("Extracting features from windowed data ...")
 EMG_Data.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_x)
 Quali_Data_Elbow.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_y)
+print("Feature extraction from windowed data completed !!")
 
 #! input features network 
 x = EMG_Data.getFeatures()
@@ -172,6 +178,7 @@ print(f"Input Feature Dim: {x.shape}")
 print(f"Output Feature Dim: {y.shape}")
 
 #! Split data into training and validation
+print("Splitting train and validation data ...")
 #Creating empty train and val arrays
 x_train = np.empty(shape=[0,x.shape[1]])
 x_val   = np.empty(shape=[0,x.shape[1]])
@@ -185,18 +192,19 @@ for idx in range(end_idx):
     else:
         x_val = np.vstack((x_val, x[idx,:]))
         y_val = np.vstack((y_val, y[idx,:]))
-
+print("Train and validation data generated !!")
 
 #Compile model for right arm
 # self.model_r[joint].compile(loss='mse', optimizer= self.optimizer) # optimizers: adamax, adam,adadelta, nadam with 10/5
 # self.model_r[joint].fit(self.train_inp_r, self.train_out_r[joint].tolist(), epochs = self.np_epoch)
 
 
-#! Load model with norm layer  
+#! Load model with norm layer
+print("Training MLP model ...")  
 model = AAN_Model()
 MLP_model = MLModel(model = model, type= "keras")
 MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], x_val = x_val, y_val = y_val[:,0], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
-print("all done")
+print("All done !!")
 
 
 #! Predict and get results 

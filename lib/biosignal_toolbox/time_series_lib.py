@@ -2,7 +2,8 @@ import sys
 import warnings 
 import numpy as np 
 from time import perf_counter
-import time 
+import time
+import math 
 import matplotlib.pyplot as plt
 import mne
 from scipy import signal as sig
@@ -492,14 +493,14 @@ class Timeseries():
             for trial_idx in range(0, filtered_windows.shape[0]): 
                 for channel_idx in range(0, filtered_windows.shape[1]):
                     for window_idx in range(0, filtered_windows.shape[3]): 
-                        for sample_index in range(0, filtered_windows.shape[2]): 
+                        for sample_idx in range(0, filtered_windows.shape[2]): 
 
-                            if (sample_index < n_var): 
-                                filtered_windows[trial_idx, channel_idx, sample_index, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
+                            if (sample_idx < n_var): 
+                                filtered_windows[trial_idx, channel_idx, sample_idx, window_idx] = 0 # just set values to zero if filterlength is not reached yet 
                             else: 
-                                window_var = np.var(self.windows[trial_idx, channel_idx, (sample_index-n_var):sample_index, window_idx])
+                                window_var = np.var(self.windows[trial_idx, channel_idx, (sample_idx-n_var):sample_idx, window_idx])
                                 # print(f"Window var: {window_var}")
-                                filtered_windows[trial_idx, channel_idx, sample_index, window_idx] = window_var
+                                filtered_windows[trial_idx, channel_idx, sample_idx, window_idx] = window_var
 
             self.windows = filtered_windows
 
@@ -531,7 +532,58 @@ class Timeseries():
 
             self.epochs = filtered_epochs
     
+    def calculateActivationForceFunction(self,d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5):
+        """
+        This function first calculates the neural activation function p(t) by solving the second order difference equation:
+                    p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
+                    where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
+        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
+                    a(t) = e^(Ap(t)) - 1 / e^A - 1
 
+        Parameters
+        ----------
+        d : int, optional
+            electromechanical delay, by default 50
+        c1 : float, optional
+            |c1| < 1, by default 0.5
+        c2 : float, optional
+            |c2|<1, by default -0.5
+        nonlinear_shape_factor : float, optional
+            A belongs to (-3,0) where 0 means linear relation, by default -1.5
+        
+        Author
+        ------
+        Author: Kartik Chari \n
+        Last changed: 21.08.2024 (by Kartik Chari)
+        """
+
+        #! Calculate coefficients of the difference equation
+        beta_1  = c1 + c2
+        beta_2  = c1 * c2
+        gamma   = 1 + beta_1 + beta_2
+        A       = nonlinear_shape_factor
+
+        #! Initialise p(t-1) and p(t-2)
+        p_t_minus_1 = 1.0
+        p_t_minus_2 = 1.0
+
+        #! Initialise a temp calc variable
+        activation_window = np.zeros(self.windows.shape)
+
+        #! Loop over the windows and solve difference equation
+        for trial_idx in range(0, self.windows.shape[0]): 
+                for channel_idx in range(0, self.windows.shape[1]):
+                    for window_idx in range(0, self.windows.shape[3]): 
+                        for sample_idx in range(0, self.windows.shape[2]):
+                            if sample_idx < d:
+                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = self.windows[trial_idx, channel_idx, sample_idx, window_idx]
+                            else:
+                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = (gamma * self.windows[trial_idx, channel_idx, sample_idx-d, window_idx]) - (beta_1 * p_t_minus_1) - (beta_2 * p_t_minus_2)
+                                p_t_minus_2 = p_t_minus_1
+                                p_t_minus_1 = activation_window[trial_idx, channel_idx, sample_idx, window_idx]
+                                
+                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = (math.exp(A*activation_window[trial_idx, channel_idx, sample_idx, window_idx])-1) / (math.exp(A)-1)
+        self.windows = activation_window
 
     def applyMovingAverageFilter(self,  n = 20, apply_to_structures = "windows"): 
 
