@@ -59,7 +59,7 @@ class MLModel:
             print(model.summary())
 
 
-    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test",  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, callbacks = None, loss_fcn = None, optimizer = None, metrics = "accuracy"):
+    def trainModel(self, show_train_results = False, save_trained_model = False, model_filename = "test",  train_epochs = 10, batch_size = 16, shuffle=True, class_weights = None, x_train = None, y_train = None, x_val = None, y_val = None, validation_split=0.2, callbacks = None, loss_fcn = None, optimizer = None, metrics = "accuracy"):
         """
         This method trains a machine learning model that was passed or created
 
@@ -87,6 +87,8 @@ class MLModel:
             The validation data used in the training process. The shape might depend on the input shape of each model, by default None
         y_val : numpy array, optional
             The class labels used for the validation data, by default None
+        validation_split : float, optional
+            The ratio of validation data separated from the training
         callbacks : list, optional
             A callback function passed to be applied in the training procedure, by default None
         loss_fcn : str, optional
@@ -125,7 +127,8 @@ class MLModel:
                                 batch_size= self.batch_size,
                                 shuffle = self.shuffle,
                                 class_weight=self.class_weights,
-                                validation_data = (self.x_val, self.y_val),
+                                validation_split=validation_split,
+                                # validation_data = (self.x_val, self.y_val),
                                 callbacks = self.callbacks)
         
             # history of training process
@@ -154,7 +157,7 @@ class MLModel:
                 ax2.legend()
                 ax2.set_title(self.metrics+" over trained epochs")
 
-                plt.show()
+                # plt.show()
 
             val_acc_values = history_dict["val_"+self.metrics]
 
@@ -235,7 +238,7 @@ class MLModel:
     
     def calcPerformance(self, predictions, labels, encoding = "binary", type="binary", show_results = False):
         """
-        This method calculates the classification or regressin perfomance of a trained model.
+        This method calculates the classification or regression perfomance of a trained model.
         Please note that this is only a helper function inside the class
 
         Parameters
@@ -309,7 +312,7 @@ class MLModel:
                 print("")
 
     
-    def predict(self, data, labels = None,  encoding = "binary", classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None, treshold = None):
+    def predictTarget(self, data, labels = None,  encoding = "binary", classification = True, n_classes = 2, show_results = True, show_pred_time = False, eval_type = "offline", templates = None, threshold = None):
         """
         This method is used to do predictions on new data using a trained model (if training is required)
 
@@ -318,7 +321,7 @@ class MLModel:
         data : numpy array
             The data on which the prediction should be done. The shape depends on the input shape of the model
         labels : numpy array, optional
-            The rue class labels (for a classification task) a 1D-numpy array. Not required for eval_type = "online" since no ground truth labels are available, by default None
+            The true class labels (for a classification task) a 1D-numpy array. Not required for eval_type = "online" since no ground truth labels are available, by default None
         encoding : str, optional
             The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.
         n_classes : int, optional
@@ -331,7 +334,7 @@ class MLModel:
             The type of the evaluation. Can be either "offline" or "online". For "offline" results are shown by default and prediction times can be measured. For "online" only the prediction scores are calculated and not further evaluated into a performance, by default "offline"
         templates : numpy array, optional
             If using the "dtw" or another matching algorithm (unsupervised), the templates with shape (n_channels, n_sampels) (e.g. for the dtw algorithm), by default None
-        treshold : int, optional
+        threshold : int, optional
             Treshold, by default None
 
         Author
@@ -346,7 +349,7 @@ class MLModel:
                 if (show_pred_time): 
                     time1 = perf_counter_ns()
                 
-                print("data shape input ", data.shape)
+                print("Test data input shape: ", data.shape)
                 predictions = self.model(data) # call the model, is a lot faster than using predict method 
                 
                 if(show_pred_time): 
@@ -392,7 +395,7 @@ class MLModel:
                             distances_neg_class.append(dtw_obj_neg_class.distance)
 
 
-                        if(treshold): 
+                        if(threshold): 
                             predictions.append(np.mean(np.array(distances_pos_class))) # predictions are only distances for positive class 
                         else: 
                             predictions.append([np.mean(np.array(distances_neg_class)), np.mean(np.array(distances_pos_class))]) # predictions are mean distances for both classes 
@@ -400,9 +403,9 @@ class MLModel:
                     predictions = np.array(predictions)
                     print("len pos class", len(distances_pos_class))
 
-                    if(treshold): 
+                    if(threshold): 
                         print("Distances:", predictions)
-                        predictions = (predictions < treshold).astype(float)
+                        predictions = (predictions < threshold).astype(float)
                         self.calcPerformance(predictions = predictions, encoding = "binary", show_results = show_results, labels=labels, type="binary")
                     else: 
                         self.calcPerformance(predictions = predictions, encoding = "distance_array", show_results = show_results, labels=labels, type="binary")

@@ -29,7 +29,7 @@ class EEGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None, file_type='individual', outer_key_order_d=[], inner_key_order_d=[]):
         """
         The constructor of the EEGData class. 
         
@@ -53,6 +53,13 @@ class EEGData(Timeseries):
             A numpy array with windowed data (shape: n_trials, n_channels, n_sampels, n_windows), only required for format "Live". 
         data : numpy ndarray, optional 
             The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format).
+        file_type : str, optional
+            Within the "Recorded_LSL_stream" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
+        outer_key_order_d : list, optional
+            Desired sequence of outer keys to concatenate the data, by default order in which the data is read.
+        inner_key_order_d : list, optional
+            Desired sequence of inner keys to concatenate the data, by default order in which the data is read.
+
 
         Attributes
         ----------
@@ -76,7 +83,7 @@ class EEGData(Timeseries):
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 18.04.2024 (by Niklas Kueper)
+        Last changed: 23.08.2024 (by Kartik Chari)
         """
 
         #basic params 
@@ -132,14 +139,40 @@ class EEGData(Timeseries):
                     
                     data = np.concatenate(concat_list)
                 else: 
-                    data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()['0']['complex']
-            # Adding an extra event channel at the end
-            column_of_no_markers = -1 * np.ones((data.shape[0],1))
-            data = np.hstack((data,column_of_no_markers))
-            # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
-            data[0,-1] = 1
-            data[-5,-1] = 1
-            print(f"Data: {data.shape}")
+                    # data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()['0']['complex']
+                    data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()
+                    if isinstance(data,dict):
+                        if file_type == 'combined':
+                            #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array
+                            if outer_key_order_d == [] and inner_key_order_d == []:
+                                weights_order = list(data.keys())
+                                type_order = list(next(iter(data.values())).keys())
+                            elif outer_key_order_d == [] and inner_key_order_d != []:
+                                weights_order = list(data.keys())
+                                type_order = inner_key_order_d
+                            elif outer_key_order_d != [] and inner_key_order_d == []:
+                                weights_order = outer_key_order_d
+                                type_order = list(next(iter(data.values())).keys())
+                            else:
+                                weights_order = outer_key_order_d
+                                type_order = inner_key_order_d
+
+                            tmp_array_of_lists = []
+                            for weight in weights_order:
+                                for mov_type in type_order:
+                                    tmp_array_of_lists.append(data[weight][mov_type])
+                            data = np.concatenate(tmp_array_of_lists)
+                        elif file_type == 'individual':
+                            data = data[list(data.keys())[0]][list(next(iter(data.values())).keys())[0]]
+
+                # Adding an extra event channel at the end for qualisys markers
+                column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                data = np.hstack((data,column_of_no_markers))
+                # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
+                data[0,-1] = 1
+                data[-5,-1] = 1
+                print(f"Data: {data.shape}")
+
             self.__fsamp = f_samp
             self.__channel_names = channel_names
 
