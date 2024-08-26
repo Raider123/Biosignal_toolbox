@@ -55,7 +55,7 @@ train_file = ["aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_complex_0g
               "aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_grasp_1500g.vhdr",
               "aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_front_1500g.vhdr",
               "aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_side_1500g.vhdr"]
-target_file = ["aan_quali_data/HW90_quali_torque_elbow", "aan_quali_data/HW90_quali_torque_front", "aan_quali_data/HW90_quali_torque_side"]
+target_file = ["aan_quali_data/old/HW90_quali_torque_elbow", "aan_quali_data/old/HW90_quali_torque_front", "aan_quali_data/old/HW90_quali_torque_side"]
 
 #! Read Qualisys data param
 weights_order_d=['0','500','1000','1500']
@@ -63,8 +63,8 @@ mov_type_order_d=['complex', 'curl','grasp','front','side']
 
 #! subject params 
 subject = "HW90"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
-scenario_name = "complex"
-result_file_name = "_0g"
+scenario_name = "all_combined"
+result_file_name = "_allg"
 
 #! fcn model parameter 
 n_epochs = 20 #20 training epochs
@@ -112,6 +112,7 @@ perf_results_total_MLP = []
 EMG_Data = EEGData(format = "Brainvision", filenames = train_file, data_path = data_path)
 
 #! Plotting the raw EMG data
+# plt.figure()
 # plt.plot(np.arange(0,EMG_Data.data[3,:].shape[0], 1)/1000,EMG_Data.data[4,:]*1e6)
 # plt.title("Raw EMG plot for Channel 3")
 # plt.grid()
@@ -144,6 +145,7 @@ window_end_indices_y = Quali_Data_Elbow.windowContinuousData(startmarkernumber =
 # use the EMG_Data.windows if you want to access the windowed data 
 
 #! Plot specific unfiltered windows for debugging
+# plt.figure()
 # plt.plot(EMG_Data.getWindows()[0,2,:,18])
 # plt.show()
 
@@ -157,6 +159,7 @@ print("Variance Filter applied!!\n")
 # var_filtered_window_x = EMG_Data.getWindows()
 # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
 # print(f"Variance filtered windows: {var_filtered_window_x[0,2,:,18]}")
+# plt.figure()
 # plt.plot(var_filtered_window_x[0,2,:,18])
 # plt.show()
 
@@ -227,9 +230,9 @@ model = AAN_Model()
 MLP_model = MLModel(model = model, type= "keras")
 
 #! Train model
-# print("Training MLP model ...") 
-# MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
-# print("MLP training done !!\n")
+print("Training MLP model ...") 
+MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
+print("MLP training done !!\n")
 
 #! Load saved model
 print("Loading saved MLP model ...")
@@ -244,6 +247,7 @@ perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP)
 
 #! Plotting the prediction results
+plt.figure()
 x_samples = np.arange(0, len(y_test[:,0]),1)
 plt.plot(x_samples, y_test[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP, label='predicted torque')

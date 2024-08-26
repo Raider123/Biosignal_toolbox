@@ -35,14 +35,14 @@ data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
 # use LSL file recorded 
-train_file = ["aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_complex_0g.vhdr"]
-target_file = ["aan_quali_data/quali_torque_elbow", "aan_quali_data/quali_torque_front", "aan_quali_data/quali_torque_side"]
+train_file = ["aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_complex_1000g.vhdr"]
+target_file = ["aan_quali_data/quali_torque_elbow_1000g_complex", "aan_quali_data/quali_torque_front_1000g_complex", "aan_quali_data/quali_torque_side_1000g_complex"]
 
 
 #! subject params 
 subject = "HW90"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
 scenario_name = "complex"
-result_file_name = "_0g"
+result_file_name = "_1000g"
 
 #! fcn model parameter 
 n_epochs = 20 #20 training epochs
