@@ -45,7 +45,7 @@ scenario_name = "complex"
 result_file_name = "_1000g"
 
 #! fcn model parameter 
-n_epochs = 20 #20 training epochs
+n_epochs = 150 #20 training epochs
 n_batch_size = 8
 
 #! training params 
@@ -63,8 +63,13 @@ window_step_y = int(window_step_x/4)
 
 #! Window params for feature extraction !
 feature_size = 20
-feature_indices_windows_x = np.arange(window_size_x-feature_size, window_size_x, step = 1) #980,1000 means last 20 samples will be extracted from a window as a sample
-feature_indices_windows_y = np.arange(window_size_y-1, window_size_y, step = 1)
+## 980,1000 means last 20 samples will be extracted from a window as a sample
+# feature_indices_windows_x = np.arange(window_size_x-feature_size, window_size_x, step = 1) 
+# feature_indices_windows_y = np.arange(window_size_y-1, window_size_y, step = 1)
+
+
+feature_indices_windows_x = np.arange(round(window_size_x/2)-feature_size/2, round(window_size_x/2)+feature_size/2, step = 1)
+feature_indices_windows_y = np.arange(round(window_size_y/2)-1, round(window_size_y/2), step = 1)
 
 #! Param for train/val data split
 train_test_split_ratio = 0.9   # 0.x means x% of data will be training data and rest val data
@@ -200,7 +205,7 @@ print("Train and test data generated !!\n")
 # self.model_r[joint].fit(self.train_inp_r, self.train_out_r[joint].tolist(), epochs = self.np_epoch)
 
 # **********************************************************************************
-# *************************** Train, load or test Model ****************************
+# ************************ Train, Load and Test MLP Model **************************
 # **********************************************************************************
 
 #! Init model with norm layer
@@ -224,11 +229,24 @@ MLP_model.predictTarget(data = x_test, labels = y_test[:,0], classification=Fals
 perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP)
 
+# **********************************************************************************
+# **************************** Post Prediction Filtering ***************************
+# **********************************************************************************
+filtered_perf_results_MPL = np.zeros(perf_results_MLP.shape)
+filter_window_size = 6
+for idx in range(len(perf_results_MLP)):
+    if idx < filter_window_size:
+        filtered_perf_results_MPL[idx] = perf_results_MLP[idx]/filter_window_size
+    else:
+        filtered_perf_results_MPL[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
+        # filtered_perf_results_MPL[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+
+
 #! Plotting the prediction results
 plt.figure()
 x_samples = np.arange(0, len(y_test[:,0]),1)
 plt.plot(x_samples, y_test[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, perf_results_MLP, label='predicted torque')
+plt.plot(x_samples, filtered_perf_results_MPL, label='predicted torque')
 plt.legend()
 plt.grid()
 
