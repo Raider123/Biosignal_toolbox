@@ -46,7 +46,7 @@ result_file_name = "_1000g"
 
 #! fcn model parameter 
 n_epochs = 150 #20 training epochs
-n_batch_size = 8
+n_batch_size = 32
 
 #! training params 
 loss_fcn =  "mse" #--> need to check 
@@ -67,7 +67,7 @@ feature_size = 20
 # feature_indices_windows_x = np.arange(window_size_x-feature_size, window_size_x, step = 1) 
 # feature_indices_windows_y = np.arange(window_size_y-1, window_size_y, step = 1)
 
-
+## Indices to extract features from the middle of the window
 feature_indices_windows_x = np.arange(round(window_size_x/2)-feature_size/2, round(window_size_x/2)+feature_size/2, step = 1)
 feature_indices_windows_y = np.arange(round(window_size_y/2)-1, round(window_size_y/2), step = 1)
 
