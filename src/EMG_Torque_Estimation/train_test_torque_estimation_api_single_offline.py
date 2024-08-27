@@ -13,7 +13,7 @@ from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 ## models 
 from biosignal_toolbox.models.AANModel import AAN_Model
-## data processing tools
+## signal processing tools
 # sys.path.insert(0, abspath(join(dirname(__file__), '../../')))
 # from variance_tools_api import variance_tools as vt
 ## disable GPU for testing
@@ -45,9 +45,9 @@ n_epochs = 150
 n_batch_size = 32
 
 #! training params 
-loss_fcn =  "mse"
-optimizer  = "nadam"
-metrics = "mse"
+loss_fcn    =  "mse"
+optimizer   = "nadam"
+metrics     = "mse"
 
 #! window wise metric evaluation
 # Window params for EMG input data
@@ -188,7 +188,6 @@ print("Feature extraction from windowed data completed !!\n")
 
 #! input features network 
 x = EMG_Data.getFeatures()
-# y = EMG_Data.getLabels()
 y = Quali_Data_Elbow.getFeatures()[:,0:2]
 
 #! Ensure same number of rows for imput and target features
@@ -214,10 +213,6 @@ for idx in range(end_idx):
         x_test = np.vstack((x_test, x[idx,:]))
         y_test = np.vstack((y_test, y[idx,:]))
 print("Train and test data generated !!\n")
-
-#Compile model for right arm
-# self.model_r[joint].compile(loss='mse', optimizer= self.optimizer) # optimizers: adamax, adam,adadelta, nadam with 10/5
-# self.model_r[joint].fit(self.train_inp_r, self.train_out_r[joint].tolist(), epochs = self.np_epoch)
 
 # **********************************************************************************
 # ************************ Train, Load and Test MLP Model **************************
