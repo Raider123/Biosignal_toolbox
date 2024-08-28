@@ -38,7 +38,7 @@ target_file_prefix = ["aan_quali_data/quali_torque_elbow_", "aan_quali_data/qual
 
 #! Read Qualisys data param
 # weights_order_d=['0','500','1000','1500']
-weights_order_d=['0']
+weights_order_d=['0','500']
 
 # mov_type_order_d=['complex', 'curl','grasp','front','side']
 mov_type_order_d=['grasp']
@@ -46,7 +46,7 @@ mov_type_order_d=['grasp']
 #! subject params 
 subject = "HW90"
 scenario_name = "grasp"
-result_file_name = "_0g"
+result_file_name = "_0g_500g_1000g"
 
 #! fcn model parameter 
 n_epochs = 1000
@@ -131,7 +131,7 @@ for wgt_idx in range(len(weights_order_d)):
         # **********************************************************************************
 
         #! High pass filter 20 Hz
-        EMG_Data.highPassFilter(cutoff_freq=20, order=2, fs=1000, type="butter")
+        EMG_Data.highPassFilter(cutoff_freq=30, order=2, fs=1000, type="butter")
 
         #! Plotting HP filtered data
         # plt.figure()
