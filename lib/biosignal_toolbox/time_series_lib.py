@@ -94,7 +94,7 @@ class Timeseries():
         # provided data formats 
         self.raw_obj = raw_obj
         self.data = data#
-        self.filtered_data = np.zeros(self.data.shape)
+        self.filtered_data = self.data
         self.windows = windows 
         self.window_names = None 
         self.epochs = epochs 

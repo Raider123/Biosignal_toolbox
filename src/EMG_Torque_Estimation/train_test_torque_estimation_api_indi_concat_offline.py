@@ -37,16 +37,19 @@ train_file_prefix = "aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_"
 target_file_prefix = ["aan_quali_data/quali_torque_elbow_", "aan_quali_data/quali_torque_front_", "aan_quali_data/quali_torque_side_"]
 
 #! Read Qualisys data param
-weights_order_d=['0','500','1000','1500']
-mov_type_order_d=['complex', 'curl','grasp','front','side']
+# weights_order_d=['0','500','1000','1500']
+weights_order_d=['0']
+
+# mov_type_order_d=['complex', 'curl','grasp','front','side']
+mov_type_order_d=['grasp']
 
 #! subject params 
 subject = "HW90"
-scenario_name = "all_indi"
-result_file_name = "_allg"
+scenario_name = "grasp"
+result_file_name = "_0g"
 
 #! fcn model parameter 
-n_epochs = 150
+n_epochs = 1000
 n_batch_size = 32
 
 #! training params 
@@ -56,14 +59,14 @@ metrics     = "mse"
 
 #! window wise metric evaluation
 # Window params for EMG input data
-window_size_x = 1000 # windowsize in samples 
+window_size_x = 100 # windowsize in samples 
 window_step_x = 100
 # Window params for target torque values
 window_size_y = int(window_size_x/4)
 window_step_y = int(window_step_x/4)
 
 #! Window params for feature extraction !
-feature_size = 20
+feature_size = 10
 ## Indices to extract features from the end of the window
 # feature_indices_windows_x = np.arange(window_size_x-feature_size, window_size_x, step = 1) 
 # feature_indices_windows_y = np.arange(window_size_y-1, window_size_y, step = 1)
@@ -84,8 +87,11 @@ perf_results_total_MLP = []
 
 #! Initialise arrays to append data
 length_of_each_feature_window = feature_size * 10
-x_combined = np.empty(shape=[0,length_of_each_feature_window])
-y_combined = np.empty(shape=[0,2])
+x_train_combined = np.empty(shape=[0,length_of_each_feature_window])
+y_train_combined = np.empty(shape=[0,2])
+
+x_test_combined = np.empty(shape=[0,length_of_each_feature_window])
+y_test_combined = np.empty(shape=[0,2])
 # *********************************************************************************
 # ***************** Load train, test, val sets for every iteration ****************
 # *********************************************************************************
@@ -162,7 +168,7 @@ for wgt_idx in range(len(weights_order_d)):
         print("Normalization with Max Voluntary Contraction performed !!\n")
 
         #! Low pass filter 10 Hz to smoothen the signal
-        EMG_Data.lowPassFilter(cutoff_freq=10, order=2, fs=1000, type="butter")
+        EMG_Data.lowPassFilter(cutoff_freq=5, order=2, fs=1000, type="butter")
 
         #! Plot normalised and smoothened data
         # plt.figure()
@@ -175,7 +181,7 @@ for wgt_idx in range(len(weights_order_d)):
 
         #! Calculate Neural Activation Force
         print("Replacing sample with its force activation value ...")
-        EMG_Data.calculateActivationForceFunctionCPP(d=30, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5)
+        EMG_Data.calculateActivationForceFunctionCPP(d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5)
         print("Replaced each sample with its force activation value !!\n")
 
         #! Windowing the filtered data
@@ -205,29 +211,22 @@ for wgt_idx in range(len(weights_order_d)):
 
         #! Ensure same number of rows for imput and target features
         end_idx = x.shape[0] if x.shape[0] <= y.shape[0] else y.shape[0]
-        x_combined = np.vstack((x_combined, x[0:end_idx,:]))
-        y_combined = np.vstack((y_combined, y[0:end_idx,0:2]))
-        print(f"Input Feature Dim: {x_combined.shape}")
-        print(f"Output Feature Dim: {y_combined.shape}")
-
-################ Ref: End for looping ##################
+        x = x[0:end_idx,:]
+        y = y[0:end_idx,0:2]
+        print(f"Input Feature Dim: {x.shape}")
+        print(f"Output Feature Dim: {y.shape}")
  
-#! Split data into train and test
-print("Splitting train and test data ...")
-#Creating empty train and val arrays
-x_train = np.empty(shape=[0,x_combined.shape[1]])
-x_test  = np.empty(shape=[0,x_combined.shape[1]])
-y_train = np.empty(shape=[0,y_combined.shape[1]])
-y_test  = np.empty(shape=[0,y_combined.shape[1]])
-#Loop over the data and split it
-for idx in range(x_combined.shape[0]):
-    if idx <= round(train_test_split_ratio*x_combined.shape[0]):
-        x_train = np.vstack((x_train, x_combined[idx,:]))
-        y_train = np.vstack((y_train, y_combined[idx,:]))
-    else:
-        x_test = np.vstack((x_test, x_combined[idx,:]))
-        y_test = np.vstack((y_test, y_combined[idx,:]))
-print("Train and test data generated !!\n")
+        #! Split data into train and test
+        print("Splitting train and test data ...")
+        #Loop over the data and split it
+        for idx in range(x.shape[0]):
+            if idx <= round(train_test_split_ratio*x.shape[0]):
+                x_train_combined = np.vstack((x_train_combined, x[idx,:]))
+                y_train_combined = np.vstack((y_train_combined, y[idx,:]))
+            else:
+                x_test_combined = np.vstack((x_test_combined, x[idx,:]))
+                y_test_combined = np.vstack((y_test_combined, y[idx,:]))
+        print("Train and test data generated !!\n")
 
 # **********************************************************************************
 # *************************** Train, load or test Model ****************************
@@ -239,7 +238,7 @@ MLP_model = MLModel(model = model, type= "keras")
 
 #! Train model
 print("Training MLP model ...") 
-MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train, y_train= y_train[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
+MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
 print("MLP training done !!\n")
 
 #! Load saved model
@@ -249,7 +248,7 @@ print("Saved MLP model loaded !!\n")
 
 #! Predict and get results 
 print("Predicting joint torques ...")
-MLP_model.predictTarget(data = x_test, labels = y_test[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+MLP_model.predictTarget(data = x_test_combined, labels = y_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
 
 perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP)
@@ -257,21 +256,29 @@ perf_results_MLP = MLP_model.getPredictionScores()
 # **********************************************************************************
 # **************************** Post Prediction Filtering ***************************
 # **********************************************************************************
-filtered_perf_results_MPL = np.zeros(perf_results_MLP.shape)
+filtered_perf_results_MLP = np.zeros(perf_results_MLP.shape)
 filter_window_size = 3
 for idx in range(len(perf_results_MLP)):
     if idx < filter_window_size:
-        filtered_perf_results_MPL[idx] = perf_results_MLP[idx]/filter_window_size
+        filtered_perf_results_MLP[idx] = perf_results_MLP[idx]
     else:
-        # filtered_perf_results_MPL[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
-        filtered_perf_results_MPL[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
-        filtered_perf_results_MPL[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+        filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+        # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
+        # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
 
-#! Plotting the prediction results
+#! Plotting the filtered prediction results
 plt.figure()
-x_samples = np.arange(0, len(y_test[:,0]),1)
-plt.plot(x_samples, y_test[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MPL, label='predicted torque')
+x_samples = np.arange(0, len(y_test_combined[:,0]),1)
+plt.plot(x_samples, y_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, filtered_perf_results_MLP, label='predicted torque')
+plt.legend()
+plt.grid()
+
+#! Plotting the raw prediction results
+plt.figure()
+x_samples = np.arange(0, len(y_test_combined[:,0]),1)
+plt.plot(x_samples, y_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, perf_results_MLP, label='predicted torque')
 plt.legend()
 plt.grid()
 

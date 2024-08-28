@@ -4,7 +4,7 @@ from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.layers import Normalization
 
 
-def AAN_Model(layer1_neurons = 200, layer2_neurons = 100, feature_dim = 200): 
+def AAN_Model(layer1_neurons = 100, layer2_neurons = 20, feature_dim = 100): 
 
     model = Sequential()
     
