@@ -45,8 +45,8 @@ mov_type_order_d=['grasp']
 
 #! subject params 
 subject = "HW90"
-scenario_name = "grasp"
-result_file_name = "_0g_500g_1000g"
+scenario_name = "complex"
+result_file_name = "_0g_500g"
 
 #! fcn model parameter 
 n_epochs = 1000
