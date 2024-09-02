@@ -163,6 +163,8 @@ class MLModel:
 
         if(save_trained_model): 
             save_model(self.model, model_filename+".h5") # save 
+        
+        return loss_values[-1], val_loss_values[-1]
 
 
     def loadModel(self, filename, path = ""): 

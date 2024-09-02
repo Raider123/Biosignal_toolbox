@@ -38,15 +38,15 @@ target_file_prefix = ["aan_quali_data/quali_torque_elbow_", "aan_quali_data/qual
 
 #! Read Qualisys data param
 # weights_order_d=['0','500','1000','1500']
-weights_order_d=['0','500']
+weights_order_d=['0']
 
 # mov_type_order_d=['complex', 'curl','grasp','front','side']
 mov_type_order_d=['grasp']
 
 #! subject params 
 subject = "HW90"
-scenario_name = "complex"
-result_file_name = "_0g_500g"
+scenario_name = "grasp"
+result_file_name = "_0g"
 
 #! fcn model parameter 
 n_epochs = 1000
@@ -88,10 +88,14 @@ perf_results_total_MLP = []
 #! Initialise arrays to append data
 length_of_each_feature_window = feature_size * 10
 x_train_combined = np.empty(shape=[0,length_of_each_feature_window])
-y_train_combined = np.empty(shape=[0,2])
+y_e_train_combined = np.empty(shape=[0,2])
+y_f_train_combined = np.empty(shape=[0,2])
+y_s_train_combined = np.empty(shape=[0,2])
 
 x_test_combined = np.empty(shape=[0,length_of_each_feature_window])
-y_test_combined = np.empty(shape=[0,2])
+y_e_test_combined = np.empty(shape=[0,2])
+y_f_test_combined = np.empty(shape=[0,2])
+y_s_test_combined = np.empty(shape=[0,2])
 # *********************************************************************************
 # ***************** Load train, test, val sets for every iteration ****************
 # *********************************************************************************
@@ -115,10 +119,10 @@ for wgt_idx in range(len(weights_order_d)):
         channel_names_t = ['right', 'left', 'marker']
         print("Creating Quali Elbow object!!")
         Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
-        # print("Creating Quali Shoulder Front object!!")
-        # Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
-        # print("Creating Quali Shoulder Side object!!")
-        # Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
+        print("Creating Quali Shoulder Front object!!")
+        Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
+        print("Creating Quali Shoulder Side object!!")
+        Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
 
 
         channel_names = EMG_Data.getChannelNames()
@@ -185,9 +189,13 @@ for wgt_idx in range(len(weights_order_d)):
         print("Replaced each sample with its force activation value !!\n")
 
         #! Windowing the filtered data
-        window_end_indices_x = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 20, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True, choose_data="filtered_data")
+        _ = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 20, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True, choose_data="filtered_data")
 
-        window_end_indices_y = Quali_Data_Elbow.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+        _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+
+        _ = Quali_Data_Front.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+
+        _ = Quali_Data_Side.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
         # use the EMG_Data.windows if you want to access the windowed data 
 
         #! Plot specific filtered windows for debugging
@@ -203,18 +211,24 @@ for wgt_idx in range(len(weights_order_d)):
         print("Extracting features from windowed data ...")
         EMG_Data.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_x)
         Quali_Data_Elbow.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_y)
+        Quali_Data_Front.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_y)
+        Quali_Data_Side.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows_y)
         print("Feature extraction from windowed data completed !!\n")
 
         #! input features network 
         x = EMG_Data.getFeatures()
-        y = Quali_Data_Elbow.getFeatures()[:,0:2]
+        y_e = Quali_Data_Elbow.getFeatures()[:,0:2]
+        y_f = Quali_Data_Front.getFeatures()[:,0:2]
+        y_s = Quali_Data_Side.getFeatures()[:,0:2]
 
         #! Ensure same number of rows for imput and target features
-        end_idx = x.shape[0] if x.shape[0] <= y.shape[0] else y.shape[0]
+        end_idx = x.shape[0] if x.shape[0] <= y_e.shape[0] else y_e.shape[0]
         x = x[0:end_idx,:]
-        y = y[0:end_idx,0:2]
+        y_e = y_e[0:end_idx,0:2]
+        y_f = y_f[0:end_idx,0:2]
+        y_s = y_s[0:end_idx,0:2]
         print(f"Input Feature Dim: {x.shape}")
-        print(f"Output Feature Dim: {y.shape}")
+        print(f"Output Feature Dim: {y_e.shape}")
  
         #! Split data into train and test
         print("Splitting train and test data ...")
@@ -222,10 +236,14 @@ for wgt_idx in range(len(weights_order_d)):
         for idx in range(x.shape[0]):
             if idx <= round(train_test_split_ratio*x.shape[0]):
                 x_train_combined = np.vstack((x_train_combined, x[idx,:]))
-                y_train_combined = np.vstack((y_train_combined, y[idx,:]))
+                y_e_train_combined = np.vstack((y_e_train_combined, y_e[idx,:]))
+                y_f_train_combined = np.vstack((y_f_train_combined, y_f[idx,:]))
+                y_s_train_combined = np.vstack((y_s_train_combined, y_s[idx,:]))
             else:
                 x_test_combined = np.vstack((x_test_combined, x[idx,:]))
-                y_test_combined = np.vstack((y_test_combined, y[idx,:]))
+                y_e_test_combined = np.vstack((y_e_test_combined, y_e[idx,:]))
+                y_f_test_combined = np.vstack((y_f_test_combined, y_f[idx,:]))
+                y_s_test_combined = np.vstack((y_s_test_combined, y_s[idx,:]))
         print("Train and test data generated !!\n")
 
 # **********************************************************************************
@@ -233,52 +251,112 @@ for wgt_idx in range(len(weights_order_d)):
 # **********************************************************************************
 
 #! Init model with norm layer
-model = AAN_Model()
-MLP_model = MLModel(model = model, type= "keras")
+model_e = AAN_Model()
+MLP_model_e = MLModel(model = model_e, type= "keras")
+model_f = AAN_Model()
+MLP_model_f = MLModel(model = model_f, type= "keras")
+model_s = AAN_Model()
+MLP_model_s = MLModel(model = model_s, type= "keras")
 
 #! Train model
-print("Training MLP model ...") 
-MLP_model.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
-print("MLP training done !!\n")
+print("Training MLP model for elbow joint...") 
+MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
+print("MLP training for elbow done !!\n")
+
+print("Training MLP model for shoulder front joint...") 
+MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
+print("MLP training for front done !!\n")
+
+print("Training MLP model for shoulder side joint...") 
+MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True)
+print("MLP training for side done !!\n")
 
 #! Load saved model
-print("Loading saved MLP model ...")
-MLP_model.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model", path=data_path)
-print("Saved MLP model loaded !!\n")
+# print("Loading saved MLP models ...")
+# MLP_model_e.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", path=data_path)
+# MLP_model_f.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_front", path=data_path)
+# MLP_model_s.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_side", path=data_path)
+# print("Saved MLP models loaded !!\n")
 
 #! Predict and get results 
 print("Predicting joint torques ...")
-MLP_model.predictTarget(data = x_test_combined, labels = y_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+MLP_model_e.predictTarget(data = x_test_combined, labels = y_e_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+MLP_model_f.predictTarget(data = x_test_combined, labels = y_f_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+MLP_model_s.predictTarget(data = x_test_combined, labels = y_s_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
 
-perf_results_MLP = MLP_model.getPredictionScores()
-# print(perf_results_MLP)
+perf_results_MLP_e = MLP_model_e.getPredictionScores()
+perf_results_MLP_f = MLP_model_f.getPredictionScores()
+perf_results_MLP_s = MLP_model_s.getPredictionScores()
+# print(perf_results_MLP_e)
 
 # **********************************************************************************
 # **************************** Post Prediction Filtering ***************************
 # **********************************************************************************
-filtered_perf_results_MLP = np.zeros(perf_results_MLP.shape)
+filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
+filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
+filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
+
 filter_window_size = 3
-for idx in range(len(perf_results_MLP)):
+
+for idx in range(len(perf_results_MLP_e)):
     if idx < filter_window_size:
-        filtered_perf_results_MLP[idx] = perf_results_MLP[idx]
+        filtered_perf_results_MLP_e[idx] = perf_results_MLP_e[idx]
+        filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
+        filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
     else:
-        filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+        filtered_perf_results_MLP_e[idx] = np.median(perf_results_MLP_e[idx-filter_window_size:idx])
+        filtered_perf_results_MLP_f[idx] = np.median(perf_results_MLP_f[idx-filter_window_size:idx])
+        filtered_perf_results_MLP_s[idx] = np.median(perf_results_MLP_s[idx-filter_window_size:idx])
         # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
         # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
 
 #! Plotting the filtered prediction results
 plt.figure()
-x_samples = np.arange(0, len(y_test_combined[:,0]),1)
-plt.plot(x_samples, y_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP, label='predicted torque')
+x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
+plt.title("Elbow Joint")
+plt.legend()
+plt.grid()
+
+plt.figure()
+x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
+plt.title("Shoulder Front Joint")
+plt.legend()
+plt.grid()
+
+plt.figure()
+x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
+plt.title("Shoulder Side Joint")
 plt.legend()
 plt.grid()
 
 #! Plotting the raw prediction results
 plt.figure()
-x_samples = np.arange(0, len(y_test_combined[:,0]),1)
-plt.plot(x_samples, y_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, perf_results_MLP, label='predicted torque')
+x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
+plt.title("Elbow Joint Raw")
+plt.legend()
+plt.grid()
+
+plt.figure()
+x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
+plt.title("Shoulder Front Joint Raw")
+plt.legend()
+plt.grid()
+
+plt.figure()
+x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
+plt.title("Shoulder Side Joint Raw")
 plt.legend()
 plt.grid()
 

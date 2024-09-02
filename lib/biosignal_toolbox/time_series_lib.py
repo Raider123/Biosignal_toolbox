@@ -2904,6 +2904,44 @@ class Timeseries():
                     activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
         self.filtered_data = activation_data
 
+    def calculateActivationForceFunctionCPPNew(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
+        """
+        This function first calculates the neural activation function p(t) by solving the second order difference equation:
+                    p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
+                    where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
+        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
+                    a(t) = e^(Ap(t)) - 1 / e^A - 1
+        
+        Author
+        ------
+        Author: Kartik Chari \n
+        Last changed: 21.08.2024 (by Kartik Chari)
+        """
+        #! Calculate coefficients of the difference equation
+        beta_1  = b1
+        beta_2  = b2
+        gamma   = g
+        A       = nonlinear_shape_factor
+
+        #! Initialise p(t-1) and p(t-2)
+        p_t_minus_1 = 1.0
+        p_t_minus_2 = 1.0
+
+        #! Initialise a temp calc variable
+        activation_data = np.zeros(self.filtered_data.shape)
+
+        #! Loop over the windows and solve difference equation
+        for channel_idx in range(0, activation_data.shape[0]):
+            for sample_idx in range(0, activation_data.shape[1]):
+                if sample_idx < d:
+                    activation_data[channel_idx, sample_idx] = self.filtered_data[channel_idx, sample_idx]/3
+                else:
+                    activation_data[channel_idx, sample_idx] = (gamma * self.filtered_data[channel_idx, sample_idx-d]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
+                    p_t_minus_2 = p_t_minus_1
+                    p_t_minus_1 = activation_data[channel_idx, sample_idx]
+                    
+                    activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
+        self.filtered_data = activation_data
 
 
 class OnlineTimeseriesStreaming(): 
