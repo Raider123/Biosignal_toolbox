@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 # # own libs 
 from biosignal_toolbox.eeg_lib import EEGData
+from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
@@ -20,7 +21,8 @@ from biosignal_toolbox.models.AANModel import AAN_Model
 
 # disable GPU for testing
 #tf.config.set_visible_devices([], 'GPU') # disable now 
-
+import warnings
+warnings.filterwarnings('ignore')
 
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
@@ -29,41 +31,58 @@ from biosignal_toolbox.models.AANModel import AAN_Model
 # own libs
 proj_path = "/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox"
 
-data_path = proj_path+"/data/"
-results_path = proj_path+"/results/"
+data_path = proj_path+"/data/m-rock_demo/"
+# results_path = proj_path+"/results/"
 
 #! Files for training
-train_file_prefix = "aan_emg_data/HW90/20170317_r_HW90_EMG_Assist_as_needed_"
-target_file_prefix = ["aan_quali_data/quali_torque_elbow_", "aan_quali_data/quali_torque_front_", "aan_quali_data/quali_torque_side_"]
+train_file_prefix = "emg_data/09092024_BR07D_"
+target_file_prefix = ["quali_data/quali_torque_elbow_", "quali_data/quali_torque_front_", "quali_data/quali_torque_side_"]
 
 #! Read Qualisys data param
-# weights_order_d=['0','500','1000','1500']
-weights_order_d=['0','500','1000']
+# weights_d = ['0g', '1000g']
+weights_d = ['0g']
 
-# mov_type_order_d=['complex', 'curl','grasp','front','side']
-mov_type_order_d=['grasp']
+# mov_type_d=['complex', 'grasp']
+mov_type_d=['grasp']
+
+# set_num_d = ['1','2','3','4','5','6']
+set_num_d = ['5','6']
 
 #! subject params 
-subject = "HW90"
-scenario_name = "grasp"
-result_file_name = "_0g_500g_1000g"
+subject = "BR07D"
+scenario_name = mov_type_d[0]
+result_file_name = '_' + weights_d[0]
+
+#! emg params
+channel_names_i = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
 
 #! fcn model parameter 
-n_epochs = 600
-n_batch_size = 32
+n_epochs = 500
+n_batch_size = 16
 
 #! training params 
 loss_fcn    =  "mse" 
 optimizer   = "nadam"
 metrics     = "mse"
 
+#! Param for train/val data split
+train_test_split_ratio = 0.9   # 0.x means x% of data will be training data and rest val data
+validation_split = 0.2
+
+#! init performance results list
+perf_results_total_MLP = []
+
+# init early stopping 
+early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=100,verbose=0,mode="auto",baseline=None,restore_best_weights=False)
+# early_callback = None
+
 #! window wise metric evaluation
 # Window params for EMG input data
-window_size_x = 100 # windowsize in samples 
-window_step_x = 100
+window_size_x = 50 # windowsize in samples 
+window_step_x = 50
 # Window params for target torque values
-window_size_y = int(window_size_x/4)
-window_step_y = int(window_step_x/4)
+window_size_y = window_size_x
+window_step_y = window_step_x
 
 #! Window params for feature extraction !
 feature_size = 10
@@ -75,19 +94,8 @@ feature_indices_windows_y = np.arange(window_size_y-1, window_size_y, step = 1)
 # feature_indices_windows_x = np.arange(round(window_size_x/2)-feature_size/2, round(window_size_x/2)+feature_size/2, step = 1)
 # feature_indices_windows_y = np.arange(round(window_size_y/2)-1, round(window_size_y/2), step = 1)
 
-#! Param for train/val data split
-train_test_split_ratio = 0.9   # 0.x means x% of data will be training data and rest val data
-validation_split = 0.2
-
-#! init performance results list
-perf_results_total_MLP = []
-
-# init early stopping 
-early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=50,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
-# early_callback = None
-
 #! Initialise arrays to append data
-length_of_each_feature_window = feature_size * 10
+length_of_each_feature_window = feature_size * int(len(channel_names_i))
 x_train_combined = np.empty(shape=[0,length_of_each_feature_window])
 y_e_train_combined = np.empty(shape=[0,2])
 y_f_train_combined = np.empty(shape=[0,2])
@@ -100,17 +108,17 @@ y_s_test_combined = np.empty(shape=[0,2])
 # *********************************************************************************
 # ***************** Load train, test, val sets for every iteration ****************
 # *********************************************************************************
-for wgt_idx in range(len(weights_order_d)):
-    for typ_idx in range(len(mov_type_order_d)):
+for typ_idx in range(len(mov_type_d)):
+    for set_idx in range(len(set_num_d)):
 
         #! Loading and epoching for training   
-        #data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
-        EMG_Data = EEGData(format = "Brainvision", filenames = [train_file_prefix + mov_type_order_d[typ_idx] + '_' + weights_order_d[wgt_idx] + 'g.vhdr'], data_path = data_path)
+        # EMG_Data = EEGData(format = "Brainvision", filenames = [train_file_prefix + mov_type_d[typ_idx] + '_' + weights_d[wgt_idx] + 'g.vhdr'], data_path = data_path)
+        EMG_Data = EMGData(format = "ANTmini", filenames = [train_file_prefix + weights_d[0] + '_' + mov_type_d[typ_idx] + '_' + set_num_d[set_idx] + '.txt'], data_path = data_path, f_samp=500, channel_names=channel_names_i)
 
         #! Plotting the raw EMG data
         # plt.figure()
-        # plt.plot(np.arange(0,EMG_Data.data[3,:].shape[0], 1)/1000,EMG_Data.data[4,:]*1e6)
-        # plt.title("Raw EMG plot for Channel 3")
+        # plt.plot(np.arange(0,EMG_Data.data[4,:].shape[0], 1)/1000,EMG_Data.data[4,:]*1e6)
+        # plt.title("Raw EMG plot for Channel 5")
         # plt.grid()
         # plt.xlabel("Time in s")
         # plt.ylabel("Amplitude in uV")
@@ -119,11 +127,11 @@ for wgt_idx in range(len(weights_order_d)):
         #! Loading the target values for the 3 joints
         channel_names_t = ['right', 'left', 'marker']
         print("Creating Quali Elbow object!!")
-        Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
+        Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=500, channel_names=channel_names_t, file_type='individual')
         print("Creating Quali Shoulder Front object!!")
-        Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
+        Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=500, channel_names=channel_names_t, file_type='individual')
         print("Creating Quali Shoulder Side object!!")
-        Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_order_d[wgt_idx] + 'g_' + mov_type_order_d[typ_idx]], data_path = data_path, f_samp=250, channel_names=channel_names_t, file_type='individual')
+        Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=500, channel_names=channel_names_t, file_type='individual')
 
 
         channel_names = EMG_Data.getChannelNames()
@@ -142,7 +150,7 @@ for wgt_idx in range(len(weights_order_d)):
         # **********************************************************************************
 
         #! High pass filter 20 Hz
-        EMG_Data.highPassFilter(cutoff_freq=30, order=2, fs=1000, type="butter")
+        EMG_Data.highPassFilter(cutoff_freq=25, order=2, fs=500, type="butter")
 
         #! Plotting HP filtered data
         # plt.figure()
@@ -164,7 +172,7 @@ for wgt_idx in range(len(weights_order_d)):
         #! Plot and print specific variance filtered windows 
         # var_filtered_window_x = EMG_Data.filtered_data
         # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
-        # print(f"Variance filtered windows: {var_filtered_window_x[18,:]}")
+        # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
         # plt.figure()
         # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/1000,var_filtered_window_x[4,:]*1e6)
         # plt.title("Variance Filtered EMG plot for Channel 5")
@@ -179,7 +187,7 @@ for wgt_idx in range(len(weights_order_d)):
         print("Normalization with Max Voluntary Contraction performed !!\n")
 
         #! Low pass filter 10 Hz to smoothen the signal
-        EMG_Data.lowPassFilter(cutoff_freq=5, order=2, fs=1000, type="butter")
+        EMG_Data.lowPassFilter(cutoff_freq=5, order=2, fs=500, type="butter")
 
         #! Plot normalised and smoothened data
         # plt.figure()
@@ -193,16 +201,17 @@ for wgt_idx in range(len(weights_order_d)):
         #! Calculate Neural Activation Force
         print("Replacing sample with its force activation value ...")
         EMG_Data.calculateActivationForceFunctionCPP(d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5)
+        # EMG_Data.calculateActivationForceFunctionCPPNew(d=50, b1=0.25, b2=0.05, g=0.7, nonlinear_shape_factor=-1.0)
         print("Replaced each sample with its force activation value !!\n")
 
         #! Windowing the filtered data
-        _ = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 20, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True, choose_data="filtered_data")
+        _ = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 0, start_channel_pick=0, end_channel_pick=8,return_window_end_indices = True, choose_data="filtered_data")
 
-        _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+        _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=3,return_window_end_indices = True)
 
-        _ = Quali_Data_Front.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+        _ = Quali_Data_Front.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=3,return_window_end_indices = True)
 
-        _ = Quali_Data_Side.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=10,return_window_end_indices = True)
+        _ = Quali_Data_Side.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_y, window_step = window_step_y, start_index_offset = 0, start_channel_pick=0, end_channel_pick=3,return_window_end_indices = True)
         # use the EMG_Data.windows if you want to access the windowed data 
 
         #! Plot specific filtered windows for debugging
@@ -299,52 +308,52 @@ perf_results_MLP_s = MLP_model_s.getPredictionScores()
 # **********************************************************************************
 # **************************** Post Prediction Filtering ***************************
 # **********************************************************************************
-filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
-filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
-filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
+# filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
+# filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
+# filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
 
-filter_window_size = 3
+# filter_window_size = 3
 
-for idx in range(len(perf_results_MLP_e)):
-    if idx < filter_window_size:
-        filtered_perf_results_MLP_e[idx] = perf_results_MLP_e[idx]
-        filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
-        filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
-    else:
-        filtered_perf_results_MLP_e[idx] = np.median(perf_results_MLP_e[idx-filter_window_size:idx])
-        filtered_perf_results_MLP_f[idx] = np.median(perf_results_MLP_f[idx-filter_window_size:idx])
-        filtered_perf_results_MLP_s[idx] = np.median(perf_results_MLP_s[idx-filter_window_size:idx])
+# for idx in range(len(perf_results_MLP_e)):
+#     if idx < filter_window_size:
+#         filtered_perf_results_MLP_e[idx] = perf_results_MLP_e[idx]
+#         filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
+#         filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
+#     else:
+#         filtered_perf_results_MLP_e[idx] = np.median(perf_results_MLP_e[idx-filter_window_size:idx])
+#         filtered_perf_results_MLP_f[idx] = np.median(perf_results_MLP_f[idx-filter_window_size:idx])
+#         filtered_perf_results_MLP_s[idx] = np.median(perf_results_MLP_s[idx-filter_window_size:idx])
 
-        # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
-        # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+#         # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
+#         # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
 
-#! Plotting the filtered prediction results
-plt.figure()
-plt.subplot(3,1,1)
-x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
-plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
-plt.title("Elbow Joint")
-plt.legend()
-plt.grid()
+# #! Plotting the filtered prediction results
+# plt.figure()
+# plt.subplot(3,1,1)
+# x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+# plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
+# plt.title("Elbow Joint")
+# plt.legend()
+# plt.grid()
 
-plt.subplot(3,1,2)
-x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
-plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
-plt.title("Shoulder Front Joint")
-plt.legend()
-plt.grid()
+# plt.subplot(3,1,2)
+# x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+# plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
+# plt.title("Shoulder Front Joint")
+# plt.legend()
+# plt.grid()
 
-plt.subplot(3,1,3)
-x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
-plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
-plt.title("Shoulder Side Joint")
-plt.legend()
-plt.grid()
+# plt.subplot(3,1,3)
+# x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+# plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
+# plt.title("Shoulder Side Joint")
+# plt.legend()
+# plt.grid()
 
-plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
+# plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
 
 #! Plotting the raw prediction results
 plt.figure()

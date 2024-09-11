@@ -1689,7 +1689,6 @@ class Timeseries():
     def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True, choose_data="raw_data"): 
         
         # windows have shape trials, channels, sampels, windows 
-        # print(self.events.shape)
         start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0][0]
         stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0][-1]
         start_idx = self.events[start_marker_index, 0]
@@ -1697,6 +1696,7 @@ class Timeseries():
         stop_idx = self.events[stop_marker_index, 0]
         # print(f"Stop Index EMG: {stop_idx}")
         end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
+        # print(f"End indices: {end_indices}")
         windows = []
         wind_names = []
         counter = 0
@@ -1705,16 +1705,17 @@ class Timeseries():
                 current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
                 windows.append(current_window)
                 wind_names.append(str(counter)) # just numerate the windows
+                counter +=1
         elif choose_data == "filtered_data":
             for end_index in end_indices: 
-                current_window = self.filtered_data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
+                current_window = self.filtered_data[start_channel_pick:end_channel_pick,end_index-window_size:end_index] # data in channels, sampels 
                 windows.append(current_window)
                 wind_names.append(str(counter)) # just numerate the windows
-
+                counter +=1
         np_windows = np.array(windows)  # has wrong shape here 
         self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
         self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
-        # print(self.windows.shape)
+        print(self.windows.shape)
         self.window_names = wind_names
 
         if(return_window_end_indices): 
@@ -2791,8 +2792,11 @@ class Timeseries():
         Author : Kartik Chari \n
         Last changed: 27.08.2024 (by Kartik Chari)
         """
+        # for ch in range(self.data.shape[0]):
+        #     self.filtered_data[ch] = np.abs(sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch]))
+        
         for ch in range(self.data.shape[0]):
-            self.filtered_data[ch] = np.abs(sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch]))
+            self.filtered_data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
 
     def applyVarianceFilterCPP(self, ring_buffer=None, width=20, index=0):
         """
@@ -2907,8 +2911,8 @@ class Timeseries():
     def calculateActivationForceFunctionCPPNew(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
         """
         This function first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
-                    where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
+                    p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
+                    where, gamma + beta_1 + beta_2 <= 1
         Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
                     a(t) = e^(Ap(t)) - 1 / e^A - 1
         

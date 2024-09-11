@@ -28,7 +28,7 @@ class EMGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format="ANTmini",data_path = None, filenames = None, f_samp = None, channel_names = None): 
+    def __init__(self, format="ANTmini",data_path = None, filenames = None, f_samp = 500, channel_names = None): 
 
         """
         The constructor of the EMG class. 
@@ -89,6 +89,23 @@ class EMGData(Timeseries):
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
+                # Adding an extra event channel at the end for qualisys markers
+                column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
+                self.data = np.vstack((self.data,column_of_no_markers))
+                # Making the 4th and last samples of EMG as the boundaries for syncing
+                # This number is selected taking into account 20ms delay of qualisys and communication delay of arduino
+                self.data[-1,3] = 1
+                self.data[-1,-1] = 1
+                print(f"Data: {self.data.shape}")
+
+                # set annotation events (markers)
+                event_channel = self.data[-1, :]
+                marker_indices = np.where(event_channel > 0)[0]
+                marker_numbers = event_channel[marker_indices]
+                events = np.zeros((len(marker_indices), 3))
+                events[:, 0] = marker_indices
+                events[:, 2] = marker_numbers
+                self.events = events.astype(int)
 
             else: 
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
