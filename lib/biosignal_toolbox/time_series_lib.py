@@ -94,7 +94,7 @@ class Timeseries():
         # provided data formats 
         self.raw_obj = raw_obj
         self.data = data#
-        self.filtered_data = self.data
+        self.filtered_data = self.data[:-1,:]
         self.windows = windows 
         self.window_names = None 
         self.epochs = epochs 
@@ -2795,7 +2795,7 @@ class Timeseries():
         # for ch in range(self.data.shape[0]):
         #     self.filtered_data[ch] = np.abs(sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch]))
         
-        for ch in range(self.data.shape[0]):
+        for ch in range(self.filtered_data.shape[0]):
             self.filtered_data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
 
     def applyVarianceFilterCPP(self, ring_buffer=None, width=20, index=0):
@@ -2816,9 +2816,9 @@ class Timeseries():
         Author : Kartik Chari \n
         Last changed: 27.08.2024 (by Kartik Chari)
         """
-        out_arr = np.zeros(self.data.shape)
+        out_arr = np.zeros(self.filtered_data.shape)
 
-        for ch in range(self.data.shape[0]):
+        for ch in range(self.filtered_data.shape[0]):
             _ = vt.filter(out_arr[ch], self.filtered_data[ch], ring_buffer, self.variables, width, index)
 
         self.filtered_data = out_arr
@@ -2832,7 +2832,7 @@ class Timeseries():
         Author : Kartik Chari \n
         Last changed: 27.08.2024 (by Kartik Chari)
         """
-        for ch in range(self.data.shape[0]):
+        for ch in range(self.filtered_data.shape[0]):
             self.filtered_data[ch] = self.filtered_data[ch] / np.max(self.filtered_data[ch])
     
     def normalizeContinuousDataNew(self, mvc=0):
@@ -2869,7 +2869,7 @@ class Timeseries():
         Author : Kartik Chari \n
         Last changed: 27.08.2024 (by Kartik Chari)
         """
-        for ch in range(self.data.shape[0]):
+        for ch in range(self.filtered_data.shape[0]):
             self.filtered_data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='lowpass', analog=False, output='sos', fs=fs),self.filtered_data[ch])
     
     def calculateActivationForceFunctionCPP(self,d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5):
@@ -2958,7 +2958,7 @@ class Timeseries():
                     p_t_minus_2 = p_t_minus_1
                     p_t_minus_1 = activation_data[channel_idx, sample_idx]
                     
-                    # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
+                    activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
         self.filtered_data = activation_data
 
 
