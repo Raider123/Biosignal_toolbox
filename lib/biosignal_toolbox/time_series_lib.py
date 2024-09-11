@@ -2835,6 +2835,20 @@ class Timeseries():
         for ch in range(self.data.shape[0]):
             self.filtered_data[ch] = self.filtered_data[ch] / np.max(self.filtered_data[ch])
     
+    def normalizeContinuousDataNew(self, mvc=0):
+        """
+        This method first finds the maximum voluntary contraction of each un-windowed continuous data channel and then normalizes the channel data by dividing by the maxima 
+
+        Author
+        -------
+        Author : Kartik Chari \n
+        Last changed: 27.08.2024 (by Kartik Chari)
+        """
+        try:
+            self.filtered_data = self.filtered_data / mvc
+        except:
+            print("Please provide the MVC for Normalisation!!")
+    
     def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, type="butter"):
         """
         This function applies a low-pass filter on the time series data
@@ -2944,7 +2958,7 @@ class Timeseries():
                     p_t_minus_2 = p_t_minus_1
                     p_t_minus_1 = activation_data[channel_idx, sample_idx]
                     
-                    activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
+                    # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
         self.filtered_data = activation_data
 
 

@@ -1,4 +1,4 @@
-# This script uses the complete dataset for subject HW90 for training. Instead of concatenating all the data into a single array at the same time before pre-processing, each individual file is read, synchronised, pre-processed and windowed before proceeding with the next file in a loop.
+# This script uses the recorded dataset for subject BR07D for training. Instead of concatenating all the data into a single array at the same time before pre-processing, each individual file is read, synchronised, pre-processed and windowed before proceeding with the next file in a loop.
 
 # *********************************************************************************
 # ************************* Imports ***********************************************
@@ -73,7 +73,7 @@ validation_split = 0.2
 perf_results_total_MLP = []
 
 # init early stopping 
-early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=100,verbose=0,mode="auto",baseline=None,restore_best_weights=False)
+early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=100,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 # early_callback = None
 
 #! window wise metric evaluation
@@ -117,7 +117,7 @@ for typ_idx in range(len(mov_type_d)):
 
         #! Plotting the raw EMG data
         # plt.figure()
-        # plt.plot(np.arange(0,EMG_Data.data[4,:].shape[0], 1)/1000,EMG_Data.data[4,:]*1e6)
+        # plt.plot(np.arange(0,EMG_Data.data[4,:].shape[0], 1)/500,EMG_Data.data[4,:]*1e6)
         # plt.title("Raw EMG plot for Channel 5")
         # plt.grid()
         # plt.xlabel("Time in s")
@@ -141,7 +141,7 @@ for typ_idx in range(len(mov_type_d)):
 
         # print(Quali_Data_Elbow.data.shape)
         # plt.figure()
-        # plt.plot(np.arange(0,Quali_Data_Elbow.data[0,:].shape[0], 1)/250,Quali_Data_Elbow.data[1,:])
+        # plt.plot(np.arange(0,Quali_Data_Elbow.data[0,:].shape[0], 1)/500,Quali_Data_Elbow.data[1,:])
         # plt.title("Elbow Torque Plot")
         # plt.grid()
 
@@ -154,7 +154,7 @@ for typ_idx in range(len(mov_type_d)):
 
         #! Plotting HP filtered data
         # plt.figure()
-        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/1000,EMG_Data.filtered_data[4,:]*1e6)
+        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/500,EMG_Data.filtered_data[4,:]*1e6)
         # plt.title("High-Pass Filtered and Rectified EMG plot for Channel 5")
         # plt.grid()
         # plt.xlabel("Time in s")
@@ -173,8 +173,9 @@ for typ_idx in range(len(mov_type_d)):
         # var_filtered_window_x = EMG_Data.filtered_data
         # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
         # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
+
         # plt.figure()
-        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/1000,var_filtered_window_x[4,:]*1e6)
+        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/500,var_filtered_window_x[4,:]*1e6)
         # plt.title("Variance Filtered EMG plot for Channel 5")
         # plt.grid()
         # plt.xlabel("Time in s")
@@ -183,15 +184,15 @@ for typ_idx in range(len(mov_type_d)):
 
         #! Normalisation
         print("Performing Normalization with Max Voluntary Contraction ...")
-        EMG_Data.normalizeContinuousData()
+        EMG_Data.normalizeContinuousData(mvc=2.7579163508176626e-06)
         print("Normalization with Max Voluntary Contraction performed !!\n")
 
         #! Low pass filter 10 Hz to smoothen the signal
-        EMG_Data.lowPassFilter(cutoff_freq=5, order=2, fs=500, type="butter")
+        EMG_Data.lowPassFilter(cutoff_freq=4, order=2, fs=500, type="butter")
 
         #! Plot normalised and smoothened data
         # plt.figure()
-        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/1000,EMG_Data.filtered_data[4,:])
+        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/500,EMG_Data.filtered_data[4,:])
         # plt.title("Normalised and Smoothened EMG plot for Channel 5")
         # plt.grid()
         # plt.xlabel("Time in s")
@@ -200,9 +201,18 @@ for typ_idx in range(len(mov_type_d)):
 
         #! Calculate Neural Activation Force
         print("Replacing sample with its force activation value ...")
-        EMG_Data.calculateActivationForceFunctionCPP(d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5)
-        # EMG_Data.calculateActivationForceFunctionCPPNew(d=50, b1=0.25, b2=0.05, g=0.7, nonlinear_shape_factor=-1.0)
+        # EMG_Data.calculateActivationForceFunctionCPP(d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5)
+        EMG_Data.calculateActivationForceFunctionCPPNew(d=50, b1=0.25, b2=0.15, g=0.5, nonlinear_shape_factor=-1.5)
         print("Replaced each sample with its force activation value !!\n")
+
+        #! Plot force activation data
+        # plt.figure()
+        # plt.plot(np.arange(0,EMG_Data.filtered_data[4,:].shape[0], 1)/500,EMG_Data.filtered_data[4,:])
+        # plt.title("Force Activated EMG plot for Channel 5")
+        # plt.grid()
+        # plt.xlabel("Time in s")
+        # plt.ylabel("Amplitude in V")
+        # plt.show()
 
         #! Windowing the filtered data
         _ = EMG_Data.windowContinuousData(startmarkernumber = 1, stopmarkernumber = 1, window_size = window_size_x, window_step = window_step_x, start_index_offset = 0, start_channel_pick=0, end_channel_pick=8,return_window_end_indices = True, choose_data="filtered_data")
@@ -276,15 +286,15 @@ MLP_model_s = MLModel(model = model_s, type= "keras")
 
 #! Train model
 print("Training MLP model for elbow joint...") 
-MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True, callbacks=early_callback)
+MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for elbow done !!\n")
 
 print("Training MLP model for shoulder front joint...") 
-MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True, callbacks=early_callback)
+MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for front done !!\n")
 
 print("Training MLP model for shoulder side joint...") 
-MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=True, callbacks=early_callback)
+MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for side done !!\n")
 
 #! Load saved model
@@ -356,8 +366,37 @@ perf_results_MLP_s = MLP_model_s.getPredictionScores()
 # plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
 
 #! Plotting the raw prediction results
+# plt.figure()
+# plt.subplot(3,1,1)
+# x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+# plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
+# plt.title("Elbow Joint Raw")
+# plt.legend()
+# plt.grid()
+
+# plt.subplot(3,1,2)
+# x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+# plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
+# plt.title("Shoulder Front Joint Raw")
+# plt.legend()
+# plt.grid()
+
+# plt.subplot(3,1,3)
+# x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+# plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
+# plt.title("Shoulder Side Joint Raw")
+# plt.legend()
+# plt.grid()
+
+# plt.suptitle("Joint Torque Estimation from sEMG signals (Raw output)")
+# plt.tight_layout()
+# #! Showing the plots
+# plt.show()
+
 plt.figure()
-plt.subplot(3,1,1)
 x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
@@ -365,7 +404,7 @@ plt.title("Elbow Joint Raw")
 plt.legend()
 plt.grid()
 
-plt.subplot(3,1,2)
+plt.figure()
 x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
@@ -373,7 +412,7 @@ plt.title("Shoulder Front Joint Raw")
 plt.legend()
 plt.grid()
 
-plt.subplot(3,1,3)
+plt.figure()
 x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
@@ -381,11 +420,8 @@ plt.title("Shoulder Side Joint Raw")
 plt.legend()
 plt.grid()
 
-plt.suptitle("Joint Torque Estimation from sEMG signals (Raw output)")
-
 #! Showing the plots
 plt.show()
-
 
 # # # save res 
 # # np.savetxt(results_path+result_file_name, perf_results_total_MLP, delimiter=",", fmt = "%1.8f", )
