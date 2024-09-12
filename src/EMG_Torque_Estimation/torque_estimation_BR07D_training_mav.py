@@ -41,11 +41,12 @@ target_file_prefix = ["quali_data/quali_torque_elbow_", "quali_data/quali_torque
 # weights_d = ['0g', '1000g']
 weights_d = ['0g']
 
-mov_type_d=['complex', 'grasp']
-# mov_type_d=['grasp']
+# mov_type_d=['complex', 'grasp']
+mov_type_d=['grasp']
 
-set_num_d = ['3','4','5','6']
+# set_num_d = ['3','4','5','6']
 # set_num_d = ['5','6']
+set_num_d = ['5']
 
 #! fcn model parameter 
 n_epochs = 300
@@ -61,7 +62,7 @@ train_test_split_ratio = 0.9    #0.x means x% of data will be training data and 
 validation_split = 0.2          #0.x means x% of training data will be used as validation data
 
 # init early stopping 
-early_stop = False
+early_stop = True
 if early_stop:
     early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=50,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 else:
@@ -77,7 +78,7 @@ window_step_y = window_step_x
 
 #! Window params for feature extraction !
 feature_size = 20
-feature_sel = "mid" # end or mid
+feature_sel = "end" # end or mid
 
 if feature_sel == "end":
     ## Indices to extract features from the end of the window
@@ -92,7 +93,7 @@ else:
 
 #! Pre-processing parameters
 f_samp = 500
-f_cutoff_hpf = 15
+f_cutoff_hpf = 25
 f_cutoff_lpf = 10
 var_filt_width = 20
 mvc = 2.7579163508176626e-06
@@ -113,8 +114,8 @@ act_h1 = 'relu'
 act_h2 = 'linear'
 
 #! plot folder
-save_fig = True
-plot_folder = "good6"
+save_fig = False
+plot_folder = "good1"
 
 #! subject params 
 subject = "BR07D"
@@ -189,7 +190,7 @@ for typ_idx in range(len(mov_type_d)):
             # ***************************** Preprocessing of data ******************************
             # **********************************************************************************
 
-            #! High pass filter 20 Hz
+            #! High pass filter
             EMG_Data.highPassFilter(cutoff_freq=f_cutoff_hpf, order=2, fs=f_samp, type="butter")
 
             #! Plotting HP filtered data
@@ -227,7 +228,7 @@ for typ_idx in range(len(mov_type_d)):
             EMG_Data.normalizeContinuousDataNew(mvc=mvc)
             print("Normalization with Max Voluntary Contraction performed !!\n")
 
-            #! Low pass filter 10 Hz to smoothen the signal
+            #! Low pass filter to smoothen the signal
             EMG_Data.lowPassFilter(cutoff_freq=f_cutoff_lpf, order=2, fs=f_samp, type="butter")
 
             #! Plot normalised and smoothened data
@@ -271,6 +272,8 @@ for typ_idx in range(len(mov_type_d)):
             # plt.plot(EMG_Data.getWindows()[0,2,:,18])
             # plt.show()
 
+            # print(f"Window: {EMG_Data.getWindows()[0,0,:,0]}")
+
             # **********************************************************************************
             # ******************************* Feature Extraction *******************************
             # **********************************************************************************
@@ -285,6 +288,7 @@ for typ_idx in range(len(mov_type_d)):
 
             #! input features network 
             x = EMG_Data.getFeatures()
+            # print(f"Feature: {x[0,0:20]}")
             y_e = Quali_Data_Elbow.getFeatures()[:,0:2]
             y_f = Quali_Data_Front.getFeatures()[:,0:2]
             y_s = Quali_Data_Side.getFeatures()[:,0:2]
@@ -321,197 +325,194 @@ for typ_idx in range(len(mov_type_d)):
 # *************************** Train, load or test Model ****************************
 # **********************************************************************************
 
-#! Init model with norm layer
-model_e = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
-MLP_model_e = MLModel(model = model_e, type= "keras")
+# #! Init model with norm layer
+# model_e = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
+# MLP_model_e = MLModel(model = model_e, type= "keras")
 
-model_f = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
-MLP_model_f = MLModel(model = model_f, type= "keras")
+# model_f = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
+# MLP_model_f = MLModel(model = model_f, type= "keras")
 
-model_s = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
-MLP_model_s = MLModel(model = model_s, type= "keras")
+# model_s = AAN_Model(neurons_inp=neurons_inp, act_inp=act_inp, neurons_h1=neurons_h1, act_h1=act_h1, neurons_h2=neurons_h2, act_h2=act_h2)
+# MLP_model_s = MLModel(model = model_s, type= "keras")
 
-#! Train model
-print("Training MLP model for elbow joint...") 
-MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
-print("MLP training for elbow done !!\n")
+# #! Train model
+# print("Training MLP model for elbow joint...") 
+# MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+# print("MLP training for elbow done !!\n")
 
-print("Training MLP model for shoulder front joint...") 
-MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
-print("MLP training for front done !!\n")
+# print("Training MLP model for shoulder front joint...") 
+# MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+# print("MLP training for front done !!\n")
 
-print("Training MLP model for shoulder side joint...") 
-MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
-print("MLP training for side done !!\n")
+# print("Training MLP model for shoulder side joint...") 
+# MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+# print("MLP training for side done !!\n")
 
-#! Load saved model
-# print("Loading saved MLP models ...")
-# MLP_model_e.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", path=data_path)
-# MLP_model_f.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_front", path=data_path)
-# MLP_model_s.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_side", path=data_path)
-# print("Saved MLP models loaded !!\n")
+# #! Load saved model
+# # print("Loading saved MLP models ...")
+# # MLP_model_e.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", path=data_path)
+# # MLP_model_f.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_front", path=data_path)
+# # MLP_model_s.loadModel(filename=subject+"_"+scenario_name+result_file_name+"_AAN_model_side", path=data_path)
+# # print("Saved MLP models loaded !!\n")
 
-#! Predict and get results 
-print("Predicting joint torques ...")
-MLP_model_e.predictTarget(data = x_test_combined, labels = y_e_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
-MLP_model_f.predictTarget(data = x_test_combined, labels = y_f_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
-MLP_model_s.predictTarget(data = x_test_combined, labels = y_s_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+# #! Predict and get results 
+# print("Predicting joint torques ...")
+# MLP_model_e.predictTarget(data = x_test_combined, labels = y_e_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+# MLP_model_f.predictTarget(data = x_test_combined, labels = y_f_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
+# MLP_model_s.predictTarget(data = x_test_combined, labels = y_s_test_combined[:,0], classification=False, show_results = False, show_pred_time = False, eval_type = "offline")
 
-perf_results_MLP_e = MLP_model_e.getPredictionScores()
-perf_results_MLP_f = MLP_model_f.getPredictionScores()
-perf_results_MLP_s = MLP_model_s.getPredictionScores()
-# print(perf_results_MLP_e)
+# perf_results_MLP_e = MLP_model_e.getPredictionScores()
+# perf_results_MLP_f = MLP_model_f.getPredictionScores()
+# perf_results_MLP_s = MLP_model_s.getPredictionScores()
+# # print(perf_results_MLP_e)
 
-# **********************************************************************************
-# **************************** Post Prediction Filtering ***************************
-# **********************************************************************************
-filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
-filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
-filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
+# # **********************************************************************************
+# # **************************** Post Prediction Filtering ***************************
+# # **********************************************************************************
+# filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
+# filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
+# filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
 
-filter_window_size = 3
+# filter_window_size = 3
 
-for idx in range(len(perf_results_MLP_e)):
-    if idx < filter_window_size:
-        filtered_perf_results_MLP_e[idx] = perf_results_MLP_e[idx]
-        filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
-        filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
-    else:
-        filtered_perf_results_MLP_e[idx] = np.mean(perf_results_MLP_e[idx-filter_window_size+1:idx])
-        filtered_perf_results_MLP_f[idx] = np.mean(perf_results_MLP_f[idx-filter_window_size+1:idx])
-        filtered_perf_results_MLP_s[idx] = np.mean(perf_results_MLP_s[idx-filter_window_size:idx])
+# for idx in range(len(perf_results_MLP_e)):
+#     if idx < filter_window_size:
+#         filtered_perf_results_MLP_e[idx] = perf_results_MLP_e[idx]
+#         filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
+#         filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
+#     else:
+#         filtered_perf_results_MLP_e[idx] = np.mean(perf_results_MLP_e[idx-filter_window_size+1:idx])
+#         filtered_perf_results_MLP_f[idx] = np.mean(perf_results_MLP_f[idx-filter_window_size+1:idx])
+#         filtered_perf_results_MLP_s[idx] = np.mean(perf_results_MLP_s[idx-filter_window_size:idx])
 
-        # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
-        # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
+#         # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
+#         # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
 
-#! Check if the save dir exists. If not create one
-dir_d = pathlib.Path("../../plots/m-rock_demo/" + plot_folder)
-if save_fig and not dir_d.exists():
-    dir_d.mkdir()
-    print("New dir to save plots is created!")
-elif save_fig and dir_d.exists():
-    print("The saving dir exists. Adding a suffix to avoid overwrite!")
-    plot_folder = plot_folder + '_new'
-    dir_d = pathlib.Path("../../plots/m-rock_demo/" + plot_folder)
-    dir_d.mkdir()
+# #! Check if the save dir exists. If not create one
+# dir_d = pathlib.Path("../../plots/m-rock_demo/" + plot_folder)
+# if save_fig and not dir_d.exists():
+#     dir_d.mkdir()
+#     print("New dir to save plots is created!")
+# elif save_fig and dir_d.exists():
+#     print("The saving dir exists. Adding a suffix to avoid overwrite!")
+#     plot_folder = plot_folder + '_new'
 
-#! Create a readme.txt and include all parameters in it
-readme_file = dir_d / "readme.txt"
-if save_fig:
-    with readme_file.open("w") as f:
-        f.write(f"Scenario: {weights_d, mov_type_d}\n") 
-        f.write(f"Subject: {subject}\n")
-        f.write(f"Batch Size: {n_batch_size}\n")
-        f.write(f"Feature Selection: {feature_sel} \n")
-        f.write(f"Window Size: {window_size_x}\n")
-        f.write(f"Window Step: {window_step_x}\n")
-        f.write(f"\n")
-        f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
-        f.write(f"Variance Filter width: {var_filt_width}\n")
-        f.write(f"MVC: {mvc}\n")
-        f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
-        f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
-        f.write(f"\n")
-        f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
-        f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
-        f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
-        f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
+# #! Create a readme.txt and include all parameters in it
+# readme_file = dir_d / "readme.txt"
+# with readme_file.open("w") as f:
+#     f.write(f"Scenario: {weights_d, mov_type_d}\n") 
+#     f.write(f"Subject: {subject}\n")
+#     f.write(f"Batch Size: {n_batch_size}\n")
+#     f.write(f"Feature Selection: {feature_sel} \n")
+#     f.write(f"Window Size: {window_size_x}\n")
+#     f.write(f"Window Step: {window_step_x}\n")
+#     f.write(f"\n")
+#     f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
+#     f.write(f"Variance Filter width: {var_filt_width}\n")
+#     f.write(f"MVC: {mvc}\n")
+#     f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
+#     f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
+#     f.write(f"\n")
+#     f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
+#     f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
+#     f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
+#     f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
 
-#! Plotting the filtered prediction results
-plt.figure()
-x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
-plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
-plt.title("Elbow Joint Median")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_elbow_median.png")
-
-plt.figure()
-x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
-plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
-plt.title("Shoulder Front Joint Median")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_front_median.png")
-
-plt.figure()
-x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
-plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
-plt.title("Shoulder Side Joint Median")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_median.png")
-
-# plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
-
-#! Plotting the raw prediction results
+# #! Plotting the filtered prediction results
 # plt.figure()
-# plt.subplot(3,1,1)
+# x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+# plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
+# plt.title("Elbow Joint Median")
+# plt.legend()
+# plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_elbow_median.png")
+
+# plt.figure()
+# x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+# plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
+# plt.title("Shoulder Front Joint Median")
+# plt.legend()
+# plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_front_median.png")
+
+# plt.figure()
+# x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+# plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+# plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
+# plt.title("Shoulder Side Joint Median")
+# plt.legend()
+# plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_median.png")
+
+# # plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
+
+# #! Plotting the raw prediction results
+# # plt.figure()
+# # plt.subplot(3,1,1)
+# # x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
+# # plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
+# # plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
+# # plt.title("Elbow Joint Raw")
+# # plt.legend()
+# # plt.grid()
+
+# # plt.subplot(3,1,2)
+# # x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
+# # plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
+# # plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
+# # plt.title("Shoulder Front Joint Raw")
+# # plt.legend()
+# # plt.grid()
+
+# # plt.subplot(3,1,3)
+# # x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
+# # plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
+# # plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
+# # plt.title("Shoulder Side Joint Raw")
+# # plt.legend()
+# # plt.grid()
+
+# # plt.suptitle("Joint Torque Estimation from sEMG signals (Raw output)")
+# # plt.tight_layout()
+# # #! Showing the plots
+# # plt.show()
+
+# plt.figure()
 # x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 # plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 # plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
 # plt.title("Elbow Joint Raw")
 # plt.legend()
 # plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_elbow_raw.png")
 
-# plt.subplot(3,1,2)
+# plt.figure()
 # x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 # plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 # plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
 # plt.title("Shoulder Front Joint Raw")
 # plt.legend()
 # plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_front_raw.png")
 
-# plt.subplot(3,1,3)
+# plt.figure()
 # x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 # plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 # plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
 # plt.title("Shoulder Side Joint Raw")
 # plt.legend()
 # plt.grid()
+# if save_fig:
+#     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_raw.png")
 
-# plt.suptitle("Joint Torque Estimation from sEMG signals (Raw output)")
-# plt.tight_layout()
 # #! Showing the plots
 # plt.show()
-
-plt.figure()
-x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
-plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
-plt.title("Elbow Joint Raw")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_elbow_raw.png")
-
-plt.figure()
-x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
-plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
-plt.title("Shoulder Front Joint Raw")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_front_raw.png")
-
-plt.figure()
-x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
-plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
-plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
-plt.title("Shoulder Side Joint Raw")
-plt.legend()
-plt.grid()
-if save_fig:
-    plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_raw.png")
-
-#! Showing the plots
-plt.show()
 
 

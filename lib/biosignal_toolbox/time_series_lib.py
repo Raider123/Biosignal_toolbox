@@ -2147,7 +2147,7 @@ class Timeseries():
         feature_type : str, optional
             _description_, by default "timepoints"
         feature_indices_windows : Numpy array, optional
-            Numpy array with time feature indices inside the window in ms, by default None
+            Numpy array with feature indices inside the window in sample#, by default None
         use_mean : bool, optional
             If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
@@ -2170,7 +2170,8 @@ class Timeseries():
 
         if(feature_type == "timepoints"): 
             
-            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            # feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            feature_times_indices = feature_indices_windows.astype(int)
 
             # init stuff 
             if(use_mean): 
@@ -2202,8 +2203,7 @@ class Timeseries():
                         x_train_features[trial_idx, window_idx, :] = mean_feat_buffer.flatten() # use mean of timepoints
 
                     else: 
-                        #print("feature_times_indices", feature_times_indices) 
-                        x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, feature_times_indices, window_idx].flatten()
+                        x_train_features[trial_idx, window_idx, :] = self.windows[trial_idx, :, feature_times_indices, window_idx].flatten(order='F')
 
                     # neighbour diff features 
                     if (add_neightbour_diffs): # if you want to add local feature diffs 
@@ -2223,7 +2223,8 @@ class Timeseries():
                         # flatten the feature dims 
                         x_train_features_add[trial_idx, window_idx, :] = features_add[trial_idx, window_idx, :, :].flatten()
 
-                    
+            print(f"x train feature shape: {x_train_features.shape}") 
+            print(f"indi x train feat: {x_train_features[:, :, 0].shape}") 
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
             #print(x_train.shape)
