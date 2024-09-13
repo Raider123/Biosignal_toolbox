@@ -77,7 +77,7 @@ window_step_y = window_step_x
 
 #! Window params for feature extraction !
 feature_size = 20
-feature_sel = "mid" # end or mid
+feature_sel = "end" # end or mid
 
 if feature_sel == "end":
     ## Indices to extract features from the end of the window
@@ -113,8 +113,8 @@ act_h1 = 'relu'
 act_h2 = 'linear'
 
 #! plot folder
-save_fig = True
-plot_folder = "good6"
+save_fig = False
+plot_folder = "good9"
 
 #! subject params 
 subject = "BR07D"
@@ -396,26 +396,27 @@ elif save_fig and dir_d.exists():
     dir_d.mkdir()
 
 #! Create a readme.txt and include all parameters in it
-readme_file = dir_d / "readme.txt"
 if save_fig:
-    with readme_file.open("w") as f:
-        f.write(f"Scenario: {weights_d, mov_type_d}\n") 
-        f.write(f"Subject: {subject}\n")
-        f.write(f"Batch Size: {n_batch_size}\n")
-        f.write(f"Feature Selection: {feature_sel} \n")
-        f.write(f"Window Size: {window_size_x}\n")
-        f.write(f"Window Step: {window_step_x}\n")
-        f.write(f"\n")
-        f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
-        f.write(f"Variance Filter width: {var_filt_width}\n")
-        f.write(f"MVC: {mvc}\n")
-        f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
-        f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
-        f.write(f"\n")
-        f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
-        f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
-        f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
-        f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
+    readme_file = dir_d / "readme.txt"
+    if save_fig:
+        with readme_file.open("w") as f:
+            f.write(f"Scenario: {weights_d, mov_type_d}\n") 
+            f.write(f"Subject: {subject}\n")
+            f.write(f"Batch Size: {n_batch_size}\n")
+            f.write(f"Feature Selection: {feature_sel} \n")
+            f.write(f"Window Size: {window_size_x}\n")
+            f.write(f"Window Step: {window_step_x}\n")
+            f.write(f"\n")
+            f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
+            f.write(f"Variance Filter width: {var_filt_width}\n")
+            f.write(f"MVC: {mvc}\n")
+            f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
+            f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
+            f.write(f"\n")
+            f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
+            f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
+            f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
+            f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
 
 #! Plotting the filtered prediction results
 plt.figure()

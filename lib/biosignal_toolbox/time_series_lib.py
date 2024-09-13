@@ -97,7 +97,7 @@ class Timeseries():
         self.filtered_data = self.data[:-1,:]
         self.windows = windows 
         self.window_names = None 
-        self.epochs = epochs 
+        self.epochs = epochs
 
         # parameter 
         #basic params 
@@ -115,7 +115,7 @@ class Timeseries():
         # features 
         self.feature_vec = None
         self.calib_means = None
-        self.calib_stds = None
+        self.calib_stds = None 
 
         # for filtering 
         self.zi = None
@@ -2223,8 +2223,6 @@ class Timeseries():
                         # flatten the feature dims 
                         x_train_features_add[trial_idx, window_idx, :] = features_add[trial_idx, window_idx, :, :].flatten()
 
-            print(f"x train feature shape: {x_train_features.shape}") 
-            print(f"indi x train feat: {x_train_features[:, :, 0].shape}") 
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
             #print(x_train.shape)
@@ -2961,7 +2959,34 @@ class Timeseries():
                     
                     activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
         self.filtered_data = activation_data
+    
+    def calculateMAVFromFeatures(self, n_channels=8):
+        """
+        This function calculates the Mean Absolute Value of each channel of the feature set.
 
+        Parameters
+        ----------
+        n_channels : int, optional
+            Number of EMG channels, by default 8
+
+        Returns
+        -------
+        numpy array
+            Array of MAV of each channel. Hence, size of array equals number of EMG channels
+        """
+        #Calculate the number of elements in each sample
+        n_elements = int(self.feature_vec.shape[1] / n_channels)
+        #Initialise a numpy array to store all the outputs
+        feature_mav = np.empty(shape=[0,n_channels])
+
+        for window_idx in range(self.feature_vec.shape[0]):
+            temp_arr = np.zeros(n_channels)
+            for feat_idx in range(n_channels):
+                temp_arr[feat_idx] = np.mean(np.abs(self.feature_vec[window_idx,feat_idx*n_elements:(feat_idx+1)*n_elements]))
+            feature_mav = np.vstack((feature_mav, temp_arr))
+
+        return feature_mav
+                
 
 class OnlineTimeseriesStreaming(): 
 
