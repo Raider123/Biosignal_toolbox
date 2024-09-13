@@ -113,8 +113,8 @@ act_h1 = 'relu'
 act_h2 = 'linear'
 
 #! plot folder
-save_fig = True
-plot_folder = "plot2_mav"
+save_fig = False
+plot_folder = "plot4_mav"
 
 #! subject params 
 subject = "BR07D"
@@ -386,6 +386,16 @@ for idx in range(len(perf_results_MLP_e)):
         # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
         # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
 
+#! Calculate the RMSE values on the filtered predicted values
+rmse_elbow  = MLModel.calculateRMSE(y_e_test_combined[:,0], filtered_perf_results_MLP_e)
+rmse_front  = MLModel.calculateRMSE(y_f_test_combined[:,0], filtered_perf_results_MLP_f)
+rmse_side   = MLModel.calculateRMSE(y_s_test_combined[:,0], filtered_perf_results_MLP_s)
+
+#! Calculate the RMSE values on the filtered predicted values
+rmse_elbow_raw  = MLModel.calculateRMSE(y_e_test_combined[:,0], perf_results_MLP_e)
+rmse_front_raw  = MLModel.calculateRMSE(y_f_test_combined[:,0], perf_results_MLP_f)
+rmse_side_raw   = MLModel.calculateRMSE(y_s_test_combined[:,0], perf_results_MLP_s)
+
 #! Check if the save dir exists. If not create one
 dir_d = pathlib.Path("../../plots/m-rock_demo/" + plot_folder)
 if save_fig and not dir_d.exists():
@@ -424,7 +434,7 @@ plt.figure()
 x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
-plt.title("Elbow Joint Median")
+plt.title(f"Elbow Joint Median (RMSE {rmse_elbow} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -434,7 +444,7 @@ plt.figure()
 x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
-plt.title("Shoulder Front Joint Median")
+plt.title(f"Shoulder Front Joint Median (RMSE {rmse_front} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -444,50 +454,19 @@ plt.figure()
 x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
-plt.title("Shoulder Side Joint Median")
+plt.title(f"Shoulder Side Joint Median (RMSE {rmse_side} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_median.png")
 
-# plt.suptitle("Joint Torque Estimation from sEMG signals (Median filtered output)")
 
 #! Plotting the raw prediction results
-# plt.figure()
-# plt.subplot(3,1,1)
-# x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
-# plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
-# plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
-# plt.title("Elbow Joint Raw")
-# plt.legend()
-# plt.grid()
-
-# plt.subplot(3,1,2)
-# x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
-# plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
-# plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
-# plt.title("Shoulder Front Joint Raw")
-# plt.legend()
-# plt.grid()
-
-# plt.subplot(3,1,3)
-# x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
-# plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
-# plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
-# plt.title("Shoulder Side Joint Raw")
-# plt.legend()
-# plt.grid()
-
-# plt.suptitle("Joint Torque Estimation from sEMG signals (Raw output)")
-# plt.tight_layout()
-# #! Showing the plots
-# plt.show()
-
 plt.figure()
 x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
-plt.title("Elbow Joint Raw")
+plt.title(f"Elbow Joint Raw (RMSE {rmse_elbow_raw} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -497,7 +476,7 @@ plt.figure()
 x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
-plt.title("Shoulder Front Joint Raw")
+plt.title(f"Shoulder Front Joint Raw (RMSE {rmse_front_raw} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -507,7 +486,7 @@ plt.figure()
 x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
-plt.title("Shoulder Side Joint Raw")
+plt.title(f"Shoulder Side Joint Raw (RMSE {rmse_side_raw} N-m)")
 plt.legend()
 plt.grid()
 if save_fig:

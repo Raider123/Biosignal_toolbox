@@ -2850,7 +2850,7 @@ class Timeseries():
     
     def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, type="butter"):
         """
-        This function applies a low-pass filter on the time series data
+        This method applies a low-pass filter on the time series data
 
         Parameters
         ----------
@@ -2873,7 +2873,7 @@ class Timeseries():
     
     def calculateActivationForceFunctionCPP(self,d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5):
         """
-        This function first calculates the neural activation function p(t) by solving the second order difference equation:
+        This method first calculates the neural activation function p(t) by solving the second order difference equation:
                     p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
                     where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
         Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
@@ -2923,7 +2923,7 @@ class Timeseries():
 
     def calculateActivationForceFunctionCPPNew(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
         """
-        This function first calculates the neural activation function p(t) by solving the second order difference equation:
+        This method first calculates the neural activation function p(t) by solving the second order difference equation:
                     p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
                     where, gamma + beta_1 + beta_2 <= 1
         Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
@@ -2962,7 +2962,7 @@ class Timeseries():
     
     def calculateMAVFromFeatures(self, n_channels=8):
         """
-        This function calculates the Mean Absolute Value of each channel of the feature set.
+        This method calculates the Mean Absolute Value of each channel of the feature set.
 
         Parameters
         ----------
@@ -2985,7 +2985,7 @@ class Timeseries():
                 temp_arr[feat_idx] = np.mean(np.abs(self.feature_vec[window_idx,feat_idx*n_elements:(feat_idx+1)*n_elements]))
             feature_mav = np.vstack((feature_mav, temp_arr))
 
-        return feature_mav
+        return feature_mav 
                 
 
 class OnlineTimeseriesStreaming(): 

@@ -9,6 +9,7 @@ from tensorflow.keras.models import load_model
 from time import perf_counter_ns
 from dtw import *
 import copy 
+from sklearn.metrics import mean_squared_error, r2_score
 
 import tensorflow as tf
 import warnings
@@ -487,4 +488,39 @@ class MLModel:
         print("Weights for layer '{}':".format(layer.name))
         for w in weights:
             print(w)
+    
+    @staticmethod
+    def calculateRMSE(target_arr=np.array([]), predicted_arr=np.array([])):
+        """
+        This method calculated the root mean square error on your predicted values.
+
+        Parameters
+        ----------
+        target_arr : 1D numpy array
+            array of target values for supervised learning
+        predicted_arr : 1D numpy array
+            array of predicted regression values
+
+        Returns
+        -------
+        float
+            RMSE of the entire array.
+        """
+        if target_arr.size == 0 or predicted_arr.size == 0:
+            print("Please provide a non-zero array(s) as an arg to the method!!")
+            return
+
+        # #! Calculate the error/difference array
+        # diff_arr = target_arr - predicted_arr
+
+        # #! Square the difference
+        # sq_diff_arr = diff_arr ** 2
+
+        # #! Mean of squared difference
+        # mean_sq_diff_arr = np.mean(sq_diff_arr)
+
+        # return np.sqrt(mean_sq_diff_arr)
+        print(f"R2 Score: {r2_score(target_arr,predicted_arr)}")
+
+        return np.sqrt(mean_squared_error(target_arr,predicted_arr))
         
