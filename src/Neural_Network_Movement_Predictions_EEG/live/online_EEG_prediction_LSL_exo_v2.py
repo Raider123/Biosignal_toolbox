@@ -14,7 +14,7 @@ import warnings
 import pyrock
 
 # # own libs 
-from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils, OnlineEEG
+from biosignal_toolbox.eeg_lib import EEGData, OnlineEEG
 from biosignal_toolbox.ML_lib import MLModel
 import biosignal_toolbox.ML_pipelines_lib as pipeline
 
@@ -26,7 +26,7 @@ data_path = proj_path+"/data/"
 from biosignal_toolbox.models.CNNnets import EEGNet
 
 # own model 
-from biosignal_toolbox.models.MlpErp import MLP_Model
+from biosignal_toolbox.models.MlpErp import MLP_Model, MLP_Model_reduced
 
 print(tf.config.experimental.list_physical_devices('GPU'))
 
@@ -216,7 +216,7 @@ if __name__ == "__main__":
                     elif state == 5: 
                         movement_start = True
                         #print("exo state 5")
-
+                
                 # check if exo moving 
                 if (trajectory_done == False and movement_start == True): # in movement  
                     print("movement ongoing")
