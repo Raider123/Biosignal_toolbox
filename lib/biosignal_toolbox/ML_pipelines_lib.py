@@ -90,14 +90,12 @@ def classicLRPpreprocessing(EEG, window_labels, feature_indices_windows):
     return x, y
 
 
-
-def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows, xd, xd_components): 
+def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows, xd, xd_components, sos): 
 
     # ******** MLP processing *******************
     
     # bandpass filter data 
-
-    sos = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos") #--> good one 
+    
     #b, a = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba") #--> good one
     #b, a = EEG_MLP.designFilter(filter_type = "dc_removal", return_type = "ba", alpha = 0.999) # only the hard dc part 
     
@@ -252,12 +250,11 @@ def MLPProcessingOffline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_w
     return x_MLP, y_MLP
 
     
-def EEGNetProcessingOnline(EEG_EEGNet, window_labels, num_classes): 
+def EEGNetProcessingOnline(EEG_EEGNet, window_labels, num_classes, sos): 
 
     # *********** EEGNet processing *******************
     
     
-    sos = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
     #b, a = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
     #EEG_EEGNet.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding)
     EEG_EEGNet.filterWindows(sos = sos, apply_method = "zero_phase_sos", padtype = "even") # bandpass filter (zero phase with padding)

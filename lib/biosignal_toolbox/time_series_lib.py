@@ -2773,7 +2773,7 @@ class OnlineTimeseriesStreaming():
         print('delaying to allow slow devices to attach...')
         time.sleep(1)
 
-
+        
         amplifiers=factory.getAmplifiers()
         print("available amplifiers:", amplifiers)
         

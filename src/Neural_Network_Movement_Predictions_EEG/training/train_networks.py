@@ -300,7 +300,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     print("predict MLP net")
     MLP_model.predict(data = x_test_MLP, labels = y_test_MLP, encoding = "binary", show_results = True, show_pred_time = False, eval_type = "offline")
     perf_results_MLP = MLP_model.getPerfResults()
-
+    
 
     # **********************************************************************************
     # ********************* EEGnet processing and training  ***************************

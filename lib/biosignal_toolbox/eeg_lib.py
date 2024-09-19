@@ -431,7 +431,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         super().__init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
         EEGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
 
-
+        
 
 
 
