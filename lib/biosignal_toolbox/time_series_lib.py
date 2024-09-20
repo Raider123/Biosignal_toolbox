@@ -97,8 +97,8 @@ class Timeseries():
         # parameter 
         #basic params 
 
-        self.__channel_names = channel_names
-        self.__fsamp = f_samp
+        self.channel_names = channel_names
+        self.f_samp = f_samp
         self.time_axis_epochs = None
         self.units = None
         # epoching 
@@ -248,7 +248,7 @@ class Timeseries():
             self.ica = None
 
         # Get remaining channel names  
-        self.__channel_names = filtered_eeg_rereferenced.ch_names
+        self.channel_names = filtered_eeg_rereferenced.ch_names
         #self.obj_filtered = filtered_eeg_rereferenced.copy()
         
         self.epoch_obj = eeg_epochs.copy() # the object of epochs from mne 
@@ -260,7 +260,7 @@ class Timeseries():
         self.event_id = event_id_used 
         
         #generate a time axis for the epochs 
-        self.time_axis_epochs = np.arange(t1,t2+1/self.__fsamp, step = 1/self.__fsamp) #build time axis (epoch)
+        self.time_axis_epochs = np.arange(t1,t2+1/self.f_samp, step = 1/self.f_samp) #build time axis (epoch)
 
     def showICAcomponents(self): 
         """
@@ -313,8 +313,8 @@ class Timeseries():
 
         # update parameter 
         #basic params 
-        self.__channel_names = self.raw_obj.ch_names
-        self.__fsamp = self.raw_obj.info['sfreq']
+        self.channel_names = self.raw_obj.ch_names
+        self.f_samp = self.raw_obj.info['sfreq']
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
         #events epochs_filter
         self.events, a = mne.events_from_annotations(self.raw_obj)
@@ -373,44 +373,44 @@ class Timeseries():
         
         # calc individual coeffs 
         if(filter_type == "dc_notch"):
-            b, a = sig.iirnotch(f_high, Q, fs=self.__fsamp)
+            b, a = sig.iirnotch(f_high, Q, fs=self.f_samp)
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
 
-                #self.__fsamp = 500.0
-                # print(self.__fsamp)
+                #self.f_samp = 500.0
+                # print(self.f_samp)
                 # print(f_high)
                 # print(f_low)
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.f_samp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.f_samp)
             elif(f_high):
-                sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='sos', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
         
         if(filter_type == "scipy_bessel"): # prefer this one 
             if(f_high and f_low): 
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='sos', fs=self.__fsamp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='sos', fs=self.f_samp)
             
             elif(f_high):
-                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='sos', fs=self.__fsamp)
+                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='sos', fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "scipy_ellip"): # prefer this one 
             if(f_high and f_low): 
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='ellip', rp=rp, rs = rs,  output='sos', fs=self.__fsamp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='ellip', rp=rp, rs = rs,  output='sos', fs=self.f_samp)
 
             elif(f_high):
-                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='ellip', output='sos',rp=rp,rs = rs, fs=self.__fsamp)
+                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='ellip', output='sos',rp=rp,rs = rs, fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a) rs
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='ellip', output='sos', rp=rp,rs = rs, fs=self.__fsamp)
+                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='ellip', output='sos', rp=rp,rs = rs, fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "dc_removal"): 
@@ -424,23 +424,23 @@ class Timeseries():
 
         if(filter_type == "fir_hann"): 
             if(f_low): 
-                b = sig.firwin(order, f_low / (self.__fsamp / 2), window='hann')
+                b = sig.firwin(order, f_low / (self.f_samp / 2), window='hann')
                 a = [1.0]
         if(filter_type == "fir_hamming"): 
             if(f_low): 
-                b = sig.firwin(order, f_low / (self.__fsamp / 2), window='hamming')
+                b = sig.firwin(order, f_low / (self.f_samp / 2), window='hamming')
                 a = [1.0]
 
         if(filter_type == "fir_kaiser"): 
             if(f_low): 
-                b = sig.firwin(order, f_low / (self.__fsamp / 2), window = ('kaiser', beta))
+                b = sig.firwin(order, f_low / (self.f_samp / 2), window = ('kaiser', beta))
                 a = [1.0]
 
         if(show_response): 
             w, h = sig.freqz(b, a, worN=2024)
             plt.subplot(2, 1, 1)
 
-            x = (w/np.pi)*(self.__fsamp/2)
+            x = (w/np.pi)*(self.f_samp/2)
 
             db = 20*np.log10(np.maximum(np.abs(h), 1e-5))
             plt.plot(x, db)
@@ -458,7 +458,7 @@ class Timeseries():
             plt.show()
 
             # group delay 
-            w, gd = sig.group_delay((b, a), fs = self.__fsamp)
+            w, gd = sig.group_delay((b, a), fs = self.f_samp)
             plt.title('Digital filter group delay')
             plt.plot(w, gd)
             plt.ylabel('Group delay [samples]')
@@ -620,7 +620,7 @@ class Timeseries():
 
         events=copy.deepcopy(self.events) 
         events_bv = events[:, [0, 2]]
-        write_brainvision(data=self.raw_obj.get_data(), sfreq=self.__fsamp, ch_names=self.__channel_names, fname_base=filename, folder_out=folder, events=events_bv, meas_date = meas_date, resolution = resolution, unit = unit)
+        write_brainvision(data=self.raw_obj.get_data(), sfreq=self.f_samp, ch_names=self.channel_names, fname_base=filename, folder_out=folder, events=events_bv, meas_date = meas_date, resolution = resolution, unit = unit)
         print("stored data in brainvision format")
 
     def getRawObject(self):
@@ -691,7 +691,7 @@ class Timeseries():
         Last changed: 05.11.2023 (by Niklas Kueper)
         """
 
-        return self.__fsamp
+        return self.f_samp
 
     def getCalibStats(self): 
         """
@@ -766,8 +766,8 @@ class Timeseries():
         calib_mins = np.zeros(self.windows.shape[1])
 
         if(feature_times): 
-            start_point_index = int((feature_times[0]/1000)*self.__fsamp)
-            stop_point_index = int((feature_times[1]/1000)*self.__fsamp)
+            start_point_index = int((feature_times[0]/1000)*self.f_samp)
+            stop_point_index = int((feature_times[1]/1000)*self.f_samp)
 
         for channel_idx in range(0, self.windows.shape[1]):   # channel wise 
             if(feature_times):
@@ -806,7 +806,7 @@ class Timeseries():
         Last changed: 05.11.2023 (by Niklas Kueper)
         """
 
-        self.__channel_names = list(ch_names)
+        self.channel_names = list(ch_names)
         self.raw_obj.ch_names = list(ch_names)
 
     def getChannelNames(self): 
@@ -824,7 +824,7 @@ class Timeseries():
         Last changed: 05.11.2023 (by Niklas Kueper)
         """
 
-        return self.__channel_names
+        return self.channel_names
     
     def simpleICAFilteringEpochs(self, n_components = 20, exclude_components = [0, 1]): 
         """
@@ -963,7 +963,7 @@ class Timeseries():
 
                         for channel_idx in range(0, self.windows.shape[1]): # TODO: replace the function call by the parser method for mne objects 
                             #print(current_wind.shape)
-                            filtered_window= mne.filter.filter_data(current_wind[channel_idx, :], sfreq = self.__fsamp, l_freq =f_high , h_freq = f_low, filter_length=order, method = method, fir_design = fir_design, verbose = "CRITICAL") # pad = "symmetric"
+                            filtered_window= mne.filter.filter_data(current_wind[channel_idx, :], sfreq = self.f_samp, l_freq =f_high , h_freq = f_low, filter_length=order, method = method, fir_design = fir_design, verbose = "CRITICAL") # pad = "symmetric"
                             self.windows[trial_idx, :, :, window_idx] = filtered_window
 
                     else: 
@@ -1079,7 +1079,7 @@ class Timeseries():
         for trial_idx in range(0, self.windows.shape[0]): 
             for window_idx in range(0, self.windows.shape[3]): 
 
-                filtered_window = self.fft_bandpass_filter(self.windows[trial_idx, :, :, window_idx], self.__fsamp, lowcut, highcut)
+                filtered_window = self.fft_bandpass_filter(self.windows[trial_idx, :, :, window_idx], self.f_samp, lowcut, highcut)
                 self.windows[trial_idx, :, :, window_idx] = filtered_window
 
 
@@ -1169,10 +1169,10 @@ class Timeseries():
         if(len(channel_names) > 1): # for more then one channel
             channel_idxs = []
             for channel_name in channel_names: 
-                channel_idx = self.__channel_names.index(channel_name)
+                channel_idx = self.channel_names.index(channel_name)
                 channel_idxs.append(channel_idx)
         else: 
-            channel_idxs = self.__channel_names.index(channel_names[0])
+            channel_idxs = self.channel_names.index(channel_names[0])
 
 
         if (windowed_data): 
@@ -1612,8 +1612,8 @@ class Timeseries():
 
         #if (with_channel_dim == False): 
 
-        window_size_samp = int((window_size/1000) * self.__fsamp) 
-        window_step_samp = int((window_step/1000) * self.__fsamp) 
+        window_size_samp = int((window_size/1000) * self.f_samp) 
+        window_step_samp = int((window_step/1000) * self.f_samp) 
 
         if(no_channel_dim): # support old way to postprocess
             epochs_arr_cut = self.epochs[:, 1:]
@@ -1636,9 +1636,9 @@ class Timeseries():
             wind_end_idx = window_size_samp+wind_start_idx
 
             if(no_channel_dim): 
-                wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/self.__fsamp) *1000))
+                wind_name = "bis"+str(int((((epochs_arr_cut.shape[1]-wind_end_idx)*-1)/self.f_samp) *1000))
             else: 
-                wind_name = "bis"+str(int((((epochs_arr_cut.shape[2]-wind_end_idx)*-1)/self.__fsamp) *1000))
+                wind_name = "bis"+str(int((((epochs_arr_cut.shape[2]-wind_end_idx)*-1)/self.f_samp) *1000))
             
             wind_names.append(wind_name) # a list of all window names
             #create arrays for windows 
@@ -2009,7 +2009,7 @@ class Timeseries():
 
         N = len(one_channel_data)
         # sample spacing
-        dT = 1.0/self.__fsamp
+        dT = 1.0/self.f_samp
         x = np.linspace(0.0, N*dT, N, endpoint=False)
         
         # apply window before calculating fft 
@@ -2100,7 +2100,7 @@ class Timeseries():
 
         if(feature_type == "timepoints"): 
             
-            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            feature_times_indices = ((feature_indices_windows/1000)*self.f_samp).astype(int)
 
             # init stuff 
             if(use_mean): 
@@ -2141,8 +2141,8 @@ class Timeseries():
                         i = 0
 
                         for channel_tup in neighbours_list: # loop over all indice values and calc diff of features 
-                            idx1 = self.__channel_names.index(channel_tup[0])
-                            idx2 = self.__channel_names.index(channel_tup[1])
+                            idx1 = self.channel_names.index(channel_tup[0])
+                            idx2 = self.channel_names.index(channel_tup[1])
 
                             # shape: trials, windows, features 
                             current_wind_feat = self.windows[trial_idx, :, feature_times_indices, window_idx].T # get current window features: channel, sampels
@@ -2190,7 +2190,7 @@ class Timeseries():
                 for window_idx in range(0, self.windows.shape[3]):
                     for channel_idx in range(0, self.windows.shape[1]):
                          
-                        xf, yf = self.OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.__fsamp) # do fft of sliced data
+                        xf, yf = self.OnechannelFFT(self.windows[trial_idx, channel_idx,:, window_idx], self.f_samp) # do fft of sliced data
 
                         normed_freqs = (xf*yf)/np.sum(yf) # norm the frequencies
 
@@ -2206,8 +2206,8 @@ class Timeseries():
                         i = 0
 
                         for channel_tup in neighbours_list: # loop over all indice values and calc diff of features 
-                            idx1 = self.__channel_names.index(channel_tup[0])
-                            idx2 = self.__channel_names.index(channel_tup[1])
+                            idx1 = self.channel_names.index(channel_tup[0])
+                            idx2 = self.channel_names.index(channel_tup[1])
                             features_add[:, i] = features[:, idx1] -features[:, idx2] # calculate local feature diffs 
                             i = i+1
 
@@ -2253,7 +2253,7 @@ class Timeseries():
                 for window_idx in range(0, self.windows.shape[3]):
                          
                     current_wind = self.windows[trial_idx, :, :, window_idx] # shape channel, sampels
-                    features = mne_feat.compute_pow_freq_bands(sfreq = self.__fsamp, data =current_wind, freq_bands=freq_bands, normalize = False, psd_method = psd_method)
+                    features = mne_feat.compute_pow_freq_bands(sfreq = self.f_samp, data =current_wind, freq_bands=freq_bands, normalize = False, psd_method = psd_method)
                     x_train_features[trial_idx, window_idx, :] = features
 
             # flatten the trials and windows as train instances 
@@ -2303,7 +2303,7 @@ class Timeseries():
 
         if(feature_type == "timepoints"): 
             
-            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            feature_times_indices = ((feature_indices_windows/1000)*self.f_samp).astype(int)
             # windows have now shape: (trials, channels, sampels, windows)
             shape_windows = self.windows.shape
 
@@ -2330,7 +2330,7 @@ class Timeseries():
             # get the features in one dim for all trials and windows 
             for window_idx in range(0, shape_features[0]): # over all training instances 
                 
-                features_window = mne_feat.compute_pow_freq_bands(sfreq = self.__fsamp, data =x_train_features[window_idx,:,:], freq_bands=freq_bands, normalize = False, psd_method = psd_method)
+                features_window = mne_feat.compute_pow_freq_bands(sfreq = self.f_samp, data =x_train_features[window_idx,:,:], freq_bands=freq_bands, normalize = False, psd_method = psd_method)
                 x_train[window_idx, :] = features_window.flatten()
 
         self.feature_vec = x_train 
@@ -2705,7 +2705,7 @@ class Timeseries():
 
 class OnlineTimeseriesStreaming(): 
 
-    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         This class is used for provide and handle online streamed time series data. 
 
@@ -2715,8 +2715,6 @@ class OnlineTimeseriesStreaming():
             The type of the stream that should be created or used. Can be "data" for timeseries data or "impedance" for receiving/sending impedance values, by default "data"
         channel_names : list, optional
             A list of channel names of the timeseries data. Might not be used in case a stream is providing the channel names automatically, by default ["1", "2", "3"]
-        n_channels : int, optional
-            The number of time series channels. Might not be used in case a stream is providing the channel names automatically, by default 3
         n_samples : int, optional
             The number of timeseries samples that are stored and updated in a buffer for each channel, by default 500
         dt_process_data : float, optional
@@ -2738,13 +2736,13 @@ class OnlineTimeseriesStreaming():
         self.client_type = None
 
         # general params for streaming timeseries data 
-        self.__f_samp = f_samp
+        self.f_samp = f_samp
         self.stream_type = stream_type
-        self.n_channels = n_channels
+        self.n_channels = len(channel_names)
         self.buffersize = n_samples
         self.dt_process_data = dt_process_data
         self.channel_names = channel_names
-        self.data_buffer = np.zeros((1, n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
+        self.data_buffer = np.zeros((1, self.n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
 
         self.last_loop_time = 0.0
 
@@ -2801,9 +2799,9 @@ class OnlineTimeseriesStreaming():
 
             
             #create stream object for getting EMG/EEG data 
-            if (self.__f_samp == 1000): 
+            if (self.f_samp == 1000): 
                 samp_index = 2
-            elif (self.__f_samp == 500): 
+            elif (self.f_samp == 500): 
                 samp_index = 0
             else: 
                 warnings.warn("specify valid sampling rate, using 1000 Hz now ")
@@ -2832,6 +2830,32 @@ class OnlineTimeseriesStreaming():
                 print('  impedances.. {}'.format(list(self.impedance_stream.getData())))
         else: 
             warnings.warn("no amplifier found, terminating ...")
+
+
+    def setChunk(self, chunk = None, chunk_type = "numpy"): 
+        """
+        With methods sets new received data chunk internally for buffering and further processing. 
+
+        Parameters
+        ----------
+        chunk : list or numpy ndarray, optional
+            A list or numpy array with shape: (sampels, channels), by default None
+        chunk_type : str, optional
+            The data type of the chunk, can be "list" or "numpy", by default "numpy"
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 20.09.2024 (by Niklas Kueper)
+        """  
+        
+        if (chunk_type == "numpy"): 
+            self.data_chunk = chunk.tolist()
+        elif (chunk_type == "list"): 
+            self.data_chunk = chunk
+        else: 
+            self.data_chunk = None
+            warnings.warn("unsupported data format, check type of chunk!")
                     
 
     def getChunk(self, return_chunk = False): 

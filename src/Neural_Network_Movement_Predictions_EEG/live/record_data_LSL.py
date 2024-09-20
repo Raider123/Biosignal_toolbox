@@ -47,7 +47,7 @@ def main():
     context = zmq.Context() 
     client = context.socket(zmq.SUB) 
     #client.connect("tcp://10.250.5.249:7001") # connect to logic ? with zmq 
-    client.connect("tcp://134.91.100.24:7005") # connect to logic ? with zmq 
+    client.connect("tcp://134.91.100.13:7005") # connect to logic ? with zmq 
     target_message = {"moveCmd": "left_arm"}
     marker_number = 20 
 
@@ -109,9 +109,12 @@ def main():
             # check for markers 
             try: 
                 msg = client.recv_string(flags=zmq.NOBLOCK)
+                #print(msg)
                 data = json.loads(msg)
+                #print(data)
 
                 if(data == target_message): 
+                    #print(f"data: {data}")
                     marker_indices.append(len(data_arr))
                     print(f"marker")
                     

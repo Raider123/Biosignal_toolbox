@@ -29,8 +29,8 @@ proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosigna
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
-# use LSL file recorded 
-train_file_LSL = ["BR60D_bilateral_exo_vr_set2_data", "BR60D_bilateral_exo_vr_set3_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+# use LSL file recorded # "BR60D_bilateral_exo_vr_set2_data", "BR60D_bilateral_exo_vr_set3_data", 
+train_file_LSL = ["BR60D_bilateral_exo_vr_set4_data", "BR60D_bilateral_exo_vr_set5_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
 
 # subject params 
 subject = "current"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated
@@ -64,7 +64,7 @@ metrics = "accuracy"
 
 
 # training windows and features
-train_windows = ["bis-2500", "bis-1900", "bis-2300", "bis-2000", "bis-1700", "bis-1500", "bis-100", "bis-80", "bis-60", "bis-40", "bis-20", "bis0"]#, "bis-50", "bis0"] # alternatively 
+train_windows = ["bis-2200", "bis-1900", "bis-2100", "bis-2000", "bis-1700", "bis-1500", "bis-100", "bis-80", "bis-60", "bis-40", "bis-20", "bis0"]#, "bis-50", "bis0"] # alternatively 
 window_labels_train = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]# alternative 
 
 features = "fusion" # which features to be used for classification, "timepoints" or "meanfreqs" or "fusion" (combine both)
@@ -164,8 +164,8 @@ sos_EEGNet = EEG_data_train.designFilter(f_low = 40.0, f_high = 0.3, order = 2, 
 
 
 # get features by running processing pipeline 
-x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, None, xd_components= None, sos = sos_MLP)
-x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, None, xd_components = None, sos = sos_MLP)
+x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, sos_MLP)
+x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, sos_MLP)
 
 
 # Load model with norm layer  
@@ -180,8 +180,8 @@ MLP_model.predict(data = x_train_MLP, labels = y_train_MLP, encoding = "binary",
 perf_results_MLP = MLP_model.getPerfResults()
 
 # EEGNet processing pipeline 
-x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_train), window_labels_train, num_classes, sos = sos_EEGNet)
-x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_val), window_labels_train, num_classes, sos = sos_EEGNet)
+x_train_EEGNet, y_train_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_train), window_labels_train, num_classes, sos_EEGNet)
+x_val_EEGNet, y_val_EEGNet = pipeline.EEGNetProcessingOnline(copy.deepcopy(EEG_data_val), window_labels_train, num_classes, sos_EEGNet)
 
 
 #shape_input = EEG_train_EEGNet.getWindows().shape # get train data shape for network 
