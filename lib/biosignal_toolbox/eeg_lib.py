@@ -418,17 +418,19 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         The base EEGData class including all processing methods for EEG data. 
     """ 
     
-    def __init__(self): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 15.04.2024 (by Niklas Kueper)
+        Last changed: 20.09.2024 (by Niklas Kueper)
         """        
+        #print(stream_type)
         
-        super().__init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
         EEGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
 
         

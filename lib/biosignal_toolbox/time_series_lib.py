@@ -377,6 +377,11 @@ class Timeseries():
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
+
+                #self.__fsamp = 500.0
+                # print(self.__fsamp)
+                # print(f_high)
+                # print(f_low)
                 b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
                 sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
             elif(f_high):
@@ -2733,7 +2738,7 @@ class OnlineTimeseriesStreaming():
         self.client_type = None
 
         # general params for streaming timeseries data 
-        self.f_samp = f_samp
+        self.__f_samp = f_samp
         self.stream_type = stream_type
         self.n_channels = n_channels
         self.buffersize = n_samples
@@ -2796,9 +2801,9 @@ class OnlineTimeseriesStreaming():
 
             
             #create stream object for getting EMG/EEG data 
-            if (self.f_samp == 1000): 
+            if (self.__f_samp == 1000): 
                 samp_index = 2
-            elif (self.f_samp == 500): 
+            elif (self.__f_samp == 500): 
                 samp_index = 0
             else: 
                 warnings.warn("specify valid sampling rate, using 1000 Hz now ")

@@ -113,7 +113,8 @@ def main():
 
                 if(data == target_message): 
                     marker_indices.append(len(data_arr))
-
+                    print(f"marker")
+                    
             
             except zmq.ZMQError: 
                 #print("waiting for message")
@@ -133,6 +134,9 @@ def main():
     # write marker to file 
     if(marker_indices): 
         data_arr_np[marker_indices, -1] = marker_number
+
+    print("marker indices detected", marker_indices)
+    print("markers: ", data_arr_np[marker_indices, -1])
 
 
     print("storing data")
