@@ -8,7 +8,7 @@ import zmq
 from time import sleep
 
 from pylsl import StreamInlet, resolve_stream
-from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
+#from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
 
 
 def establishZMQ(zmq_server_ip, zmq_topic):
@@ -42,12 +42,12 @@ def updateScoreViz(i, scores_arr, my_zmq_socket,buffer_size, y_lim_arr, n_ticks,
         plt.title("Online Movement Onset Prediction Scores")
         plt.axhline(y=prob_thr, color='r', linestyle='-.')
         
-        plt.legend(lines,['EEGLAB * MLP'])
-
+        plt.legend(['Ensemble model score', 'Threshold'])
+        
 
 def runZMQ():
 
-    my_zmq_socket  = establishZMQ("10.250.3.125:34761", b"10")
+    my_zmq_socket  = establishZMQ("localhost:34761", b"10")
     sleep(1)
     print("ZMQ Process Ready!")
 
@@ -55,13 +55,13 @@ def runZMQ():
         
         dt_read_buffer_ms = 40
         buffer_size = 150
-        prob_thr = 0.7
+        prob_thr = 0.6
         y_lim_arr = [-0.5, 1.5]
         tick_res = 10
         n_ticks = int(buffer_size/tick_res) + 1
         scores_arr = np.zeros(buffer_size)
         inp_buf = []
-            
+        
         fig1 = plt.figure()
         fig1.set_size_inches(8.0, 4.8, forward=True)
         anim = animation.FuncAnimation(fig1, updateScoreViz, frames = None, interval = dt_read_buffer_ms, blit = False,\
@@ -142,12 +142,12 @@ def main():
     channel_names = ['F5', 'F3', 'F1', 'FZ', 'F2', 'F4', 'F6', 'FC5', 'FC3', 'FC1', 'FC2', 'FC4', 'FC6', 'C5', 'C3', 'C1', 'CZ', 'C2', 'C4', 'C6', 'CP5', 'CP3', 'CP1', 'CPZ', 'CP2', 'CP4', 'CP6', 'P5','P3', 'P1', 'PZ', 'P2', 'P4', 'P6']
 
 
-    pr_dataViz = mp.Process(target=dataVisualization, args=(channel_names,))
-    #pr_scoreViz = mp.Process(target=runZMQ)
+    #pr_dataViz = mp.Process(target=dataVisualization, args=(channel_names,))
+    pr_scoreViz = mp.Process(target=runZMQ)
 
     # start the processes
-    pr_dataViz.start()
-    #pr_scoreViz.start()
+    #pr_dataViz.start()
+    pr_scoreViz.start()
 
 
 

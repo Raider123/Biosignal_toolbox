@@ -80,8 +80,8 @@ class EEGData(Timeseries):
 
         #basic params 
         self.raw_obj = raw_obj
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         self.data = data
         self.epochs = epochs
         self.windows = windows
@@ -100,8 +100,8 @@ class EEGData(Timeseries):
             
             # update parameter 
             #basic params 
-            self.__channel_names = self.raw_obj.ch_names
-            self.__fsamp = self.raw_obj.info['sfreq']
+            self.channel_names = self.raw_obj.ch_names
+            self.f_samp = self.raw_obj.info['sfreq']
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
             #events epochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
@@ -109,16 +109,16 @@ class EEGData(Timeseries):
 
         elif(format == "NumpyEpochs"): 
             self.epochs = epochs
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == "RawObj"): 
             self.raw_obj = raw_obj
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == "Live"): 
             self.windows = windows
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
         elif(format == "Recorded_LSL_stream"): 
             
@@ -134,16 +134,16 @@ class EEGData(Timeseries):
                     data = np.load(data_path +filenames[0]+".npy")
 
             
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
             # create mne object 
-            sfreq = self.__fsamp  # Sampling frequency
+            sfreq = self.f_samp  # Sampling frequency
             data = data.T # in form (channel, sampels)
             #print("markers", np.where(data[-1, :] == 64)[0])
             times = np.arange(0, data.shape[1], 1/sfreq)  # 
-            ch_types = ['eeg'] * len(self.__channel_names) # only EEG for now 
-            ch_names = self.__channel_names
+            ch_types = ['eeg'] * len(self.channel_names) # only EEG for now 
+            ch_names = self.channel_names
             info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
             #scalings = {'eeg': 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
@@ -158,7 +158,7 @@ class EEGData(Timeseries):
             events[:, 2] = marker_numbers
             self.events = events.astype(int)
 
-            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            annotations = mne.annotations_from_events(events = events, sfreq = self.f_samp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
             self.raw_obj.set_annotations(annotations = annotations)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
 
@@ -169,7 +169,7 @@ class EEGData(Timeseries):
             print("No dataset specified ...")
         
         # init the super class 
-        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.__channel_names, f_samp = self.__fsamp, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.channel_names, f_samp = self.f_samp, data = self.data, epochs = self.epochs, windows = self.windows)
 
     def loadBrainproductsData(self, dataset_list): 
         """
@@ -418,20 +418,22 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         The base EEGData class including all processing methods for EEG data. 
     """ 
     
-    def __init__(self): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 15.04.2024 (by Niklas Kueper)
+        Last changed: 20.09.2024 (by Niklas Kueper)
         """        
+        #print(stream_type)
         
-        super().__init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EEGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
+        
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)#, stream_type = stream_type, channel_names = ["1", "2", "3"], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EEGData.__init__(self, format = "Live", f_samp = f_samp, channel_names = channel_names)
 
-
+        
 
 
 

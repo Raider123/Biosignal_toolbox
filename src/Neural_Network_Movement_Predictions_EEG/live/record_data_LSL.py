@@ -6,21 +6,24 @@ To run the script with you current python version activated, give the full path 
 
 """
 
-
 from pylsl import StreamInlet, resolve_stream
 import numpy as np 
 import keyboard
 import os 
 import argparse
-from biosignal_toolbox.eeg_lib import EEGData, OnlineEEGUtils
+import zmq 
+import json 
+import time 
+
+#from biosignal_toolbox.eeg_lib import EEGData#, OnlineEEGUtils
 
 def main():
 
 
-    #************************************************************
+    #****************************   ********************************
     # ********************** user params ************************
     #************************************************************
-
+    
     # set paths 
     proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
     data_path = proj_path+"/data/"
@@ -40,18 +43,41 @@ def main():
     else: 
         filename = 'test'
 
+    # zmq marker connection 
+    context = zmq.Context() 
+    client = context.socket(zmq.SUB) 
+    #client.connect("tcp://10.250.5.249:7001") # connect to logic ? with zmq 
+    client.connect("tcp://134.91.100.13:7005") # connect to logic ? with zmq 
+    target_message = {"moveCmd": "left_arm"}
+    marker_number = 20 
 
+
+    client.setsockopt_string(zmq.SUBSCRIBE, "")
+    time.sleep(1)
+
+    print("started zmq connection")
+
+    
     # first resolve an EEG stream on the lab network
     print("looking for an EEG stream...")
     streams = resolve_stream('type', 'EEG') # create data stream 
 
+    print(streams)
+    print("done here")
     # create a new inlet to read from the stream
     inlet = StreamInlet(streams[0]) 
     stream_info = inlet.info()
 
+    print("stream info: ")
+    print("name:", stream_info.name())
+    print("type:", stream_info.type())
+    print("channel_count:", stream_info.channel_count())
+    print("nominal_srate:", stream_info.nominal_srate())
+    print("source_id:", stream_info.source_id())
+
     #Create EEG utils object for helping methods 
-    EEGutils = OnlineEEGUtils()
-    EEGutils.printStreamMetadata(stream_info) # print stream info 
+    # EEGutils = OnlineEEGUtils()
+    # EEGutils.printStreamMetadata(stream_info) # print stream info 
 
     # run continiously 
     running = False
@@ -59,6 +85,7 @@ def main():
     # uncomment if data should be recorded (not necessary for online prediction, use buffer for that)
     data_arr = []
     time_stamp_arr = []
+    marker_indices = []
 
 
     print("Press s to start recording ...")
@@ -66,19 +93,37 @@ def main():
         if(keyboard.is_pressed("s")): 
             running = True
             break 
-
+    
     print("started recording")
 
     while running:
-       
+        
         chunk, timestamps = inlet.pull_chunk() # get a new data chunk
-
+        
         if(chunk): # if list not empty (new data)
             
             # uncomment to record ALL data received (not required for participants)
             data_arr = data_arr+chunk
+            #print(len(data_arr))
             time_stamp_arr = time_stamp_arr + timestamps
+            # check for markers 
+            try: 
+                msg = client.recv_string(flags=zmq.NOBLOCK)
+                #print(msg)
+                data = json.loads(msg)
+                #print(data)
 
+                if(data == target_message): 
+                    #print(f"data: {data}")
+                    marker_indices.append(len(data_arr))
+                    print(f"marker")
+                    
+            
+            except zmq.ZMQError: 
+                #print("waiting for message")
+                pass
+
+            
             if(keyboard.is_pressed("e")): 
                 running = False
     
@@ -87,6 +132,15 @@ def main():
 
     data_arr_np = np.array(data_arr)
     time_stamp_arr_np = np.array(time_stamp_arr) 
+
+    
+    # write marker to file 
+    if(marker_indices): 
+        data_arr_np[marker_indices, -1] = marker_number
+
+    print("marker indices detected", marker_indices)
+    print("markers: ", data_arr_np[marker_indices, -1])
+
 
     print("storing data")
     if not (os.path.isfile(data_path+filename+"_data") and data_path+filename+"_timestamp"): 

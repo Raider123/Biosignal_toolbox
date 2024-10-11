@@ -26,11 +26,12 @@ from mne.time_frequency import tfr_array_morlet
 # disable GPU for testing
 #tf.config.set_visible_devices([], 'GPU') # disable now 
 
+from scipy.signal import lfilter_zi, lfilter
+
 
 # *********************************************************************************
 # ***************** Main processing and classification loop ***********************
 # *********************************************************************************
-
 
 
 
@@ -75,12 +76,110 @@ for current_condition_idx in range(0, len(train_test_conditions)):
 
     #  loading and epoching for training   
     EEG_data_train = EEGData(format = "Brainvision", filenames = train_file_list, data_path = data_path)
-    EEG_data_train_xDAWN = copy.deepcopy(EEG_data_train)
+    #EEG_data_train_xDAWN = copy.deepcopy(EEG_data_train)
     EEG_data_val_test = EEGData(format = "Brainvision", filenames = val_test_file_list, data_path = data_path)
 
+    
 
-    # Filter settings 
-    #sos = EEG_data_train.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos", rp = 0.1, rs = 80.0)
+#     # Filter settings 
+#     b, a = EEG_data_train.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
+#     # zi1 = lfilter_zi(b, a)
+#     # zi2 = lfilter_zi(b, a)
+
+#     chunk_size = 500
+
+#     # zi1_arr = zi1*EEG_data_train.data[:, 0]
+#     # zi2_arr = zi2*EEG_data_train.data[:, 0]
+#     # Initialize filter states for each channel
+#     num_channels = EEG_data_train.data.shape[0]
+#     zi1_arr = np.zeros((num_channels, len(b) - 1))
+#     zi2_arr = np.zeros((num_channels, len(b) - 1))
+
+#     for channel_idx in range(num_channels):
+#         channel_data = EEG_data_train.data[channel_idx, :]
+
+#         filtered_signal = []
+#         zi1 = lfilter_zi(b, a) * channel_data[0]  # Initial filter state for the forward pass
+
+#         # Process the data in chunks
+#         for start in range(0, len(channel_data), chunk_size):
+#             end = min(start + chunk_size, len(channel_data))
+#             chunk = channel_data[start:end]
+            
+#             # Forward filter
+#             y, zi1 = lfilter(b, a, chunk, zi=zi1)
+            
+#             # Reverse the signal
+#             y_rev = y[::-1]
+            
+#             # Backward filter with reversed signal
+#             y_rev_filtered = lfilter(b, a, y_rev)
+            
+#             # Reverse again to get the final filtered signal chunk
+#             y_final = y_rev_filtered[::-1]
+            
+#             # Append the filtered chunk to the output signal
+#             filtered_signal.extend(y_final)
+        
+#         # Convert the filtered signal to a NumPy array
+#         filtered_signal = np.array(filtered_signal)
+        
+#         # Ensure the filtered signal has the same length as the original data
+#         if len(filtered_signal) > len(channel_data):
+#             filtered_signal = filtered_signal[:len(channel_data)]
+#         elif len(filtered_signal) < len(channel_data):
+#             filtered_signal = np.pad(filtered_signal, (0, len(channel_data) - len(filtered_signal)), 'constant')
+
+#         # Update the EEG data with the filtered signal
+#         EEG_data_train.data[channel_idx, :] = filtered_signal
+#         EEG_data_train.raw_obj._data = EEG_data_train.data
+
+# # ***************************************************************
+
+#     num_channels = EEG_data_val_test.data.shape[0]
+#     zi1_arr = np.zeros((num_channels, len(b) - 1))
+#     zi2_arr = np.zeros((num_channels, len(b) - 1))
+
+#     for channel_idx in range(num_channels):
+#         channel_data = EEG_data_val_test.data[channel_idx, :]
+
+#         filtered_signal = []
+#         zi1 = lfilter_zi(b, a) * channel_data[0]  # Initial filter state for the forward pass
+
+#         # Process the data in chunks
+#         for start in range(0, len(channel_data), chunk_size):
+#             end = min(start + chunk_size, len(channel_data))
+#             chunk = channel_data[start:end]
+            
+#             # Forward filter
+#             y, zi1 = lfilter(b, a, chunk, zi=zi1)
+            
+#             # Reverse the signal
+#             y_rev = y[::-1]
+            
+#             # Backward filter with reversed signal
+#             y_rev_filtered = lfilter(b, a, y_rev)
+            
+#             # Reverse again to get the final filtered signal chunk
+#             y_final = y_rev_filtered[::-1]
+            
+#             # Append the filtered chunk to the output signal
+#             filtered_signal.extend(y_final)
+
+#         # Convert the filtered signal to a NumPy array
+#         filtered_signal = np.array(filtered_signal)
+        
+#         # Ensure the filtered signal has the same length as the original data
+#         if len(filtered_signal) > len(channel_data):
+#             filtered_signal = filtered_signal[:len(channel_data)]
+#         elif len(filtered_signal) < len(channel_data):
+#             filtered_signal = np.pad(filtered_signal, (0, len(channel_data) - len(filtered_signal)), 'constant')
+
+#         # Update the EEG data with the filtered signal
+#         EEG_data_val_test.data[channel_idx, :] = filtered_signal
+#         EEG_data_val_test.raw_obj._data = EEG_data_val_test.data
+        
+
     #sos = EEG_data_train.designFilter(f_low = 10.0, f_high = None, order = 3, filter_type = "scipy_bessel", return_type = "sos")
     
     # # dc removal 
@@ -106,7 +205,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     # EEG_data_val_test.filterRawData(b= b, a = a, apply_method = "zero_phase_ba", padtype = "even")
     # EEG_data_val_test.filterRawData(b= b1, a = a1, apply_method = "zero_phase_ba", padtype = "even")
     
-
+    
     # when using offline filters for preprocessing 
     if (use_offline_processing): 
         print(f"using offline preprocessing")
@@ -120,18 +219,19 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     else: # no 
         print(f"using online preprocessing")
         # do rereferencing here since in real online case no epoching is done ! 
-        if(current_condition_idx >1): 
-            EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
-        else: 
-            # do not do extra stuff currently 
-            EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list = [], inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        # if(current_condition_idx >1): 
+        #     EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        # else: 
+        #     # do not do extra stuff currently 
+        #    EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list = [], inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
+        
+            
 
-
-
-        freqs = np.arange(0.5, 4, 0.5) # at 2 Hz
-        tfr = tfr_array_morlet(EEG_data_train.epochs, sfreq = EEG_data_train.getSamplingRate(), freqs = freqs, n_cycles = 1)
-        phase_data = np.angle(tfr)
-        print(f"*** phase data", phase_data.shape)
+        # freqs = np.arange(0.5, 4, 0.5) # at 2 Hz
+        # tfr = tfr_array_morlet(EEG_data_train.epochs, sfreq = EEG_data_train.getSamplingRate(), freqs = freqs, n_cycles = 1)
+        # phase_data = np.angle(tfr)
+        #print(f"*** phase data", phase_data.shape)
         #print(phase_data)
         
         
@@ -164,27 +264,34 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     # get features by running processing pipeline 
     
     if (use_offline_processing): 
+        print(f"using Offline processing and filtering")
         x_train_MLP, y_train_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_train_05_4Hz), copy.deepcopy(EEG_data_train_05_40Hz), window_labels_train, feature_indices_windows)
         x_val_MLP, y_val_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_val_05_4Hz), copy.deepcopy(EEG_data_val_05_40Hz), window_labels_train, feature_indices_windows)
         x_test_MLP, y_test_MLP = pipeline.MLPProcessingOffline(copy.deepcopy(EEG_data_test_05_4Hz), copy.deepcopy(EEG_data_test_05_40Hz), window_labels_train, feature_indices_windows)
         
     else: 
         if(not use_net): 
-            print(f"using moving ave filter")
+            print(f"using Online processing with iir processing")
             x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, None, xd_components= None)
             x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, None, xd_components = None)
             x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnline(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows, None, xd_components = None)
         else: 
-            print(f"using filterNet")
+            print(f"using Online processing with filterNet processing")
             x_train_MLP, y_train_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_train), copy.deepcopy(EEG_data_train), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
             x_val_MLP, y_val_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_val), copy.deepcopy(EEG_data_val), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
             x_test_MLP, y_test_MLP = pipeline.MLPProcessingOnlineFilterNet(copy.deepcopy(EEG_data_test), copy.deepcopy(EEG_data_test), window_labels_train, feature_indices_windows, filter_model = filter_model_05_4Hz)
 
 
     # Load model with norm layer and train model  
-    #MLP = MLP_Model_reduced(x_train_MLP, use_norm_layer = use_norm_layer)
+    #MLP = MLP_Huge(x_train_MLP, use_norm_layer = use_norm_layer)
     MLP = MLP_Model_reduced(x_train_MLP, use_norm_layer = use_norm_layer)
-    MLP_model = MLModel(model = MLP, type= "keras")
+    # from tensorflow.keras.utils import plot_model
+    
+    # # Plot and save the model architecture to a file
+    # plot_model(MLP, to_file='MLP_architecture.png', show_shapes=True, show_layer_names=True)
+
+
+    MLP_model = MLModel(model = MLP, type= "keras", model_summary = False)
     print(f"shape of train data {x_train_MLP.shape}")
     MLP_model.trainModel(save_trained_model = False, model_filename =data_path+subject+"_"+scenario_name+result_file_name+"_model_MLP_", train_epochs= n_epochs, batch_size=n_batch_size_MLP, class_weights=None, x_train=x_train_MLP, y_train= y_train_MLP, x_val = x_val_MLP, y_val = y_val_MLP, callbacks=[early_callback], loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=show_train_results)
 
@@ -193,7 +300,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     print("predict MLP net")
     MLP_model.predict(data = x_test_MLP, labels = y_test_MLP, encoding = "binary", show_results = True, show_pred_time = False, eval_type = "offline")
     perf_results_MLP = MLP_model.getPerfResults()
-
+    
 
     # **********************************************************************************
     # ********************* EEGnet processing and training  ***************************

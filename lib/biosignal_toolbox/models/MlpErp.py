@@ -35,7 +35,7 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 32, second_layer_u
     model.add(Dense(units=n_classes, activation=activation)) 
     
     return model 
-
+    
     
 def MLP_Model_reduced(x_train, leaky_alpha = 0.5, first_layer_units = 8, second_layer_units = 8, third_layer_units = 4, activation = "sigmoid", n_classes = 2, dropout_rate = 0.5, use_norm_layer = False): # 8 8 8 0.2 drop
     
