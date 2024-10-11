@@ -55,7 +55,7 @@ def runZMQ():
         
         dt_read_buffer_ms = 40
         buffer_size = 150
-        prob_thr = 0.7
+        prob_thr = 0.6
         y_lim_arr = [-0.5, 1.5]
         tick_res = 10
         n_ticks = int(buffer_size/tick_res) + 1

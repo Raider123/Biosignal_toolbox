@@ -30,7 +30,7 @@ data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 
 # use LSL file recorded # "BR60D_bilateral_exo_vr_set2_data", "BR60D_bilateral_exo_vr_set3_data", 
-train_file_LSL = ["BR60D_bilateral_exo_vr_set4_data", "BR60D_bilateral_exo_vr_set5_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
+train_file_LSL = ["BR60D_bilateral_exo_vr_set6_data", "BR60D_bilateral_exo_vr_set7_data", "BR60D_bilateral_exo_vr_set8_data"] #"BR60D_unilateral_live_2_data", "BR60D_intentional_unilateral_set8_data", ]
 
 # subject params 
 subject = "current"  # "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68", "QS70"] # specify which subjects data should be evaluated

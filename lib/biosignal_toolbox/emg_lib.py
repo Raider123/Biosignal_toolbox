@@ -303,7 +303,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         _description_
     """
 
-    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         The constructor of the OnlineEMG class. 
 
@@ -314,10 +314,10 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         """        
 
         
-        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EMGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = "Live", f_samp = f_samp, channel_names = channel_names)
 
-
+        
 
 
     
