@@ -34,18 +34,15 @@ data_path = proj_path+"/data/m-rock_demo/"
 # results_path = proj_path+"/results/"
 
 #! Files for training
-train_file_prefix = "emg_data/09092024_BR07D_"
-target_file_prefix = ["quali_data/quali_torque_elbow_", "quali_data/quali_torque_front_", "quali_data/quali_torque_side_"]
+train_file_prefix = "emg_data/24092024_FW28D_"
+target_file_prefix = ["quali_data/FW28D/quali_torque_elbow_", "quali_data/FW28D/quali_torque_front_", "quali_data/FW28D/quali_torque_side_"]
 
 #! Read Qualisys data param
-weights_d = ['0g', '1000g']
-# weights_d = ['0g']
+weights_d = ['0g']
 
 mov_type_d=['complex', 'grasp']
-# mov_type_d=['grasp']
 
-set_num_d = ['3','4','5','6']
-# set_num_d = ['5','6']
+set_num_d = ['1','2','3']
 
 #! fcn model parameter 
 n_epochs = 300
@@ -69,8 +66,8 @@ else:
 
 #! window wise metric evaluation
 # Window params for EMG input data
-window_size_x = 50              #in samples 
-window_step_x = 50
+window_size_x = 55              #in samples 
+window_step_x = 55
 # Window params for target torque values
 window_size_y = window_size_x
 window_step_y = window_step_x
@@ -93,10 +90,11 @@ else:
 #! Pre-processing parameters
 f_samp = 500
 f_cutoff_hpf = 15
-f_cutoff_lpf = 4
+f_cutoff_lpf = 10
 var_filt_width = 20
+# mvc = 2.7579163508176626e-06
 mvc = 2.7579163508176626e-06
-delay = 25
+delay = 50
 beta1 = 0.25
 beta2 = 0.05
 gamma = 0.7
@@ -104,9 +102,9 @@ A = -1.5
 use_new_function = True     # if true, use calculateActivationForceFunctionCPPNew 
 
 #! BPNN params
-neurons_inp = 8
-neurons_h1 = 5
-neurons_h2 = 2
+neurons_inp = 160
+neurons_h1 = 40
+neurons_h2 = 8
 
 act_inp = 'relu'
 act_h1 = 'relu'
@@ -114,10 +112,13 @@ act_h2 = 'linear'
 
 #! plot folder
 save_fig = False
-plot_folder = "plot4_mav"
+plot_folder = "FW28D_plot6"
+
+#! model name
+suffix = "6"
 
 #! subject params 
-subject = "BR07D"
+subject = "FW28D"
 if len(mov_type_d) >1:
     scenario_name = mov_type_d[0] + '_' + mov_type_d[1]
 else:
@@ -131,7 +132,7 @@ channel_names_i = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
 perf_results_total_MLP = []
 
 #! Initialise arrays to append data
-length_of_each_feature_window = int(len(channel_names_i))
+length_of_each_feature_window = feature_size * int(len(channel_names_i))
 x_train_combined = np.empty(shape=[0,length_of_each_feature_window])
 y_e_train_combined = np.empty(shape=[0,2])
 y_f_train_combined = np.empty(shape=[0,2])
@@ -167,16 +168,16 @@ for typ_idx in range(len(mov_type_d)):
             #! Loading the target values for the 3 joints
             channel_names_t = ['right', 'left', 'marker']
             print("Creating Quali Elbow object!!")
-            Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
             print("Creating Quali Shoulder Front object!!")
-            Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
             print("Creating Quali Shoulder Side object!!")
-            Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
 
 
             channel_names = EMG_Data.getChannelNames()
-            print("Channel Names: ", channel_names)
-            print("Channel Length: ", len(channel_names))
+            print("channel names", channel_names)
+            print("channel length", len(channel_names))
             print("")
 
             # print(Quali_Data_Elbow.data.shape)
@@ -189,7 +190,7 @@ for typ_idx in range(len(mov_type_d)):
             # ***************************** Preprocessing of data ******************************
             # **********************************************************************************
 
-            #! High pass filter
+            #! High pass filter 20 Hz
             EMG_Data.highPassFilter(cutoff_freq=f_cutoff_hpf, order=2, fs=f_samp, type="butter")
 
             #! Plotting HP filtered data
@@ -227,7 +228,7 @@ for typ_idx in range(len(mov_type_d)):
             EMG_Data.normalizeContinuousDataNew(mvc=mvc)
             print("Normalization with Max Voluntary Contraction performed !!\n")
 
-            #! Low pass filter to smoothen the signal
+            #! Low pass filter 10 Hz to smoothen the signal
             EMG_Data.lowPassFilter(cutoff_freq=f_cutoff_lpf, order=2, fs=f_samp, type="butter")
 
             #! Plot normalised and smoothened data
@@ -271,8 +272,6 @@ for typ_idx in range(len(mov_type_d)):
             # plt.plot(EMG_Data.getWindows()[0,2,:,18])
             # plt.show()
 
-            # print(f"Window: {EMG_Data.getWindows()[0,0,:,0]}")
-
             # **********************************************************************************
             # ******************************* Feature Extraction *******************************
             # **********************************************************************************
@@ -286,7 +285,7 @@ for typ_idx in range(len(mov_type_d)):
             print("Feature extraction from windowed data completed !!\n")
 
             #! input features network 
-            x   = EMG_Data.calculateMAVFromFeatures(len(channel_names))
+            x = EMG_Data.getFeatures()
             y_e = Quali_Data_Elbow.getFeatures()[:,0:2]
             y_f = Quali_Data_Front.getFeatures()[:,0:2]
             y_s = Quali_Data_Side.getFeatures()[:,0:2]
@@ -335,15 +334,15 @@ MLP_model_s = MLModel(model = model_s, type= "keras")
 
 #! Train model
 print("Training MLP model for elbow joint...") 
-MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_e.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow"+"_"+suffix, train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for elbow done !!\n")
 
 print("Training MLP model for shoulder front joint...") 
-MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_f.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front"+"_"+suffix, train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for front done !!\n")
 
 print("Training MLP model for shoulder side joint...") 
-MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side_mav", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_s.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side"+"_"+suffix, train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for side done !!\n")
 
 #! Load saved model
@@ -371,7 +370,7 @@ filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
 filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
 filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
 
-filter_window_size = 3
+filter_window_size = 4
 
 for idx in range(len(perf_results_MLP_e)):
     if idx < filter_window_size:
@@ -379,9 +378,9 @@ for idx in range(len(perf_results_MLP_e)):
         filtered_perf_results_MLP_f[idx] = perf_results_MLP_f[idx]
         filtered_perf_results_MLP_s[idx] = perf_results_MLP_s[idx]
     else:
-        filtered_perf_results_MLP_e[idx] = np.mean(perf_results_MLP_e[idx-filter_window_size+1:idx])
-        filtered_perf_results_MLP_f[idx] = np.mean(perf_results_MLP_f[idx-filter_window_size+1:idx])
-        filtered_perf_results_MLP_s[idx] = np.mean(perf_results_MLP_s[idx-filter_window_size:idx])
+        filtered_perf_results_MLP_e[idx] = np.median(perf_results_MLP_e[idx-filter_window_size+1:idx])
+        filtered_perf_results_MLP_f[idx] = np.median(perf_results_MLP_f[idx-filter_window_size+1:idx])
+        filtered_perf_results_MLP_s[idx] = np.median(perf_results_MLP_s[idx-filter_window_size:idx])
 
         # filtered_perf_results_MLP[idx] = np.mean(perf_results_MLP[idx-filter_window_size:idx])
         # filtered_perf_results_MLP[idx] = np.median(perf_results_MLP[idx-filter_window_size:idx])
@@ -410,24 +409,25 @@ elif save_fig and dir_d.exists():
 #! Create a readme.txt and include all parameters in it
 if save_fig:
     readme_file = dir_d / "readme.txt"
-    with readme_file.open("w") as f:
-        f.write(f"Scenario: {weights_d, mov_type_d}\n") 
-        f.write(f"Subject: {subject}\n")
-        f.write(f"Batch Size: {n_batch_size}\n")
-        f.write(f"Feature Selection: {feature_sel} \n")
-        f.write(f"Window Size: {window_size_x}\n")
-        f.write(f"Window Step: {window_step_x}\n")
-        f.write(f"\n")
-        f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
-        f.write(f"Variance Filter width: {var_filt_width}\n")
-        f.write(f"MVC: {mvc}\n")
-        f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
-        f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
-        f.write(f"\n")
-        f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
-        f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
-        f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
-        f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
+    if save_fig:
+        with readme_file.open("w") as f:
+            f.write(f"Scenario: {weights_d, mov_type_d}\n") 
+            f.write(f"Subject: {subject}\n")
+            f.write(f"Batch Size: {n_batch_size}\n")
+            f.write(f"Feature Selection: {feature_sel} \n")
+            f.write(f"Window Size: {window_size_x}\n")
+            f.write(f"Window Step: {window_step_x}\n")
+            f.write(f"\n")
+            f.write(f"HPF Filter: {f_cutoff_hpf}Hz\n")
+            f.write(f"Variance Filter width: {var_filt_width}\n")
+            f.write(f"MVC: {mvc}\n")
+            f.write(f"LPF Filter: {f_cutoff_lpf}Hz\n")
+            f.write(f"Force Activation: {use_new_function} -> {delay, beta1, beta2, gamma, A}\n")
+            f.write(f"\n")
+            f.write(f"BPNN Neurons: {neurons_inp, neurons_h1, neurons_h2}\n")
+            f.write(f"BPNN Act functions: {act_inp, act_h1, act_h2}\n")
+            f.write(f"Early Stopping: {early_stop} ({n_epochs} epochs)\n")
+            f.write(f"Post Processing: Median filter size {filter_window_size-1}\n")
 
 #! Plotting the filtered prediction results
 plt.figure()
@@ -435,6 +435,8 @@ x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
 plt.title(f"Elbow Joint Median (RMSE {rmse_elbow} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -445,6 +447,8 @@ x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
 plt.title(f"Shoulder Front Joint Median (RMSE {rmse_front} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -455,11 +459,12 @@ x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
 plt.title(f"Shoulder Side Joint Median (RMSE {rmse_side} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
     plt.savefig("../../plots/m-rock_demo/" + plot_folder +"/test_side_median.png")
-
 
 #! Plotting the raw prediction results
 plt.figure()
@@ -467,6 +472,8 @@ x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
 plt.title(f"Elbow Joint Raw (RMSE {rmse_elbow_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -477,6 +484,8 @@ x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
 plt.title(f"Shoulder Front Joint Raw (RMSE {rmse_front_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -487,6 +496,8 @@ x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
 plt.title(f"Shoulder Side Joint Raw (RMSE {rmse_side_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:

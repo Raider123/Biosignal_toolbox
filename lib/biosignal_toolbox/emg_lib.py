@@ -71,8 +71,8 @@ class EMGData(Timeseries):
         
         # parameter 
         self.raw_obj = None
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         # data structures 
         self.data = None
         self.epochs = None
@@ -85,7 +85,7 @@ class EMGData(Timeseries):
             
             if(format == "ANTmini"):
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.f_samp)
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
@@ -109,14 +109,14 @@ class EMGData(Timeseries):
 
             else: 
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-                raw_data, self.time_axis, self.__channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
 
 
         # print("data shape:", self.data.shape)
-        super().__init__(f_samp = self.__fsamp, channel_names = self.__channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(f_samp = self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
 
 
     def createMNERaw(self):
@@ -130,13 +130,13 @@ class EMGData(Timeseries):
         """
         
         # create mne object 
-        sfreq = self.__fsamp  # Sampling frequency
+        sfreq = self.f_samp  # Sampling frequency
         data = self.data # (channel, sampels)
         #times = np.arange(0, data.shape[1], 1/sfreq)  # 
-        ch_types = ['emg'] * len(self.__channel_names) # 
-        info = mne.create_info(ch_names=self.__channel_names, sfreq=sfreq, ch_types=ch_types)
+        ch_types = ['emg'] * len(self.channel_names) # 
+        info = mne.create_info(ch_names=self.channel_names, sfreq=sfreq, ch_types=ch_types)
         #scalings = {'emg': 1}
-        raw = mne.io.RawArray(data[0:len(self.__channel_names), :], info) # only pass the actual EMG channel 
+        raw = mne.io.RawArray(data[0:len(self.channel_names), :], info) # only pass the actual EMG channel 
         self.raw_obj = raw
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
@@ -180,7 +180,7 @@ class EMGData(Timeseries):
 
         # calc sampling freq from data 
         dt = emg_time_axis[1] - emg_time_axis[0]
-        self.__fsamp = float(1/dt)
+        self.f_samp = float(1/dt)
 
         emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
 
@@ -245,13 +245,13 @@ class EMGData(Timeseries):
             for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
-                plt.title(self.__channel_names[n_channel])
+                plt.title(self.channel_names[n_channel])
                 plt.xlabel("Time in seconds")
                 plt.ylabel("Voltage in uV")
         else:
             plt.figure()
             plt.plot(self.time_axis, self.data)
-            plt.title(self.__channel_names)
+            plt.title(self.channel_names)
             plt.xlabel("Time in seconds")
             plt.ylabel("Voltage in uV")
 
@@ -331,8 +331,8 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         """        
 
         
-        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EMGData.__init__(self, format = "Live")#, f_samp = f_samp, channel_names = channel_names)
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = "Live",f_samp = f_samp, channel_names = channel_names)
 
 
 

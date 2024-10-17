@@ -167,11 +167,11 @@ for typ_idx in range(len(mov_type_d)):
             #! Loading the target values for the 3 joints
             channel_names_t = ['right', 'left', 'marker']
             print("Creating Quali Elbow object!!")
-            Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Elbow = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[0] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
             print("Creating Quali Shoulder Front object!!")
-            Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Front = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[1] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
             print("Creating Quali Shoulder Side object!!")
-            Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual')
+            Quali_Data_Side = EEGData(format = "Recorded_LSL_stream", filenames = [target_file_prefix[2] + weights_d[0] + '_' + mov_type_d[typ_idx] + '_set' + set_num_d[set_idx]], data_path = data_path, f_samp=f_samp, channel_names=channel_names_t, file_type='individual', add_marker_channel = True)
 
 
             channel_names = EMG_Data.getChannelNames()
@@ -333,15 +333,15 @@ MLP_model_s = MLModel(model = model_s, type= "keras")
 
 #! Train model
 print("Training MLP model for elbow joint...") 
-MLP_model_e.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_e.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_elbow", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_e_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for elbow done !!\n")
 
 print("Training MLP model for shoulder front joint...") 
-MLP_model_f.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_f.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_front", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_f_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for front done !!\n")
 
 print("Training MLP model for shoulder side joint...") 
-MLP_model_s.trainModel(save_trained_model = True, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
+MLP_model_s.trainModel(save_trained_model = False, model_filename =data_path+"zdemo_ml_models/"+subject+"_"+scenario_name+result_file_name+"_AAN_model_side", train_epochs= n_epochs, batch_size=n_batch_size, class_weights=None, x_train=x_train_combined, y_train= y_s_train_combined[:,0], validation_split=validation_split, loss_fcn=loss_fcn, optimizer=optimizer,metrics=metrics, show_train_results=False, callbacks=early_callback)
 print("MLP training for side done !!\n")
 
 #! Load saved model
@@ -434,6 +434,8 @@ x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_e, label='predicted torque')
 plt.title(f"Elbow Joint Median (RMSE {rmse_elbow} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -444,6 +446,8 @@ x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_f, label='predicted torque')
 plt.title(f"Shoulder Front Joint Median (RMSE {rmse_front} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -454,6 +458,8 @@ x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, filtered_perf_results_MLP_s, label='predicted torque')
 plt.title(f"Shoulder Side Joint Median (RMSE {rmse_side} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -465,6 +471,8 @@ x_samples = np.arange(0, len(y_e_test_combined[:,0]),1)
 plt.plot(x_samples, y_e_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_e, label='predicted torque')
 plt.title(f"Elbow Joint Raw (RMSE {rmse_elbow_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -475,6 +483,8 @@ x_samples = np.arange(0, len(y_f_test_combined[:,0]),1)
 plt.plot(x_samples, y_f_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_f, label='predicted torque')
 plt.title(f"Shoulder Front Joint Raw (RMSE {rmse_front_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:
@@ -485,6 +495,8 @@ x_samples = np.arange(0, len(y_s_test_combined[:,0]),1)
 plt.plot(x_samples, y_s_test_combined[:,0], ls="dashed", label='real torque')
 plt.plot(x_samples, perf_results_MLP_s, label='predicted torque')
 plt.title(f"Shoulder Side Joint Raw (RMSE {rmse_side_raw} N-m)")
+plt.xlabel("Samples")
+plt.ylabel("Joint Torque (N-m)")
 plt.legend()
 plt.grid()
 if save_fig:

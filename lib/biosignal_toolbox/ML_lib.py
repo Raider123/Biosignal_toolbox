@@ -373,7 +373,7 @@ class MLModel:
                 if(classification): 
                     self.prediction_scores =  np.array(self.model(data)).flatten()
                 else: 
-                    self.prediction_scores = predictions
+                    self.prediction_scores = self.model(data)
 
 
         elif(self.type == "dtw"): 

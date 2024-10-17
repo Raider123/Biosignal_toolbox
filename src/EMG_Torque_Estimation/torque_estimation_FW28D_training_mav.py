@@ -34,18 +34,15 @@ data_path = proj_path+"/data/m-rock_demo/"
 # results_path = proj_path+"/results/"
 
 #! Files for training
-train_file_prefix = "emg_data/09092024_BR07D_"
-target_file_prefix = ["quali_data/quali_torque_elbow_", "quali_data/quali_torque_front_", "quali_data/quali_torque_side_"]
+train_file_prefix = "emg_data/24092024_FW28D_"
+target_file_prefix = ["quali_data/FW28D/quali_torque_elbow_", "quali_data/FW28D/quali_torque_front_", "quali_data/FW28D/quali_torque_side_"]
 
 #! Read Qualisys data param
-weights_d = ['0g', '1000g']
-# weights_d = ['0g']
+weights_d = ['0g']
 
 mov_type_d=['complex', 'grasp']
-# mov_type_d=['grasp']
 
-set_num_d = ['3','4','5','6']
-# set_num_d = ['5','6']
+set_num_d = ['1','2','3']
 
 #! fcn model parameter 
 n_epochs = 300
@@ -61,7 +58,7 @@ train_test_split_ratio = 0.9    #0.x means x% of data will be training data and 
 validation_split = 0.2          #0.x means x% of training data will be used as validation data
 
 # init early stopping 
-early_stop = False
+early_stop = True
 if early_stop:
     early_callback = tf.keras.callbacks.EarlyStopping(monitor="val_loss",min_delta=0.01,patience=50,verbose=0,mode="auto",baseline=None,restore_best_weights=True)
 else:
@@ -93,7 +90,7 @@ else:
 #! Pre-processing parameters
 f_samp = 500
 f_cutoff_hpf = 15
-f_cutoff_lpf = 4
+f_cutoff_lpf = 10
 var_filt_width = 20
 mvc = 2.7579163508176626e-06
 delay = 25
@@ -114,10 +111,13 @@ act_h2 = 'linear'
 
 #! plot folder
 save_fig = False
-plot_folder = "plot4_mav"
+plot_folder = "FW28D_plot1_mav"
+
+#! model name
+suffix = "1_mav"
 
 #! subject params 
-subject = "BR07D"
+subject = "FW28D"
 if len(mov_type_d) >1:
     scenario_name = mov_type_d[0] + '_' + mov_type_d[1]
 else:

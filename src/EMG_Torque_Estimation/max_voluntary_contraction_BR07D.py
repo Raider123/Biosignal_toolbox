@@ -24,13 +24,13 @@ proj_path = "/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox"
 data_path = proj_path+"/data/m-rock_demo/"
 
 #! Files for training
-train_file_prefix = "emg_data/09092024_BR07D_"
-target_file_prefix = ["quali_data/quali_torque_elbow_", "quali_data/quali_torque_front_", "quali_data/quali_torque_side_"]
+train_file_prefix = "emg_data/24092024_FW28D_"
+target_file_prefix = ["quali_data/FW28D/quali_torque_elbow_", "quali_data/FW28D/quali_torque_front_", "quali_data/FW28D/quali_torque_side_"]
 
 #! Read Qualisys data param
-weights_d = ['0g', '1000g']
+weights_d = ['0g']
 mov_type_d=['complex', 'grasp']
-set_num_d = ['3','4','5','6']
+set_num_d = ['1','2','3']
 
 #! emg params
 channel_names_i = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -53,7 +53,7 @@ for wgt_idx in range(len(weights_d)):
                 EMG_Data = EMGData(format = "ANTmini", filenames = [train_file_prefix + weights_d[wgt_idx] + '_' + mov_type_d[typ_idx] + '_' + set_num_d[set_idx] + '.txt'], data_path = data_path, f_samp=500, channel_names=channel_names_i)
 
                 #! High pass filter 25 Hz
-                EMG_Data.highPassFilter(cutoff_freq=25, order=2, fs=500, type="butter")
+                EMG_Data.highPassFilter(cutoff_freq=15, order=2, fs=500, type="butter")
 
                 #! Apply Variance Filter from variance_tools_api
                 print("Applying Variance filter ...")

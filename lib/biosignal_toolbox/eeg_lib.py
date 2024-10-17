@@ -29,7 +29,7 @@ class EEGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, file_type='individual', outer_key_order_d=[], inner_key_order_d=[]):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, file_type='individual', add_marker_channel = False, outer_key_order_d=[], inner_key_order_d=[]):
         """
         The constructor of the EEGData class. 
         
@@ -140,7 +140,10 @@ class EEGData(Timeseries):
                     data = np.concatenate(concat_list)
                 else: 
                     # data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()['0']['complex']
-                    data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()
+                    if add_marker_channel:
+                        data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()
+                    else:
+                        data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes')
                     if isinstance(data,dict):
                         if file_type == 'combined':
                             #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array
@@ -164,16 +167,26 @@ class EEGData(Timeseries):
                             data = np.concatenate(tmp_array_of_lists)
                         elif file_type == 'individual':
                             data = data[list(data.keys())[0]][list(next(iter(data.values())).keys())[0]]
-
-                # Adding an extra event channel at the end for qualisys markers
-                column_of_no_markers = -1 * np.ones((data.shape[0],1))
-                data = np.hstack((data,column_of_no_markers))
-                # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
-                offset_idx = -1*(20*f_samp/1000)
-                # print(f"Quali offset: {offset_idx}")
-                data[0,-1] = 1
-                data[int(offset_idx),-1] = 1
-                print(f"Data: {data.shape}")
+                if add_marker_channel:
+                    # Adding an extra event channel at the end for qualisys markers
+                    column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                    data = np.hstack((data,column_of_no_markers))
+                    # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
+                    offset_idx = -1*(20*f_samp/1000)
+                    # print(f"Quali offset: {offset_idx}")
+                    data[0,-1] = 1
+                    data[int(offset_idx),-1] = 1
+                    print(f"Data: {data.shape}")
+                else:
+                    # Adding an extra event channel at the end for qualisys markers
+                    column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                    data = np.hstack((data,column_of_no_markers))
+                    # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
+                    # offset_idx = -1
+                    # print(f"Quali offset: {offset_idx}")
+                    data[0,-1] = 1
+                    data[-1,-1] = 1
+                    print(f"Data: {data.shape}")
 
             self.__fsamp = f_samp
             self.__channel_names = channel_names
