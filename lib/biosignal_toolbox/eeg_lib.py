@@ -54,7 +54,7 @@ class EEGData(Timeseries):
         data : numpy ndarray, optional 
             The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format).
         file_type : str, optional
-            Within the "Numpy_Qualisys" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
+            Within the "NumpyQualisys" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
         outer_key_order_d : list, optional
             Desired sequence of outer keys to concatenate the data, by default order in which the data is read.
         inner_key_order_d : list, optional
