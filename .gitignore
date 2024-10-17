@@ -6,6 +6,9 @@ __pycache__
 # Ignore grafic files
 
 *.svg
+*.png
+*.jpg
+*.pdf
 
 # Ignore data folder and stored numpy tensor
 
@@ -14,6 +17,7 @@ plots/
 results/
 clients/
 *.npy
+rec/
 lib/biosignal_toolbox.egg-info
 *.ipynb
 variance_tools_api/

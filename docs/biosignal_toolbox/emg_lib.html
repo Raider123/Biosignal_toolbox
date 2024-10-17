@@ -99,8 +99,8 @@ class EMGData(Timeseries):
         
         # parameter 
         self.raw_obj = None
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         # data structures 
         self.data = None
         self.epochs = None
@@ -113,17 +113,21 @@ class EMGData(Timeseries):
             
             if(format == &#34;ANTmini&#34;):
                 warnings.warn(&#34;only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... &#34;)
-                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.f_samp)
+
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
+
             else: 
                 warnings.warn(&#34;only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... &#34;)
-                raw_data, self.time_axis, self.__channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
-        self.data = raw_data # store data in numpy array 
-        self.createMNERaw()
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
 
 
         # print(&#34;data shape:&#34;, self.data.shape)
-        super().__init__(f_samp = self.__fsamp, channel_names = self.__channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(f_samp = self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
 
 
     def createMNERaw(self):
@@ -137,13 +141,13 @@ class EMGData(Timeseries):
         &#34;&#34;&#34;
         
         # create mne object 
-        sfreq = self.__fsamp  # Sampling frequency
+        sfreq = self.f_samp  # Sampling frequency
         data = self.data # (channel, sampels)
         #times = np.arange(0, data.shape[1], 1/sfreq)  # 
-        ch_types = [&#39;emg&#39;] * len(self.__channel_names) # 
-        info = mne.create_info(ch_names=self.__channel_names, sfreq=sfreq, ch_types=ch_types)
+        ch_types = [&#39;emg&#39;] * len(self.channel_names) # 
+        info = mne.create_info(ch_names=self.channel_names, sfreq=sfreq, ch_types=ch_types)
         #scalings = {&#39;emg&#39;: 1}
-        raw = mne.io.RawArray(data[0:len(self.__channel_names), :], info) # only pass the actual EMG channel 
+        raw = mne.io.RawArray(data[0:len(self.channel_names), :], info) # only pass the actual EMG channel 
         self.raw_obj = raw
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
@@ -187,7 +191,7 @@ class EMGData(Timeseries):
 
         # calc sampling freq from data 
         dt = emg_time_axis[1] - emg_time_axis[0]
-        self.__fsamp = float(1/dt)
+        self.f_samp = float(1/dt)
 
         emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
 
@@ -252,13 +256,13 @@ class EMGData(Timeseries):
             for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
-                plt.title(self.__channel_names[n_channel])
+                plt.title(self.channel_names[n_channel])
                 plt.xlabel(&#34;Time in seconds&#34;)
                 plt.ylabel(&#34;Voltage in uV&#34;)
         else:
             plt.figure()
             plt.plot(self.time_axis, self.data)
-            plt.title(self.__channel_names)
+            plt.title(self.channel_names)
             plt.xlabel(&#34;Time in seconds&#34;)
             plt.ylabel(&#34;Voltage in uV&#34;)
 
@@ -327,7 +331,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         _description_
     &#34;&#34;&#34;
 
-    def __init__(self): 
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         &#34;&#34;&#34;
         The constructor of the OnlineEMG class. 
 
@@ -336,11 +340,12 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
+
         
-        super().__init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EMGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = &#34;Live&#34;, f_samp = f_samp, channel_names = channel_names)
 
-
+        
 
 
     
@@ -459,8 +464,8 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         
         # parameter 
         self.raw_obj = None
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         # data structures 
         self.data = None
         self.epochs = None
@@ -473,17 +478,21 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
             
             if(format == &#34;ANTmini&#34;):
                 warnings.warn(&#34;only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... &#34;)
-                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.__fsamp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.f_samp)
+
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
+
             else: 
                 warnings.warn(&#34;only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... &#34;)
-                raw_data, self.time_axis, self.__channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
 
-        self.data = raw_data # store data in numpy array 
-        self.createMNERaw()
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
 
 
         # print(&#34;data shape:&#34;, self.data.shape)
-        super().__init__(f_samp = self.__fsamp, channel_names = self.__channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(f_samp = self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
 
 
     def createMNERaw(self):
@@ -497,13 +506,13 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         &#34;&#34;&#34;
         
         # create mne object 
-        sfreq = self.__fsamp  # Sampling frequency
+        sfreq = self.f_samp  # Sampling frequency
         data = self.data # (channel, sampels)
         #times = np.arange(0, data.shape[1], 1/sfreq)  # 
-        ch_types = [&#39;emg&#39;] * len(self.__channel_names) # 
-        info = mne.create_info(ch_names=self.__channel_names, sfreq=sfreq, ch_types=ch_types)
+        ch_types = [&#39;emg&#39;] * len(self.channel_names) # 
+        info = mne.create_info(ch_names=self.channel_names, sfreq=sfreq, ch_types=ch_types)
         #scalings = {&#39;emg&#39;: 1}
-        raw = mne.io.RawArray(data[0:len(self.__channel_names), :], info) # only pass the actual EMG channel 
+        raw = mne.io.RawArray(data[0:len(self.channel_names), :], info) # only pass the actual EMG channel 
         self.raw_obj = raw
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
@@ -547,7 +556,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
 
         # calc sampling freq from data 
         dt = emg_time_axis[1] - emg_time_axis[0]
-        self.__fsamp = float(1/dt)
+        self.f_samp = float(1/dt)
 
         emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
 
@@ -612,13 +621,13 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
             for n_channel in range(0, n_channels): 
                 plt.figure()
                 plt.plot(self.time_axis, self.data[n_channel, :])
-                plt.title(self.__channel_names[n_channel])
+                plt.title(self.channel_names[n_channel])
                 plt.xlabel(&#34;Time in seconds&#34;)
                 plt.ylabel(&#34;Voltage in uV&#34;)
         else:
             plt.figure()
             plt.plot(self.time_axis, self.data)
-            plt.title(self.__channel_names)
+            plt.title(self.channel_names)
             plt.xlabel(&#34;Time in seconds&#34;)
             plt.ylabel(&#34;Voltage in uV&#34;)
 
@@ -708,13 +717,13 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
     &#34;&#34;&#34;
     
     # create mne object 
-    sfreq = self.__fsamp  # Sampling frequency
+    sfreq = self.f_samp  # Sampling frequency
     data = self.data # (channel, sampels)
     #times = np.arange(0, data.shape[1], 1/sfreq)  # 
-    ch_types = [&#39;emg&#39;] * len(self.__channel_names) # 
-    info = mne.create_info(ch_names=self.__channel_names, sfreq=sfreq, ch_types=ch_types)
+    ch_types = [&#39;emg&#39;] * len(self.channel_names) # 
+    info = mne.create_info(ch_names=self.channel_names, sfreq=sfreq, ch_types=ch_types)
     #scalings = {&#39;emg&#39;: 1}
-    raw = mne.io.RawArray(data[0:len(self.__channel_names), :], info) # only pass the actual EMG channel 
+    raw = mne.io.RawArray(data[0:len(self.channel_names), :], info) # only pass the actual EMG channel 
     self.raw_obj = raw
     self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)</code></pre>
 </details>
@@ -787,7 +796,7 @@ The EMG channel names/muscles (names specified in the recording software) with s
 
     # calc sampling freq from data 
     dt = emg_time_axis[1] - emg_time_axis[0]
-    self.__fsamp = float(1/dt)
+    self.f_samp = float(1/dt)
 
     emg_data_channel = emg_data_channel.T # transpose for same data format (channels, sampels)
 
@@ -894,13 +903,13 @@ The time axis of the EMG data with shape (n_samples,)</dd>
         for n_channel in range(0, n_channels): 
             plt.figure()
             plt.plot(self.time_axis, self.data[n_channel, :])
-            plt.title(self.__channel_names[n_channel])
+            plt.title(self.channel_names[n_channel])
             plt.xlabel(&#34;Time in seconds&#34;)
             plt.ylabel(&#34;Voltage in uV&#34;)
     else:
         plt.figure()
         plt.plot(self.time_axis, self.data)
-        plt.title(self.__channel_names)
+        plt.title(self.channel_names)
         plt.xlabel(&#34;Time in seconds&#34;)
         plt.ylabel(&#34;Voltage in uV&#34;)
 
@@ -916,6 +925,8 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection">WindowMeanCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection">WindowMedianCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.addFeatures" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.addFeatures">addFeatures</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs">applyBaselineCorrectionToEpochs</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter">applyMovingAverageFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling">applyRelabelling</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter">applyVarianceFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows">applyxDAWNToWindows</a></code></li>
@@ -932,6 +943,9 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.detrendWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.detrendWindows">detrendWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows">dtwFeatureVecWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows">featureExtractionFromWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows">featureExtractionReshapedWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter">fft_bandpass_filter</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.filterRawData" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterRawData">filterRawData</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.filterWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterWindows">filterWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.getCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getCalibStats">getCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.getChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getChannelNames">getChannelNames</a></code></li>
@@ -954,10 +968,13 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.reverseWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reverseWindows">reverseWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setCalibStats">setCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setChannelNames">setChannelNames</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels">setWindowLabels</a></code></li>
-<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering">simpleICAFiltering</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindows">setWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents">showICAcomponents</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs">simpleICAFilteringEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs">splitTrainTestEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter">timeShiftingLinearSpatialFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.updatefromRawObject" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.updatefromRawObject">updatefromRawObject</a></code></li>
@@ -971,6 +988,7 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 </dd>
 <dt id="biosignal_toolbox.emg_lib.OnlineEMG"><code class="flex name class">
 <span>class <span class="ident">OnlineEMG</span></span>
+<span>(</span><span>stream_type='data', channel_names=['1', '2', '3'], n_samples=500, dt_process_data=0.05, f_samp=1000.0)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . </p>
@@ -1001,7 +1019,7 @@ The time axis of the EMG data with shape (n_samples,)</dd>
         _description_
     &#34;&#34;&#34;
 
-    def __init__(self): 
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         &#34;&#34;&#34;
         The constructor of the OnlineEMG class. 
 
@@ -1010,9 +1028,10 @@ The time axis of the EMG data with shape (n_samples,)</dd>
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
+
         
-        super().__init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EMGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)</code></pre>
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = &#34;Live&#34;, f_samp = f_samp, channel_names = channel_names)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1030,6 +1049,7 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk">getChunk</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getDataBuffer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getDataBuffer">getDataBuffer</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.printStreamMetadata" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.printStreamMetadata">printStreamMetadata</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.setChunk" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.setChunk">setChunk</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming">startANTEegoStreaming</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startZMQServer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startZMQServer">startZMQServer</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer">updateBuffer</a></code></li>
@@ -1041,6 +1061,8 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.WindowMeanCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection">WindowMeanCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.WindowMedianCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection">WindowMedianCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.addFeatures" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.addFeatures">addFeatures</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyBaselineCorrectionToEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs">applyBaselineCorrectionToEpochs</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyMovingAverageFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter">applyMovingAverageFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyRelabelling" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling">applyRelabelling</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyVarianceFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter">applyVarianceFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.applyxDAWNToWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows">applyxDAWNToWindows</a></code></li>
@@ -1058,6 +1080,9 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.detrendWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.detrendWindows">detrendWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.dtwFeatureVecWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows">dtwFeatureVecWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.featureExtractionFromWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows">featureExtractionFromWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.featureExtractionReshapedWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows">featureExtractionReshapedWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.fft_bandpass_filter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter">fft_bandpass_filter</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.filterRawData" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterRawData">filterRawData</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.filterWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterWindows">filterWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.getCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getCalibStats">getCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.getChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getChannelNames">getChannelNames</a></code></li>
@@ -1082,11 +1107,14 @@ The time axis of the EMG data with shape (n_samples,)</dd>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.printFeatureShape" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.rereferencingEpoching" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.reshapeWindowsForCNNnets" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.reverseWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reverseWindows">reverseWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.setCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setCalibStats">setCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.setChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setChannelNames">setChannelNames</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.setWindowLabels" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels">setWindowLabels</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.setWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindows">setWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.showEMGData" href="#biosignal_toolbox.emg_lib.EMGData.showEMGData">showEMGData</a></code></li>
-<li><code><a title="biosignal_toolbox.emg_lib.EMGData.simpleICAFiltering" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering">simpleICAFiltering</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.showICAcomponents" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents">showICAcomponents</a></code></li>
+<li><code><a title="biosignal_toolbox.emg_lib.EMGData.simpleICAFilteringEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs">simpleICAFilteringEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.splitTrainTestEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs">splitTrainTestEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.timeShiftingLinearSpatialFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter">timeShiftingLinearSpatialFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.emg_lib.EMGData.updatefromRawObject" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.updatefromRawObject">updatefromRawObject</a></code></li>

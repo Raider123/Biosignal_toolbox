@@ -59,7 +59,7 @@ class EEGData(Timeseries):
     def __init__(self, format = &#34;Brainvision&#34;, filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
         &#34;&#34;&#34;
         The constructor of the EEGData class. 
-
+        
         Parameters
         ----------
         format : str, optional
@@ -108,8 +108,8 @@ class EEGData(Timeseries):
 
         #basic params 
         self.raw_obj = raw_obj
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         self.data = data
         self.epochs = epochs
         self.windows = windows
@@ -125,11 +125,11 @@ class EEGData(Timeseries):
             data_str_arr = np.array(data_str_arr)
 
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
-
+            
             # update parameter 
             #basic params 
-            self.__channel_names = self.raw_obj.ch_names
-            self.__fsamp = self.raw_obj.info[&#39;sfreq&#39;]
+            self.channel_names = self.raw_obj.ch_names
+            self.f_samp = self.raw_obj.info[&#39;sfreq&#39;]
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
             #events epochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
@@ -137,16 +137,16 @@ class EEGData(Timeseries):
 
         elif(format == &#34;NumpyEpochs&#34;): 
             self.epochs = epochs
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == &#34;RawObj&#34;): 
             self.raw_obj = raw_obj
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == &#34;Live&#34;): 
             self.windows = windows
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
         elif(format == &#34;Recorded_LSL_stream&#34;): 
             
@@ -162,21 +162,21 @@ class EEGData(Timeseries):
                     data = np.load(data_path +filenames[0]+&#34;.npy&#34;)
 
             
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
             # create mne object 
-            sfreq = self.__fsamp  # Sampling frequency
+            sfreq = self.f_samp  # Sampling frequency
             data = data.T # in form (channel, sampels)
             #print(&#34;markers&#34;, np.where(data[-1, :] == 64)[0])
             times = np.arange(0, data.shape[1], 1/sfreq)  # 
-            ch_types = [&#39;eeg&#39;] * len(self.__channel_names) # only EEG for now 
-            ch_names = self.__channel_names
+            ch_types = [&#39;eeg&#39;] * len(self.channel_names) # only EEG for now 
+            ch_names = self.channel_names
             info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
             #scalings = {&#39;eeg&#39;: 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
             self.raw_obj = raw
-
+            
             # set annotation events (markers)
             event_channel = data[-1, :]
             marker_indices = np.where(event_channel &gt; 0)[0]
@@ -186,7 +186,7 @@ class EEGData(Timeseries):
             events[:, 2] = marker_numbers
             self.events = events.astype(int)
 
-            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            annotations = mne.annotations_from_events(events = events, sfreq = self.f_samp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
             self.raw_obj.set_annotations(annotations = annotations)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
 
@@ -197,7 +197,7 @@ class EEGData(Timeseries):
             print(&#34;No dataset specified ...&#34;)
         
         # init the super class 
-        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.__channel_names, f_samp = self.__fsamp, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.channel_names, f_samp = self.f_samp, data = self.data, epochs = self.epochs, windows = self.windows)
 
     def loadBrainproductsData(self, dataset_list): 
         &#34;&#34;&#34;
@@ -218,7 +218,7 @@ class EEGData(Timeseries):
         Author : Niklas Kueper \n
         Last changed: 06.07.2022 (by Niklas Kueper)
         &#34;&#34;&#34;
-
+        
         if (len(dataset_list) &gt; 1): 
             raw_list = []
             for dataset in dataset_list: 
@@ -277,7 +277,7 @@ class EEGData(Timeseries):
         # seperate Standard digs and EEG digs 
         easy_cap_dig_standard = easy_cap_dig[0:3]
         easy_cap_dig_eeg = easy_cap_dig[3:]
-
+        
         #delete Channels not there for acticap
         indizes_to_removing_channel_sorted = sorted(indizes_to_removing_channel, reverse= True)
         for indizes in indizes_to_removing_channel_sorted:
@@ -302,8 +302,8 @@ class EEGData(Timeseries):
         if(set_montage): 
             self.epoch_obj.set_montage(self.__montage)
 
-
-    def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06):
+    
+    def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06, save_figure = False, filename = &#34;test.png&#34;, path = &#34;&#34;):
                  
         &#34;&#34;&#34;
         This method creates a topoplot at different times in relation to an specific event. 
@@ -318,11 +318,17 @@ class EEGData(Timeseries):
             The minimum value of the colorbar in the units of the data, by default -6e-06
         max_val : float, optional
             The maximum value of the colorbar in the units of the data, by default 6e-06
+        save_figure : bool, optional
+            Wheather to save the figure or not. 
+        filename : str, optional 
+            If save_figure is True, the name under which the figure is saved. 
+        path : str, optional
+            The path where to save the figure if save_figure is True. 
         
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 28.11.2023 (by Niklas Kueper)
+        Last changed: 17.05.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
         
         mean_epochs = np.mean(self.epochs, axis = 0)
@@ -354,9 +360,12 @@ class EEGData(Timeseries):
             cbar.set_label(&#34;in uV&#34;)
             count = count+1
         plt.show()
+
+        if(save_figure): 
+            fig.savefig(path +filename)
         
 
-    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, baseline = (None, -0.2)):
+    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, apply_baseline = False, baseline = (None, -0.2)):
         &#34;&#34;&#34;
         This function automatically detects EOG artifacts in the given rereferenced EEG-signal using an ICA.
         The decisive components are marked and removed.
@@ -391,7 +400,9 @@ class EEGData(Timeseries):
 
         # creating epochs around the EOG-artifacts
         eog_evoked = mne.preprocessing.create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
-        eog_evoked.apply_baseline(baseline=baseline)
+
+        if(apply_baseline): 
+            eog_evoked.apply_baseline(baseline=baseline)
 
         # creating the ICA and fitting it to the epoched raw data: 
         ica = ICA(n_components=n_components, max_iter=&#34;auto&#34;, random_state=97)
@@ -435,18 +446,22 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         The base EEGData class including all processing methods for EEG data. 
     &#34;&#34;&#34; 
     
-    def __init__(self): 
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         &#34;&#34;&#34;
         The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 15.04.2024 (by Niklas Kueper)
+        Last changed: 20.09.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
+        #print(stream_type)
         
-        super().__init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EEGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)</code></pre>
+        
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EEGData.__init__(self, format = &#34;Live&#34;, f_samp = f_samp, channel_names = channel_names)
+
+        </code></pre>
 </details>
 </section>
 <section>
@@ -530,7 +545,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
     def __init__(self, format = &#34;Brainvision&#34;, filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = None, channel_names = None, windows = None, data = None):
         &#34;&#34;&#34;
         The constructor of the EEGData class. 
-
+        
         Parameters
         ----------
         format : str, optional
@@ -579,8 +594,8 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
 
         #basic params 
         self.raw_obj = raw_obj
-        self.__fsamp = f_samp
-        self.__channel_names = channel_names
+        self.f_samp = f_samp
+        self.channel_names = channel_names
         self.data = data
         self.epochs = epochs
         self.windows = windows
@@ -596,11 +611,11 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
             data_str_arr = np.array(data_str_arr)
 
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
-
+            
             # update parameter 
             #basic params 
-            self.__channel_names = self.raw_obj.ch_names
-            self.__fsamp = self.raw_obj.info[&#39;sfreq&#39;]
+            self.channel_names = self.raw_obj.ch_names
+            self.f_samp = self.raw_obj.info[&#39;sfreq&#39;]
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
             #events epochs_filter
             self.events, self.event_ids = mne.events_from_annotations(self.raw_obj)
@@ -608,16 +623,16 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
 
         elif(format == &#34;NumpyEpochs&#34;): 
             self.epochs = epochs
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == &#34;RawObj&#34;): 
             self.raw_obj = raw_obj
-            self.__fsamp = f_samp
+            self.f_samp = f_samp
 
         elif(format == &#34;Live&#34;): 
             self.windows = windows
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
         elif(format == &#34;Recorded_LSL_stream&#34;): 
             
@@ -633,21 +648,21 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
                     data = np.load(data_path +filenames[0]+&#34;.npy&#34;)
 
             
-            self.__fsamp = f_samp
-            self.__channel_names = channel_names
+            self.f_samp = f_samp
+            self.channel_names = channel_names
 
             # create mne object 
-            sfreq = self.__fsamp  # Sampling frequency
+            sfreq = self.f_samp  # Sampling frequency
             data = data.T # in form (channel, sampels)
             #print(&#34;markers&#34;, np.where(data[-1, :] == 64)[0])
             times = np.arange(0, data.shape[1], 1/sfreq)  # 
-            ch_types = [&#39;eeg&#39;] * len(self.__channel_names) # only EEG for now 
-            ch_names = self.__channel_names
+            ch_types = [&#39;eeg&#39;] * len(self.channel_names) # only EEG for now 
+            ch_names = self.channel_names
             info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
             #scalings = {&#39;eeg&#39;: 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
             self.raw_obj = raw
-
+            
             # set annotation events (markers)
             event_channel = data[-1, :]
             marker_indices = np.where(event_channel &gt; 0)[0]
@@ -657,7 +672,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
             events[:, 2] = marker_numbers
             self.events = events.astype(int)
 
-            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            annotations = mne.annotations_from_events(events = events, sfreq = self.f_samp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
             self.raw_obj.set_annotations(annotations = annotations)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
 
@@ -668,7 +683,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
             print(&#34;No dataset specified ...&#34;)
         
         # init the super class 
-        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.__channel_names, f_samp = self.__fsamp, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(raw_obj = self.raw_obj, events = self.events, channel_names = self.channel_names, f_samp = self.f_samp, data = self.data, epochs = self.epochs, windows = self.windows)
 
     def loadBrainproductsData(self, dataset_list): 
         &#34;&#34;&#34;
@@ -689,7 +704,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         Author : Niklas Kueper \n
         Last changed: 06.07.2022 (by Niklas Kueper)
         &#34;&#34;&#34;
-
+        
         if (len(dataset_list) &gt; 1): 
             raw_list = []
             for dataset in dataset_list: 
@@ -748,7 +763,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         # seperate Standard digs and EEG digs 
         easy_cap_dig_standard = easy_cap_dig[0:3]
         easy_cap_dig_eeg = easy_cap_dig[3:]
-
+        
         #delete Channels not there for acticap
         indizes_to_removing_channel_sorted = sorted(indizes_to_removing_channel, reverse= True)
         for indizes in indizes_to_removing_channel_sorted:
@@ -773,8 +788,8 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
         if(set_montage): 
             self.epoch_obj.set_montage(self.__montage)
 
-
-    def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06):
+    
+    def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06, save_figure = False, filename = &#34;test.png&#34;, path = &#34;&#34;):
                  
         &#34;&#34;&#34;
         This method creates a topoplot at different times in relation to an specific event. 
@@ -789,11 +804,17 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
             The minimum value of the colorbar in the units of the data, by default -6e-06
         max_val : float, optional
             The maximum value of the colorbar in the units of the data, by default 6e-06
+        save_figure : bool, optional
+            Wheather to save the figure or not. 
+        filename : str, optional 
+            If save_figure is True, the name under which the figure is saved. 
+        path : str, optional
+            The path where to save the figure if save_figure is True. 
         
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 28.11.2023 (by Niklas Kueper)
+        Last changed: 17.05.2024 (by Niklas Kueper)
         &#34;&#34;&#34;
         
         mean_epochs = np.mean(self.epochs, axis = 0)
@@ -825,9 +846,12 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
             cbar.set_label(&#34;in uV&#34;)
             count = count+1
         plt.show()
+
+        if(save_figure): 
+            fig.savefig(path +filename)
         
 
-    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, baseline = (None, -0.2)):
+    def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, apply_baseline = False, baseline = (None, -0.2)):
         &#34;&#34;&#34;
         This function automatically detects EOG artifacts in the given rereferenced EEG-signal using an ICA.
         The decisive components are marked and removed.
@@ -862,7 +886,9 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
 
         # creating epochs around the EOG-artifacts
         eog_evoked = mne.preprocessing.create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
-        eog_evoked.apply_baseline(baseline=baseline)
+
+        if(apply_baseline): 
+            eog_evoked.apply_baseline(baseline=baseline)
 
         # creating the ICA and fitting it to the epoched raw data: 
         ica = ICA(n_components=n_components, max_iter=&#34;auto&#34;, random_state=97)
@@ -972,7 +998,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
     # seperate Standard digs and EEG digs 
     easy_cap_dig_standard = easy_cap_dig[0:3]
     easy_cap_dig_eeg = easy_cap_dig[3:]
-
+    
     #delete Channels not there for acticap
     indizes_to_removing_channel_sorted = sorted(indizes_to_removing_channel, reverse= True)
     for indizes in indizes_to_removing_channel_sorted:
@@ -999,7 +1025,7 @@ class OnlineEEG(OnlineTimeseriesStreaming, EEGData):
 </details>
 </dd>
 <dt id="biosignal_toolbox.eeg_lib.EEGData.icaEOGArtifactRemoval"><code class="name flex">
-<span>def <span class="ident">icaEOGArtifactRemoval</span></span>(<span>self, n_components=20, drop_epochs=False, threshhold=0.05, ch_names=['FP1', 'FP2'], plot_steps=False, baseline=(None, -0.2))</span>
+<span>def <span class="ident">icaEOGArtifactRemoval</span></span>(<span>self, n_components=20, drop_epochs=False, threshhold=0.05, ch_names=['FP1', 'FP2'], plot_steps=False, apply_baseline=False, baseline=(None, -0.2))</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This function automatically detects EOG artifacts in the given rereferenced EEG-signal using an ICA.
@@ -1026,7 +1052,7 @@ The decisive components are marked and removed.</p>
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, baseline = (None, -0.2)):
+<pre><code class="python">def icaEOGArtifactRemoval(self, n_components = 20, drop_epochs = False, threshhold = 0.05, ch_names = [&#34;FP1&#34;, &#34;FP2&#34;], plot_steps = False, apply_baseline = False, baseline = (None, -0.2)):
     &#34;&#34;&#34;
     This function automatically detects EOG artifacts in the given rereferenced EEG-signal using an ICA.
     The decisive components are marked and removed.
@@ -1061,7 +1087,9 @@ The decisive components are marked and removed.</p>
 
     # creating epochs around the EOG-artifacts
     eog_evoked = mne.preprocessing.create_eog_epochs(self.raw_obj, ch_name=ch_names).average()
-    eog_evoked.apply_baseline(baseline=baseline)
+
+    if(apply_baseline): 
+        eog_evoked.apply_baseline(baseline=baseline)
 
     # creating the ICA and fitting it to the epoched raw data: 
     ica = ICA(n_components=n_components, max_iter=&#34;auto&#34;, random_state=97)
@@ -1134,7 +1162,7 @@ The decisive components are marked and removed.</p>
     Author : Niklas Kueper \n
     Last changed: 06.07.2022 (by Niklas Kueper)
     &#34;&#34;&#34;
-
+    
     if (len(dataset_list) &gt; 1): 
         raw_list = []
         for dataset in dataset_list: 
@@ -1148,7 +1176,7 @@ The decisive components are marked and removed.</p>
 </details>
 </dd>
 <dt id="biosignal_toolbox.eeg_lib.EEGData.topoplot"><code class="name flex">
-<span>def <span class="ident">topoplot</span></span>(<span>self, times, title_str='Topoplot at selected times', min_val=-6e-06, max_val=6e-06)</span>
+<span>def <span class="ident">topoplot</span></span>(<span>self, times, title_str='Topoplot at selected times', min_val=-6e-06, max_val=6e-06, save_figure=False, filename='test.png', path='')</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This method creates a topoplot at different times in relation to an specific event. </p>
@@ -1162,15 +1190,21 @@ The decisive components are marked and removed.</p>
 <dd>The minimum value of the colorbar in the units of the data, by default -6e-06</dd>
 <dt><strong><code>max_val</code></strong> :&ensp;<code>float</code>, optional</dt>
 <dd>The maximum value of the colorbar in the units of the data, by default 6e-06</dd>
+<dt><strong><code>save_figure</code></strong> :&ensp;<code>bool</code>, optional</dt>
+<dd>Wheather to save the figure or not.</dd>
+<dt><strong><code>filename</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>If save_figure is True, the name under which the figure is saved.</dd>
+<dt><strong><code>path</code></strong> :&ensp;<code>str</code>, optional</dt>
+<dd>The path where to save the figure if save_figure is True.</dd>
 </dl>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: 28.11.2023 (by Niklas Kueper)</p></div>
+<p>Last changed: 17.05.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
 </summary>
-<pre><code class="python">def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06):
+<pre><code class="python">def topoplot(self, times, title_str = &#34;Topoplot at selected times&#34;, min_val = -6e-06, max_val = 6e-06, save_figure = False, filename = &#34;test.png&#34;, path = &#34;&#34;):
              
     &#34;&#34;&#34;
     This method creates a topoplot at different times in relation to an specific event. 
@@ -1185,11 +1219,17 @@ The decisive components are marked and removed.</p>
         The minimum value of the colorbar in the units of the data, by default -6e-06
     max_val : float, optional
         The maximum value of the colorbar in the units of the data, by default 6e-06
+    save_figure : bool, optional
+        Wheather to save the figure or not. 
+    filename : str, optional 
+        If save_figure is True, the name under which the figure is saved. 
+    path : str, optional
+        The path where to save the figure if save_figure is True. 
     
     Author
     ------
     Author : Niklas Kueper \n
-    Last changed: 28.11.2023 (by Niklas Kueper)
+    Last changed: 17.05.2024 (by Niklas Kueper)
     &#34;&#34;&#34;
     
     mean_epochs = np.mean(self.epochs, axis = 0)
@@ -1220,7 +1260,10 @@ The decisive components are marked and removed.</p>
         cbar =fig.colorbar(im, ax = ax[count], orientation=&#34;vertical&#34;, pad = 0.15)
         cbar.set_label(&#34;in uV&#34;)
         count = count+1
-    plt.show()</code></pre>
+    plt.show()
+
+    if(save_figure): 
+        fig.savefig(path +filename)</code></pre>
 </details>
 </dd>
 </dl>
@@ -1232,6 +1275,8 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection">WindowMeanCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection">WindowMedianCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.addFeatures" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.addFeatures">addFeatures</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs">applyBaselineCorrectionToEpochs</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter">applyMovingAverageFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling">applyRelabelling</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter">applyVarianceFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows">applyxDAWNToWindows</a></code></li>
@@ -1248,6 +1293,9 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.detrendWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.detrendWindows">detrendWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows">dtwFeatureVecWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows">featureExtractionFromWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows">featureExtractionReshapedWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter">fft_bandpass_filter</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.filterRawData" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterRawData">filterRawData</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.filterWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterWindows">filterWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.getCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getCalibStats">getCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.getChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getChannelNames">getChannelNames</a></code></li>
@@ -1270,10 +1318,13 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.reverseWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reverseWindows">reverseWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setCalibStats">setCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setChannelNames">setChannelNames</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels">setWindowLabels</a></code></li>
-<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering">simpleICAFiltering</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.setWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindows">setWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents">showICAcomponents</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs">simpleICAFilteringEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs">splitTrainTestEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter">timeShiftingLinearSpatialFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.Timeseries.updatefromRawObject" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.updatefromRawObject">updatefromRawObject</a></code></li>
@@ -1287,6 +1338,7 @@ The decisive components are marked and removed.</p>
 </dd>
 <dt id="biosignal_toolbox.eeg_lib.OnlineEEG"><code class="flex name class">
 <span>class <span class="ident">OnlineEEG</span></span>
+<span>(</span><span>stream_type='data', channel_names=['1', '2', '3'], n_samples=500, dt_process_data=0.05, f_samp=1000.0)</span>
 </code></dt>
 <dd>
 <div class="desc"><p>This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . </p>
@@ -1300,7 +1352,7 @@ The decisive components are marked and removed.</p>
 <p>The constructor of the OnlineEEG class. </p>
 <h2 id="author">Author</h2>
 <p>Author : Niklas Kueper </p>
-<p>Last changed: 15.04.2024 (by Niklas Kueper)</p></div>
+<p>Last changed: 20.09.2024 (by Niklas Kueper)</p></div>
 <details class="source">
 <summary>
 <span>Expand source code</span>
@@ -1317,18 +1369,20 @@ The decisive components are marked and removed.</p>
         The base EEGData class including all processing methods for EEG data. 
     &#34;&#34;&#34; 
     
-    def __init__(self): 
+    def __init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         &#34;&#34;&#34;
         The constructor of the OnlineEEG class. 
 
         Author
         ------
         Author : Niklas Kueper \n
-        Last changed: 15.04.2024 (by Niklas Kueper)
+        Last changed: 20.09.2024 (by Niklas Kueper)
         &#34;&#34;&#34;        
+        #print(stream_type)
         
-        super().__init__(self, stream_type = &#34;data&#34;, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=3, n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
-        EEGData.__init__(self, format = &#34;Live&#34;)#, f_samp = f_samp, channel_names = channel_names)</code></pre>
+        
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)#, stream_type = stream_type, channel_names = [&#34;1&#34;, &#34;2&#34;, &#34;3&#34;], n_channels=n_channels, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EEGData.__init__(self, format = &#34;Live&#34;, f_samp = f_samp, channel_names = channel_names)</code></pre>
 </details>
 <h3>Ancestors</h3>
 <ul class="hlist">
@@ -1346,6 +1400,7 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getChunk">getChunk</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getDataBuffer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.getDataBuffer">getDataBuffer</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.printStreamMetadata" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.printStreamMetadata">printStreamMetadata</a></code></li>
+<li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.setChunk" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.setChunk">setChunk</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startANTEegoStreaming">startANTEegoStreaming</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startZMQServer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.startZMQServer">startZMQServer</a></code></li>
 <li><code><a title="biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer" href="time_series_lib.html#biosignal_toolbox.time_series_lib.OnlineTimeseriesStreaming.updateBuffer">updateBuffer</a></code></li>
@@ -1357,6 +1412,8 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.WindowMeanCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMeanCorrection">WindowMeanCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.WindowMedianCorrection" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.WindowMedianCorrection">WindowMedianCorrection</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.addFeatures" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.addFeatures">addFeatures</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.applyBaselineCorrectionToEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyBaselineCorrectionToEpochs">applyBaselineCorrectionToEpochs</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.applyMovingAverageFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyMovingAverageFilter">applyMovingAverageFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.applyRelabelling" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyRelabelling">applyRelabelling</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.applyVarianceFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyVarianceFilter">applyVarianceFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.applyxDAWNToWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.applyxDAWNToWindows">applyxDAWNToWindows</a></code></li>
@@ -1374,6 +1431,9 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.detrendWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.detrendWindows">detrendWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.dtwFeatureVecWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.dtwFeatureVecWindows">dtwFeatureVecWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.featureExtractionFromWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionFromWindows">featureExtractionFromWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.featureExtractionReshapedWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.featureExtractionReshapedWindows">featureExtractionReshapedWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.fft_bandpass_filter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.fft_bandpass_filter">fft_bandpass_filter</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.filterRawData" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterRawData">filterRawData</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.filterWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.filterWindows">filterWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getCalibStats">getCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.getChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.getChannelNames">getChannelNames</a></code></li>
@@ -1398,10 +1458,13 @@ The decisive components are marked and removed.</p>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.printFeatureShape" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.printFeatureShape">printFeatureShape</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.rereferencingEpoching" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.rereferencingEpoching">rereferencingEpoching</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.reshapeWindowsForCNNnets" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reshapeWindowsForCNNnets">reshapeWindowsForCNNnets</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.reverseWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.reverseWindows">reverseWindows</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.setCalibStats" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setCalibStats">setCalibStats</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.setChannelNames" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setChannelNames">setChannelNames</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.setWindowLabels" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindowLabels">setWindowLabels</a></code></li>
-<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.simpleICAFiltering" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFiltering">simpleICAFiltering</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.setWindows" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.setWindows">setWindows</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.showICAcomponents" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.showICAcomponents">showICAcomponents</a></code></li>
+<li><code><a title="biosignal_toolbox.eeg_lib.EEGData.simpleICAFilteringEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.simpleICAFilteringEpochs">simpleICAFilteringEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.splitTrainTestEpochs" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.splitTrainTestEpochs">splitTrainTestEpochs</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.timeShiftingLinearSpatialFilter" href="time_series_lib.html#biosignal_toolbox.time_series_lib.Timeseries.timeShiftingLinearSpatialFilter">timeShiftingLinearSpatialFilter</a></code></li>
 <li><code><a title="biosignal_toolbox.eeg_lib.EEGData.topoplot" href="#biosignal_toolbox.eeg_lib.EEGData.topoplot">topoplot</a></code></li>

@@ -90,17 +90,13 @@ def classicLRPpreprocessing(EEG, window_labels, feature_indices_windows):
     return x, y
 
 
-
-def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows, xd, xd_components): 
+def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_windows, sos_MLP): 
 
     # ******** MLP processing *******************
     
     # bandpass filter data 
-
-
     
-    #sos = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos") #--> good one 
-    b, a = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba") #--> good one
+    #b, a = EEG_MLP.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba") #--> good one
     #b, a = EEG_MLP.designFilter(filter_type = "dc_removal", return_type = "ba", alpha = 0.999) # only the hard dc part 
     
 
@@ -114,15 +110,19 @@ def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_wi
     # b1, a1 = EEG_MLP.designFilter(f_low = 4.0, f_high = None, order = 21, filter_type = "fir_kaiser", return_type = "ba", beta = 2.0)
 
     #EEG_MLP.WindowMeanCorrection()
-    EEG_MLP.WindowMedianCorrection(ratio_len = 0.5) # correct for mean before filtering (offset substraction)
-    #EEG_MLP.detrendWindows(), ""
+    
+    # normal zero phase sos filter  
+    EEG_MLP.filterWindows(sos = sos_MLP, apply_method = "zero_phase_sos", padtype = "even") # bandpass filter (zero phase with padding) 
+    #EEG_MLP.emdFilterWindows(component_used = 0)
 
+    
     # # EEG_MLP.FFTBandpassWindows(lowcut = 0.5, highcut = 4.0)
     # cut windows at end
-    EEG_MLP.cutWindows(n_samples_start = 1000, n_samples_end = None) # try this for reducing artifacts
-    
 
-    EEG_MLP.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding)
+    #EEG_MLP.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding)
+    #EEG_MLP.detrendWindows()  
+
+    #EEG_MLP.cutWindows(n_samples_start = 1000, n_samples_end = None) # try this for reducing artifacts
     
     # # remove dc first 
     # EEG_MLP.filterWindows(sos = sos, apply_method = "forward_sos_filter") # bandpass filter (zero phase with padding)
@@ -135,7 +135,6 @@ def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_wi
     #EEG_MLP.applyMovingAverageFilter(n = 19, apply_to_structures = "windows")
     
      
-    
     # forward filter only 
     #EEG_MLP.filterWindows(sos = sos, apply_method = "forward_sos_filter") # bandpass filter (zero phase with padding)
     #EEG_MLP.applyMovingAverageFilter(n = 20, apply_to_structures = "windows") 
@@ -149,14 +148,15 @@ def MLPProcessingOnline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_wi
     
     # # specify the window labels (not needed)
     EEG_MLP.setWindowLabels(window_labels)
-
+    
     
     #EEG_MLP.cutWindows(n_samples_start = 75, n_samples_end = 25) # try this for reducing artifacts
     #EEG_freq_MLP.cutWindows(n_samples_start = 75, n_samples_end = 25) # try this for reducing artifacts
 
-    print(f"window shape1: {EEG_MLP.windows.shape}")
-    print(f"window shape2: {EEG_freq_MLP.windows.shape}")
+    #print(f"window shape1: {EEG_MLP.windows.shape}")
+    #print(f"window shape2: {EEG_freq_MLP.windows.shape}")
 
+    
     # time domain features (MLP)
     EEG_MLP.featureExtractionFromWindows(feature_type = "timepoints", feature_indices_windows = feature_indices_windows)
     EEG_freq_MLP.featureExtractionFromWindows(feature_type = "freqBandPower")
@@ -251,17 +251,16 @@ def MLPProcessingOffline(EEG_MLP, EEG_freq_MLP, window_labels, feature_indices_w
     return x_MLP, y_MLP
 
     
-def EEGNetProcessingOnline(EEG_EEGNet, window_labels, num_classes): 
+def EEGNetProcessingOnline(EEG_EEGNet, window_labels, num_classes, sos_EEGNet): 
 
     # *********** EEGNet processing *******************
     
-    
-    sos = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
+    sos_EEGNet = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
     #b, a = EEG_EEGNet.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "ba")
     #EEG_EEGNet.filterWindows(b = b, a = a, apply_method = "gustav") # bandpass filter (zero phase with padding)
-    EEG_EEGNet.filterWindows(sos = sos, apply_method = "zero_phase_sos", padtype = "even") # bandpass filter (zero phase with padding)
+    EEG_EEGNet.filterWindows(sos = sos_EEGNet, apply_method = "zero_phase_sos", padtype = "even") # bandpass filter (zero phase with padding)
     
-
+    
     #EEG_EEGNet.cutWindows(n_samples_start = 25, n_samples_end = 25) # try this for reducing artifacts 
     
     EEG_EEGNet.setWindowLabels(window_labels)
@@ -273,7 +272,7 @@ def EEGNetProcessingOnline(EEG_EEGNet, window_labels, num_classes):
     # cut windows accordingly 
     #EEG_EEGNet.cutWindows(n_samples_start = 75, n_samples_end = 25)
 
-    print(f"window shape: {EEG_EEGNet.windows.shape}")
+    #print(f"window shape: {EEG_EEGNet.windows.shape}")
     
     # get train windows 
     x_EEGNet = EEG_EEGNet.getWindows()

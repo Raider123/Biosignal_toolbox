@@ -62,6 +62,35 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 32, second_layer_u
         n_classes = 1 # has to be one for single class binary 
     model.add(Dense(units=n_classes, activation=activation)) 
     
+    return model 
+    
+    
+def MLP_Model_reduced(x_train, leaky_alpha = 0.5, first_layer_units = 8, second_layer_units = 8, third_layer_units = 4, activation = &#34;sigmoid&#34;, n_classes = 2, dropout_rate = 0.5, use_norm_layer = False): # 8 8 8 0.2 drop
+    
+    # MLP setup
+    model = Sequential()
+    model.add(Input(shape = x_train.shape[1],))
+    
+    if(use_norm_layer): 
+        norm_layer = Normalization()
+        norm_layer.adapt(x_train)
+        model.add(norm_layer)
+    
+    #model.add(BatchNormalization())
+    model.add(Dense(units=first_layer_units))
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    model.add(Dropout(dropout_rate))
+    model.add(BatchNormalization())
+    model.add(Dense(units=second_layer_units))
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    model.add(Dropout(dropout_rate))
+    model.add(BatchNormalization())
+    model.add(Dense(units=third_layer_units)) 
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    if(n_classes == 2): 
+        n_classes = 1 # has to be one for single class binary 
+    model.add(Dense(units=n_classes, activation=activation)) 
+    
     return model </code></pre>
 </details>
 </section>
@@ -112,6 +141,44 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 32, second_layer_u
     return model </code></pre>
 </details>
 </dd>
+<dt id="biosignal_toolbox.models.MlpErp.MLP_Model_reduced"><code class="name flex">
+<span>def <span class="ident">MLP_Model_reduced</span></span>(<span>x_train, leaky_alpha=0.5, first_layer_units=8, second_layer_units=8, third_layer_units=4, activation='sigmoid', n_classes=2, dropout_rate=0.5, use_norm_layer=False)</span>
+</code></dt>
+<dd>
+<div class="desc"></div>
+<details class="source">
+<summary>
+<span>Expand source code</span>
+</summary>
+<pre><code class="python">def MLP_Model_reduced(x_train, leaky_alpha = 0.5, first_layer_units = 8, second_layer_units = 8, third_layer_units = 4, activation = &#34;sigmoid&#34;, n_classes = 2, dropout_rate = 0.5, use_norm_layer = False): # 8 8 8 0.2 drop
+    
+    # MLP setup
+    model = Sequential()
+    model.add(Input(shape = x_train.shape[1],))
+    
+    if(use_norm_layer): 
+        norm_layer = Normalization()
+        norm_layer.adapt(x_train)
+        model.add(norm_layer)
+    
+    #model.add(BatchNormalization())
+    model.add(Dense(units=first_layer_units))
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    model.add(Dropout(dropout_rate))
+    model.add(BatchNormalization())
+    model.add(Dense(units=second_layer_units))
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    model.add(Dropout(dropout_rate))
+    model.add(BatchNormalization())
+    model.add(Dense(units=third_layer_units)) 
+    model.add(tf.keras.layers.LeakyReLU(alpha=leaky_alpha))
+    if(n_classes == 2): 
+        n_classes = 1 # has to be one for single class binary 
+    model.add(Dense(units=n_classes, activation=activation)) 
+    
+    return model </code></pre>
+</details>
+</dd>
 </dl>
 </section>
 <section>
@@ -131,6 +198,7 @@ def MLP_Model(x_train, leaky_alpha = 0.5, first_layer_units = 32, second_layer_u
 <li><h3><a href="#header-functions">Functions</a></h3>
 <ul class="">
 <li><code><a title="biosignal_toolbox.models.MlpErp.MLP_Model" href="#biosignal_toolbox.models.MlpErp.MLP_Model">MLP_Model</a></code></li>
+<li><code><a title="biosignal_toolbox.models.MlpErp.MLP_Model_reduced" href="#biosignal_toolbox.models.MlpErp.MLP_Model_reduced">MLP_Model_reduced</a></code></li>
 </ul>
 </li>
 </ul>

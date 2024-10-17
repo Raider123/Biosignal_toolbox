@@ -18,6 +18,7 @@ from mne.preprocessing import Xdawn
 from pybv import write_brainvision
 import warnings
 import zmq
+from PyEMD import EMD
 
 sys.path.insert(0, abspath(join(dirname(__file__), '../../')))
 from variance_tools_api.variance_tools import variance_tools as vt
@@ -260,6 +261,7 @@ class Timeseries():
         
         #get data out as numpy array for further processing 
         self.epochs = eeg_epochs.get_data()#units = "uV") 
+        # change here to float32 ? 
         self.average_epochs = np.mean(self.epochs, axis = 0)
         self.event_id = event_id_used 
         
@@ -383,8 +385,8 @@ class Timeseries():
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.f_samp)
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.f_samp)
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
             elif(f_high):
                 sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
@@ -974,13 +976,30 @@ class Timeseries():
                             
                             # perform zero phase forward backward filtering with gustafson method to reduce artifacts  
                             if(apply_method == "gustav"): 
-                                filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
-                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+                                if(padtype == "own"): 
+                                    N = len(current_wind[channel_idx, :])
+                                    padded_wind = np.pad(current_wind[channel_idx, :].copy(), (0, N),  mode='symmetric', reflect_type='even')
+                                    filtered_window = sig.filtfilt(b, a, padded_wind, method ="gust") # forward backward filtering with gustafson method
+                                    filtered_window_cut = filtered_window[0:N]
+                                    self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window_cut
+
+                                else: 
+                                    filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :].copy(), method ="gust") # forward backward filtering with gustafson method
+                                    self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
                             
                             #filtered_window = sig.lfilter(b, a, current_wind[channel_idx, :].copy())#, method ="gust") # forward backward filtering with gustafson method 
                             elif(apply_method == "zero_phase_sos"): 
-                                filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype =padtype)#, padtype ="even") # normal filtering with padding 
-                                self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
+
+                                    if(padtype == "own"): 
+                                        N = len(current_wind[channel_idx, :])
+                                        padded_wind = np.pad(current_wind[channel_idx, :].copy(), (0, N),  mode='symmetric', reflect_type='even')
+                                        filtered_window = sig.sosfiltfilt(sos, padded_wind, padlen = len(current_wind[channel_idx, :])-1, padtype ="even")
+                                        filtered_window_cut = filtered_window[0:N]
+                                        self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window_cut
+
+                                    else: 
+                                        filtered_window = sig.sosfiltfilt(sos, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype =padtype)#, padtype ="even") # normal filtering with padding 
+                                        self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window
                             
                             elif(apply_method == "zero_phase_ba"): 
                                 filtered_window = sig.filtfilt(b, a, current_wind[channel_idx, :], padlen = len(current_wind[channel_idx, :])-1, padtype =padtype) # normal filtering with padding
@@ -1006,7 +1025,18 @@ class Timeseries():
 
                                 self.windows[trial_idx, channel_idx, :, window_idx] = filtered_window 
                                          
-    
+    def emdFilterWindows(self, component_used = -1):
+        emd = EMD(max_imf=2) 
+
+        # shape: trials, channels, sampels, windows
+        for trial_idx in range(0, self.windows.shape[0]): 
+                for window_idx in range(0, self.windows.shape[3]): 
+                        for channel_idx in range(0, self.windows.shape[1]):
+                            data_to_filter = self.windows[trial_idx, channel_idx, :, window_idx]
+                            imf = emd.emd(data_to_filter)
+                            self.windows[trial_idx, channel_idx, :, window_idx] = imf[component_used, :]
+                        
+
     def fft_bandpass_filter(self, eeg_data, fs, lowcut, highcut):
         """
         Apply an FFT-based bandpass filter to EEG data.
@@ -1757,7 +1787,7 @@ class Timeseries():
                     current_wind = copy.deepcopy(self.windows[trial_idx, channel_idx, :, window_idx])
 
                     median_val = np.median(current_wind[0:end_idx])
-                    
+
                     #print("median value is ", median_val)
                     current_wind_med_corr = current_wind -median_val
                     
@@ -2109,8 +2139,7 @@ class Timeseries():
 
         if(feature_type == "timepoints"): 
             
-            # feature_times_indices = ((feature_indices_windows/1000)*self.f_samp).astype(int)
-            feature_times_indices = feature_indices_windows.astype(int)
+            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
 
             # init stuff 
             if(use_mean): 
@@ -2241,10 +2270,11 @@ class Timeseries():
 
 
         elif(feature_type == "freqBandPower"): 
-
+            
             #windows (n_trials, n_channels, n_sampels, n_windows).
-
+            
             freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            #freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
             num_of_freq_bands = len(freq_bands)-1
 
             if(add_neightbour_diffs): 
@@ -2276,7 +2306,6 @@ class Timeseries():
 
                 for feature_idx in range(0, x_train_features_add.shape[2]):
                     x_train_add[:, feature_idx] = x_train_features_add[:, :, feature_idx].flatten()
-
 
 
         # how to proceed with features (both conditions)
@@ -2939,8 +2968,6 @@ class OnlineTimeseriesStreaming(Timeseries):
             The type of the stream that should be created or used. Can be "data" for timeseries data or "impedance" for receiving/sending impedance values, by default "data"
         channel_names : list, optional
             A list of channel names of the timeseries data. Might not be used in case a stream is providing the channel names automatically, by default ["1", "2", "3"]
-        n_channels : int, optional
-            The number of time series channels. Might not be used in case a stream is providing the channel names automatically, by default 3
         n_samples : int, optional
             The number of timeseries samples that are stored and updated in a buffer for each channel, by default 500
         dt_process_data : float, optional
@@ -3007,7 +3034,7 @@ class OnlineTimeseriesStreaming(Timeseries):
         print('delaying to allow slow devices to attach...')
         time.sleep(1)
 
-
+        
         amplifiers=factory.getAmplifiers()
         print("available amplifiers:", amplifiers)
         
@@ -3061,6 +3088,32 @@ class OnlineTimeseriesStreaming(Timeseries):
                 print('  impedances.. {}'.format(list(self.impedance_stream.getData())))
         else: 
             warnings.warn("no amplifier found, terminating ...")
+
+
+    def setChunk(self, chunk = None, chunk_type = "numpy"): 
+        """
+        With methods sets new received data chunk internally for buffering and further processing. 
+
+        Parameters
+        ----------
+        chunk : list or numpy ndarray, optional
+            A list or numpy array with shape: (sampels, channels), by default None
+        chunk_type : str, optional
+            The data type of the chunk, can be "list" or "numpy", by default "numpy"
+
+        Author
+        ------
+        Author : Niklas Kueper \n
+        Last changed: 20.09.2024 (by Niklas Kueper)
+        """  
+        
+        if (chunk_type == "numpy"): 
+            self.data_chunk = chunk.tolist()
+        elif (chunk_type == "list"): 
+            self.data_chunk = chunk
+        else: 
+            self.data_chunk = None
+            warnings.warn("unsupported data format, check type of chunk!")
                     
 
     def getChunk(self, return_chunk = False): 
