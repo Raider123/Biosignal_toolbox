@@ -54,7 +54,7 @@ class EEGData(Timeseries):
         data : numpy ndarray, optional 
             The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format).
         file_type : str, optional
-            Within the "Recorded_LSL_stream" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
+            Within the "Numpy_Qualisys" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
         outer_key_order_d : list, optional
             Desired sequence of outer keys to concatenate the data, by default order in which the data is read.
         inner_key_order_d : list, optional
@@ -128,8 +128,33 @@ class EEGData(Timeseries):
             self.windows = windows
             self.__fsamp = f_samp
             self.__channel_names = channel_names
-
+        
         elif(format == "Recorded_LSL_stream"): 
+            if(filenames): # implement running over all files and appending data to each other 
+
+                if(len(filenames) > 1): 
+                    concat_list = []
+                    for filename in filenames: 
+                        concat_list.append(np.load(data_path +filename+".npy"))
+                    
+                    data = np.concatenate(concat_list)
+                else: 
+                    data = np.load(data_path +filenames[0]+".npy")
+
+            self.__fsamp = f_samp
+            self.__channel_names = channel_names
+
+            # create mne object 
+            self.createMneObject(data)
+            
+            # set annotation events (markers)
+            self.createAnnotationEvents(data=data)
+            self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
+
+            # print(type(self.events)) # (events, 3)
+            # print("events", self.events)
+
+        elif(format == "NumpyQualisys"): 
             if(filenames): # implement running over all files and appending data to each other 
 
                 if(len(filenames) > 1): 
@@ -139,7 +164,6 @@ class EEGData(Timeseries):
                     
                     data = np.concatenate(concat_list)
                 else: 
-                    # data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()['0']['complex']
                     if add_marker_channel:
                         data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()
                     else:
@@ -178,42 +202,16 @@ class EEGData(Timeseries):
                     data[int(offset_idx),-1] = 1
                     print(f"Data: {data.shape}")
                 else:
-                    # Adding an extra event channel at the end for qualisys markers
-                    column_of_no_markers = -1 * np.ones((data.shape[0],1))
-                    data = np.hstack((data,column_of_no_markers))
-                    # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
-                    # offset_idx = -1
-                    # print(f"Quali offset: {offset_idx}")
-                    data[0,-1] = 1
-                    data[-1,-1] = 1
-                    print(f"Data: {data.shape}")
+                    pass
 
             self.__fsamp = f_samp
             self.__channel_names = channel_names
 
             # create mne object 
-            sfreq = self.__fsamp  # Sampling frequency
-            data = data.T # in form (channel, sampels)
-            #print("markers", np.where(data[-1, :] == 64)[0])
-            times = np.arange(0, data.shape[1], 1/sfreq)  # 
-            ch_types = ['eeg'] * len(self.__channel_names) # only EEG for now 
-            ch_names = self.__channel_names
-            info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
-            #scalings = {'eeg': 1}
-            raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
-            self.raw_obj = raw
+            self.createMneObject(data=data)
             
             # set annotation events (markers)
-            event_channel = data[-1, :]
-            marker_indices = np.where(event_channel > 0)[0]
-            marker_numbers = event_channel[marker_indices]
-            events = np.zeros((len(marker_indices), 3))
-            events[:, 0] = marker_indices
-            events[:, 2] = marker_numbers
-            self.events = events.astype(int)
-
-            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
-            self.raw_obj.set_annotations(annotations = annotations)
+            self.createAnnotationEvents(data=data)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
 
             # print(type(self.events)) # (events, 3)
@@ -256,6 +254,54 @@ class EEGData(Timeseries):
 
         return raw
     
+    def createMneObject(self, data=None):
+        """
+        Creates mne raw object from loaded data
+
+        Parameters
+        ----------
+        data : numpy list
+            concatenated list of input data, by default None
+        """
+        if data is None:
+            print("ERROR: Please provide input numpy list of data!!")
+        else:
+            data = data.T # in form (channel, sampels)
+            sfreq = self.__fsamp  # Sampling frequency
+            #print("markers", np.where(data[-1, :] == 64)[0])
+            times = np.arange(0, data.shape[1], 1/sfreq)  # 
+            ch_types = ['eeg'] * len(self.__channel_names) # only EEG for now 
+            ch_names = self.__channel_names
+            info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
+            #scalings = {'eeg': 1}
+            raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
+            self.raw_obj = raw
+
+    
+    def createAnnotationEvents(self, data=None):
+        """
+        Create events and annotations from the events
+
+        Parameters
+        ----------
+        data : numpy list, optional
+            concatenated list of input data, by default None
+        """
+        if data is None:
+            print("ERROR: Please provide input numpy list of data!!")
+        else:
+            event_channel = data[-1, :]
+            marker_indices = np.where(event_channel > 0)[0]
+            marker_numbers = event_channel[marker_indices]
+            events = np.zeros((len(marker_indices), 3))
+            events[:, 0] = marker_indices
+            events[:, 2] = marker_numbers
+            self.events = events.astype(int)
+
+            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            self.raw_obj.set_annotations(annotations = annotations)
+
+
     def createActicapMontage(self, plot_montage = False, rename_channels=None, set_montage = True): 
 
         """
