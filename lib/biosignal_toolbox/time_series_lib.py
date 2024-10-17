@@ -61,9 +61,9 @@ class Timeseries():
             The mne raw object to be used for full mne support, please see the mne wiki for further information.
         events : numpy ndarray 
             The events (also called markers) in the data. The shape is: (indices, 0, eventnumber).  
-        __channel_names : list of str
+        channel_names : list of str
             A list of channel names as strings, if not known from the data format. Not required for format "Brainvision" (see EEG class).
-        __fsamp : float 
+        f_samp : float 
             The sampling rate of the data in Hz. 
         time_axis_epochs: 1D numpy array 
             The time axis of the data after the epoching step. 
@@ -385,8 +385,8 @@ class Timeseries():
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.__fsamp)
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.__fsamp)
+                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.f_samp)
+                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.f_samp)
             elif(f_high):
                 sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
@@ -2139,7 +2139,7 @@ class Timeseries():
 
         if(feature_type == "timepoints"): 
             
-            feature_times_indices = ((feature_indices_windows/1000)*self.__fsamp).astype(int)
+            feature_times_indices = ((feature_indices_windows/1000)*self.f_samp).astype(int)
 
             # init stuff 
             if(use_mean): 

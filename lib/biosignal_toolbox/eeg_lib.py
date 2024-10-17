@@ -65,9 +65,9 @@ class EEGData(Timeseries):
         ----------
         raw_obj : mne raw object
             The mne raw object that is used to create the object. Only required for format type "RawObj".
-        __fsamp : float
+        f_samp : float
             The sampling rate of the EMG system in Hz
-        __channel_names : list
+        channel_names : list
             A list of channel names as strings, if not known from the data format.
         data : numpy ndarray
              The channel wise (raw) data as numpy array (shape: n_channel, n_sampels). 
@@ -140,7 +140,7 @@ class EEGData(Timeseries):
                 else: 
                     data = np.load(data_path +filenames[0]+".npy")
 
-            self.fsamp = f_samp
+            self.f_samp = f_samp
             self.channel_names = channel_names
 
             # create mne object 
@@ -203,7 +203,7 @@ class EEGData(Timeseries):
                 else:
                     pass
 
-            self.fsamp = f_samp
+            self.f_samp = f_samp
             self.channel_names = channel_names
 
             # create mne object 
@@ -266,11 +266,11 @@ class EEGData(Timeseries):
             print("ERROR: Please provide input numpy list of data!!")
         else:
             data = data.T # in form (channel, sampels)
-            sfreq = self.__fsamp  # Sampling frequency
+            sfreq = self.f_samp  # Sampling frequency
             #print("markers", np.where(data[-1, :] == 64)[0])
             times = np.arange(0, data.shape[1], 1/sfreq)  # 
-            ch_types = ['eeg'] * len(self.__channel_names) # only EEG for now 
-            ch_names = self.__channel_names
+            ch_types = ['eeg'] * len(self.channel_names) # only EEG for now 
+            ch_names = self.channel_names
             info = mne.create_info(ch_names=ch_names, sfreq=sfreq, ch_types=ch_types)
             #scalings = {'eeg': 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
@@ -297,7 +297,7 @@ class EEGData(Timeseries):
             events[:, 2] = marker_numbers
             self.events = events.astype(int)
 
-            annotations = mne.annotations_from_events(events = events, sfreq = self.__fsamp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
+            annotations = mne.annotations_from_events(events = events, sfreq = self.f_samp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
             self.raw_obj.set_annotations(annotations = annotations)
 
 

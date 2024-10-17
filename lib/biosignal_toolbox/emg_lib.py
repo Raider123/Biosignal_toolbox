@@ -50,9 +50,9 @@ class EMGData(Timeseries):
         ----------
         raw_obj : mne raw object
             The mne raw object that is used to create the object. Only required for format type "RawObj".
-        __fsamp : float
+        f_samp : float
             The sampling rate of the EMG system in Hz
-        __channel_names : list
+        channel_names : list
             A list of channel names as strings, if not known from the data format.
         data : numpy ndarray
              The channel wise (raw) data as numpy array (shape: n_channel, n_sampels). 
