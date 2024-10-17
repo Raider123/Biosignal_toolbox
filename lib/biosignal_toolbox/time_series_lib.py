@@ -94,8 +94,6 @@ class Timeseries():
         # provided data formats 
         self.raw_obj = raw_obj
         self.data = data#
-        if not self.data is None:
-            self.filtered_data = self.data[:-1,:]
         self.windows = windows 
         self.window_names = None 
         self.epochs = epochs
@@ -538,59 +536,6 @@ class Timeseries():
                             filtered_epochs[trial_idx, channel_idx, sample_idx] = np.var(self.epochs[trial_idx, channel_idx, sample_idx-n_var:sample_idx])
 
             self.epochs = filtered_epochs
-    
-    def calculateActivationForceFunction(self,d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5):
-        """
-        This function first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
-                    where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
-        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
-                    a(t) = e^(Ap(t)) - 1 / e^A - 1
-
-        Parameters
-        ----------
-        d : int, optional
-            electromechanical delay, by default 50
-        c1 : float, optional
-            |c1| < 1, by default 0.5
-        c2 : float, optional
-            |c2|<1, by default -0.5
-        nonlinear_shape_factor : float, optional
-            A belongs to (-3,0) where 0 means linear relation, by default -1.5
-        
-        Author
-        ------
-        Author: Kartik Chari \n
-        Last changed: 21.08.2024 (by Kartik Chari)
-        """
-
-        #! Calculate coefficients of the difference equation
-        beta_1  = c1 + c2
-        beta_2  = c1 * c2
-        gamma   = 1 + beta_1 + beta_2
-        A       = nonlinear_shape_factor
-
-        #! Initialise p(t-1) and p(t-2)
-        p_t_minus_1 = 1.0
-        p_t_minus_2 = 1.0
-
-        #! Initialise a temp calc variable
-        activation_window = np.zeros(self.windows.shape)
-
-        #! Loop over the windows and solve difference equation
-        for trial_idx in range(0, self.windows.shape[0]): 
-                for channel_idx in range(0, self.windows.shape[1]):
-                    for window_idx in range(0, self.windows.shape[3]): 
-                        for sample_idx in range(0, self.windows.shape[2]):
-                            if sample_idx < d:
-                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = self.windows[trial_idx, channel_idx, sample_idx, window_idx]
-                            else:
-                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = (gamma * self.windows[trial_idx, channel_idx, sample_idx-d, window_idx]) - (beta_1 * p_t_minus_1) - (beta_2 * p_t_minus_2)
-                                p_t_minus_2 = p_t_minus_1
-                                p_t_minus_1 = activation_window[trial_idx, channel_idx, sample_idx, window_idx]
-                                
-                                activation_window[trial_idx, channel_idx, sample_idx, window_idx] = (math.exp(A*activation_window[trial_idx, channel_idx, sample_idx, window_idx])-1) / (math.exp(A)-1)
-        self.windows = activation_window
 
     def applyMovingAverageFilter(self,  n = 20, apply_to_structures = "windows"): 
 
@@ -1687,7 +1632,7 @@ class Timeseries():
 
 
 
-    def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True, choose_data="raw_data"): 
+    def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True): 
         
         # windows have shape trials, channels, sampels, windows 
         start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0][0]
@@ -1701,18 +1646,11 @@ class Timeseries():
         windows = []
         wind_names = []
         counter = 0
-        if choose_data == "raw_data":
-            for end_index in end_indices: 
-                current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
-                windows.append(current_window)
-                wind_names.append(str(counter)) # just numerate the windows
-                counter +=1
-        elif choose_data == "filtered_data":
-            for end_index in end_indices: 
-                current_window = self.filtered_data[start_channel_pick:end_channel_pick,end_index-window_size:end_index] # data in channels, sampels 
-                windows.append(current_window)
-                wind_names.append(str(counter)) # just numerate the windows
-                counter +=1
+        for end_index in end_indices: 
+            current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
+            windows.append(current_window)
+            wind_names.append(str(counter)) # just numerate the windows
+            counter +=1
         np_windows = np.array(windows)  # has wrong shape here 
         self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
         self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
@@ -2772,7 +2710,7 @@ class Timeseries():
             warnings.warn("not implemented for other data stages, terminating ... ")
             return None
     
-    def highPassFilter(self, cutoff_freq=20, order=2, fs=1000, type="butter"):
+    def highPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
         """
         This function applies a high-pass filter on the time series data and rectifies it to obtain the absolute value of the signal
 
@@ -2784,21 +2722,33 @@ class Timeseries():
             order of the filter, by default 2
         fs : int, optional
             sampling frequency of the input data, by default 1000
-        type : str, optional
+        filter_type : str, optional
             type of filter to use, by default "butter"
+        mode : str, optional
+            type of experiment (online or offline), by default "offline"
+        sos : list
+            sos output of butterworth 2nd order filter (used in online mode)
+        counter : int, optional
+            counter for setting the initial delay of filter (used in online mode)
 
         Author
         -------
         Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
+        Last changed: 17.10.2024 (by Kartik Chari)
         """
-        # for ch in range(self.data.shape[0]):
-        #     self.filtered_data[ch] = np.abs(sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch]))
-        
-        for ch in range(self.filtered_data.shape[0]):
-            self.filtered_data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
+        if mode == "offline":
+            for ch in range(self.data.shape[0]):
+                self.data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
+        elif mode == "online":
+            if counter == 0:
+                for ch in range(self.n_channels-2):
+                    self.zi_hpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
+            for ch in range(self.n_channels-2):
+                self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_hpf[ch,:], axis=0))
+                self.zi_hpf[ch,:] = zi_out
+                
 
-    def applyVarianceFilterCPP(self, ring_buffer=None, width=20, index=0):
+    def applyVarianceFilterCPP(self, ring_buffer=None, width=20, index=0, mode="offline"):
         """
         This method applies variance filter on the complete data using the cpp variance_tools API
 
@@ -2810,46 +2760,51 @@ class Timeseries():
             length of the variance filter, by default 20
         index : int, optional
             index for current needed sample of the ringBuffer, by default 0
+        mode : str, optional
+            type of experiment (online or offline), by default "offline"
 
         Author
         -------
         Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
+        Last changed: 17.10.2024 (by Kartik Chari)
         """
-        out_arr = np.zeros(self.filtered_data.shape)
-
-        for ch in range(self.filtered_data.shape[0]):
-            _ = vt.filter(out_arr[ch], self.filtered_data[ch], ring_buffer, self.variables, width, index)
-
-        self.filtered_data = out_arr
+        if mode == "offline":
+            out_arr = np.zeros(self.data.shape)
+            for ch in range(self.data.shape[0]):
+                _ = vt.filter(out_arr[ch], self.data[ch], ring_buffer, self.variables, width, index)
+            self.data = out_arr
+        
+        elif mode == "online":
+            out_arr = np.zeros((self.data_buffer.shape[1],self.data_buffer.shape[2]))
+            for ch in range(self.n_channels-2):
+                _ = vt.filter(out_arr[ch], self.data_buffer[0,ch,(-1*self.n_samples):,0], ring_buffer, self.variables, width, index)
+            self.data_buffer[0,:,:,0] = out_arr
     
-    def normalizeContinuousData(self):
+    def normalizeContinuousData(self, mvc=0, mode="offline"):
         """
         This method first finds the maximum voluntary contraction of each un-windowed continuous data channel and then normalizes the channel data by dividing by the maxima 
 
-        Author
-        -------
-        Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
-        """
-        for ch in range(self.filtered_data.shape[0]):
-            self.filtered_data[ch] = self.filtered_data[ch] / np.max(self.filtered_data[ch])
-    
-    def normalizeContinuousDataNew(self, mvc=0):
-        """
-        This method first finds the maximum voluntary contraction of each un-windowed continuous data channel and then normalizes the channel data by dividing by the maxima 
+        Parameters
+        ----------
+        mvc : float
+            Maximum EMG value across all the weights and channels for a subject
+        mode : str, optional
+            type of experiment (online or offline), by default "offline"
 
         Author
         -------
         Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
+        Last changed: 17.10.2024 (by Kartik Chari)
         """
         try:
-            self.filtered_data = self.filtered_data / mvc
+            if mode == "offline":
+                self.data = self.data / mvc
+            elif mode == "online":
+                self.data_buffer[0,:,:,0] = self.data_buffer[0,:,(-1*self.n_samples):,0] / mvc
         except:
             print("Please provide the MVC for Normalisation!!")
     
-    def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, type="butter"):
+    def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
         """
         This method applies a low-pass filter on the time series data
 
@@ -2861,79 +2816,48 @@ class Timeseries():
             order of the filter, by default 2
         fs : int, optional
             sampling frequency of the input data, by default 1000
-        type : str, optional
+        filter_type : str, optional
             type of filter to use, by default "butter"
+        mode : str, optional
+            type of experiment (online or offline), by default "offline"
+        sos : list
+            sos output of butterworth 2nd order filter (used in online mode)
+        counter : int, optional
+            counter for setting the initial delay of filter (used in online mode)
 
         Author
         -------
         Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
+        Last changed: 17.10.2024 (by Kartik Chari)
         """
-        for ch in range(self.filtered_data.shape[0]):
-            self.filtered_data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='lowpass', analog=False, output='sos', fs=fs),self.filtered_data[ch])
-    
-    def calculateActivationForceFunctionCPP(self,d=50, c1=0.5, c2=-0.5, nonlinear_shape_factor=-1.5):
+        if mode == "offline":
+            for ch in range(self.data.shape[0]):
+                self.data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='lowpass', analog=False, output='sos', fs=fs),self.data[ch])
+        elif mode == "online":
+            if counter == 0:
+                for ch in range(self.n_channels-2):
+                    self.zi_lpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
+            for ch in range(self.n_channels-2):
+                self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_lpf[ch,:], axis=0))
+                self.zi_lpf[ch,:] = zi_out
+
+    def calculateActivationForceFunction(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5, mode="offline"):
         """
         This method first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) - beta_1*p(t-1) - beta_2*p(t-2)
-                    where, gamma = beta_1+beta_2+1; beta_1 = c1 + c2; beta_2 = c1*c2
+                    p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
+                    where, gamma + beta_1 + beta_2 <= 1
         Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
                     a(t) = e^(Ap(t)) - 1 / e^A - 1
-
+        
         Parameters
         ----------
-        d : int, optional
-            electromechanical delay, by default 50
-        c1 : float, optional
-            |c1| < 1, by default 0.5
-        c2 : float, optional
-            |c2|<1, by default -0.5
-        nonlinear_shape_factor : float, optional
-            A belongs to (-3,0) where 0 means linear relation, by default -1.5
+        mode : str, optional
+            type of experiment (online or offline), by default "offline"
         
         Author
         ------
         Author: Kartik Chari \n
-        Last changed: 21.08.2024 (by Kartik Chari)
-        """
-        #! Calculate coefficients of the difference equation
-        beta_1  = c1 + c2
-        beta_2  = c1 * c2
-        gamma   = 1 + beta_1 + beta_2
-        A       = nonlinear_shape_factor
-
-        #! Initialise p(t-1) and p(t-2)
-        p_t_minus_1 = 1.0
-        p_t_minus_2 = 1.0
-
-        #! Initialise a temp calc variable
-        activation_data = np.zeros(self.filtered_data.shape)
-
-        #! Loop over the windows and solve difference equation
-        for channel_idx in range(0, activation_data.shape[0]):
-            for sample_idx in range(0, activation_data.shape[1]):
-                if sample_idx < d:
-                    activation_data[channel_idx, sample_idx] = self.filtered_data[channel_idx, sample_idx]/3
-                else:
-                    activation_data[channel_idx, sample_idx] = (gamma * self.filtered_data[channel_idx, sample_idx-d]) - (beta_1 * p_t_minus_1) - (beta_2 * p_t_minus_2)
-                    p_t_minus_2 = p_t_minus_1
-                    p_t_minus_1 = activation_data[channel_idx, sample_idx]
-                    
-                    activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
-        self.filtered_data = activation_data
-
-    def calculateActivationForceFunctionCPPNew(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
-        """
-        This method first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
-                    where, gamma + beta_1 + beta_2 <= 1
-        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
-                    a(t) = e^(Ap(t)) - 1 / e^A - 1
-        
-        Author
-        ------
-        Author: Kartik Chari \n
-        Last changed: 21.08.2024 (by Kartik Chari)
+        Last changed: 17.10.2024 (by Kartik Chari)
         """
         #! Calculate coefficients of the difference equation
         beta_1  = b1
@@ -2946,60 +2870,34 @@ class Timeseries():
         p_t_minus_2 = 1.0
 
         #! Initialise a temp calc variable
-        activation_data = np.zeros(self.filtered_data.shape)
-
-        #! Loop over the windows and solve difference equation
-        for channel_idx in range(0, activation_data.shape[0]):
-            for sample_idx in range(0, activation_data.shape[1]):
-                if sample_idx < int(d/2):
-                    activation_data[channel_idx, sample_idx] = self.filtered_data[channel_idx, sample_idx]/3
-                else:
-                    activation_data[channel_idx, sample_idx] = (gamma * self.filtered_data[channel_idx, sample_idx-d]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
-                    p_t_minus_2 = p_t_minus_1
-                    p_t_minus_1 = activation_data[channel_idx, sample_idx]
-                    
-                    # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
-        self.filtered_data = activation_data
-    
-    def calculateActivationForceFunctionWindows(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
-        """
-        This method first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
-                    where, gamma + beta_1 + beta_2 <= 1
-        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
-                    a(t) = e^(Ap(t)) - 1 / e^A - 1
-        
-        Author
-        ------
-        Author: Kartik Chari \n
-        Last changed: 21.08.2024 (by Kartik Chari)
-        """
-        #! Calculate coefficients of the difference equation
-        beta_1  = b1
-        beta_2  = b2
-        gamma   = g
-        A       = nonlinear_shape_factor
-
-        #! Initialise p(t-1) and p(t-2)
-        p_t_minus_1 = 1.0
-        p_t_minus_2 = 1.0
-
-        #! Initialise a temp calc variable
-        activation_data = np.zeros(self.windows.shape)
-
-        #! Loop over the windows and solve difference equation
-        for window_idx in range(activation_data.shape[3]):
-            for channel_idx in range(activation_data.shape[1]):
-                for sample_idx in range(activation_data.shape[2]):
+        if mode == "offline":
+            activation_data = np.zeros(self.data.shape)
+            #! Loop over the windows and solve difference equation
+            for channel_idx in range(0, activation_data.shape[0]):
+                for sample_idx in range(0, activation_data.shape[1]):
                     if sample_idx < int(d/2):
-                        activation_data[:,channel_idx, sample_idx,window_idx] = self.windows[:,channel_idx, sample_idx,window_idx]/3
+                        activation_data[channel_idx, sample_idx] = self.data[channel_idx, sample_idx]/3
                     else:
-                        activation_data[:,channel_idx, sample_idx,window_idx] = (gamma * self.windows[:,channel_idx, sample_idx-d, window_idx]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
+                        activation_data[channel_idx, sample_idx] = (gamma * self.data[channel_idx, sample_idx-d]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
                         p_t_minus_2 = p_t_minus_1
-                        p_t_minus_1 = activation_data[:,channel_idx, sample_idx,window_idx]
+                        p_t_minus_1 = activation_data[channel_idx, sample_idx]
                         
-                        # activation_data[:,channel_idx, sample_idx,window_idx] = (math.exp(A*activation_data[:,channel_idx, sample_idx,window_idx])-1) / (math.exp(A)-1)
-        self.windows = activation_data
+                        # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
+            self.data = activation_data
+        elif mode == "online":
+            activation_data = np.zeros(self.data_buffer[0,:,(-1*self.n_samples):,0].shape)
+            #! Loop over the data buffer and solve difference equation
+            for channel_idx in range(activation_data.shape[0]):
+                for sample_idx in range(activation_data.shape[1]):
+                    if sample_idx < d:
+                        activation_data[channel_idx,sample_idx] = self.data_buffer[0,channel_idx, (-1*self.n_samples)+sample_idx,0]/3
+                    else:
+                        activation_data[channel_idx,sample_idx] = (gamma * self.data_buffer[0,channel_idx,(-1*self.n_samples)+sample_idx,0]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
+                        p_t_minus_2 = p_t_minus_1
+                        p_t_minus_1 = activation_data[channel_idx,sample_idx]
+                        
+                        activation_data[channel_idx,sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
+            self.data_buffer[0,:,(-1*self.n_samples):,0] = activation_data
     
     def calculateMAVFromFeatures(self, n_channels=8):
         """
@@ -3407,137 +3305,4 @@ class OnlineTimeseriesStreaming(Timeseries):
         my_socket.bind("tcp://*:"+port_name)
         print("Publisher ready")
         return my_socket
-    
-    def highPassFilterOnline(self, cutoff_freq=20, order=2, fs=1000, type="butter", sos=None, counter=0):
-        """
-        This function applies a high-pass filter on the time series data and rectifies it to obtain the absolute value of the signal
 
-        Parameters
-        ----------
-        cutoff_freq : int, optional
-            cut-off frequency for the filter, by default 20
-        order : int, optional
-            order of the filter, by default 2
-        fs : int, optional
-            sampling frequency of the input data, by default 1000
-        type : str, optional
-            type of filter to use, by default "butter"
-        sos : list
-            sos output of butterworth 2nd order filter
-
-        Author
-        -------
-        Author : Kartik Chari \n
-        Last changed: 18.09.2024 (by Kartik Chari)
-        """
-        if counter == 0:
-            for ch in range(self.n_channels-2):
-                self.zi_hpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
-        for ch in range(self.n_channels-2):
-            self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_hpf[ch,:], axis=0))
-            self.zi_hpf[ch,:] = zi_out
-
-    def applyVarianceFilterOnline(self, ring_buffer=None, width=20, index=0):
-        """
-        This method applies variance filter on the complete data using the cpp variance_tools API
-
-        Parameters
-        ----------
-        ringBuffer : numpy array, optional
-            buffer to calculate variance, by default None
-        width : int, optional
-            length of the variance filter, by default 20
-        index : int, optional
-            index for current needed sample of the ringBuffer, by default 0
-
-        Author
-        -------
-        Author : Kartik Chari \n
-        Last changed: 18.09.2024 (by Kartik Chari)
-        """
-        out_arr = np.zeros((self.data_buffer.shape[1],self.data_buffer.shape[2]))
-
-        for ch in range(self.n_channels-2):
-            _ = vt.filter(out_arr[ch], self.data_buffer[0,ch,(-1*self.n_samples):,0], ring_buffer, self.variables, width, index)
-
-        self.data_buffer[0,:,:,0] = out_arr
-    
-    def normalizeContinuousDataOnline(self, mvc=0):
-        """
-        This method first finds the maximum voluntary contraction of each un-windowed continuous data channel and then normalizes the channel data by dividing by the maxima 
-
-        Author
-        -------
-        Author : Kartik Chari \n
-        Last changed: 18.09.2024 (by Kartik Chari)
-        """
-        try:
-            self.data_buffer[0,:,:,0] = self.data_buffer[0,:,(-1*self.n_samples):,0] / mvc
-        except:
-            print("Please provide the MVC for Normalisation!!")
-    
-    def lowPassFilterOnline(self, cutoff_freq=10, order=2, fs=500, type="butter", sos=None, counter=0):
-        """
-        This method applies a low-pass filter on an online stream of time series data
-
-        Parameters
-        ----------
-        cutoff_freq : int, optional
-            cut-off frequency for the filter, by default 20
-        order : int, optional
-            order of the filter, by default 2
-        fs : int, optional
-            sampling frequency of the input data, by default 1000
-        type : str, optional
-            type of filter to use, by default "butter"
-
-        Author
-        -------
-        Author : Kartik Chari \n
-        Last changed: 27.08.2024 (by Kartik Chari)
-        """
-        if counter == 0:
-            for ch in range(self.n_channels-2):
-                self.zi_lpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
-        for ch in range(self.n_channels-2):
-            self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_lpf[ch,:], axis=0))
-            self.zi_lpf[ch,:] = zi_out
-
-    def calculateActivationForceOnline(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5):
-        """
-        This method first calculates the neural activation function p(t) by solving the second order difference equation:
-                    p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
-                    where, gamma + beta_1 + beta_2 <= 1
-        Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
-                    a(t) = e^(Ap(t)) - 1 / e^A - 1
-        
-        Author
-        ------
-        Author: Kartik Chari \n
-        Last changed: 21.08.2024 (by Kartik Chari)
-        """
-        #! Calculate coefficients of the difference equation
-        beta_1  = b1
-        beta_2  = b2
-        gamma   = g
-        A       = nonlinear_shape_factor
-
-        #! Initialise p(t-1) and p(t-2)
-        p_t_minus_1 = 1.0
-        p_t_minus_2 = 1.0
-
-        #! Initialise a temp calc variable
-        activation_data = np.zeros(self.data_buffer[0,:,(-1*self.n_samples):,0].shape)
-
-        #! Loop over the data buffer and solve difference equation
-        for channel_idx in range(activation_data.shape[0]):
-            for sample_idx in range(activation_data.shape[1]):
-                if sample_idx < d:
-                    activation_data[channel_idx,sample_idx] = self.data_buffer[0,channel_idx, (-1*self.n_samples)+sample_idx,0]/3
-                else:
-                    activation_data[channel_idx,sample_idx] = (gamma * self.data_buffer[0,channel_idx,(-1*self.n_samples)+sample_idx,0]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
-                    p_t_minus_2 = p_t_minus_1
-                    p_t_minus_1 = activation_data[channel_idx,sample_idx]
-                    
-                    activation_data[channel_idx,sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
-        self.data_buffer[0,:,(-1*self.n_samples):,0] = activation_data
