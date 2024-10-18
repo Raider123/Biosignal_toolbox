@@ -142,9 +142,6 @@ class EEGData(Timeseries):
 
             self.f_samp = f_samp
             self.channel_names = channel_names
-
-            # create mne object 
-            self.createMneObject(data)
             
             # set annotation events (markers)
             self.createAnnotationEvents(data=data)
@@ -196,7 +193,7 @@ class EEGData(Timeseries):
                     data = np.hstack((data,column_of_no_markers))
                     # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
                     offset_idx = -1*(20*f_samp/1000)
-                    # print(f"Quali offset: {offset_idx}")
+                    # print(f"Quali offset: {int(offset_idx)}")
                     data[0,-1] = 1
                     data[int(offset_idx),-1] = 1
                     print(f"Data: {data.shape}")
@@ -205,9 +202,6 @@ class EEGData(Timeseries):
 
             self.f_samp = f_samp
             self.channel_names = channel_names
-
-            # create mne object 
-            self.createMneObject(data=data)
             
             # set annotation events (markers)
             self.createAnnotationEvents(data=data)
@@ -253,18 +247,19 @@ class EEGData(Timeseries):
 
         return raw
     
-    def createMneObject(self, data=None):
+    def createAnnotationEvents(self, data=None):
         """
-        Creates mne raw object from loaded data
+        This method creates mne raw object from loaded data, adds events and sets annotations from the events
 
         Parameters
         ----------
-        data : numpy list
+        data : numpy list, optional
             concatenated list of input data, by default None
         """
         if data is None:
             print("ERROR: Please provide input numpy list of data!!")
         else:
+            #! Creating an mne object
             data = data.T # in form (channel, sampels)
             sfreq = self.f_samp  # Sampling frequency
             #print("markers", np.where(data[-1, :] == 64)[0])
@@ -275,20 +270,7 @@ class EEGData(Timeseries):
             #scalings = {'eeg': 1}
             raw = mne.io.RawArray(data[0:len(ch_names), :], info) # only pass the actual EEG channel 
             self.raw_obj = raw
-
-    
-    def createAnnotationEvents(self, data=None):
-        """
-        Create events and annotations from the events
-
-        Parameters
-        ----------
-        data : numpy list, optional
-            concatenated list of input data, by default None
-        """
-        if data is None:
-            print("ERROR: Please provide input numpy list of data!!")
-        else:
+            #! Creating events
             event_channel = data[-1, :]
             marker_indices = np.where(event_channel > 0)[0]
             marker_numbers = event_channel[marker_indices]
@@ -296,7 +278,7 @@ class EEGData(Timeseries):
             events[:, 0] = marker_indices
             events[:, 2] = marker_numbers
             self.events = events.astype(int)
-
+            #! Creating annotations
             annotations = mne.annotations_from_events(events = events, sfreq = self.f_samp, event_desc=None, first_samp=0, orig_time=None, verbose=None)
             self.raw_obj.set_annotations(annotations = annotations)
 

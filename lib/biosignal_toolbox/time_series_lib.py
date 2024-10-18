@@ -18,7 +18,7 @@ from mne.preprocessing import Xdawn
 from pybv import write_brainvision
 import warnings
 import zmq
-from PyEMD import EMD
+from pyemd import emd as EMD
 
 sys.path.insert(0, abspath(join(dirname(__file__), '../../')))
 from variance_tools_api.variance_tools import variance_tools as vt

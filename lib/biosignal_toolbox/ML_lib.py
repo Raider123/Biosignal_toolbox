@@ -9,7 +9,7 @@ from tensorflow.keras.models import load_model
 from time import perf_counter_ns
 from dtw import *
 import copy 
-from sklearn.metrics import root_mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score
 
 import tensorflow as tf
 import warnings
@@ -522,5 +522,5 @@ class MLModel:
         # return np.sqrt(mean_sq_diff_arr)
         print(f"R2 Score: {r2_score(target_arr,predicted_arr)}")
 
-        return root_mean_squared_error(target_arr,predicted_arr)
+        return np.sqrt(mean_squared_error(target_arr,predicted_arr))
         
