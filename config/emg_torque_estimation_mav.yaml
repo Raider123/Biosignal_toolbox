@@ -1,0 +1,58 @@
+# This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
+---
+  filepath:
+    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
+    data_path:     '/data/m-rock_demo/'
+    emg_path:      'emg_data/24092024_FW28D_'
+    quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
+    fig_save_path: '../../plots/m-rock_demo/FW28D_plot1_mav'
+  
+  data_param:
+    weights:          ['0g']
+    mov_type:         ['complex', 'grasp']
+    set_num:          ['1', '2', '3']
+    subject_code:     'FW28D'
+  
+  preprocess_param:
+    channel_names_i:  ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
+    window_size_x:    50
+    window_size_y:    50
+    window_step:      50
+    feature_size:     20
+    feature_select:   'end'
+
+    f_samp:           500
+    f_cutoff_hpf:     15
+    f_cutoff_lpf:     10
+    var_filter_width: 20
+    mvc:              2.7579163508176626e-06
+    act_delay:        25
+    act_beta1:        0.25
+    act_beta2:        0.05
+    act_A:            -1.5
+  
+  model_param:
+    n_epochs:         300
+    batch_size:       25
+
+    loss_fcn:         'mse'
+    optimizer:        'nadam'
+    metrics:          'mse'
+
+    train_test_split: 0.9
+    validation_split: 0.2
+
+    is_early_stop:    true
+
+    neurons_inp:      8
+    neurons_h1:       5
+    neurons_h2:       2
+
+    act_inp:          'relu'
+    act_h1:           'relu'
+    act_h2:           'linear' 
+
+    is_save_model:    false
+
+  out_plot: 
+    is_save_plot:     false
