@@ -2954,6 +2954,46 @@ class Timeseries():
             feature_mav = np.vstack((feature_mav, temp_arr))
 
         return feature_mav 
+    
+    def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True):
+        """
+        This is a general plotting function for the EMG plots. This method will be deprecated in the future and replaced by mne methods for visualisation.
+
+        Parameters
+        ----------
+        data : array, 
+            data to plot, by default None
+        n_samples: int, optional
+            number of samples in the inp data
+        title : str, optional
+            title for the plot, by default "EMG Plot"
+        xlabel : str, optional
+            xlabel for the plot, by default "Time in s"
+        ylabel : str, optional
+            ylabel for the plot, by default "Amplitude in uV"
+        is_grid_on : bool, optional
+            boolean to decide grid lines visibility, by default True
+        """
+        plt.figure()
+        
+        if n_samples is None:
+            x_inp = np.arange(0,data.shape[0],1)/self.f_samp
+        else:
+            x_inp = np.arange(0,n_samples,1)/self.f_samp
+
+        if unit.lower() == "v":
+            y_inp = data
+        elif unit.lower() == "uv":
+            y_inp = data * 1e6
+
+        plt.plot(x_inp, y_inp)
+        plt.title(title)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if is_grid_on:
+            plt.grid()
+        
+        plt.show()
                 
 
 class OnlineTimeseriesStreaming(Timeseries): 
