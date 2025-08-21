@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from yaml import safe_load
 from datetime import datetime
-
-from sys import exit
+from types import SimpleNamespace
+from sys import exit, path
+path.append(str(Path(__file__).resolve().parents[2]))
+from config_root import project_root
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -26,7 +28,7 @@ def loadConfig(filename=''):
         name of the config file
     """
     try:
-        config_dir = getRootPath() / 'config'
+        config_dir = project_root / 'config'
         with open(config_dir / filename, 'r') as file:
             return safe_load(file)
     except IsADirectoryError:
@@ -34,10 +36,13 @@ def loadConfig(filename=''):
         exit(1)
 
 
-def getRootPath():
-    """This function gets the root dir path.
-    """
-    return Path.cwd().parent.parent
+def convertDictToNamespace(dict_inp):
+    if isinstance(dict_inp, dict):
+        return SimpleNamespace(**{k: convertDictToNamespace(v) for k, v in dict_inp.items()})
+    elif isinstance(dict_inp, list):
+        return [convertDictToNamespace(i) for i in dict_inp]
+    else:
+        return dict_inp
 
 
 def checkCreateDir(param_obj=None):
