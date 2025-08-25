@@ -2681,10 +2681,10 @@ class Timeseries():
 
         #get metrics for window evaluation 
         if (use_relabelling == False): 
-            tnr, tpr, acc, ba = calcTestAccAndRates(window_predictions.flatten(), window_eval_true_labels.flatten())
+            tnr, tpr, acc, ba = self.calcTestAccAndRates(window_predictions.flatten(), window_eval_true_labels.flatten())
         else: 
-            relabelled_true_labels = applyRelabelling(window_predictions, determine_labels, searching_bounds)
-            tnr, tpr, acc, ba = calcTestAccAndRates(window_predictions.flatten(), relabelled_true_labels.flatten())
+            relabelled_true_labels = self.applyRelabelling(window_predictions, determine_labels, searching_bounds)
+            tnr, tpr, acc, ba = self.calcTestAccAndRates(window_predictions.flatten(), relabelled_true_labels.flatten())
             window_eval_true_labels = relabelled_true_labels # return the relabelled true labels instead 
 
         return tnr, tpr, acc, ba, window_predictions, window_eval_true_labels
