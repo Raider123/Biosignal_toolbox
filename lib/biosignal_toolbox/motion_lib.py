@@ -9,6 +9,7 @@ import os
 import mne
 import csv 
 import pandas as pd 
+from pathlib import Path
 from scipy.interpolate import interp1d
 from biosignal_toolbox.time_series_lib import Timeseries
 
@@ -144,7 +145,7 @@ class MotionData(Timeseries):
             
         self.channel_names = channel_names
         
-        self.time_axis = np.arange(0, qualisys_data.shape[0], 1/self.f_samp)
+        self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
         self.data = qualisys_data.T
          
     def interpQualisysData(self, kind='linear'):
@@ -184,7 +185,7 @@ class MotionData(Timeseries):
             
             self.data[row] = data_arr
     
-    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0):
+    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0, save_torques=False, save_path=None):
         """
         This method calculates torque values for elbow and shoulder joints. The shoulder joint torque is decomposed into front shoulder and side shoulder torque using projection method.
 
@@ -194,11 +195,13 @@ class MotionData(Timeseries):
             Weight of the whole body in kg, by default 80
         obj_weight: int, optional
             Weight of the object held in hand in g, by default 0
+        save_torques: bool, optional
+            Boolean to choose whether to save the calculated torques into a .npy file, by default False
 
         Author
         -----
         Author: Kartik Chari \n
-        Last changed: 25.08.2025 (by Kartik Chari)
+        Last changed: 26.08.2025 (by Kartik Chari)
         """
         # joint sequence
         self.joint_names = np.array(["elbow", "shoulder_front", "shoulder_side"])
@@ -219,11 +222,11 @@ class MotionData(Timeseries):
         # calculate side shoulder angle of right arm in rad.
         self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
         # calculate perpendicular dist between elbow and load in m
-        forearm_perp_dist_m = self.calculateForearmPerpDist_m()
+        forearm_perp_dist_mm = self.calculateForearmPerpDist_mm()
         # calculte perpendicular distance between shoulder and elbow in m
-        upperarm_perp_dist_m = self.calculateUpperArmPerpDist_m()
+        upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm()
         # calculate total perpendicular distance between shoulder and load in m
-        total_arm_perp_dist_m = upperarm_perp_dist_m + forearm_perp_dist_m
+        total_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm
         # estimate forearm weight from body weight
         forearm_weight_kg = body_weight_kg * 0.016
         # estimate full arm weight from body weight
@@ -231,21 +234,24 @@ class MotionData(Timeseries):
 
         #? torque calculation
         # elbow torque = mass * g * perp_dist
-        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * forearm_perp_dist_m
+        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * forearm_perp_dist_mm/1000
         # total shoulder torque
-        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_m
+        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_mm/1000
         #? project total shoulder force into axes of saggital and frontal planes
         #* T_{front} = |t_{total}| cos(theta)
         torque_shoulder_front = torque_shoulder * np.cos(self.side_shoulder_ang_rad)
         #* T_{side} = |t_{total}| cos(phi)
-        if self.side_shoulder_ang_rad <= np.pi/2:
-            torque_shoulder_side = torque_shoulder * np.cos(np.pi/2 - self.side_shoulder_ang_rad)
-        else:
-            torque_shoulder_side = torque_shoulder * np.cos(-np.pi/2 + self.side_shoulder_ang_rad)
+        torque_shoulder_side = np.where(self.side_shoulder_ang_rad <= np.pi/2, 
+                                        torque_shoulder * np.cos(np.pi/2 - self.side_shoulder_ang_rad), 
+                                        torque_shoulder * np.cos(-np.pi/2 + self.side_shoulder_ang_rad))
         
-        self.torque_out[0] = np.append(self.torque_out[0],torque_elbow)
-        self.torque_out[1] = np.append(self.torque_out[1],torque_shoulder_front)
-        self.torque_out[2] = np.append(self.torque_out[2],torque_shoulder_side)
+        self.torque_out = np.hstack((self.torque_out, np.array([np.array(torque_elbow), np.array(torque_shoulder_front), np.array(torque_shoulder_side)])))
+
+        if save_torques and save_path != None:
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            np.save(save_path, self.torque_out[0])
+            # np.save(save_path,forearm_perp_dist_mm/1000)
 
     def calculateSideShoulderAngle_rad(self):
         """
@@ -263,18 +269,14 @@ class MotionData(Timeseries):
         """
         # calculate shoulder to elbow vector -> right arm
         s_e_xy = np.array([self.data[self.er_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.er_idx[1],:] - self.data[self.sr_idx[1],:]])
+        s_e_xy_normalised, _ = self.normalise_vector(s_e_xy)
         # calculate shoulder to shoulder ref vector -> project right to left shoulder
         s_rl_xy = np.array([self.data[self.sl_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.sl_idx[1],:] - self.data[self.sr_idx[1],:]])
         # y-axis parallel to ground (right arm)
-        y_axis_normalised, _ = self.normalise_vector(np.array([s_rl_xy[0], s_rl_xy[1], 0]))
-        # z-axis global up
-        z_axis = np.array([0, 0, 1])
-        # x-axis -> cross product between y and z axes
-        x_axis_normalised, _ = self.normalise_vector(np.cross(y_axis_normalised, z_axis))
-        x_axis_normalised_xy = np.array([x_axis_normalised[0], x_axis_normalised[1]])
-        # calculate angle between sagttal axis and arm
-        cos_angle = np.clip(np.dot(s_e_xy, x_axis_normalised_xy), -1.0, 1.0)
-        return np.acos(cos_angle)
+        s_rl_xy_normalised, _ = self.normalise_vector(s_rl_xy)
+        # calculate angle between horizontal axis and arm
+        cos_angle = np.clip(np.sum(s_e_xy_normalised * s_rl_xy_normalised, axis=0), -1.0, 1.0)
+        return np.arccos(cos_angle) - (np.pi/2)
     
     def calculateElbowAngle_rad(self):
         """
@@ -292,22 +294,22 @@ class MotionData(Timeseries):
         """
         # calculate elbow to shoulder vector -> right arm
         e_s_xy = np.array([self.data[self.sr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.sr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_s_xy_normalised, self.upperarm_euclidean_dist_m = self.normalise_vector(e_s_xy)
+        e_s_xy_normalised, self.upperarm_euclidean_dist_mm = self.normalise_vector(e_s_xy)
         # calculate elbow to wrist vector -> right arm
         e_w_xy = np.array([self.data[self.wr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.wr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_w_xy_normalised, self.forearm_euclidean_dist_m = self.normalise_vector(e_w_xy)
+        e_w_xy_normalised, self.forearm_euclidean_dist_mm = self.normalise_vector(e_w_xy)
         # calculate elbow angle
-        cos_angle = np.clip(np.dot(e_s_xy_normalised, e_w_xy_normalised), -1, 1)
-        return np.acos(cos_angle)
+        cos_angle = np.clip(np.sum(e_s_xy_normalised * e_w_xy_normalised, axis=0), -1, 1)
+        return np.arccos(cos_angle)
 
-    def calculateForearmPerpDist_m(self):
+    def calculateForearmPerpDist_mm(self):
         """
-        This method calculates the perpendicular distance between elbow and load in hand in m.
+        This method calculates the perpendicular distance between elbow and load in hand in mm.
 
         Returns
         -----
         float
-            perpendicular between elbow and load in hand in m.
+            perpendicular between elbow and load in hand in mm.
 
         Author
         -----
@@ -320,9 +322,9 @@ class MotionData(Timeseries):
         if not hasattr(self, 'side_shoulder_ang_rad'):
             self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
         # return the forearm perpendicular dist in m
-        return self.forearm_euclidean_dist_m * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        return self.forearm_euclidean_dist_mm * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
 
-    def calculateUpperArmPerpDist_m(self):
+    def calculateUpperArmPerpDist_mm(self):
         """
         This method calcualtes the perpendicular distance between shoulder and elbow in m.
 
@@ -340,7 +342,7 @@ class MotionData(Timeseries):
         if not hasattr(self, 'side_shoulder_ang_rad'):
             self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
         # return the upperarm perpendicular dist in m
-        return self.upperarm_euclidean_dist_m * np.sin(self.side_shoulder_ang_rad)
+        return self.upperarm_euclidean_dist_mm * np.sin(self.side_shoulder_ang_rad)
 
     @staticmethod
     def normalise_vector(inp_vec):
@@ -357,8 +359,8 @@ class MotionData(Timeseries):
         Author: Kartik Chari \n
         Last changed: 26.08.2025 (by Kartik Chari)
         """
-        norm = np.linalg.norm(inp_vec)
-        if norm == 0:
+        norm = np.linalg.norm(inp_vec, axis=0)
+        if (norm == 0).any():
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
         return inp_vec / norm, norm
