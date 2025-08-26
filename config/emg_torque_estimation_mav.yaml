@@ -71,7 +71,7 @@
   
   plot_param:
     is_plot_raw:          False
-    is_plot_quali:        False
+    is_plot_quali:        True
     is_plot_hpf:          False
     is_plot_var_filter:   False
     is_plot_norm:         False
