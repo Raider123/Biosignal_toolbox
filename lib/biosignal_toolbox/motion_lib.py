@@ -27,7 +27,7 @@ class MotionData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format="qualisys_tsv", data_path = None, filename = None, f_samp = None, channel_names = None, header_rows = 11, columns_to_skip = 2): 
+    def __init__(self, format="qualisys_tsv", data_path=None, filename=None, f_samp=None, channel_names=None, header_rows=11, columns_to_skip=2): 
 
         """
         The constructor of the MotionData class. 
@@ -73,10 +73,6 @@ class MotionData(Timeseries):
         """  
         
         # parameter 
-        self.data_path = data_path
-        self.filename = filename
-        self.header_rows = header_rows
-        self.columns_to_skip = columns_to_skip
         self.raw_obj = None
         self.f_samp = f_samp
         self.channel_names = channel_names
@@ -89,7 +85,7 @@ class MotionData(Timeseries):
         # load data
         if(format == "qualisys_tsv"):
             warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-            self.loadQualisysData()
+            self.loadQualisysData(data_path, filename, header_rows, columns_to_skip)
 
             self.createMNERaw() #create mne raw object 
 
@@ -98,7 +94,7 @@ class MotionData(Timeseries):
 
 
         # print("data shape:", self.data.shape)
-        super().__init__(f_samp = self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
+        super().__init__(f_samp=self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data=self.data, epochs=self.epochs, windows=self.windows)
 
 
     def createMNERaw(self):
@@ -122,7 +118,7 @@ class MotionData(Timeseries):
         self.raw_obj = raw
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
-    def loadQualisysData(self): 
+    def loadQualisysData(self, data_path, filename, header_rows, columns_to_skip): 
         """
         This method loads the qualisys data into a numpy array and also extracts important information from header.
 
@@ -132,11 +128,11 @@ class MotionData(Timeseries):
         Last changed: 25.08.2025 (by Kartik Chari)
         """
 
-        tsv_file = open(os.path.join(self.data_path, self.filename))
+        tsv_file = open(os.path.join(data_path, filename))
         qualisys_file = list(csv.reader(tsv_file, delimiter="\t"))
         self.f_samp = float(qualisys_file[3][1])
-        qualisys_data = np.array(qualisys_file[self.header_rows:]) 
-        qualisys_data = qualisys_data[:, self.columns_to_skip:]
+        qualisys_data = np.array(qualisys_file[header_rows:]) 
+        qualisys_data = qualisys_data[:, columns_to_skip:]
         marker_names = qualisys_file[9][1:]
         tsv_file.close()
         
@@ -188,7 +184,7 @@ class MotionData(Timeseries):
             
             self.data[row] = data_arr
     
-    def calculateTorque(self, body_weight_kg= 80, obj_weight_g=0):
+    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0):
         """
         This method calculates torque values for elbow and shoulder joints. The shoulder joint torque is decomposed into front shoulder and side shoulder torque using projection method.
 
@@ -209,10 +205,6 @@ class MotionData(Timeseries):
         # initialise arrays
         self.torque_out = np.empty((3,0))
 
-        self.side_shoulder_ang_rad = 0
-        self.forearm_perp_dist_m = 0
-        self.arm_perp_dist_m = 0
-
         torque_elbow = 0
         torque_shoulder = 0
         torque_shoulder_front = 0
@@ -222,13 +214,16 @@ class MotionData(Timeseries):
         self.sr_idx = [self.channel_names.index(ch) for ch in ['s_r_x', 's_r_y']]
         self.sl_idx = [self.channel_names.index(ch) for ch in ['s_l_x', 's_l_y']]
         self.er_idx = [self.channel_names.index(ch) for ch in ['e_r_x', 'e_r_y']]
+        self.wr_idx = [self.channel_names.index(ch) for ch in ['w_r_x', 'w_r_y']]
         
         # calculate side shoulder angle of right arm in rad.
         self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
         # calculate perpendicular dist between elbow and load in m
-        self.forearm_perp_dist_m = self.calculateForearmPerpDist_m()
-        # calculte perpendicular distance between shoulder and load in m
-        self.arm_perp_dist_m = self.calculateArmPerpDist_m()
+        forearm_perp_dist_m = self.calculateForearmPerpDist_m()
+        # calculte perpendicular distance between shoulder and elbow in m
+        upperarm_perp_dist_m = self.calculateUpperArmPerpDist_m()
+        # calculate total perpendicular distance between shoulder and load in m
+        total_arm_perp_dist_m = upperarm_perp_dist_m + forearm_perp_dist_m
         # estimate forearm weight from body weight
         forearm_weight_kg = body_weight_kg * 0.016
         # estimate full arm weight from body weight
@@ -236,9 +231,9 @@ class MotionData(Timeseries):
 
         #? torque calculation
         # elbow torque = mass * g * perp_dist
-        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * self.forearm_perp_dist_m
+        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * forearm_perp_dist_m
         # total shoulder torque
-        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * self.arm_perp_dist_m
+        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_m
         #? project total shoulder force into axes of saggital and frontal planes
         #* T_{front} = |t_{total}| cos(theta)
         torque_shoulder_front = torque_shoulder * np.cos(self.side_shoulder_ang_rad)
@@ -256,54 +251,96 @@ class MotionData(Timeseries):
         """
         This method calculates the angle between the imaginery x axis and the right arm (shoulder -> elbow) in rad.
 
+        Returns
+        -----
+        float
+            side shoulder angle in rad.
+
         Author
         -----
         Author: Kartik Chari \n
         Last changed: 26.08.2025 (by Kartik Chari)
         """
-        # calculate shoulder to elbow right arm vector
+        # calculate shoulder to elbow vector -> right arm
         s_e_xy = np.array([self.data[self.er_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.er_idx[1],:] - self.data[self.sr_idx[1],:]])
         # calculate shoulder to shoulder ref vector -> project right to left shoulder
         s_rl_xy = np.array([self.data[self.sl_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.sl_idx[1],:] - self.data[self.sr_idx[1],:]])
         # y-axis parallel to ground (right arm)
-        y_axis_normalised = self.normalise_vector(np.array([s_rl_xy[0], s_rl_xy[1], 0]))
+        y_axis_normalised, _ = self.normalise_vector(np.array([s_rl_xy[0], s_rl_xy[1], 0]))
         # z-axis global up
         z_axis = np.array([0, 0, 1])
         # x-axis -> cross product between y and z axes
-        x_axis_normalised = self.normalise_vector(np.cross(y_axis_normalised, z_axis))
+        x_axis_normalised, _ = self.normalise_vector(np.cross(y_axis_normalised, z_axis))
         x_axis_normalised_xy = np.array([x_axis_normalised[0], x_axis_normalised[1]])
         # calculate angle between sagttal axis and arm
         cos_angle = np.clip(np.dot(s_e_xy, x_axis_normalised_xy), -1.0, 1.0)
         return np.acos(cos_angle)
     
-    # def calculateForearmPerpDist_m(self):
-    #     """
-    #     This method calculates the perpendicular distance between elbow and load in hand in m
+    def calculateElbowAngle_rad(self):
+        """
+        This method calculates the angle between the upperarm and forearm vectors in rad.
 
-    #     Author
-    #     -----
-    #     Author: Kartik Chari \n
-    #     Last changed: 26.08.2025 (by Kartik Chari)
-    #     """
-    #     # calculate the elbow angle and euclidean lengths of the arms
-    #     elbow_angle_r, lower_arm_euclidean_r, upper_arm_euclidean_r = self.calc_angle_arm_length(s_r, e_r, w_r)
+        Returns
+        -----
+        float
+            elbow angle in rad.
 
-    #     # calculate the side shoulder angle
-    #     side_shoulder_angle_r, side_shoulder_angle_l = self.calculate_side_shoulder_angle(s_r, e_r, w_r, s_l, e_l, w_l)
+        Author
+        -----
+        Author: Kartik Chari \n
+        Last changed: 26.08.2025 (by Kartik Chari)
+        """
+        # calculate elbow to shoulder vector -> right arm
+        e_s_xy = np.array([self.data[self.sr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.sr_idx[1],:] - self.data[self.er_idx[1],:]])
+        e_s_xy_normalised, self.upperarm_euclidean_dist_m = self.normalise_vector(e_s_xy)
+        # calculate elbow to wrist vector -> right arm
+        e_w_xy = np.array([self.data[self.wr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.wr_idx[1],:] - self.data[self.er_idx[1],:]])
+        e_w_xy_normalised, self.forearm_euclidean_dist_m = self.normalise_vector(e_w_xy)
+        # calculate elbow angle
+        cos_angle = np.clip(np.dot(e_s_xy_normalised, e_w_xy_normalised), -1, 1)
+        return np.acos(cos_angle)
 
-    #     # calculate lower arm perpendicular distance (from elbow to load)
-    #     lower_arm_r = lower_arm_euclidean_r * math.sin(elbow_angle_r - side_shoulder_angle_r)
-    #     lower_arm_l = lower_arm_euclidean_l * math.sin(elbow_angle_l - side_shoulder_angle_l)
+    def calculateForearmPerpDist_m(self):
+        """
+        This method calculates the perpendicular distance between elbow and load in hand in m.
 
-    #     # calculate the angle between the extended shoulder local axis and elbow local axis
-    #     beta_angle_r = math.pi - elbow_angle_r
-    #     beta_angle_l = math.pi - elbow_angle_l 
+        Returns
+        -----
+        float
+            perpendicular between elbow and load in hand in m.
 
-    #     # calculate whole arm perpendicular distance (from shoulder to load)
-    #     whole_arm_r = (upper_arm_euclidean_r * math.sin(side_shoulder_angle_r)) + (lower_arm_euclidean_r * math.sin(side_shoulder_angle_r + beta_angle_r))
-    #     whole_arm_l = (upper_arm_euclidean_l * math.sin(side_shoulder_angle_l)) + (lower_arm_euclidean_l * math.sin(side_shoulder_angle_l + beta_angle_l))        
+        Author
+        -----
+        Author: Kartik Chari \n
+        Last changed: 26.08.2025 (by Kartik Chari)
+        """
+        # calculate the elbow angle in rad and euclidean lengths of forearm and upper arm in m. (arm lengths are self attributes)
+        self.elbow_angle_rad = self.calculateElbowAngle_rad()
+        # calculate the side shoulder angle in rad. Check if it is already created before and only call the function otherwise
+        if not hasattr(self, 'side_shoulder_ang_rad'):
+            self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
+        # return the forearm perpendicular dist in m
+        return self.forearm_euclidean_dist_m * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
 
-    #     return [lower_arm_r, lower_arm_l], [whole_arm_r, whole_arm_l]
+    def calculateUpperArmPerpDist_m(self):
+        """
+        This method calcualtes the perpendicular distance between shoulder and elbow in m.
+
+        Returns
+        -------
+        float
+            perpendicular distance between shoulder and elbow in m.
+
+        Author
+        -----
+        Author: Kartik Chari \n
+        Last changed: 26.08.2025 (by Kartik Chari)
+        """
+        # calculate the side shoulder angle in rad. Check if it is already created before and only call the function otherwise
+        if not hasattr(self, 'side_shoulder_ang_rad'):
+            self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
+        # return the upperarm perpendicular dist in m
+        return self.upperarm_euclidean_dist_m * np.sin(self.side_shoulder_ang_rad)
 
     @staticmethod
     def normalise_vector(inp_vec):
@@ -324,4 +361,4 @@ class MotionData(Timeseries):
         if norm == 0:
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
-        return inp_vec / norm
+        return inp_vec / norm, norm
