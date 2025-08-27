@@ -11,6 +11,7 @@ import csv
 import pandas as pd 
 from pathlib import Path
 from scipy.interpolate import interp1d
+from biosignal_toolbox.utils import resolvePath
 from biosignal_toolbox.time_series_lib import Timeseries
 
 
@@ -77,16 +78,21 @@ class MotionData(Timeseries):
         self.raw_obj = None
         self.f_samp = f_samp
         self.channel_names = channel_names
+        self.filename = filename
         # data structures 
         self.data = None
         self.epochs = None
         self.windows = None
         self.events = None # not provided by loaded data yet 
-        
+
+        # ensure proper absolute data path
+        self.project_root = Path(__file__).resolve().parent.parent.parent
+        self.data_path = resolvePath(input_path=data_path, project_root=self.project_root)
+
         # load data
         if(format == "qualisys_tsv"):
             warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-            self.loadQualisysData(data_path, filename, header_rows, columns_to_skip)
+            self.loadQualisysData(header_rows, columns_to_skip)
 
             self.createMNERaw() #create mne raw object 
 
@@ -119,7 +125,7 @@ class MotionData(Timeseries):
         self.raw_obj = raw
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
-    def loadQualisysData(self, data_path, filename, header_rows, columns_to_skip): 
+    def loadQualisysData(self, header_rows, columns_to_skip): 
         """
         This method loads the qualisys data into a numpy array and also extracts important information from header.
 
@@ -129,7 +135,7 @@ class MotionData(Timeseries):
         Last changed: 25.08.2025 (by Kartik Chari)
         """
 
-        tsv_file = open(os.path.join(data_path, filename))
+        tsv_file = open(os.path.join(self.data_path, self.filename))
         qualisys_file = list(csv.reader(tsv_file, delimiter="\t"))
         self.f_samp = float(qualisys_file[3][1])
         qualisys_data = np.array(qualisys_file[header_rows:]) 
@@ -146,6 +152,7 @@ class MotionData(Timeseries):
         self.channel_names = channel_names
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
+        print(self.time_axis)
         self.data = qualisys_data.T
          
     def interpQualisysData(self, kind='linear'):
@@ -185,7 +192,7 @@ class MotionData(Timeseries):
             
             self.data[row] = data_arr
     
-    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0, save_torques=False, save_path=None):
+    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0):
         """
         This method calculates torque values for elbow and shoulder joints. The shoulder joint torque is decomposed into front shoulder and side shoulder torque using projection method.
 
@@ -241,17 +248,13 @@ class MotionData(Timeseries):
         #* T_{front} = |t_{total}| cos(theta)
         torque_shoulder_front = torque_shoulder * np.cos(self.side_shoulder_ang_rad)
         #* T_{side} = |t_{total}| cos(phi)
-        torque_shoulder_side = np.where(self.side_shoulder_ang_rad <= np.pi/2, 
-                                        torque_shoulder * np.cos(np.pi/2 - self.side_shoulder_ang_rad), 
-                                        torque_shoulder * np.cos(-np.pi/2 + self.side_shoulder_ang_rad))
+        # torque_shoulder_side = np.where(self.side_shoulder_ang_rad <= np.pi/2, 
+        #                                 torque_shoulder * np.cos(np.pi/2 - self.side_shoulder_ang_rad), 
+        #                                 torque_shoulder * np.cos(-np.pi/2 + self.side_shoulder_ang_rad))
+        torque_shoulder_side = torque_shoulder * np.sin(self.side_shoulder_ang_rad)
         
         self.torque_out = np.hstack((self.torque_out, np.array([np.array(torque_elbow), np.array(torque_shoulder_front), np.array(torque_shoulder_side)])))
-
-        if save_torques and save_path != None:
-            save_path = Path(save_path)
-            save_path.parent.mkdir(parents=True, exist_ok=True)
-            np.save(save_path, self.torque_out[0])
-            # np.save(save_path,forearm_perp_dist_mm/1000)
+        print("Torques calculated!!")
 
     def calculateSideShoulderAngle_rad(self):
         """
@@ -364,3 +367,65 @@ class MotionData(Timeseries):
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
         return inp_vec / norm, norm
+    
+    def saveTorques_npy(self, save_torques=False, save_dir=None, joint_to_save=['all']):
+        """
+        This method save the calculated torques into numpy (.npy) files.
+        It first checks whether the specified dir exists. If it does not, it will create one and then save.
+
+        Parameters
+        -----
+        save_torques: bool, optional
+            Boolean to choose whether to save the calculated torques into a .npy file, by default False.
+        save_dir: str, optional
+            Path to the dir where the files need to be saved relative to the projec root, by default None.
+        joint_to_save: lsit of str, optional
+            The joints whose torques must be saved out of 'elbow','shoulder_front', and 'shoulder_side',  by default ['all'].
+
+        Author
+        -----
+        Author: Kartik Chari \n
+        Last changed: 27.08.2025 (by Kartik Chari)
+        """
+        if save_torques:
+            if save_dir == None:
+                warnings.warn("No Path for saving torque files specified! Using temp!")
+                save_dir = "temp/"
+            # get components of filename
+            filename_comp = self.parseFilename()
+            # form the file suffix
+            file_suffix = "_".join(filename_comp) + ".npy"
+            # get absolute path of the save dir
+            save_dir = resolvePath(input_path=save_dir, project_root=self.project_root)
+
+            if 'all' in joint_to_save:
+                joint_to_save = self.joint_names
+            # iterate over each joint name and save the torque in file
+            for _, joint in enumerate(joint_to_save):
+                if joint in self.joint_names:
+                    # get index of the joint name
+                    joint_idx = np.where(self.joint_names == joint)[0][0]
+                    # full path of the file being saved
+                    fullpath = save_dir / f"quali_torque_{joint}_{file_suffix}"
+                    fullpath.parent.mkdir(parents=True, exist_ok=True)
+                    np.save(fullpath, self.torque_out[joint_idx])
+    
+    def parseFilename(self):
+        """
+        This method parses the filename into its different components.
+
+        Returns
+        -----
+        list of str
+            list of individual components of filename
+
+
+        Author
+        -----
+        Author: Kartik Chari \n
+        Last changed: 27.08.2025 (by Kartik Chari)
+        """
+        # remove the extension
+        stem = Path(self.filename).stem
+        # split by underscore
+        return stem.split("_")

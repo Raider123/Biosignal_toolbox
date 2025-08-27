@@ -24,7 +24,7 @@ warnings.filterwarnings('ignore')
 # *********************************************************************************
 #! load config file
 config_filename = 'emg_torque_estimation_mav.yaml'
-cfg = convertDictToNamespace(loadConfig(filename='emg_torque_estimation_mav.yaml'))
+cfg = loadConfig(filename='emg_torque_estimation_mav.yaml')
 
 #! init early stopping 
 if cfg.model_param.is_early_stop:

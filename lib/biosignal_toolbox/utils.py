@@ -20,29 +20,68 @@ warnings.filterwarnings('ignore')
 
 def loadConfig(filename=''):
     """
-    This function loads the yaml configuration file into a dictionary.
+    This function safely loads the yaml configuration file into a dictionary.
+    It also converts the dict to a Namespace object wherein keys become attributes and can be accessed by '.' operator.
 
     Parameters
     ----------
     filename : str
         name of the config file
+    
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 21.08.2025 (by Kartik Chari)
     """
     try:
         config_dir = project_root / 'config'
         with open(config_dir / filename, 'r') as file:
-            return safe_load(file)
+            dict_obj = safe_load(file)
+        return convertDictToNamespace(dict_obj)
     except IsADirectoryError:
-        print("ERROR: Please enter correct config file name!!")
+        print("ERROR: Please enter correct config filename!!")
         exit(1)
 
-
-def convertDictToNamespace(dict_inp):
-    if isinstance(dict_inp, dict):
-        return SimpleNamespace(**{k: convertDictToNamespace(v) for k, v in dict_inp.items()})
-    elif isinstance(dict_inp, list):
-        return [convertDictToNamespace(i) for i in dict_inp]
+def convertDictToNamespace(data_inp):
+    if isinstance(data_inp, dict):
+        return SimpleNamespace(**{k: convertDictToNamespace(v) for k, v in data_inp.items()})
+    elif isinstance(data_inp, list):
+        return [convertDictToNamespace(i) for i in data_inp]
     else:
-        return dict_inp
+        return data_inp
+
+
+def resolvePath(input_path='', project_root=''):
+    """
+    This function ensures that the path is absolute.
+
+    Parameters
+    -----
+    input_path: str
+        Path to be added to project root, by default empty.
+    project_root: Path obj
+        Path of the project root. Use pathlib.Path(__file__).resolve().parent.parent.parent, by default empty.
+
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 27.08.2025 (by Kartik Chari)
+    """
+    if not input_path or not project_root:
+        raise ValueError("Please provide input path and/or project root path!")
+    
+    input_path = Path(input_path).expanduser()
+    if input_path.is_absolute():
+        try:
+            # check if input_path is already inside project_root
+            relative_part = input_path.resolve().relative_to(project_root)
+        except ValueError:
+            # break the path into pieces and strip the first '/'
+            relative_part = Path(*input_path.parts[1:])
+    else:
+        relative_part = input_path
+
+    return (project_root / relative_part).resolve()
 
 
 def checkCreateDir(param_obj=None):
@@ -53,11 +92,16 @@ def checkCreateDir(param_obj=None):
     ----------
     param_obj : dict
         param dict imported from the .yaml file, by default None
+    
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 13.11.2025 (by Kartik Chari)
     """
     try:
         timestamp = Path(datetime.now().strftime("%Y-%m-%d"))
-        base_dir = Path(param_obj['filepath']['fig_save_path'])
-        base_name = param_obj['data_param']['subject_code'] + "_plot"
+        base_dir = Path(param_obj.filepath.fig_save_path)
+        base_name = param_obj.data_param.subject_code + "_plot"
         
         dir_path = base_dir / timestamp
         dir_path.mkdir(parents=True, exist_ok=True)
@@ -85,34 +129,39 @@ def createReadme(param_obj=None, dir_path=None):
         param dict imported from the .yaml file, by default None
     dir_path: pathlib Path obj
         path for the readme file
+    
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 13.11.2025 (by Kartik Chari)
     """
     if dir_path is None:
         print("WARNING: No dir_path specified! Creating readme file in the fig_save_path...")
-        dir_path = Path(param_obj['filepath']['fig_save_path'])
+        dir_path = Path(param_obj.filepath.fig_save_path)
     
     try:
         readme_file = dir_path / "readme.txt"
         with readme_file.open("w") as f:
-            f.write(f"Scenario: {param_obj['data_param']['weights'], param_obj['data_param']['mov_type']}\n") 
-            f.write(f"Subject Code: {param_obj['data_param']['subject_code']}\n")
-            f.write(f"Batch Size: {param_obj['model_param']['batch_size']}\n")
-            f.write(f"Epochs: {param_obj['model_param']['n_epochs']}")
-            f.write(f"Feature Selection: {param_obj['preprocess_param']['feature_select']}\n")
-            f.write(f"Window Size X: {param_obj['preprocess_param']['window_size_x']}\n")
-            f.write(f"Window Size Y: {param_obj['preprocess_param']['window_size_y']}\n")
-            f.write(f"Window Step: {param_obj['preprocess_param']['window_step']}\n")
+            f.write(f"Scenario: {param_obj.data_param.weights, param_obj.data_param.mov_type}\n") 
+            f.write(f"Subject Code: {param_obj.data_param.subject_code}\n")
+            f.write(f"Batch Size: {param_obj.model_param.batch_size}\n")
+            f.write(f"Epochs: {param_obj.model_param.n_epochs}")
+            f.write(f"Feature Selection: {param_obj.preprocess_param.feature_select}\n")
+            f.write(f"Window Size X: {param_obj.preprocess_param.window_size_x}\n")
+            f.write(f"Window Size Y: {param_obj.preprocess_param.window_size_y}\n")
+            f.write(f"Window Step: {param_obj.preprocess_param.window_step}\n")
             f.write(f"\n")
-            f.write(f"HPF Filter: {param_obj['preprocess_param']['f_cutoff_hpf']}Hz\n")
-            f.write(f"Variance Filter width: {param_obj['preprocess_param']['var_filter_width']}\n")
-            f.write(f"MVC: {param_obj['preprocess_param']['mvc']}\n")
-            f.write(f"LPF Filter: {param_obj['preprocess_param']['f_cutoff_lpf']}Hz\n")
-            f.write(f"Force Activation: {param_obj['preprocess_param']['act_delay'], param_obj['preprocess_param']['act_beta1'], param_obj['preprocess_param']['act_beta2'], param_obj['preprocess_param']['act_gamma'], param_obj['preprocess_param']['act_A']}\n")
+            f.write(f"HPF Filter: {param_obj.preprocess_param.f_cutoff_hpf}Hz\n")
+            f.write(f"Variance Filter width: {param_obj.preprocess_param.var_filter_width}\n")
+            f.write(f"MVC: {param_obj.preprocess_param.mvc}\n")
+            f.write(f"LPF Filter: {param_obj.preprocess_param.f_cutoff_lpf}Hz\n")
+            f.write(f"Force Activation: {param_obj.preprocess_param.act_delay, param_obj.preprocess_param.act_beta1, param_obj.preprocess_param.act_beta2, param_obj.preprocess_param.act_gamma, param_obj.preprocess_param.act_A}\n")
             f.write(f"\n")
-            f.write(f"BPNN Neurons: {param_obj['model_param']['neurons_h1'], param_obj['model_param']['neurons_h2']}\n")
-            f.write(f"BPNN Act functions: {param_obj['model_param']['act_inp'], param_obj['model_param']['act_h1'], param_obj['model_param']['act_h2']}\n")
-            f.write(f"Early Stopping: {param_obj['model_param']['is_early_stop']}\n")
-            f.write(f"Post Processing Filter type: {param_obj['post_train_param']['filter_type']}\n")
-            f.write(f"Post Processing Filter size: {param_obj['post_train_param']['filter_size']}\n")
+            f.write(f"BPNN Neurons: {param_obj.model_param.neurons_h1, param_obj.model_param.neurons_h2}\n")
+            f.write(f"BPNN Act functions: {param_obj.model_param.act_inp, param_obj.model_param.act_h1, param_obj.model_param.act_h2}\n")
+            f.write(f"Early Stopping: {param_obj.model_param.is_early_stop}\n")
+            f.write(f"Post Processing Filter type: {param_obj.post_train_param.filter_type}\n")
+            f.write(f"Post Processing Filter size: {param_obj.post_train_param.filter_size}\n")
     
     except KeyError:
         print("ERROR!! Please ensure you pass non-empty dict object!")
@@ -144,6 +193,11 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
         ylabel for the plot, by default ""
     is_grid_on : bool, optional
         boolean to decide grid lines visibility, by default True
+    
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 13.11.2025 (by Kartik Chari)
     """
     plt.figure()
 
