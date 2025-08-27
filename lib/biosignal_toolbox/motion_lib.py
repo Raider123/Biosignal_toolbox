@@ -248,9 +248,6 @@ class MotionData(Timeseries):
         #* T_{front} = |t_{total}| cos(theta)
         torque_shoulder_front = torque_shoulder * np.cos(self.side_shoulder_ang_rad)
         #* T_{side} = |t_{total}| cos(phi)
-        # torque_shoulder_side = np.where(self.side_shoulder_ang_rad <= np.pi/2, 
-        #                                 torque_shoulder * np.cos(np.pi/2 - self.side_shoulder_ang_rad), 
-        #                                 torque_shoulder * np.cos(-np.pi/2 + self.side_shoulder_ang_rad))
         torque_shoulder_side = torque_shoulder * np.sin(self.side_shoulder_ang_rad)
         
         self.torque_out = np.hstack((self.torque_out, np.array([np.array(torque_elbow), np.array(torque_shoulder_front), np.array(torque_shoulder_side)])))
