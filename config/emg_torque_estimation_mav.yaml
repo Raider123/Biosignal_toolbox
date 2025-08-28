@@ -68,6 +68,23 @@
     verbose:              0
     baseline:             null
     restore_best_weights: True
+    start_from_epoch:     0
+
+    neurons_h1:           5
+    neurons_h2:           2
+
+    act_inp:              'relu'
+    act_h1:               'relu'
+    act_h2:               'linear' 
+
+    is_save_model:        False
+
+  post_train_param:
+    eval_type:            'offline' 
+    filter_type:          'mean'
+    filter_size:          3    
+    is_save_plot:         True
+  
 
   post_processing_param:
     savitzky_window_length: 21
