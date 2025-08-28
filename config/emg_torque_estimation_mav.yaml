@@ -21,7 +21,7 @@
     input_mode:           "time" # options: "time", "freq", "time+freq"
 
   preprocess_param:
-    channel_names_emg:  ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
+    channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left', 'marker']
     window_size_x:        250  #samples
     window_size_e:        250  # Elbow Model
