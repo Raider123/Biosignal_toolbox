@@ -10,9 +10,10 @@ import warnings
 #from datetime import datetime
 import os
 import mne
-
+from pathlib import Path
 from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
 from biosignal_toolbox.time_series_lib import Timeseries
+from biosignal_toolbox.utils import getAbsolutePath
 
 
 # *********************************************************************************
@@ -78,6 +79,8 @@ class EMGData(Timeseries):
         self.epochs = None
         self.windows = None
         self.events = None # not provided by loaded data yet 
+        # absolute data path
+        self.data_path = getAbsolutePath(input_path=data_path)
         
         if(filenames):
             if(isinstance(filenames, list)): # check if list or string class 
@@ -85,7 +88,7 @@ class EMGData(Timeseries):
             
             if(format == "ANTmini"):
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-                raw_data, self.time_axis,  = self.loadMiniANTEMGData(data_path, filename, self.f_samp)
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(filename, self.f_samp)
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
@@ -109,7 +112,7 @@ class EMGData(Timeseries):
 
             else: 
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
-                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(data_path, filename)
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(filename)
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
@@ -141,7 +144,7 @@ class EMGData(Timeseries):
         self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels)
 
 
-    def loadCometaEMGData(self, data_path, file_str):
+    def loadCometaEMGData(self, file_str):
         """
         This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
@@ -168,7 +171,7 @@ class EMGData(Timeseries):
         Last changed: 31.01.2023 (by Niklas Kueper)
         """
 
-        filename = data_path+file_str
+        filename = self.data_path / Path(file_str)
         emg_data = np.loadtxt(filename, dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
@@ -187,7 +190,7 @@ class EMGData(Timeseries):
         return emg_data_channel, emg_time_axis, channel_names
 
 
-    def loadMiniANTEMGData(self, data_path, file_str, f_samp): 
+    def loadMiniANTEMGData(self, file_str, f_samp): 
         """
         TODO: No sampling rate given in the data
         This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
@@ -216,7 +219,7 @@ class EMGData(Timeseries):
         """
 
         #seperate between data, meta and channel names 
-        emg_data_raw = np.loadtxt(os.path.join(data_path, file_str)) # at least th
+        emg_data_raw = np.loadtxt(self.data_path / Path(file_str)) # at least th
         emg_data = emg_data_raw[:-1, :-2]
         time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 

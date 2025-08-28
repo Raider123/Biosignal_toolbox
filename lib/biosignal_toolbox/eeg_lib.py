@@ -6,13 +6,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 mne.set_log_level('WARNING')
-import os 
+from pathlib import Path
 from mne.preprocessing import ICA 
 import warnings
 
 # own dependencies 
 from biosignal_toolbox.time_series_lib import Timeseries
 from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
+from biosignal_toolbox.utils import getAbsolutePath
 
 # *********************************************************************************
 # ************************* Methods ***********************************************
@@ -96,12 +97,14 @@ class EEGData(Timeseries):
         self.events = None
         # EEG specific params 
         self.__montage = None
+        # absolute data path
+        self.data_path = getAbsolutePath(input_path=data_path)
 
         if(filenames and format == "Brainvision"): 
             #create numpy array with file names 
             data_str_arr = []
             for files_str in filenames: 
-                data_str_arr.append(os.path.join(data_path, files_str)) 
+                data_str_arr.append(self.data_path / Path(files_str)) 
             data_str_arr = np.array(data_str_arr)
 
             self.raw_obj = self.loadBrainproductsData(data_str_arr)
@@ -134,11 +137,11 @@ class EEGData(Timeseries):
                 if(len(filenames) > 1): 
                     concat_list = []
                     for filename in filenames: 
-                        concat_list.append(np.load(data_path +filename+".npy"))
+                        concat_list.append(np.load(self.data_path / (filename+".npy")))
                     
                     data = np.concatenate(concat_list)
                 else: 
-                    data = np.load(data_path +filenames[0]+".npy")
+                    data = np.load(self.data_path / (filenames[0]+".npy"))
 
             self.f_samp = f_samp
             self.channel_names = channel_names
@@ -156,14 +159,14 @@ class EEGData(Timeseries):
                 if(len(filenames) > 1): 
                     concat_list = []
                     for filename in filenames: 
-                        concat_list.append(np.load(data_path +filename+".npy",allow_pickle=True, encoding='bytes'))
+                        concat_list.append(np.load(self.data_path /(filename+".npy"),allow_pickle=True, encoding='bytes'))
                     
                     data = np.concatenate(concat_list)
                 else: 
                     if add_marker_channel:
-                        data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes').tolist()
+                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes').tolist()
                     else:
-                        data = np.load(data_path +filenames[0]+".npy",allow_pickle=True, encoding='bytes')
+                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
                     if isinstance(data,dict):
                         if file_type == 'combined':
                             #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array

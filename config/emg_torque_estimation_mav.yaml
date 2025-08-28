@@ -2,7 +2,7 @@
 ---
   filepath:
     project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
-    data_path:     '/data/m-rock_demo/'
+    data_path:     'data/m-rock_demo/'
     emg_path:      'emg_data/24092024_FW28D_'
     quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
     fig_save_path: '../../plots/m-rock_demo/'
@@ -71,7 +71,7 @@
   
   plot_param:
     is_plot_raw:          False
-    is_plot_quali:        True
+    is_plot_quali:        False
     is_plot_hpf:          False
     is_plot_var_filter:   False
     is_plot_norm:         False

@@ -14,6 +14,8 @@ from sklearn.metrics import mean_squared_error, r2_score
 import tensorflow as tf
 import warnings
 
+from biosignal_toolbox.utils import getAbsolutePath
+
 # *********************************************************************************
 # ************************* Methods ***********************************************
 # *********************************************************************************
@@ -162,7 +164,8 @@ class MLModel:
 
             val_acc_values = history_dict["val_"+self.metrics]
 
-        if(save_trained_model): 
+        if(save_trained_model):
+            model_filename = getAbsolutePath(input_path=model_filename) 
             save_model(self.model, model_filename+".h5") # save 
         
         return loss_values[-1], val_loss_values[-1]

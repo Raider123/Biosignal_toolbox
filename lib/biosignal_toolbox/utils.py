@@ -8,9 +8,6 @@ from pathlib import Path
 from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
-from sys import exit, path
-path.append(str(Path(__file__).resolve().parents[2]))
-from config_root import project_root
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -34,6 +31,7 @@ def loadConfig(filename=''):
     Last changed: 21.08.2025 (by Kartik Chari)
     """
     try:
+        project_root = getProjectRoot()
         config_dir = project_root / 'config'
         with open(config_dir / filename, 'r') as file:
             dict_obj = safe_load(file)

@@ -14,7 +14,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import loadConfig, convertDictToNamespace, checkCreateDir, createReadme, plotResults
+from biosignal_toolbox.utils import loadConfig, getAbsolutePath, checkCreateDir, createReadme, plotResults
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -90,10 +90,10 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
         for set_idx in range(len(cfg.data_param.set_num)):
 
             #! Check if the file exists
-            if Path(cfg.filepath.project_path+cfg.filepath.data_path+cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt').is_file():
+            if getAbsolutePath(cfg.filepath.data_path+cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt').is_file():
 
                 #! Loading and epoching for training   
-                EMG_Data = EMGData(format="ANTmini", filenames=[cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt'], data_path=cfg.filepath.project_path+cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
+                EMG_Data = EMGData(format="ANTmini", filenames=[cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt'], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 
                 #! Plotting the raw EMG data
                 if cfg.plot_param.is_plot_raw:
@@ -108,7 +108,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 print("Creating Quali Elbow object!!")
                 Quali_Data_Elbow = EEGData(format="NumpyQualisys", 
                                            filenames=[cfg.filepath.quali_path[0]+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_set'+cfg.data_param.set_num[set_idx]],
-                                           data_path=cfg.filepath.project_path+cfg.filepath.data_path, 
+                                           data_path=cfg.filepath.data_path, 
                                            f_samp=cfg.preprocess_param.f_samp, 
                                            channel_names=cfg.preprocess_param.channel_names_quali, 
                                            file_type='individual', 
@@ -117,7 +117,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 print("Creating Quali Shoulder Front object!!")
                 Quali_Data_Front = EEGData(format="NumpyQualisys", 
                                            filenames=[cfg.filepath.quali_path[1]+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_set'+cfg.data_param.set_num[set_idx]],
-                                           data_path=cfg.filepath.project_path+cfg.filepath.data_path, 
+                                           data_path=cfg.filepath.data_path, 
                                            f_samp=cfg.preprocess_param.f_samp, 
                                            channel_names=cfg.preprocess_param.channel_names_quali, 
                                            file_type='individual', 
@@ -126,7 +126,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 print("Creating Quali Shoulder Side object!!")
                 Quali_Data_Side = EEGData(format="NumpyQualisys", 
                                           filenames=[cfg.filepath.quali_path[2]+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_set'+cfg.data_param.set_num[set_idx]], 
-                                          data_path =cfg.filepath.project_path+cfg.filepath.data_path, 
+                                          data_path=cfg.filepath.data_path, 
                                           f_samp=cfg.preprocess_param.f_samp, 
                                           channel_names=cfg.preprocess_param.channel_names_quali, 
                                           file_type='individual', 
@@ -365,7 +365,7 @@ MLP_model_s = MLModel(model = model_s, type= "keras")
 #! Train model
 print("Training MLP model for elbow joint...") 
 MLP_model_e.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.project_path+cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_elbow_mav", 
+                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_elbow_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
@@ -381,7 +381,7 @@ print("MLP training for elbow done !!\n")
 
 print("Training MLP model for shoulder front joint...") 
 MLP_model_f.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.project_path+cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_front_mav", 
+                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_front_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
@@ -397,7 +397,7 @@ print("MLP training for front done !!\n")
 
 print("Training MLP model for shoulder side joint...") 
 MLP_model_s.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.project_path+cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_side_mav", 
+                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_side_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
