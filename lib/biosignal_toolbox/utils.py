@@ -97,11 +97,8 @@ def loadConfig(filename: str = None) -> dict:
     """
     try:
         project_root = getProjectRoot()
-        # prepend 'config/' only if filename does not consist of this
-        if Path(filename).parts[0] != 'config':
-            filename = 'config/' + filename
-
-        with open(project_root / filename, 'r') as file:
+        config_dir = project_root / 'config'
+        with open(config_dir / filename, 'r') as file:
             dict_obj = safe_load(file)
         return convertDictToNamespace(dict_obj)
     except (IsADirectoryError, TypeError):
