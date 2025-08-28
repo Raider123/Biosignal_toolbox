@@ -78,15 +78,21 @@
     act_h2:               'linear' 
 
     is_save_model:        False
-    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
-    load_models:          False
 
   post_train_param:
     eval_type:            'offline' 
     filter_type:          'mean'
     filter_size:          3    
-    is_save_plot:         False
+    is_save_plot:         True
   
+
+  post_processing_param:
+    savitzky_window_length: 21
+    savitzky_polyorder:    3
+    moving_av_window_size: 40
+    savitzky_on:           False
+    moving_av_on:          False
+
   plot_param:
     is_plot_raw:          False
     is_plot_quali:        False
