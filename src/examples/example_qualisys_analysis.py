@@ -16,7 +16,7 @@ qualisys_data.calculateTorque(body_weight_kg=80,
 qualisys_data.saveTorques_npy(save_torques=True, save_dir="data/test", joints_to_save=['all'])
 
 #? plot front shoulder torque profile
-numpy_file_path = getAbsolutePath("data/test/quali_torque_shoulder_side_complex_0g_set6.npy")
+numpy_file_path = getAbsolutePath("data/test/quali_torque_shoulder_front_complex_0g_set6.npy")
 data = np.load(numpy_file_path)
 plt.plot(qualisys_data.time_axis, data)
 plt.grid(linestyle=':', linewidth=1.5)
