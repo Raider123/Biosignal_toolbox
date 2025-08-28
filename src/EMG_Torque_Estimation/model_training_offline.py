@@ -15,7 +15,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import loadConfig, getAbsolutePath, checkCreateDir, createReadme, plotResults
+from biosignal_toolbox.utils import loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
 
 import warnings
 warnings.formatwarning = customWarningFormat
@@ -94,10 +94,10 @@ else:
 for typ_idx in range(len(cfg.data_param.mov_type)):
     for wgt_idx in range(len(cfg.data_param.weights)):
         for set_idx in range(len(cfg.data_param.set_num)):
-
+            
             #! Check if the file exists
             if getAbsolutePath(cfg.filepath.data_path+cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt').is_file():
-
+                print("Entered")
                 #! Loading and epoching for training   
                 EMG_Data = EMGData(format="ANTmini", filenames=[cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt'], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 

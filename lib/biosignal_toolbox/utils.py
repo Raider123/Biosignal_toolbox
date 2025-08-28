@@ -237,39 +237,35 @@ def getAbsolutePath(input_path: str = None) -> Path:
     return (project_root / relative_part).resolve()
 
 
-def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -> Path:
+def createOutputDir(param_obj=None, suffix_str=''):
     """
+    This function checks whether the fig_save_path exists or not. If it does not exist, it will create the directory. In addition, it will create the output dir where the output plots and readme will be saved.
+    The output dir will look like fig_save_path/sub_code/date_time_plot_1. It also checks the last integer and increments it to prevent overwrite.
+    
     This function checks whether the fig_save_path exists or not. If it does not exist, it will create the directory. In addition, it will create the output dir where the output plots and readme will be saved.
     The output dir will look like fig_save_path/sub_code/date_time_plot_1. It also checks the last integer and increments it to prevent overwrite.
     
     Parameters
     ----------
     param_obj: dict
-        param dict imported from the .yaml file, by default None
+        param dict imported from the .yaml file, by default None.
     suffix_str: str
-        suffix for the output dir, by default ""
+        suffix for the output dir, by default "".
         
     Returns
     -----
     Path
-        path of the output directory
-    
-    Raises
-    ------
-    RuntimeError
-        Raised if param_obj is None
+        path of the output directory.
     
     Author
     ------
     Author : Kartik Chari \n
     Last changed : 13.11.2024 (by Kartik Chari)
     """
-    #TODO: Make it general
     if param_obj is None:
         raise RuntimeError("Please provide the yaml config object!!")
-    if suffix_str is None:
-        warnings.warn(f"Suffix_str is {suffix_str}. Using \"temp\" instead!!")
-        suffix_str = "temp"
+    if not suffix_str:
+        suffix_str = "plot"
     
     inp_parent_dir = getAbsolutePath(param_obj.filepath.fig_save_path)
     parent_dir = inp_parent_dir / f"{param_obj.data_param.subject_code}"
