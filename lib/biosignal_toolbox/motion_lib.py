@@ -5,13 +5,11 @@
 import numpy as np
 import warnings 
 #from datetime import datetime
-import os
 import mne
 import csv 
-import pandas as pd 
 from pathlib import Path
 from scipy.interpolate import interp1d
-from biosignal_toolbox.utils import resolvePath
+from biosignal_toolbox.utils import getAbsolutePath
 from biosignal_toolbox.time_series_lib import Timeseries
 
 
@@ -85,10 +83,7 @@ class MotionData(Timeseries):
         self.windows = None
         self.events = None # not provided by loaded data yet 
 
-        # ensure proper absolute data path
-        self.project_root = Path(__file__).resolve().parent.parent.parent
-        self.data_path = resolvePath(input_path=data_path, project_root=self.project_root)
-
+        self.data_path = getAbsolutePath(input_path=data_path)
         # load data
         if(format == "qualisys_tsv"):
             warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
@@ -135,7 +130,7 @@ class MotionData(Timeseries):
         Last changed: 25.08.2025 (by Kartik Chari)
         """
 
-        tsv_file = open(os.path.join(self.data_path, self.filename))
+        tsv_file = open(self.data_path / Path(self.filename))
         qualisys_file = list(csv.reader(tsv_file, delimiter="\t"))
         self.f_samp = float(qualisys_file[3][1])
         qualisys_data = np.array(qualisys_file[header_rows:]) 
@@ -393,7 +388,7 @@ class MotionData(Timeseries):
             # form the file suffix
             file_suffix = "_".join(filename_comp) + ".npy"
             # get absolute path of the save dir
-            save_dir = resolvePath(input_path=save_dir, project_root=self.project_root)
+            save_dir = getAbsolutePath(input_path=save_dir)
 
             if 'all' in joint_to_save:
                 joint_to_save = self.joint_names

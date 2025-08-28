@@ -51,25 +51,48 @@ def convertDictToNamespace(data_inp):
         return data_inp
 
 
-def resolvePath(input_path='', project_root=''):
+def getProjectRoot(marker=""):
     """
-    This function ensures that the path is absolute.
+    This function returns the project root folder path
+
+    Parameters
+    -----
+    marker: str, optional
+        The dir name that helps to looks for the root folder in any project structure, by default "".
+
+    Author
+    ------
+    Author: Kartik Chari \n
+    Last changed: 28.08.2025 (by Kartik Chari)
+    """
+    filepath = Path(__file__).resolve()
+    if not marker:
+        return filepath.parent.parent.parent
+    else:
+        for parent in filepath.parents:
+            if parent.name == marker:
+                return parent.parent
+        raise RuntimeError(f"Project root not found. Looked for {marker}")
+
+
+def getAbsolutePath(input_path=''):
+    """
+    This function ensures that the input path is absolute. It first gets the root of the project and then appends the input path to it. This function does not work with relative paths.
 
     Parameters
     -----
     input_path: str
-        Path to be added to project root, by default empty.
-    project_root: Path obj
-        Path of the project root. Use pathlib.Path(__file__).resolve().parent.parent.parent, by default empty.
-
+        Path (wrt project root) to be made absolute, by default empty.
     Author
     ------
     Author: Kartik Chari \n
     Last changed: 27.08.2025 (by Kartik Chari)
     """
-    if not input_path or not project_root:
+    if not input_path:
         raise ValueError("Please provide input path and/or project root path!")
-    
+    # get project root
+    project_root = getProjectRoot()
+
     input_path = Path(input_path).expanduser()
     if input_path.is_absolute():
         try:
