@@ -1,14 +1,11 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   filepath:
-    data_path:                'data/jte/'
-    emg_path:                 'emg_data/BU62D/'
-    emg_file_prefix:          '24072025_*_BU62D'
-    quali_tsv_path:           'quali_data/BU62D/tsv/'
-    quali_tsv_prefix:         '24_07_2025_BU62D'
-    quali_path:               ['quali_data/BU62D/torques/quali_torque_elbow_24_07_2025_', 'quali_data/BU62D/torques/quali_torque_front_24_07_2025_', 'quali_data/BU62D/torques/quali_torque_side_24_07_2025_']
-    fig_save_path:            'data/test/'
-    quali_torques_save_path:  'data/jte/quali_data/BU62D/torques'
+    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
+    data_path:     'data/m-rock_demo/'
+    emg_path:      'emg_data/24092024_FW28D_'
+    quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
+    fig_save_path: '../../plots/m-rock_demo/'
   
   data_param:
     weights:              ['0g', '1100g', '1850g']
@@ -85,6 +82,7 @@
   
   plot_param:
     is_plot_raw:          False
+    is_plot_quali:        False
     is_plot_quali:        False
     is_plot_hpf:          False
     is_plot_var_filter:   False
