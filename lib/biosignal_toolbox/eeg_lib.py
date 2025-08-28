@@ -153,24 +153,49 @@ class EEGData(Timeseries):
                 if(isinstance(filenames, list)): 
                     concat_list = []
                     for filename in filenames: 
-                        data = np.load(filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
-                        # print(f"Quali data shape: {data.shape}")
-                        if add_marker_channel:
-                            # Adding an extra event channel at the end for qualisys markers
-                            column_of_no_markers = -1 * np.ones((data.shape[0],1))
-                            data = np.hstack((data,column_of_no_markers))
-                            # Making the first and last but 20th sample (considering 40ms offset at the end) as the boundaries for syncing
-                            offset_idx = -1*(40*f_samp/1000)
-                            # print(f"Quali offset: {int(offset_idx)}")
-                            data[0,-1] = 1
-                            data[int(offset_idx),-1] = 2
-                            # print(f"Data: {data.shape}")
-                            # print(f"Events: {np.where(data[:,1] == 1)[0]}")
-                        
-                            concat_list.append(data)
+                        concat_list.append(np.load(self.data_path /(filename+".npy"),allow_pickle=True, encoding='bytes'))
                     
-                    data = np.vstack(concat_list)
-                    # print(np.where(data[:,1] == 1)[0])
+                    data = np.concatenate(concat_list)
+                else: 
+                    if add_marker_channel:
+                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes').tolist()
+                    else:
+                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
+                    if isinstance(data,dict):
+                        if file_type == 'combined':
+                            #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array
+                            if outer_key_order_d == [] and inner_key_order_d == []:
+                                weights_order = list(data.keys())
+                                type_order = list(next(iter(data.values())).keys())
+                            elif outer_key_order_d == [] and inner_key_order_d != []:
+                                weights_order = list(data.keys())
+                                type_order = inner_key_order_d
+                            elif outer_key_order_d != [] and inner_key_order_d == []:
+                                weights_order = outer_key_order_d
+                                type_order = list(next(iter(data.values())).keys())
+                            else:
+                                weights_order = outer_key_order_d
+                                type_order = inner_key_order_d
+
+                            tmp_array_of_lists = []
+                            for weight in weights_order:
+                                for mov_type in type_order:
+                                    tmp_array_of_lists.append(data[weight][mov_type])
+                            data = np.concatenate(tmp_array_of_lists)
+                        elif file_type == 'individual':
+                            data = data[list(data.keys())[0]][list(next(iter(data.values())).keys())[0]]
+                if add_marker_channel:
+                    # Adding an extra event channel at the end for qualisys markers
+                    column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                    data = np.hstack((data,column_of_no_markers))
+                    # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
+                    offset_idx = -1*(20*f_samp/1000)
+                    # print(f"Quali offset: {int(offset_idx)}")
+                    data[0,-1] = 1
+                    data[int(offset_idx),-1] = 1
+                    print(f"Data: {data.shape}")
+                else:
+                    pass
 
             self.f_samp = f_samp
             self.channel_names = channel_names

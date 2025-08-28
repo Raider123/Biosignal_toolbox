@@ -1,11 +1,11 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   filepath:
-    project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
-    data_path:     '/data/m-rock_demo/'
-    emg_path: 'emg/24092024_FW28D_'
-    quali_path: [ 'quali/FW28D/quali_torque_elbow_', 'quali/FW28D/quali_torque_front_', 'quali/FW28D/quali_torque_side_' ]
-    file_type:      '.txt'
+
+    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
+    data_path:     'data/m-rock_demo/'
+    emg_path:      'emg_data/24092024_FW28D_'
+    quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
     fig_save_path: '../../plots/m-rock_demo/'
 
 
