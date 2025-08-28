@@ -105,39 +105,52 @@ def getAbsolutePath(input_path=''):
     return (project_root / relative_part).resolve()
 
 
-def checkCreateDir(param_obj=None):
+def createOutputDir(param_obj=None, suffix_str=''):
     """
-    This function checks whether the dir exists or not. If it does not exist, it will create a new directory. In addition, it will also sort the dirs date-wise and increment plot foldernames to avoid overwrite. 
-
+    This function checks whether the fig_save_path exists or not. If it does not exist, it will create the directory. In addition, it will create the output dir where the output plots and readme will be saved.
+    The output dir will look like fig_save_path/sub_code/date_time_plot_1. It also checks the last integer and increments it to prevent overwrite.
+    
     Parameters
     ----------
-    param_obj : dict
-        param dict imported from the .yaml file, by default None
+    param_obj: dict
+        param dict imported from the .yaml file, by default None.
+    suffix_str: str
+        suffix for the output dir, by default "".
+        
+    Returns
+    -----
+    Path
+        path of the output directory.
     
     Author
     ------
     Author: Kartik Chari \n
     Last changed: 13.11.2025 (by Kartik Chari)
     """
-    try:
-        timestamp = Path(datetime.now().strftime("%Y-%m-%d"))
-        base_dir = Path(param_obj.filepath.fig_save_path)
-        base_name = param_obj.data_param.subject_code + "_plot"
-        
-        dir_path = base_dir / timestamp
-        dir_path.mkdir(parents=True, exist_ok=True)
-
-        existing_dirs = [d for d in dir_path.iterdir() if d.is_dir() and d.name.startswith(base_name)]
-        numbers = [int(d.name[len(base_name):]) for d in existing_dirs if d.name[len(base_name):].isdigit()]
-        next_number = max(numbers) + 1 if numbers else 1
-        dir_path = dir_path / f"{base_name}_{next_number}"
-
-        dir_path.mkdir(parents=True)
-        return dir_path
-
-    except KeyError:
-        print("ERROR!! Please ensure you pass non-empty dict object!")
-        exit(1)
+    if param_obj is None:
+        raise RuntimeError("Please provide the yaml config object!!")
+    if not suffix_str:
+        suffix_str = "plot"
+    
+    inp_parent_dir = getAbsolutePath(param_obj.filepath.fig_save_path)
+    parent_dir = inp_parent_dir / f"{param_obj.data_param.subject_code}"
+    # ensure the input directory exists
+    inp_parent_dir.mkdir(parents=True, exist_ok=True)
+    # prepare timestamp-based folder name
+    timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
+    base_name = f"{timestamp}_{suffix_str}"
+    # check existing folders to find max x
+    existing_dirs = [d for d in inp_parent_dir.iterdir() if d.is_dir() and d.name.startswith(base_name)]
+    numbers = []
+    for d in existing_dirs:
+        suffix = d.name[len(base_name):].lstrip("_")  # get the number after '_'
+        if suffix.isdigit():
+            numbers.append(int(suffix))
+    next_number = max(numbers) + 1 if numbers else 1
+    new_dir = inp_parent_dir / f"{base_name}{next_number}"
+    # create the new folder
+    new_dir.mkdir()
+    return new_dir
 
 
 def createReadme(param_obj=None, dir_path=None):

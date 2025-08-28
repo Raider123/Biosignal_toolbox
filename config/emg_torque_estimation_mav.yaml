@@ -1,11 +1,10 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   filepath:
-    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
-    data_path:     'data/m-rock_demo/'
+    data_path:     'data/m_rock/demo/'
     emg_path:      'emg_data/24092024_FW28D_'
     quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
-    fig_save_path: '../../plots/m-rock_demo/'
+    fig_save_path: 'data/m_rock/plots/test/'
   
   data_param:
     weights:              ['0g']
@@ -14,7 +13,7 @@
     subject_code:         'FW28D'
   
   preprocess_param:
-    channel_names_emg:  ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
+    channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left', 'marker']
     window_size_x:        50  #samples
     window_size_y:        50  #samples
@@ -65,9 +64,9 @@
 
   post_train_param:
     eval_type:            'offline' 
-    is_save_plot:         False
     filter_type:          'mean'
     filter_size:          3    
+    is_save_plot:         True
   
   plot_param:
     is_plot_raw:          False
