@@ -216,10 +216,10 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-        self.sr_idx = [self.channel_names.index(ch) for ch in ['s_r_x', 's_r_y']]
-        self.sl_idx = [self.channel_names.index(ch) for ch in ['s_l_x', 's_l_y']]
-        self.er_idx = [self.channel_names.index(ch) for ch in ['e_r_x', 'e_r_y']]
-        self.wr_idx = [self.channel_names.index(ch) for ch in ['w_r_x', 'w_r_y']]
+        self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y']]
+        self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y']]
+        self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y']]
+        self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y']]
         
         # calculate side shoulder angle of right arm in rad.
         self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
