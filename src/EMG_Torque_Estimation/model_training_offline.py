@@ -14,7 +14,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import loadConfig, getAbsolutePath, checkCreateDir, createReadme, plotResults
+from biosignal_toolbox.utils import loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -88,10 +88,10 @@ else:
 for typ_idx in range(len(cfg.data_param.mov_type)):
     for wgt_idx in range(len(cfg.data_param.weights)):
         for set_idx in range(len(cfg.data_param.set_num)):
-
+            
             #! Check if the file exists
             if getAbsolutePath(cfg.filepath.data_path+cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt').is_file():
-
+                print("Entered")
                 #! Loading and epoching for training   
                 EMG_Data = EMGData(format="ANTmini", filenames=[cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt'], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 
@@ -485,7 +485,7 @@ rmse_side_raw   = MLModel.calculateRMSE(y_s_test_combined[:,0], perf_results_MLP
 #! Check if the save dir exists. If not create one
 #! Create a readme.txt and include all parameters in it
 if cfg.post_train_param.is_save_plot:
-    dir_path = checkCreateDir(param_obj=cfg)
+    dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
     createReadme(param_obj=cfg,
                   dir_path=dir_path)
 
@@ -498,7 +498,7 @@ plotResults(data_ref=y_e_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_elbow_{cfg.post_train_param.filter_type}.png"))
+    plt.savefig(dir_path / (f"test_elbow_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=y_f_test_combined[:,0],
             label_ref="real torque", 
@@ -508,7 +508,7 @@ plotResults(data_ref=y_f_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_front_{cfg.post_train_param.filter_type}.png"))
+    plt.savefig(dir_path / (f"test_front_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=y_s_test_combined[:,0],
             label_ref="real torque", 
@@ -518,7 +518,7 @@ plotResults(data_ref=y_s_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_side_{cfg.post_train_param.filter_type}.png"))
+    plt.savefig(dir_path / (f"test_side_{cfg.post_train_param.filter_type}.png"))
 
 
 #! Plotting the raw prediction results
@@ -530,7 +530,7 @@ plotResults(data_ref=y_e_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_elbow_raw.png"))
+    plt.savefig(dir_path / (f"test_elbow_raw.png"))
 
 plotResults(data_ref=y_f_test_combined[:,0],
             label_ref="real torque", 
@@ -540,7 +540,7 @@ plotResults(data_ref=y_f_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_front_raw.png"))
+    plt.savefig(dir_path / (f"test_front_raw.png"))
 
 plotResults(data_ref=y_s_test_combined[:,0],
             label_ref="real torque", 
@@ -550,7 +550,7 @@ plotResults(data_ref=y_s_test_combined[:,0],
             ylabel="Torque in N-m", 
             is_grid_on=True)
 if cfg.post_train_param.is_save_plot:
-    plt.savefig(dir_path / Path(f"/test_side_raw.png"))
+    plt.savefig(dir_path / (f"test_side_raw.png"))
 
 #! Showing the plots
 plt.show()
