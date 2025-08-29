@@ -1,6 +1,7 @@
-# *********************************************************************************
-# ************************* Imports ***********************************************
-# *********************************************************************************
+
+#! ************************************************
+#! Imports
+#! ************************************************
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,12 +9,59 @@ from pathlib import Path
 from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
-import warnings
-warnings.filterwarnings('ignore')
 
-# *********************************************************************************
-# ************************* Functions *********************************************
-# *********************************************************************************
+import warnings
+import inspect
+#! ************************************************
+#! Custom Warning function
+#! ************************************************
+
+def customWarningFormat(message, category, filename, lineno, line=None):
+    """
+    Format warnings in a compact way by including only the category, 
+    function name, and message.
+
+    Parameters
+    ----------
+    message : str
+        The warning message that is generated.
+    category : Warning
+        The category of the warning (e.g., `UserWarning`, `DeprecationWarning`).
+    filename : str
+        The file name where the warning originated.
+    lineno : int
+        The line number where the warning was triggered.
+    line : str, optional
+        The line of source code that generated the warning (if available).
+
+    Returns
+    -------
+    str
+        A formatted warning string containing the warning category, 
+        the function name where it was raised, and the message.
+
+    Notes
+    -----
+    This custom formatter uses the `inspect` module to extract the 
+    function name from the call stack. It overrides the default 
+    `warnings.formatwarning` output, which normally includes the 
+    file path and line number.
+    """
+    func_name = "<unknown>"
+    for frameinfo in inspect.stack()[2:]:
+        mod = inspect.getmodule(frameinfo.frame)
+        if mod and mod.__name__ != "warnings":
+            func_name = frameinfo.function
+            break
+
+    short_file = Path(filename).name
+    return f"{category.__name__} in {func_name}() [{short_file}:{lineno}]: {message}\n"
+
+warnings.formatwarning = customWarningFormat
+
+#! ************************************************
+#! Utility Functions
+#! ************************************************
 
 def loadConfig(filename=''):
     """
