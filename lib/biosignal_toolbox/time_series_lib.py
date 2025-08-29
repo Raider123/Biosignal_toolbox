@@ -3005,7 +3005,7 @@ class Timeseries():
         if is_grid_on:
             plt.grid()
         
-        plt.show()
+        # plt.show()
                 
 
 class OnlineTimeseriesStreaming(Timeseries): 
