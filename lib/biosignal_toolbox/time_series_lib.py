@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import mne
 from os.path import dirname, join, abspath
 from scipy import signal as sig
-from scipy.signal import convolve, butter, sosfilt, sosfilt_zi
+from scipy.signal import convolve, butter, sosfilt, sosfilt_zi, sosfiltfilt
 from scipy.fft import fft, fftfreq
 from tensorflow.keras.utils import to_categorical
 import mne_features.univariate as mne_feat
@@ -16,16 +16,11 @@ from mne.preprocessing import ICA
 import copy 
 from mne.preprocessing import Xdawn
 from pybv import write_brainvision
-import warnings
 import zmq
 from pyemd import emd as EMD
 
 sys.path.insert(0, abspath(join(dirname(__file__), '../../')))
 from variance_tools_api.variance_tools import variance_tools as vt
-
-# *********************************************************************************
-# ************************* Imports ***********************************************
-# *********************************************************************************
 
 
 class Timeseries():
@@ -345,7 +340,7 @@ class Timeseries():
         self.windows = temp_wind
 
         
-    def designFilter(self, f_low = None, f_high= None, order = 2, filter_type = "scipy_butter", Q = 30, show_response = False, alpha = 0.999, return_type = "ba", rp = 0.175478486150103, rs = 60.0, beta = 3.0): 
+    def designFilter(self, f_low=None, f_high=None, order=2, filter_type="scipy_butter", Q=30, show_response=False, alpha=0.999, return_type="ba", rp=0.175478486150103, rs=60.0, beta=3.0): 
         """
         Design a digital fir or iir filter (notch, bandpass, highpass or lowpass). 
 
@@ -381,39 +376,43 @@ class Timeseries():
         
         # calc individual coeffs 
         if(filter_type == "dc_notch"):
-            b, a = sig.iirnotch(f_high, Q, fs=self.f_samp)
+            b, a = sig.iirnotch(w0=f_high, Q=Q, fs=self.f_samp)
 
         if(filter_type == "scipy_butter"): # prefer this one 
             if(f_high and f_low): 
-                b, a = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.f_samp)
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.f_samp)
+                if return_type == "ba":
+                    b, a = sig.iirfilter(N=order, Wn=[f_high, f_low], btype='bandpass', ftype='butter', output='ba', fs=self.f_samp)
+                elif return_type == "sos":
+                    sos = sig.iirfilter(N=order, Wn=[f_high, f_low], btype='bandpass', ftype='butter', output='sos', fs=self.f_samp)
+                else:
+                    warnings.warn("Please enter a valid return_type for bandpass filter design!!")
             elif(f_high):
-                sos = sig.iirfilter(order, f_high, btype='highpass', ftype='butter', output='sos', fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=f_high, btype='highpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='butter', output='sos', fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=f_low, btype='lowpass', ftype='butter', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
         
         if(filter_type == "scipy_bessel"): # prefer this one 
             if(f_high and f_low): 
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='bessel', output='sos', fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=[f_high, f_low], btype='bandpass', ftype='bessel', output='sos', fs=self.f_samp)
             
             elif(f_high):
-                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='bessel', output='sos', fs=self.f_samp)
+                sos= sig.iirfilter(N=order, Wn=f_high, btype='highpass', ftype='bessel', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='bessel', output='sos', fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=f_low, btype='lowpass', ftype='bessel', output='sos', fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "scipy_ellip"): # prefer this one 
             if(f_high and f_low): 
-                sos = sig.iirfilter(order, [f_high, f_low], btype='bandpass', ftype='ellip', rp=rp, rs = rs,  output='sos', fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=[f_high, f_low], btype='bandpass', ftype='ellip', rp=rp, rs = rs,  output='sos', fs=self.f_samp)
 
             elif(f_high):
-                sos= sig.iirfilter(order, f_high, btype='highpass', ftype='ellip', output='sos',rp=rp,rs = rs, fs=self.f_samp)
+                sos= sig.iirfilter(N=order, Wn=f_high, btype='highpass', ftype='ellip', output='sos',rp=rp,rs = rs, fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a) rs
             elif(f_low): 
-                sos = sig.iirfilter(order, f_low, btype='lowpass', ftype='ellip', output='sos', rp=rp,rs = rs, fs=self.f_samp)
+                sos = sig.iirfilter(N=order, Wn=f_low, btype='lowpass', ftype='ellip', output='sos', rp=rp,rs = rs, fs=self.f_samp)
                 #zi = sig.lfilter_zi(b, a)
 
         if(filter_type == "dc_removal"): 
@@ -918,6 +917,19 @@ class Timeseries():
         
         # update the data of the raw object 
         self.raw_obj._data = self.data
+    
+    def filterData_offline(self, filter_method="forward", sos=None):
+        if sos is None:
+            warnings.warn("No SOS filter co-efficients provided, returning unfiltered signal!!")
+            return
+        if filter_method not in ["forward", "zero_phase"]:
+            filter_method = "forward"
+            warnings.warn("Invalid method provided! Using forward method to proceed!!")
+        for ch in range(self.data.shape[0]):
+            if filter_method == "forward":
+                self.data[ch] = sosfilt(sos=sos, x=self.data[ch])
+            elif filter_method == "zero_phase":
+                self.data[ch] = sosfiltfilt(sos=sos, x=self.data[ch])
     
     def filterWindows(self, b = None, a = [1], sos = None, apply_method = "zero_phase_sos", mne_filter_type = None, f_high = None, f_low = None, order = None, fir_design = None, padtype = "even"): # under change 
         """
@@ -2993,7 +3005,7 @@ class Timeseries():
         if is_grid_on:
             plt.grid()
         
-        plt.show()
+        # plt.show()
                 
 
 class OnlineTimeseriesStreaming(Timeseries): 
