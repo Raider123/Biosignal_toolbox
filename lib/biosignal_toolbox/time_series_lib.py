@@ -3313,7 +3313,7 @@ class Timeseries():
             plt.grid()
         plt.tight_layout()
         
-        plt.show()
+        # plt.show()
                 
 
 class OnlineTimeseriesStreaming(Timeseries): 
