@@ -78,6 +78,8 @@
     act_h2:               'linear' 
 
     is_save_model:        False
+    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
+    load_models:          False
 
   post_train_param:
     eval_type:            'offline' 
