@@ -1,8 +1,14 @@
 
 #* This file calculates and saves elbow and shoulder torques from Qualisys motion data.
 
+<<<<<<< HEAD
 import itertools
 import re
+=======
+import numpy as np
+import matplotlib.pyplot as plt
+import itertools
+>>>>>>> 88327ef (✨ Added src for calc torque files from quali tsv)
 
 from biosignal_toolbox.utils import getAbsolutePath, loadConfig, customWarningFormat
 from biosignal_toolbox.motion_lib import MotionData
@@ -20,6 +26,7 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
     file_pattern = f"{cfg.filepath.quali_tsv_prefix}_{wgt_idx}_{mov_idx}_{set_idx}.tsv"
     matched_files = list(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_tsv_path).glob(file_pattern))
     if not matched_files:
+<<<<<<< HEAD
         warnings.warn(f"No files match the pattern {file_pattern} :(")
     for file in matched_files:
         #? create a qualisys motion data object
@@ -33,3 +40,13 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
         qualisys_data.saveTorques_npy(save_torques=False, 
                                       save_dir=cfg.filepath.quali_torques_save_path, 
                                       joints_to_save=['all'])
+=======
+        warnings.warn("No files match the pattern :(")
+    for file in matched_files:
+        #? create a qualisys motion data object
+        qualisys_data = MotionData(data_path= cfg.filepath.data_path, filename=cfg.filepath.quali_tsv_path+file.name)
+        #? calculate the torques from qualisys .tsv
+        qualisys_data.calculateTorque()
+        #? save the torques into individual .npy files
+        qualisys_data.saveTorques_npy(save_torques=True, save_dir=cfg.filepath.quali_torques_save_path, joints_to_save=['all'])
+>>>>>>> 88327ef (✨ Added src for calc torque files from quali tsv)
