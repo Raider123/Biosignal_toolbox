@@ -32,8 +32,14 @@
     feature_select:       'end'
 
     f_samp:               500
-    f_cutoff_hpf:         15
-    f_cutoff_lpf:         10
+    f_cutoff_hpf:         15  #cutoff freq for bandpass 
+    f_cutoff_lpf:         200 #cutoff freq for bandpass 
+    filter_order:         2
+
+    f_cutoff_sm_lpf:      5   #cutoff freq for smoothing
+    sm_filter_order:      4   # filter order for smoothing lpf
+
+    filter_method:        'zero_phase'
     var_filter_width:     20
     mvc:                  1.1657004817469086e-06
       # BR07D: 4.569592924022451e-06
@@ -76,6 +82,6 @@
     is_plot_quali:        False
     is_plot_hpf:          False
     is_plot_var_filter:   False
-    is_plot_norm:         False
+    is_plot_smoothed:     False
     is_plot_act:          False
     is_plot_filt_win:     False
