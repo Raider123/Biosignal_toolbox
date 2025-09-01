@@ -18,6 +18,9 @@
     input_mode:           "freq" # options: "time", "freq", "time+freq"
     model_dir:            "saved_models/TCN_MTL"
 
+    set_num:              ['1', '2', '3']
+    subject_code:         ['FW28D']
+  
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left']
