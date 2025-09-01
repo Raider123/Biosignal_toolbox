@@ -6,6 +6,11 @@
 #! ************************************************
 #! Imports
 #! ************************************************
+#* This script is the general training script for joint torque estimation using sEMG signals offline. It loads all the hyper-parameters from a yaml_config file.
+
+#! ************************************************
+#! Imports
+#! ************************************************
 #! ************************************************
 #! Imports
 #! ************************************************
@@ -17,16 +22,23 @@ from pathlib import Path
 
 #own libs 
 #own libs 
+#own libs 
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
+from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
 
 import warnings
 warnings.formatwarning = customWarningFormat
 warnings.formatwarning = customWarningFormat
+warnings.formatwarning = customWarningFormat
 
+#! ************************************************
+#! User Parameters and Data Collection
+#! ************************************************
+
+#? load config file
 #! ************************************************
 #! User Parameters and Data Collection
 #! ************************************************
@@ -43,6 +55,7 @@ cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 #? init early stopping 
+#? init early stopping 
 if cfg.model_param.is_early_stop:
     early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
                                                       min_delta=cfg.model_param.min_delta, 
@@ -54,6 +67,7 @@ if cfg.model_param.is_early_stop:
 else:
     early_callback = None
 
+#? feature extraction window
 #? feature extraction window
 #? feature extraction window
 if cfg.preprocess_param.feature_select == "end":
@@ -83,16 +97,24 @@ for i in range(len(cfg.data_param.subject_code)):
 
 for i in range(len(cfg.data_param.mov_type)):
     filename_suffix = filename_suffix + '_' + cfg.data_param.mov_type[i]
+#? filename suffix
+filename_suffix = ""
+
+for i in range(len(cfg.data_param.subject_code)):
+    filename_suffix = filename_suffix + '_' + cfg.data_param.subject_code[i]
+
+for i in range(len(cfg.data_param.mov_type)):
+    filename_suffix = filename_suffix + '_' + cfg.data_param.mov_type[i]
 
 for i in range(len(cfg.data_param.weights)):
     filename_suffix = filename_suffix + '_' + cfg.data_param.mov_type[i]
-for i in range(len(cfg.data_param.weights)):
-    filename_suffix = filename_suffix + '_' + cfg.data_param.weights[i]
 
+#? init performance results list
 #? init performance results list
 #? init performance results list
 perf_results_total_MLP = []
 
+#? Initialise arrays to append data
 #? Initialise arrays to append data
 #? Initialise arrays to append data
 length_of_each_feature_window = int(len(cfg.preprocess_param.channel_names_emg))
@@ -106,6 +128,7 @@ y_e_test_combined = np.empty(shape=[0,2])
 y_f_test_combined = np.empty(shape=[0,2])
 y_s_test_combined = np.empty(shape=[0,2])
 
+#? Choose number of input neurons
 #? Choose number of input neurons
 #? Choose number of input neurons
 if cfg.preprocess_param.feature_type == "mav":
@@ -127,12 +150,12 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
     for wgt_idx in range(len(cfg.data_param.weights)):
         for set_idx in range(len(cfg.data_param.set_num)):
             
-            #! Check if the file exists
+            #? Check if the file exists
             if getAbsolutePath(cfg.filepath.data_path+cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt').is_file():
-                print("Entered")
-                #! Loading and epoching for training   
+                #? Loading and epoching for training   
                 EMG_Data = EMGData(format="ANTmini", filenames=[cfg.filepath.emg_path+cfg.data_param.weights[wgt_idx]+'_'+cfg.data_param.mov_type[typ_idx]+'_'+cfg.data_param.set_num[set_idx]+'.txt'], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 
+                #? Plotting the raw EMG data
                 #? Plotting the raw EMG data
                 #? Plotting the raw EMG data
                 if cfg.plot_param.is_plot_raw:
@@ -143,6 +166,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                      ylabel="Voltage in uV", 
                                      is_grid_on=True)
 
+                #? Loading the target values for the 3 joints
                 #? Loading the target values for the 3 joints
                 #? Loading the target values for the 3 joints
                 print("Creating Quali Elbow object!!")
@@ -197,7 +221,21 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 #! ************************************************
                 #! Data Pre-processing
                 #! ************************************************
+                #! ************************************************
+                #! Data Pre-processing
+                #! ************************************************
 
+                #? High pass filter
+                #* design the highpass filter
+                sos_hp = EMG_Data.designFilter(f_high=cfg.preprocess_param.f_cutoff_hpf,
+                                               f_low=cfg.preprocess_param.f_cutoff_lpf,
+                                               order=cfg.preprocess_param.filter_order,
+                                               filter_type="scipy_butter",
+                                               return_type="sos")
+                #* apply hpf filter 
+                EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
+                                            sos=sos_hp)
+                #? Plotting HP filtered data
                 #? High pass filter
                 #* design the highpass filter
                 sos_hp = EMG_Data.designFilter(f_high=cfg.preprocess_param.f_cutoff_hpf,
@@ -225,9 +263,12 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                      unit="uV", 
                                      title="High-Pass Filtered plot for Channel 5", 
                                      title="High-Pass Filtered plot for Channel 5", 
+                                     title="High-Pass Filtered plot for Channel 5", 
                                      xlabel="Time in s", 
                                      ylabel="Voltage in uV", 
                                      is_grid_on=True)
+                    
+                #? Apply Variance Filter from variance_tools_api
                     
                 #? Apply Variance Filter from variance_tools_api
                     
@@ -238,10 +279,12 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 index           = 0
                 EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer, 
                 EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer, 
+                EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer, 
                                                 width=width, 
                                                 index=index)
                 print("Variance Filter applied!!\n")
 
+                #? Plot and print specific variance filtered windows 
                 #? Plot and print specific variance filtered windows 
                 #? Plot and print specific variance filtered windows 
                 # var_filtered_window_x = EMG_Data.filtered_data
@@ -256,6 +299,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                      ylabel="Voltage in uV", 
                                      is_grid_on=True)
 
+                #? Normalisation
                 #? Normalisation
                 #? Normalisation
                 print("Performing Normalization with Max Voluntary Contraction ...")
@@ -280,7 +324,18 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 #* apply lpf filter 
                 EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
                                             sos=sos_lp)
+                #? Low pass filter to smoothen the signal
+                #* design the lowpass filter
+                sos_lp = EMG_Data.designFilter(f_low=cfg.preprocess_param.f_cutoff_sm_lpf,
+                                               order=cfg.preprocess_param.sm_filter_order,
+                                               filter_type="scipy_butter",
+                                               return_type="sos")
+                #* apply lpf filter 
+                EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
+                                            sos=sos_lp)
 
+                #? Plot normalised and smoothened data
+                if cfg.plot_param.is_plot_smoothed:
                 #? Plot normalised and smoothened data
                 if cfg.plot_param.is_plot_smoothed:
                 #? Plot normalised and smoothened data
@@ -289,10 +344,12 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                      unit="V", 
                                      title="Normalised and Smoothed EMG plot for Channel 5", 
                                      title="Normalised and Smoothed EMG plot for Channel 5", 
+                                     title="Normalised and Smoothed EMG plot for Channel 5", 
                                      xlabel="Time in s", 
                                      ylabel="Voltage in V", 
                                      is_grid_on=True)
 
+                #? Calculate Neural Activation Force
                 #? Calculate Neural Activation Force
                 #? Calculate Neural Activation Force
                 print("Replacing sample with its force activation value ...")
@@ -305,6 +362,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
 
                 #? Plot force activation data
                 #? Plot force activation data
+                #? Plot force activation data
                 if cfg.plot_param.is_plot_act:
                     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                                      unit="V", 
@@ -313,6 +371,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                      ylabel="Voltage in V", 
                                      is_grid_on=True)
 
+                #? Windowing the filtered data
                 #? Windowing the filtered data
                 #? Windowing the filtered data
                 _ = EMG_Data.windowContinuousData(startmarkernumber=1, 
@@ -353,6 +412,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
 
                 #? Plot specific filtered windows for debugging
                 #? Plot specific filtered windows for debugging
+                #? Plot specific filtered windows for debugging
                 if cfg.plot_param.is_plot_filt_win:
                     EMG_Data.plotEMG(data=EMG_Data.getWindows()[0,2,:,18], #[trl,chn,smpl,wnd]
                                      n_samples= EMG_Data.getWindows().shape[2],
@@ -368,7 +428,11 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 #! ************************************************
                 #! Feature Extraction
                 #! ************************************************
+                #! ************************************************
+                #! Feature Extraction
+                #! ************************************************
 
+                #? time domain feature extraction
                 #? time domain feature extraction
                 #? time domain feature extraction
                 print("Extracting features from windowed data ...")
@@ -382,6 +446,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                                                              feature_indices_windows=feature_indices_windows_y)
                 print("Feature extraction from windowed data completed !!\n")
 
+                #? input features network 
                 #? input features network 
                 #? input features network 
                 if cfg.preprocess_param.feature_type == "mav":
@@ -399,6 +464,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
 
                 #? Ensure same number of rows for imput and target features
                 #? Ensure same number of rows for imput and target features
+                #? Ensure same number of rows for imput and target features
                 end_idx = x.shape[0] if x.shape[0] <= y_e.shape[0] else y_e.shape[0]
                 x = x[0:end_idx,:]
                 y_e = y_e[0:end_idx,0:2]
@@ -407,6 +473,7 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
                 print(f"Input Feature Dim: {x.shape}")
                 print(f"Output Feature Dim: {y_e.shape}")
         
+                #? Split data into train and test
                 #? Split data into train and test
                 #? Split data into train and test
                 print("Splitting train and test data ...")
@@ -433,7 +500,11 @@ for typ_idx in range(len(cfg.data_param.mov_type)):
 #! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
+#! ************************************************
+#! Train, Load, or Test Model
+#! ************************************************
 
+#? Init model with norm layer
 #? Init model with norm layer
 #? Init model with norm layer
 model_e = AAN_Model(neurons_inp=neurons_inp, 
@@ -468,8 +539,12 @@ save_model_path = getAbsolutePath(cfg.model_param.save_model_path) / filename_su
 print("Training MLP model for elbow joint...")
 save_model_path = getAbsolutePath(cfg.model_param.save_model_path) / filename_suffix
 
+#? Train model
+print("Training MLP model for elbow joint...")
+save_model_path = getAbsolutePath(cfg.model_param.save_model_path) / filename_suffix
+
 MLP_model_e.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_elbow_mav", 
+                       model_filename=save_model_path / "_AAN_model_elbow_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
@@ -485,7 +560,7 @@ print("MLP training for elbow done !!\n")
 
 print("Training MLP model for shoulder front joint...") 
 MLP_model_f.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_front_mav", 
+                       model_filename=save_model_path / "_AAN_model_front_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
@@ -501,7 +576,7 @@ print("MLP training for front done !!\n")
 
 print("Training MLP model for shoulder side joint...") 
 MLP_model_s.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                       model_filename=cfg.filepath.data_path+"zdemo_ml_models/"+cfg.data_param.subject_code+"_"+scenario_name+result_file_name+"_AAN_model_side_mav", 
+                       model_filename=save_model_path / "_AAN_model_side_mav", 
                        train_epochs=cfg.model_param.n_epochs, 
                        batch_size=cfg.model_param.batch_size, 
                        class_weights=None, 
@@ -515,6 +590,8 @@ MLP_model_s.trainModel(save_trained_model=cfg.model_param.is_save_model,
                        callbacks=early_callback)
 print("MLP training for side done !!\n")
 
+
+#? Predict and get results 
 
 #? Predict and get results 
 
@@ -554,6 +631,10 @@ perf_results_MLP_s = MLP_model_s.getPredictionScores()
 #! Post-prediction Filtering
 #! ************************************************
 
+#! ************************************************
+#! Post-prediction Filtering
+#! ************************************************
+
 filtered_perf_results_MLP_e = np.zeros(perf_results_MLP_e.shape)
 filtered_perf_results_MLP_f = np.zeros(perf_results_MLP_f.shape)
 filtered_perf_results_MLP_s = np.zeros(perf_results_MLP_s.shape)
@@ -579,10 +660,12 @@ for idx in range(len(perf_results_MLP_e)):
 
 #? Calculate the RMSE values on the filtered predicted values
 #? Calculate the RMSE values on the filtered predicted values
+#? Calculate the RMSE values on the filtered predicted values
 rmse_elbow  = MLModel.calculateRMSE(y_e_test_combined[:,0], filtered_perf_results_MLP_e)
 rmse_front  = MLModel.calculateRMSE(y_f_test_combined[:,0], filtered_perf_results_MLP_f)
 rmse_side   = MLModel.calculateRMSE(y_s_test_combined[:,0], filtered_perf_results_MLP_s)
 
+#? Calculate the RMSE values on the filtered predicted values
 #? Calculate the RMSE values on the filtered predicted values
 #? Calculate the RMSE values on the filtered predicted values
 rmse_elbow_raw  = MLModel.calculateRMSE(y_e_test_combined[:,0], perf_results_MLP_e)
@@ -593,11 +676,14 @@ rmse_side_raw   = MLModel.calculateRMSE(y_s_test_combined[:,0], perf_results_MLP
 #? Create a readme.txt and include all parameters in it
 #? Check if the save dir exists. If not create one
 #? Create a readme.txt and include all parameters in it
+#? Check if the save dir exists. If not create one
+#? Create a readme.txt and include all parameters in it
 if cfg.post_train_param.is_save_plot:
     dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
     createReadme(param_obj=cfg,
                   dir_path=dir_path)
 
+#? Plotting the filtered prediction results
 #? Plotting the filtered prediction results
 #? Plotting the filtered prediction results
 plotResults(data_ref=y_e_test_combined[:,0],
@@ -633,6 +719,7 @@ if cfg.post_train_param.is_save_plot:
 
 #? Plotting the raw prediction results
 #? Plotting the raw prediction results
+#? Plotting the raw prediction results
 plotResults(data_ref=y_e_test_combined[:,0],
             label_ref="real torque", 
             data_out=perf_results_MLP_e, 
@@ -663,6 +750,7 @@ plotResults(data_ref=y_s_test_combined[:,0],
 if cfg.post_train_param.is_save_plot:
     plt.savefig(dir_path / (f"test_side_raw.png"))
 
+#? Showing the plots
 #? Showing the plots
 #? Showing the plots
 plt.show()
