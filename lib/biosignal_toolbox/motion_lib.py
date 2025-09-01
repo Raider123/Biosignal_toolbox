@@ -244,79 +244,29 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-        self.sr_idx = self.getChannelIndex(joint_name='shoulder', hand='right')
-        self.sl_idx = self.getChannelIndex(joint_name='shoulder', hand='left')
-        self.er_idx = self.getChannelIndex(joint_name='elbow', hand='right')
-        self.wr_idx = self.getChannelIndex(joint_name='wrist', hand='right')
+        self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y']]
+        self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y']]
+        self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y']]
+        self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y']]
+        
+        # calculate side shoulder angle of right arm in rad.
+        self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
+        # calculate perpendicular dist between elbow and load in m
+        forearm_perp_dist_mm = self.calculateForearmPerpDist_mm()
+        # calculte perpendicular distance between shoulder and elbow in m
+        upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm()
+        # calculate total perpendicular distance between shoulder and load in m
+        total_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm
+        # estimate forearm weight from body weight
+        forearm_weight_kg = body_weight_kg * 0.016
+        # estimate full arm weight from body weight
+        arm_weight_kg = body_weight_kg * 0.05
 
-        #? calculate perpendicular distances
-        # calculte perpendicular distance between shoulder and elbow in mm
-        upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm(subject_biological_sex=subject_biological_sex,
-                                                                  method=method)
-        # calculte perpendicular distance between elbow and wrist in mm
-        forearm_perp_dist_mm = self.calculateForearmPerpDist_mm(subject_biological_sex=subject_biological_sex,
-                                                                method=method)
-        # calculte perpendicular distance between wrist and object in hand in mm
-        hand_perp_dist_mm = self.calculateHandPerpDist_mm(subject_biological_sex=subject_biological_sex, 
-                                                          subject_hand_length_mm=subject_hand_length_mm, 
-                                                          method=method)
-        #? calculate segment weights
-        # upperarm weight
-        upperarm_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, 
-                                                      segment_name="upperarm", 
-                                                      subject_biological_sex=subject_biological_sex)
-        # forearm weight
-        forearm_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, 
-                                                     segment_name="forearm", 
-                                                     subject_biological_sex=subject_biological_sex)
-        # hand weight
-        hand_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, 
-                                                  segment_name="hand", 
-                                                  subject_biological_sex=subject_biological_sex)
-        #? End to End segment length method
-        if method == "end_to_end":
-            # calculate total perpendicular distance between shoulder and load in mm
-            whole_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm + hand_perp_dist_mm
-            # full arm weight
-            whole_arm_weight_kg = upperarm_weight_kg + forearm_weight_kg + hand_weight_kg
-            #? torque calculation
-            # elbow torque = mass * g * perp_dist
-            torque_elbow = (float(forearm_weight_kg + hand_weight_kg + (obj_weight_g/1000)) 
-                            * 9.81 
-                            * (forearm_perp_dist_mm + hand_perp_dist_mm)/1000)
-            # total shoulder torque
-            torque_shoulder = (float((obj_weight_g/1000) + whole_arm_weight_kg) 
-                               * 9.81 
-                               * whole_arm_perp_dist_mm/1000)
-        #? COM method
-        elif method == "com":
-            #? elbow torque
-            forearm_perp_dist_end_to_end_mm = self.calculateForearmPerpDist_mm(subject_biological_sex=subject_biological_sex,
-                                                                               method="end_to_end")
-            tau_forearm_e = (forearm_weight_kg 
-                           * 9.81 
-                           * forearm_perp_dist_mm/1000)
-            tau_hand_e = (float((obj_weight_g/1000) + hand_weight_kg) 
-                        * 9.81 
-                        * (forearm_perp_dist_end_to_end_mm + hand_perp_dist_mm)/1000)
-            
-            torque_elbow = tau_forearm_e + tau_hand_e
-
-            #? shoulder torque
-            upperarm_perp_dist_end_to_end_mm = self.calculateUpperArmPerpDist_mm(subject_biological_sex=subject_biological_sex, 
-                                                                                 method="end_to_end")
-            tau_upperarm_s = (upperarm_weight_kg 
-                              * 9.81 
-                              * upperarm_perp_dist_mm/1000)
-            tau_forearm_s = (tau_forearm_e + (forearm_weight_kg 
-                                              * 9.81 
-                                              * upperarm_perp_dist_end_to_end_mm/1000))
-            tau_hand_s = (tau_hand_e + (float((obj_weight_g/1000) + hand_weight_kg) 
-                                        * 9.81 
-                                        * upperarm_perp_dist_end_to_end_mm/1000))
-            
-            torque_shoulder = tau_upperarm_s + tau_forearm_s + tau_hand_s
-
+        #? torque calculation
+        # elbow torque = mass * g * perp_dist
+        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * forearm_perp_dist_mm/1000
+        # total shoulder torque
+        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_mm/1000
         #? project total shoulder force into axes of saggital and frontal planes
         #* calculate the side shoulder angle in rad. 
         # Check if it is already created before and only call the function otherwise
@@ -744,66 +694,9 @@ class MotionData(Timeseries):
         if (norm == 0).any():
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
-        return inp_vec / norm
+        return inp_vec / norm, norm
     
-    def getChannelIndex(self, joint_name: str = None, hand: str = None) -> list:
-        """
-        This methods outputs the channel indices for the requested joint and hand as a list [x_idx, y_idx, z_idx] with the help of regex.
-
-        Parameters
-        ----------
-        joint_name : str, optional
-            Name of the joint, by default None
-        hand : str, optional
-            Name of the hand/side out of 'right' or 'left', by default None
-
-        Returns
-        -------
-        list
-            List of x,y,z indices of the requested joint and side
-
-        Raises
-        ------
-        ValueError
-            Raised if joint_name or hand is None
-        ValueError
-            Raised if hand.lower() is not 'right' or 'left'
-        
-        Author
-        -----
-        Author : Kartik Chari \n
-        Last changed : 04.09.2025 (by Kartik Chari)
-        """
-        if joint_name is None or hand is None:
-            raise ValueError("Please enter joint_name and hand to proceed!!")
-        if hand.lower() not in ['left', 'right']:
-            raise ValueError("Invalid hand arg... hand must be \"left\" or \"right\"!!")
-        idx_list = []
-        # short hand for hand
-        hand_code = 'r' if hand.lower() == 'right' else 'l'
-        # short prefixes for joints
-        short_prefixes = {'shoulder': 's', 'elbow': 'e', 'wrist': 'w'}
-        short_joint_code = short_prefixes[joint_name]
-        
-        for axis in ['x', 'y', 'z']:
-            # regex pattern to ensure self.channel_name contains joint_name and hand anywhere in any style
-            match_pattern = (
-                    rf"(^({hand}|{hand_code})_?({joint_name}|{short_joint_code})_?{axis}$)|"   # side_joint_axis
-                    rf"(^({joint_name}|{short_joint_code})_?({hand}|{hand_code})_?{axis}$)|"   # joint_side_axis
-                    rf"(^({hand}|{hand_code})({joint_name}|{short_joint_code}){axis}$)|"       # camelCase style
-                    rf"(^({joint_name}|{short_joint_code})({hand}|{hand_code}){axis}$)"                                    # axis at end
-                    )
-            for ch_idx, ch_name in enumerate(self.channel_names):
-                if re.search(match_pattern, ch_name, flags=re.IGNORECASE):
-                    idx_list.append(ch_idx)
-                    break
-            else:
-                idx_list.append(None)
-
-        return idx_list
-
-    
-    def saveTorques_npy(self, save_torques: bool = False, save_dir: str = None, joints_to_save: List[str] = ['all']) -> None:
+    def saveTorques_npy(self, save_torques=False, save_dir=None, joints_to_save=['all']):
         """
         This method save the calculated torques into numpy (.npy) files.
         It first checks whether the specified dir exists. If it does not, it will create one and then save.
@@ -814,7 +707,7 @@ class MotionData(Timeseries):
             Boolean to choose whether to save the calculated torques into a .npy file, by default False.
         save_dir: str, optional
             Path to the dir where the files need to be saved relative to the projec root, by default None.
-        joints_to_save: list of str, optional
+        joints_to_save: lsit of str, optional
             The joints whose torques must be saved out of 'elbow','shoulder_front', and 'shoulder_side',  by default ['all'].
 
         Author
@@ -835,7 +728,10 @@ class MotionData(Timeseries):
 
             if 'all' in joints_to_save:
                 joints_to_save = self.joint_names
+            if 'all' in joints_to_save:
+                joints_to_save = self.joint_names
             # iterate over each joint name and save the torque in file
+            for _, joint in enumerate(joints_to_save):
             for _, joint in enumerate(joints_to_save):
                 if joint in self.joint_names:
                     # get index of the joint name
