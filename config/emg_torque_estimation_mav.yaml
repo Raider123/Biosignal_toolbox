@@ -88,7 +88,7 @@
     eval_type:            'offline' 
     filter_type:          'mean'
     filter_size:          3    
-    is_save_plot:         True
+    is_save_plot:         False
   
 
   post_processing_param:
