@@ -9,7 +9,7 @@ qualisys_data = MotionData(data_path= "data/test/", filename='complex_0g_set6.ts
 #? calculate the torques from qualisys .tsv
 qualisys_data.calculateTorque()
 #? save the torques into individual .npy files
-qualisys_data.saveTorques_npy(save_torques=True, save_dir="data/test", joint_to_save=['all'])
+qualisys_data.saveTorques_npy(save_torques=True, save_dir="data/test", joints_to_save=['all'])
 
 #? plot front shoulder torque profile
 numpy_file_path = getAbsolutePath("data/test/quali_torque_shoulder_front_complex_0g_set6.npy")
