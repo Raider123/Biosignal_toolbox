@@ -91,6 +91,8 @@
     is_save_model:            False
     load_models:              False
     show_train_results:       False
+    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
+    load_models:          False
 
   post_train_param:
     eval_type:                'offline' 
