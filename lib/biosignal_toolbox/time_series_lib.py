@@ -2789,7 +2789,7 @@ class Timeseries():
                 self.zi_hpf[ch,:] = zi_out
                 
 
-    def applyVarianceFilterCPP(self, ring_buffer=None, width=20, index=0, mode="offline"):
+    def applyVarianceFilter_data(self, ring_buffer=None, width=20, index=0, mode="offline"):
         """
         This method applies variance filter on the complete data using the cpp variance_tools API
 
@@ -3005,7 +3005,7 @@ class Timeseries():
         if is_grid_on:
             plt.grid()
         
-        # plt.show()
+        plt.show()
                 
 
 class OnlineTimeseriesStreaming(Timeseries): 

@@ -10,7 +10,7 @@
     weights:              ['0g']
     mov_type:             ['complex', 'grasp']
     set_num:              ['1', '2', '3']
-    subject_code:         'FW28D'
+    subject_code:         ['FW28D']
   
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -23,8 +23,14 @@
     feature_type:         'mav'
 
     f_samp:               500
-    f_cutoff_hpf:         15
-    f_cutoff_lpf:         10
+    f_cutoff_hpf:         15  #cutoff freq for bandpass 
+    f_cutoff_lpf:         200 #cutoff freq for bandpass 
+    filter_order:         2
+
+    f_cutoff_sm_lpf:      5   #cutoff freq for smoothing
+    sm_filter_order:      4   # filter order for smoothing lpf
+
+    filter_method:        'zero_phase'
     var_filter_width:     20
     mvc:                  2.7579163508176626e-06
     act_delay:            25
@@ -61,18 +67,20 @@
     act_h2:               'linear' 
 
     is_save_model:        False
+    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
+    load_models:          False
 
   post_train_param:
     eval_type:            'offline' 
     filter_type:          'mean'
     filter_size:          3    
-    is_save_plot:         True
+    is_save_plot:         False
   
   plot_param:
     is_plot_raw:          False
     is_plot_quali:        False
     is_plot_hpf:          False
     is_plot_var_filter:   False
-    is_plot_norm:         False
+    is_plot_smoothed:     False
     is_plot_act:          False
     is_plot_filt_win:     False        
