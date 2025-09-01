@@ -360,7 +360,7 @@ class MotionData(Timeseries):
             return inp_vec
         return inp_vec / norm, norm
     
-    def saveTorques_npy(self, save_torques=False, save_dir=None, joint_to_save=['all']):
+    def saveTorques_npy(self, save_torques=False, save_dir=None, joints_to_save=['all']):
         """
         This method save the calculated torques into numpy (.npy) files.
         It first checks whether the specified dir exists. If it does not, it will create one and then save.
@@ -371,7 +371,7 @@ class MotionData(Timeseries):
             Boolean to choose whether to save the calculated torques into a .npy file, by default False.
         save_dir: str, optional
             Path to the dir where the files need to be saved relative to the projec root, by default None.
-        joint_to_save: lsit of str, optional
+        joints_to_save: lsit of str, optional
             The joints whose torques must be saved out of 'elbow','shoulder_front', and 'shoulder_side',  by default ['all'].
 
         Author
@@ -390,10 +390,10 @@ class MotionData(Timeseries):
             # get absolute path of the save dir
             save_dir = getAbsolutePath(input_path=save_dir)
 
-            if 'all' in joint_to_save:
-                joint_to_save = self.joint_names
+            if 'all' in joints_to_save:
+                joints_to_save = self.joint_names
             # iterate over each joint name and save the torque in file
-            for _, joint in enumerate(joint_to_save):
+            for _, joint in enumerate(joints_to_save):
                 if joint in self.joint_names:
                     # get index of the joint name
                     joint_idx = np.where(self.joint_names == joint)[0][0]
