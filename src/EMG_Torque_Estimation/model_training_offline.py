@@ -26,7 +26,7 @@ warnings.formatwarning = customWarningFormat
 
 #? load config file
 config_filename = 'emg_torque_estimation_mav.yaml'
-cfg = loadConfig(filename='emg_torque_estimation_mav.yaml')
+cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 if cfg.model_param.is_early_stop:
@@ -87,9 +87,10 @@ elif cfg.preprocess_param.feature_type == "default":
 else:
     print("ERROR!! Please enter the correct feature type in yaml file!")
 
-# *********************************************************************************
-# ***************** Load train, test, val sets for every iteration ****************
-# *********************************************************************************
+#! ************************************************
+#! Load train, test, and validation data
+#! ************************************************
+
 for typ_idx in range(len(cfg.data_param.mov_type)):
     for wgt_idx in range(len(cfg.data_param.weights)):
         for set_idx in range(len(cfg.data_param.set_num)):
