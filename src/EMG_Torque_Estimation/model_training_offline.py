@@ -39,6 +39,7 @@ warnings.formatwarning = customWarningFormat
 #? load config file
 config_filename = 'emg_torque_estimation_mav.yaml'
 cfg = loadConfig(filename=config_filename)
+cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 #? init early stopping 
@@ -113,6 +114,10 @@ elif cfg.preprocess_param.feature_type == "default":
     neurons_inp = len(cfg.preprocess_param.channel_names_emg) * cfg.preprocess_param.feature_size
 else:
     print("ERROR!! Please enter the correct feature type in yaml file!")
+
+#! ************************************************
+#! Load train, test, and validation data
+#! ************************************************
 
 #! ************************************************
 #! Load train, test, and validation data
