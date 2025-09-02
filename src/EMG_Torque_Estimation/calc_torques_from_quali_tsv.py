@@ -44,9 +44,14 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
         warnings.warn("No files match the pattern :(")
     for file in matched_files:
         #? create a qualisys motion data object
-        qualisys_data = MotionData(data_path= cfg.filepath.data_path, filename=cfg.filepath.quali_tsv_path+file.name)
+        qualisys_data = MotionData(data_path= cfg.filepath.data_path, 
+                                   filename=cfg.filepath.quali_tsv_path+file.name)
         #? calculate the torques from qualisys .tsv
-        qualisys_data.calculateTorque(body_weight_kg=cfg.data_param.subject_weight, obj_weight_g=int(re.search(r"\d+", wgt_idx).group()))
+        qualisys_data.calculateTorque(body_weight_kg=cfg.data_param.subject_weight, 
+                                      obj_weight_g=int(re.search(r"\d+", wgt_idx).group()), 
+                                      subject_biological_sex=cfg.data_param.subject_bio_sex, 
+                                      subject_hand_length_mm=cfg.data_param.subject_hand_len, 
+                                      method="com")
         #? save the torques into individual .npy files
         qualisys_data.saveTorques_npy(save_torques=True, save_dir=cfg.filepath.quali_torques_save_path, joints_to_save=['all'])
 
