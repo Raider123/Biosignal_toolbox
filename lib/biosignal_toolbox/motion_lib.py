@@ -187,7 +187,7 @@ class MotionData(Timeseries):
             
             self.data[row] = data_arr
     
-    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0):
+    def calculateTorque(self, body_weight_kg=80, obj_weight_g=0, subject_biological_sex="male", subject_hand_length_mm=0, method="end_to_end"):
         """
         This method calculates torque values for elbow and shoulder joints. The shoulder joint torque is decomposed into front shoulder and side shoulder torque using projection method.
 
@@ -197,14 +197,21 @@ class MotionData(Timeseries):
             Weight of the whole body in kg, by default 80
         obj_weight: int, optional
             Weight of the object held in hand in g, by default 0
-        save_torques: bool, optional
-            Boolean to choose whether to save the calculated torques into a .npy file, by default False
+        subject_biological_sex : str, optional
+            Biological sex of the subject. The available options are "male" and "female, by default "male"
+        subject_hand_length_mm: int, optional
+            Length of the hand between the wrist and 3rd knuckle in mm, by default 0
+        method: str, optional
+            The method to use for torque calculation. Options available are "com" and "end_to_end", by default "end_to_end"
 
         Author
         -----
         Author: Kartik Chari \n
         Last changed: 26.08.2025 (by Kartik Chari)
         """
+        if method == "com" and not subject_hand_length_mm:
+            raise ValueError("Please provide hand length for Torque calculation!!")
+        
         # joint sequence
         self.joint_names = np.array(["elbow", "shoulder_front", "shoulder_side"])
         # initialise arrays
@@ -220,26 +227,67 @@ class MotionData(Timeseries):
         self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y']]
         self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y']]
         self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y']]
-        
-        # calculate side shoulder angle of right arm in rad.
-        self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
-        # calculate perpendicular dist between elbow and load in mm
-        forearm_perp_dist_mm = self.calculateForearmPerpDist_mm()
-        # calculte perpendicular distance between shoulder and elbow in mm
-        upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm()
-        # calculate total perpendicular distance between shoulder and load in mm
-        total_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm
-        # estimate forearm weight from body weight
-        forearm_weight_kg = body_weight_kg * 0.016
-        # estimate full arm weight from body weight
-        arm_weight_kg = body_weight_kg * 0.05
 
-        #? torque calculation
-        # elbow torque = mass * g * perp_dist
-        torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg) * 9.81 * forearm_perp_dist_mm/1000
-        # total shoulder torque
-        torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_mm/1000
+        #? calculate perpendicular distances
+        # calculte perpendicular distance between shoulder and elbow in mm
+        upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm(subject_biological_sex=subject_biological_sex,
+                                                                  method=method)
+        # calculte perpendicular distance between elbow and wrist in mm
+        forearm_perp_dist_mm = self.calculateForearmPerpDist_mm(subject_biological_sex=subject_biological_sex,
+                                                                method=method)
+        # calculte perpendicular distance between wrist and object in hand in mm
+        hand_perp_dist_mm = self.calculateHandPerpDist_mm(subject_biological_sex=subject_biological_sex,
+                                                                  subject_hand_length_mm=subject_hand_length_mm, 
+                                                                  method=method)
+        #? calculate segment weights
+        # upperarm weight
+        upperarm_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, segment_name="upperarm", subject_biological_sex=subject_biological_sex)
+        # forearm weight
+        forearm_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, segment_name="forearm", subject_biological_sex=subject_biological_sex)
+        # hand weight
+        hand_weight_kg = self.getSegmentWeight_kg(body_weight_kg=body_weight_kg, segment_name="hand", subject_biological_sex=subject_biological_sex)
+
+        if method == "end_to_end":
+            # calculate total perpendicular distance between shoulder and load in mm
+            total_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm + hand_perp_dist_mm
+            # full arm weight
+            arm_weight_kg = upperarm_weight_kg + forearm_weight_kg + hand_weight_kg
+            #? torque calculation
+            # elbow torque = mass * g * perp_dist
+            torque_elbow = float((obj_weight_g/1000) + forearm_weight_kg + hand_weight_kg) * 9.81 * (forearm_perp_dist_mm + hand_perp_dist_mm)/1000
+            # total shoulder torque
+            torque_shoulder = float((obj_weight_g/1000) + arm_weight_kg) * 9.81 * total_arm_perp_dist_mm/1000
+        
+        elif method == "com":
+            # check if the attribute has been created; if not call the resp. function
+            if not hasattr(self, 'elbow_angle_rad'):
+                self.elbow_angle_rad = self.calculateElbowAngle_rad()
+            if not hasattr(self, 'side_shoulder_ang_rad'):
+                self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
+            if not hasattr(self,'forearm_euclidean_dist_mm'):
+                self.forearm_euclidean_dist_mm = self.getEuclideanDistance_mm(joint_idx1=self.er_idx, 
+                                                                              joint_idx2=self.wr_idx)
+            #? elbow torque
+            forearm_perp_dist_end_to_end_mm = self.calculateForearmPerpDist_mm(subject_biological_sex=subject_biological_sex,
+                                                                               method="end_to_end")
+            # forearm torque at elbow
+            tau_forearm = forearm_weight_kg * 9.81 * forearm_perp_dist_mm / 1000
+            tau_hand = float((obj_weight_g/1000) + hand_weight_kg) * 9.81 * (forearm_perp_dist_end_to_end_mm + hand_perp_dist_mm) / 1000
+            torque_elbow = tau_forearm + tau_hand
+
+            #? shoulder torque
+            upperarm_perp_dist_end_to_end_mm = self.calculateUpperArmPerpDist_mm(subject_biological_sex=subject_biological_sex, 
+                                                                                 method="end_to_end")
+            tau_upperarm = upperarm_weight_kg * 9.81 * upperarm_perp_dist_mm / 1000
+            tau_forearm_s = tau_forearm + (forearm_weight_kg * 9.81 *  upperarm_perp_dist_end_to_end_mm/ 1000)
+            tau_hand_s = tau_hand + (float((obj_weight_g/1000) + hand_weight_kg) * 9.81 * upperarm_perp_dist_end_to_end_mm / 1000)
+            torque_shoulder = tau_upperarm + tau_forearm_s + tau_hand_s
+
         #? project total shoulder force into axes of saggital and frontal planes
+        #* calculate the side shoulder angle in rad. 
+        # Check if it is already created before and only call the function otherwise
+        if not hasattr(self, 'side_shoulder_ang_rad'):
+            self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
         #* T_{front} = |t_{total}| cos(theta)
         torque_shoulder_front = torque_shoulder * np.cos(self.side_shoulder_ang_rad)
         #* T_{side} = |t_{total}| cos(phi)
@@ -250,7 +298,7 @@ class MotionData(Timeseries):
 
     def calculateSideShoulderAngle_rad(self):
         """
-        This method calculates the angle between the imaginery x axis and the right arm (shoulder -> elbow) in rad.
+        This method calculates the angle between the imaginery x axis (shoulder -> ground) and the right arm (shoulder -> elbow) in rad.
 
         Returns
         -----
@@ -264,11 +312,11 @@ class MotionData(Timeseries):
         """
         # calculate shoulder to elbow vector -> right arm
         s_e_xy = np.array([self.data[self.er_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.er_idx[1],:] - self.data[self.sr_idx[1],:]])
-        s_e_xy_normalised, _ = self.normalise_vector(s_e_xy)
+        s_e_xy_normalised = self.normalise_vector(s_e_xy)
         # calculate shoulder to shoulder ref vector -> project right to left shoulder
         s_rl_xy = np.array([self.data[self.sl_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.sl_idx[1],:] - self.data[self.sr_idx[1],:]])
         # y-axis parallel to ground (right arm)
-        s_rl_xy_normalised, _ = self.normalise_vector(s_rl_xy)
+        s_rl_xy_normalised = self.normalise_vector(s_rl_xy)
         # calculate angle between horizontal axis and arm
         cos_angle = np.clip(np.sum(s_e_xy_normalised * s_rl_xy_normalised, axis=0), -1.0, 1.0)
         return np.arccos(cos_angle) - (np.pi/2)
@@ -289,15 +337,15 @@ class MotionData(Timeseries):
         """
         # calculate elbow to shoulder vector -> right arm
         e_s_xy = np.array([self.data[self.sr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.sr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_s_xy_normalised, self.upperarm_euclidean_dist_mm = self.normalise_vector(e_s_xy)
+        e_s_xy_normalised = self.normalise_vector(e_s_xy)
         # calculate elbow to wrist vector -> right arm
         e_w_xy = np.array([self.data[self.wr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.wr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_w_xy_normalised, self.forearm_euclidean_dist_mm = self.normalise_vector(e_w_xy)
+        e_w_xy_normalised = self.normalise_vector(e_w_xy)
         # calculate elbow angle
         cos_angle = np.clip(np.sum(e_s_xy_normalised * e_w_xy_normalised, axis=0), -1, 1)
         return np.arccos(cos_angle)
 
-    def calculateForearmPerpDist_mm(self):
+    def calculateForearmPerpDist_mm(self, subject_biological_sex="male", method="end_to_end"):
         """
         This method calculates the perpendicular distance between elbow and load in hand in mm.
 
@@ -311,15 +359,24 @@ class MotionData(Timeseries):
         Author: Kartik Chari \n
         Last changed: 26.08.2025 (by Kartik Chari)
         """
-        # calculate the elbow angle in rad and euclidean lengths of forearm and upper arm in m. (arm lengths are self attributes)
-        self.elbow_angle_rad = self.calculateElbowAngle_rad()
-        # calculate the side shoulder angle in rad. Check if it is already created before and only call the function otherwise
+        # check if the attribute has been created; if not call the resp. function
+        if not hasattr(self, 'elbow_angle_rad'):
+            self.elbow_angle_rad = self.calculateElbowAngle_rad()
         if not hasattr(self, 'side_shoulder_ang_rad'):
             self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
-        # return the forearm perpendicular dist in m
-        return self.forearm_euclidean_dist_mm * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        if not hasattr(self,'forearm_euclidean_dist_mm'):
+            self.forearm_euclidean_dist_mm = self.getEuclideanDistance_mm(joint_idx1=self.er_idx, 
+                                                                          joint_idx2=self.wr_idx)
+        # check which method to use for calculating the forearm perp dist
+        if method == "end_to_end":
+            return self.forearm_euclidean_dist_mm * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        elif method == "com":
+            forearm_com = self.getCOM_percent(segment_name="forearm", subject_biological_sex=subject_biological_sex) / 100 * self.forearm_euclidean_dist_mm
+            return  forearm_com * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        else:
+            raise ValueError(f"Invalid method selected: {method}. Please choose either end_to_end or com!!")
 
-    def calculateUpperArmPerpDist_mm(self):
+    def calculateUpperArmPerpDist_mm(self, subject_biological_sex="male", method="end_to_end"):
         """
         This method calcualtes the perpendicular distance between shoulder and elbow in m.
 
@@ -333,12 +390,138 @@ class MotionData(Timeseries):
         Author: Kartik Chari \n
         Last changed: 26.08.2025 (by Kartik Chari)
         """
-        # calculate the side shoulder angle in rad. Check if it is already created before and only call the function otherwise
         if not hasattr(self, 'side_shoulder_ang_rad'):
             self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
-        # return the upperarm perpendicular dist in m
-        return self.upperarm_euclidean_dist_mm * np.sin(self.side_shoulder_ang_rad)
+        if not hasattr(self, 'upperarm_euclidean_dist_mm'):
+            self.upperarm_euclidean_dist_mm = self.getEuclideanDistance_mm(joint_idx1=self.sr_idx, 
+                                                                           joint_idx2=self.er_idx)
+        # check which method to use for calculating the forearm perp dist
+        if method == "end_to_end":
+            return self.upperarm_euclidean_dist_mm * np.sin(self.side_shoulder_ang_rad)
+        elif method == "com":
+            upperarm_com = self.getCOM_percent(segment_name="upperarm", subject_biological_sex=subject_biological_sex) / 100 * self.upperarm_euclidean_dist_mm
+            return upperarm_com * np.sin(self.side_shoulder_ang_rad)
+        else:
+            raise ValueError(f"Invalid method selected: {method}. Please choose either end_to_end or com!!")
+        
+    def calculateHandPerpDist_mm(self, subject_biological_sex="male", subject_hand_length_mm=0, method="end_to_end"):
+        # check if the attribute has been created; if not call the resp. function
+        if not hasattr(self, 'elbow_angle_rad'):
+            self.elbow_angle_rad = self.calculateElbowAngle_rad()
+        if not hasattr(self, 'side_shoulder_ang_rad'):
+            self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
 
+        # check which method to use for calculating the forearm perp dist
+        if method == "end_to_end":
+            return subject_hand_length_mm / 2 * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        elif method == "com":
+            hand_com = self.getCOM_percent(segment_name="hand", subject_biological_sex=subject_biological_sex) / 100 * subject_hand_length_mm
+            return hand_com * np.sin(self.elbow_angle_rad - self.side_shoulder_ang_rad)
+        else:
+            raise ValueError(f"Invalid method selected: {method}. Please choose either end_to_end or com!!")
+    
+    def getEuclideanDistance_mm(self, joint_idx1, joint_idx2):
+        """
+        This method calculates the euclidean distance between 2 joints
+
+        Parameters
+        ----------
+        joint_idx1 : int
+            Index of the first joint.
+        joint_idx2 : int
+            Index of the second joint.
+
+        Returns
+        -------
+        float
+            Euclidean dist between 2 joints
+
+        Raises
+        ------
+        ValueError
+            If any of the two joint indices are not provided, it will raise an error.
+        """
+        if not joint_idx1 or not joint_idx2:
+            raise ValueError("Please provide 2 joint indices to get the length of the vector!!")
+        point1 = np.array([self.data[joint_idx1[0],:], self.data[joint_idx1[1],:]])
+        point2 = np.array([self.data[joint_idx2[0],:], self.data[joint_idx2[1],:]])
+
+        return np.linalg.norm(point2-point1, axis=0)
+    
+    @staticmethod
+    def getSegmentWeight_kg(body_weight_kg=80, segment_name="", subject_biological_sex=""):
+        """
+        This method first creates a dictionary with the relation between body weight and upperarm segment weights for both males and females. Then it returns the weight of the requested segment in kg.
+
+        Reference
+        ---------
+        P.  de  Leva,  "Adjustments  to  Zatsiorsky-Seluyanov's  segment  inertia parameters," Journal  of Biomechanics, vol. 29, no.  9, pp. 1223-1230, 1996, doi: 10.1016/0021-9290(95)00178-6. 
+
+        Parameters
+        ----------
+        body_weight_kg : int, optional
+            Weight of the whole body in kg, by default 80
+        segment_name : str, optional
+            Name of the segment whose weight is requested. The available options are "forearm", "upperarm", "hand", by default ""
+        subject_biological_sex : str, optional
+            Biological sex of the subject. The available options are "male" and "female, by default ""
+
+        Returns
+        -------
+        float
+            weight of the segment in kg.
+        """
+        REF_DICT = {
+            'male': {
+                'upperarm': 0.0271,     #2.71% of body weight
+                'forearm':  0.0162,     #1.62% of body weight
+                'hand':     0.0061      #0.61% of body weight
+            },
+            'female': {
+                'upperarm': 0.0255,     #2.55% of body weight
+                'forearm':  0.0138,     #1.38% of body weight
+                'hand':     0.0056      #0.56% of body weight
+            }
+        }
+
+        #? convert input str into lower cases
+        subject_biological_sex = subject_biological_sex.strip().lower()
+        segment_name = segment_name.strip().lower()
+
+        if subject_biological_sex not in REF_DICT:
+            warnings.warn(f"Invalid sex: {subject_biological_sex}. Must be 'male' or 'female'. Using 'male' for calculations now!!")
+        if segment_name not in REF_DICT[subject_biological_sex]:
+            raise ValueError(f"Invalid segment: {segment_name}. one of {list(REF_DICT[subject_biological_sex].keys())}!!")
+        
+        return body_weight_kg * REF_DICT[subject_biological_sex][segment_name]
+    
+    @staticmethod
+    def getCOM_percent(segment_name="", subject_biological_sex=""):
+
+        REF_DICT = {
+            'male': {
+                'upperarm': 57.72,     #% of forearm dist. from elbow
+                'forearm':  45.74,     #% of forearm dist. from elbow
+                'hand':     79.00      #% of forearm dist. from elbow
+            },
+            'female': {
+                'upperarm': 57.54,     #% of forearm dist. from elbow
+                'forearm':  45.59,     #% of forearm dist. from elbow
+                'hand':     74.74      #% of forearm dist. from elbow
+            }
+        }
+
+        #? convert input str into lower cases
+        subject_biological_sex = subject_biological_sex.strip().lower()
+        segment_name = segment_name.strip().lower()
+
+        if subject_biological_sex not in REF_DICT:
+            warnings.warn(f"Invalid sex: {subject_biological_sex}. Must be 'male' or 'female'. Using 'male' for calculations now!!")
+        if segment_name not in REF_DICT[subject_biological_sex]:
+            raise ValueError(f"Invalid segment: {segment_name}. one of {list(REF_DICT[subject_biological_sex].keys())}!!")
+        
+        return REF_DICT[subject_biological_sex][segment_name]
+    
     @staticmethod
     def normalise_vector(inp_vec):
         """
@@ -358,7 +541,7 @@ class MotionData(Timeseries):
         if (norm == 0).any():
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
-        return inp_vec / norm, norm
+        return inp_vec / norm
     
     def saveTorques_npy(self, save_torques=False, save_dir=None, joints_to_save=['all']):
         """
