@@ -177,17 +177,16 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
     for wgt_idx in range(len(config_param['data_param']['weights'])):
         for set_idx in range(len(config_param['data_param']['set_num'])):
 
+            current_emg_file_name = config_param['filepath']['emg_path'] + config_param['data_param']['weights'][wgt_idx] + '_' +config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][ set_idx] + '.txt'
+            complete_emg_path = config_param['filepath']['project_path'] + config_param['filepath']['data_path'] + current_emg_file_name
+
+            print(complete_emg_path)
+
             # ! Check if the file exists
-            if Path(config_param['filepath']['project_path'] + config_param['filepath']['data_path'] +
-                    config_param['filepath']['emg_path'] + config_param['data_param']['weights'][wgt_idx] + '_' +
-                    config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][
-                        set_idx] + config_param['filepath']['file_type']).is_file():
+            if Path(complete_emg_path).is_file():
 
                 # ! Loading and epoching for training
-                EMG_Data = EMGData(format="ANTmini", filenames=[
-                    config_param['filepath']['emg_path'] + config_param['data_param']['weights'][wgt_idx] + '_' +
-                    config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][
-                        set_idx] + config_param['filepath']['file_type']],
+                EMG_Data = EMGData(format="ANTmini", filenames=[current_emg_file_name],
                                    data_path=config_param['filepath']['project_path'] + config_param['filepath'][
                                        'data_path'], f_samp=config_param['preprocess_param']['f_samp'],
                                    channel_names=config_param['preprocess_param']['channel_names_emg'])
@@ -206,7 +205,7 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                 Quali_Data_Elbow = EEGData(format="NumpyQualisys",
                                            filenames=[config_param['filepath']['quali_path'][0] +
                                                       config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                      config_param['data_param']['mov_type'][typ_idx] + '_set' +
+                                                      config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                       config_param['data_param']['set_num'][set_idx]],
                                            data_path=config_param['filepath']['project_path'] +
                                                      config_param['filepath']['data_path'],
@@ -219,7 +218,7 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                 Quali_Data_Front = EEGData(format="NumpyQualisys",
                                            filenames=[config_param['filepath']['quali_path'][1] +
                                                       config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                      config_param['data_param']['mov_type'][typ_idx] + '_set' +
+                                                      config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                       config_param['data_param']['set_num'][set_idx]],
                                            data_path=config_param['filepath']['project_path'] +
                                                      config_param['filepath']['data_path'],
@@ -232,7 +231,7 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                 Quali_Data_Side = EEGData(format="NumpyQualisys",
                                           filenames=[config_param['filepath']['quali_path'][2] +
                                                      config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                     config_param['data_param']['mov_type'][typ_idx] + '_set' +
+                                                     config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                      config_param['data_param']['set_num'][set_idx]],
                                           data_path=config_param['filepath']['project_path'] + config_param['filepath'][
                                               'data_path'],
@@ -241,52 +240,40 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                                           file_type='individual',
                                           add_marker_channel=True)
 
-                channel_names = EMG_Data.getChannelNames()
-                print("Channel Names: ", channel_names)
-                print("Channel Length: ", len(channel_names))
-                print("")
+                # ! ************************************************
+                # ! Data Pre-processing
+                # ! ************************************************
 
-                # print(Quali_Data_Elbow.data.shape)
-                if config_param['plot_param']['is_plot_quali']:
-                    plt.figure()
-                    plt.plot(np.arange(0, Quali_Data_Elbow.data[0, :].shape[0], 1) / Quali_Data_Elbow.f_samp,
-                             Quali_Data_Elbow.data[1, :])
-                    plt.title("Elbow Torque plot for right arm")
-                    plt.xlabel("Time in s")
-                    plt.ylabel("Torque in N-m")
-                    plt.grid()
-                    plt.show()
-
-                # **********************************************************************************
-                # ***************************** Preprocessing of data ******************************
-                # **********************************************************************************
-
-                # ! High pass filter
-                EMG_Data.highPassFilter(cutoff_freq=config_param['preprocess_param']['f_cutoff_hpf'],
-                                        order=2,
-                                        fs=config_param['preprocess_param']['f_samp'],
-                                        filter_type="butter")
-
-                # ! Plotting HP filtered data
+                # ? High pass filter
+                # * design the highpass filter
+                sos_hp = EMG_Data.designFilter(f_high=config_param['preprocess_param']['f_cutoff_hpf'],
+                                               f_low=config_param['preprocess_param']['f_cutoff_lpf'],
+                                               order=config_param['preprocess_param']['filter_order'],
+                                               filter_type="scipy_butter",
+                                               return_type="sos")
+                # * apply hpf filter
+                EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
+                                            sos=sos_hp)
+                # ? Plotting HP filtered data
                 if config_param['plot_param']['is_plot_hpf']:
                     EMG_Data.plotEMG(data=EMG_Data.data[4, :],
                                      unit="uV",
-                                     title="High-Pass Filtered and Rectified EMG plot for Channel 5",
+                                     title="High-Pass Filtered plot for Channel 5",
                                      xlabel="Time in s",
                                      ylabel="Voltage in uV",
                                      is_grid_on=True)
 
-                # ! Apply Variance Filter from variance_tools_api
+                # ? Apply Variance Filter from variance_tools_api
                 print("Applying Variance filter ...")
                 width = config_param['preprocess_param']['var_filter_width']
                 ring_buffer = np.zeros(width)
                 index = 0
-                EMG_Data.applyVarianceFilterCPP(ring_buffer=ring_buffer,
-                                                width=width,
-                                                index=index)
+                EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer,
+                                                  width=width,
+                                                  index=index)
                 print("Variance Filter applied!!\n")
 
-                # ! Plot and print specific variance filtered windows
+                # ? Plot and print specific variance filtered windows
                 # var_filtered_window_x = EMG_Data.filtered_data
                 # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
                 # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
@@ -299,37 +286,41 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                                      ylabel="Voltage in uV",
                                      is_grid_on=True)
 
-                # ! Normalisation
+                # ? Normalisation
                 print("Performing Normalization with Max Voluntary Contraction ...")
                 EMG_Data.normalizeContinuousData(mvc=config_param['preprocess_param']['mvc'])
                 print("Normalization with Max Voluntary Contraction performed !!\n")
 
-                # ! Low pass filter to smoothen the signal
-                EMG_Data.lowPassFilter(cutoff_freq=config_param['preprocess_param']['f_cutoff_lpf'],
-                                       order=2,
-                                       fs=config_param['preprocess_param']['f_samp'],
-                                       filter_type="butter")
+                # ? Low pass filter to smoothen the signal
+                # * design the lowpass filter
+                sos_lp = EMG_Data.designFilter(f_low=config_param['preprocess_param']['f_cutoff_sm_lpf'],
+                                               order=config_param['preprocess_param']['sm_filter_order'],
+                                               filter_type="scipy_butter",
+                                               return_type="sos")
+                # * apply lpf filter
+                EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
+                                            sos=sos_lp)
 
-                # ! Plot normalised and smoothened data
-                if config_param['plot_param']['is_plot_norm']:
+                # ? Plot normalised and smoothened data
+                if config_param['plot_param']['is_plot_smoothed']:
                     EMG_Data.plotEMG(data=EMG_Data.data[4, :],
                                      unit="V",
-                                     title="Normalised and Smoothened EMG plot for Channel 5",
+                                     title="Normalised and Smoothed EMG plot for Channel 5",
                                      xlabel="Time in s",
                                      ylabel="Voltage in V",
                                      is_grid_on=True)
 
-                # ! Calculate Neural Activation Force
-                print("Replacing sample with its force activation value ...")
-                '''EMG_Data.calculateActivationForceFunction(d=config_param['preprocess_param']['act_delay'],
-                                                          b1=config_param['preprocess_param']['act_beta1'],
-                                                          b2=config_param['preprocess_param']['act_beta2'],
-                                                          g=config_param['preprocess_param']['act_gamma'],
-                                                          nonlinear_shape_factor=config_param['preprocess_param'][
-                                                              'act_A'])'''
-                print("Replaced each sample with its force activation value !!\n")
+                if config_param['preprocess_param']['neural_activation_fcn']:
+                    # ? Calculate Neural Activation Force
+                    print("Replacing sample with its force activation value ...")
+                    EMG_Data.calculateActivationForceFunction(d=config_param['preprocess_param']['act_delay'],
+                                                              b1=config_param['preprocess_param']['act_beta1'],
+                                                              b2=config_param['preprocess_param']['act_beta2'],
+                                                              g=config_param['preprocess_param']['act_gamma'],
+                                                              nonlinear_shape_factor=config_param['preprocess_param']['act_A'])
+                    print("Replaced each sample with its force activation value !!\n")
 
-                # ! Plot force activation data
+                # ? Plot force activation data
                 if config_param['plot_param']['is_plot_act']:
                     EMG_Data.plotEMG(data=EMG_Data.data[4, :],
                                      unit="V",
@@ -505,6 +496,42 @@ from tensorflow.keras import layers, models, Input
 # Modell: Dilated Temporal Convolutional Network (Multi-Task)
 #     – feste Hyperparameter nach Tuner-Ergebnis (filters 32, stacks 2, dropout 0.02)
 # ------------------------------------------------------------------
+def build_tcn_mtl(input_shape,
+                  filters=32,  # optimaler Wert
+                  stacks=2,  # optimaler Wert
+                  dropout_rate=0.02):  # optimaler Wert
+    inp = Input(shape=input_shape, name='emg_input')
+    x = inp
+
+    for s in range(stacks):
+        dilation = 2 ** s  # 1, 2
+        # -------- Residual Branch --------
+        y = layers.Conv1D(filters, 3, padding='causal',
+                          dilation_rate=dilation,
+                          activation='relu')(x)
+        y = layers.Conv1D(filters, 3, padding='causal',
+                          dilation_rate=dilation,
+                          activation='relu')(y)
+
+        # -------- Shortcut Branch --------
+        if x.shape[-1] != filters:  # Kanal-Match
+            x = layers.Conv1D(filters, 1, padding='same')(x)
+
+        x = layers.add([x, y])  # Residual-Add
+        x = layers.Activation('relu')(x)
+
+    # -------- Output-Head --------
+    x = layers.GlobalAveragePooling1D()(x)
+    x = layers.Dense(64, activation='relu')(x)
+    x = layers.Dropout(dropout_rate)(x)
+
+    out_e = layers.Dense(1, name='torque_elbow')(x)
+    out_f = layers.Dense(1, name='torque_shoulder_front')(x)
+    out_s = layers.Dense(1, name='torque_shoulder_side')(x)
+
+    return models.Model(inp, [out_e, out_f, out_s], name='TCN_MTL')
+
+
 def build_model(input_shape_time, input_shape_freq,
                 mode="time+freq", filters=32, stacks=2, dropout_rate=0.2):
 

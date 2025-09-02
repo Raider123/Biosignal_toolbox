@@ -2,27 +2,25 @@
 ---
   filepath:
 
-    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
-    data_path:     'data/m-rock_demo/'
-    emg_path:      'emg_data/24092024_FW28D_'
-    quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
+    project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
+    data_path:     'data/JTE/'
+    emg_path:      'emg/BU62D/24072025_BU62D_'
+    quali_path:    ['qualisys/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
     fig_save_path: '../../plots/m-rock_demo/'
 
-
-
   data_param:
-    weights:              ['0g', '1000g']
+    weights:              ['0g', '1100g', '1850g']
     mov_type:             ['complex', 'grasp']
     set_num:              ['1', '2', '3', '4', '5', '6', '7']
 
   workflow_param:
     mode:                 "train" # "train" or "infer"
+    input_mode:           "freq" # options: "time", "freq", "time+freq"
     model_dir:            "saved_models/TCN_MTL"
-    input_mode:           "time" # options: "time", "freq", "time+freq"
 
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
-    channel_names_quali:  ['right', 'left', 'marker']
+    channel_names_quali:  ['right', 'left']
     window_size_x:        250  #samples
     window_size_e:        250  # Elbow Model
     window_size_s:        150 # Shoulder Side Model
@@ -30,6 +28,7 @@
     window_step:          10  #samples
     feature_size:         20  #samples
     feature_select:       'end'
+    neural_activation_fcn: False
 
     f_samp:               500
     f_cutoff_hpf:         15  #cutoff freq for bandpass 
@@ -41,7 +40,7 @@
 
     filter_method:        'zero_phase'
     var_filter_width:     20
-    mvc:                  1.1657004817469086e-06
+    mvc:                  3.941259927517915e-06
       # BR07D: 4.569592924022451e-06
       # FW28D: 1.1657004817469086e-06
       # BU62D:  3.941259927517915e-06
