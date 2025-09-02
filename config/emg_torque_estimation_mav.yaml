@@ -23,6 +23,7 @@
 
   workflow_param:
     mode:                 "train" # "train" or "infer"
+    input_mode:           "freq" # options: "time", "freq", "time+freq"
     model_dir:            "saved_models/TCN_MTL"
     input_mode:           "time" # options: "time", "freq", "time+freq"
   
