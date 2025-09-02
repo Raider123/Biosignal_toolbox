@@ -1,9 +1,8 @@
 
 #* This file calculates and saves elbow and shoulder torques from Qualisys motion data.
 
-import numpy as np
-import matplotlib.pyplot as plt
 import itertools
+import re
 
 from biosignal_toolbox.utils import getAbsolutePath, loadConfig, customWarningFormat
 from biosignal_toolbox.motion_lib import MotionData
@@ -26,6 +25,6 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
         #? create a qualisys motion data object
         qualisys_data = MotionData(data_path= cfg.filepath.data_path, filename=cfg.filepath.quali_tsv_path+file.name)
         #? calculate the torques from qualisys .tsv
-        qualisys_data.calculateTorque()
+        qualisys_data.calculateTorque(body_weight_kg=80, obj_weight_g=int(re.search(r"\d+", wgt_idx).group()))
         #? save the torques into individual .npy files
-        qualisys_data.saveTorques_npy(save_torques=True, save_dir=cfg.filepath.quali_torques_save_path, joints_to_save=['all'])
+        qualisys_data.saveTorques_npy(save_torques=False, save_dir=cfg.filepath.quali_torques_save_path, joints_to_save=['all'])
