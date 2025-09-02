@@ -12,20 +12,19 @@ import pathlib
 # # own libs 
 from biosignal_toolbox.emg_lib import EMGData
 
-
-
 # *********************************************************************************
 # ************** User Parameters and data selection  ******************************
 # *********************************************************************************
 
 # own libs
-proj_path = "/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox"
+proj_path = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/"
 
 data_path = proj_path+"/data/m-rock_demo/"
+#data_path = proj_path+"/data/JTE/"
 
 #! Files for training
-train_file_prefix = "emg_data/24092024_FW28D_"
-target_file_prefix = ["quali_data/FW28D/quali_torque_elbow_", "quali_data/FW28D/quali_torque_front_", "quali_data/FW28D/quali_torque_side_"]
+train_file_prefix = "emg/24092024_FW28D_"
+#train_file_prefix = "emg/BU62D/24072025_BU62D_"
 
 #! Read Qualisys data param
 weights_d = ['0g']
@@ -48,12 +47,11 @@ for wgt_idx in range(len(weights_d)):
             
             #! Check if the file exists
             if pathlib.Path(data_path + train_file_prefix + weights_d[wgt_idx] + '_' + mov_type_d[typ_idx] + '_' + set_num_d[set_idx] + '.txt').is_file():
-                # print(f"Current filename: {train_file_prefix + weights_d[wgt_idx] + '_' + mov_type_d[typ_idx] + '_' + set_num_d[set_idx] + '.txt'}")
-                #! Loading and epoching for training   
+
                 EMG_Data = EMGData(format = "ANTmini", filenames = [train_file_prefix + weights_d[wgt_idx] + '_' + mov_type_d[typ_idx] + '_' + set_num_d[set_idx] + '.txt'], data_path = data_path, f_samp=500, channel_names=channel_names_i)
 
                 #! High pass filter 25 Hz
-                EMG_Data.highPassFilter(cutoff_freq=15, order=2, fs=500, type="butter")
+                EMG_Data.highPassFilter(cutoff_freq=15, order=2, fs=500, filter_type="butter")
 
                 #! Apply Variance Filter from variance_tools_api
                 print("Applying Variance filter ...")
@@ -64,14 +62,31 @@ for wgt_idx in range(len(weights_d)):
                 print("Variance Filter applied!!\n")
 
                 #! Extract max values of each channel
-                flattened_arr = EMG_Data.filtered_data[:-1,:].flatten()
+                flattened_arr = EMG_Data.data[:-1,:].flatten()
                 max_value_arr = np.append(max_value_arr, np.max(flattened_arr))
                 print(f"Current appending array: {max_value_arr}")
             else:
                 continue
 
 #! Choose the maximum value over all the datasets
-mvc = np.max(max_value_arr)
-print(f"Maximum Voluntary Contraction over all the channels and datasets: {mvc}")
+#mvc = np.max(max_value_arr)
+#print(f"Maximum Voluntary Contraction over all the channels and datasets: {mvc}")
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+# Deine Werte
+werte = np.array(max_value_arr)
+
+# x-Achse als Indizes
+x = np.arange(len(werte))
+
+# Plotten
+plt.plot(x, werte, marker="o")
+plt.title("Plot deiner Werte")
+plt.xlabel("Index")
+plt.ylabel("Wert")
+plt.grid(True)
+plt.show()
 
 
