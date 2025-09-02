@@ -15,6 +15,7 @@
     mov_type:             ['complex', 'grasp']
     set_num:              ['1', '2', '3']
     subject_code:         ['FW28D']
+    subject_weight:       80    #weight in kg
   
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
