@@ -223,11 +223,11 @@ class MotionData(Timeseries):
         
         # calculate side shoulder angle of right arm in rad.
         self.side_shoulder_ang_rad = self.calculateSideShoulderAngle_rad()
-        # calculate perpendicular dist between elbow and load in m
+        # calculate perpendicular dist between elbow and load in mm
         forearm_perp_dist_mm = self.calculateForearmPerpDist_mm()
-        # calculte perpendicular distance between shoulder and elbow in m
+        # calculte perpendicular distance between shoulder and elbow in mm
         upperarm_perp_dist_mm = self.calculateUpperArmPerpDist_mm()
-        # calculate total perpendicular distance between shoulder and load in m
+        # calculate total perpendicular distance between shoulder and load in mm
         total_arm_perp_dist_mm = upperarm_perp_dist_mm + forearm_perp_dist_mm
         # estimate forearm weight from body weight
         forearm_weight_kg = body_weight_kg * 0.016
