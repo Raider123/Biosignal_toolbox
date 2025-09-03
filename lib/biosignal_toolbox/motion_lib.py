@@ -243,10 +243,10 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-        self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y']]
-        self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y']]
-        self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y']]
-        self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y']]
+        self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y', 'shoulder_r_z']]
+        self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y', 'shoulder_l_z']]
+        self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y', 'elbow_r_z']]
+        self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y', 'wrist_r_z']]
 
         #? calculate perpendicular distances
         # calculte perpendicular distance between shoulder and elbow in mm
@@ -340,6 +340,11 @@ class MotionData(Timeseries):
         -------
         float
             Side shoulder angle in rad
+        
+        Raises
+        ------
+        ValueError
+            Raised if shapes of point1 and point2 do not match
 
         Author
         ------
@@ -347,14 +352,29 @@ class MotionData(Timeseries):
         Last changed : 26.08.2025 (by Kartik Chari)
         """
         # calculate shoulder to elbow vector -> right arm
-        s_e_xy = np.array([self.data[self.er_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.er_idx[1],:] - self.data[self.sr_idx[1],:]])
-        s_e_xy_normalised = self.normalise_vector(s_e_xy)
+        s_e_vector = np.array([self.data[self.er_idx[0],:] - self.data[self.sr_idx[0],:], 
+                               self.data[self.er_idx[1],:] - self.data[self.sr_idx[1],:],
+                               self.data[self.er_idx[2],:] - self.data[self.sr_idx[2],:]])
+        s_e_vector_normalised = self.normalise_vector(s_e_vector)
+
         # calculate shoulder to shoulder ref vector -> project right to left shoulder
-        s_rl_xy = np.array([self.data[self.sl_idx[0],:] - self.data[self.sr_idx[0],:], self.data[self.sl_idx[1],:] - self.data[self.sr_idx[1],:]])
+        s_rl_vector = np.array([self.data[self.sl_idx[0],:] - self.data[self.sr_idx[0],:], 
+                                self.data[self.sl_idx[1],:] - self.data[self.sr_idx[1],:],
+                                self.data[self.sl_idx[2],:] - self.data[self.sr_idx[2],:]])
         # y-axis parallel to ground (right arm)
-        s_rl_xy_normalised = self.normalise_vector(s_rl_xy)
+        s_rl_vector_normalised = self.normalise_vector(s_rl_vector)
+
+        # check if the 2 points have the same shape
+        if s_e_vector_normalised.shape != s_rl_vector_normalised.shape:
+            raise ValueError(f"Shapes of point1 {s_e_vector_normalised.shape} and point2 {s_rl_vector_normalised.shape} do not match!!")
+        # check shape and choose axis
+        if s_rl_vector_normalised.shape[0] == 3 and s_rl_vector_normalised.shape[1] > 1:
+            axis = 0
+        else:
+            axis = 1
+        
         # calculate angle between horizontal axis and arm
-        cos_angle = np.clip(np.sum(s_e_xy_normalised * s_rl_xy_normalised, axis=0), -1.0, 1.0)
+        cos_angle = np.clip(np.sum(s_e_vector_normalised * s_rl_vector_normalised, axis=axis), -1.0, 1.0)
         return np.arccos(cos_angle) - (np.pi/2)
     
     def calculateElbowAngle_rad(self) -> float:
@@ -372,13 +392,28 @@ class MotionData(Timeseries):
         Last changed : 26.08.2025 (by Kartik Chari)
         """
         # calculate elbow to shoulder vector -> right arm
-        e_s_xy = np.array([self.data[self.sr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.sr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_s_xy_normalised = self.normalise_vector(e_s_xy)
+        e_s_vector = np.array([self.data[self.sr_idx[0],:] - self.data[self.er_idx[0],:], 
+                               self.data[self.sr_idx[1],:] - self.data[self.er_idx[1],:],
+                               self.data[self.sr_idx[2],:] - self.data[self.er_idx[2],:]])
+        e_s_vector_normalised = self.normalise_vector(e_s_vector)
+
         # calculate elbow to wrist vector -> right arm
-        e_w_xy = np.array([self.data[self.wr_idx[0],:] - self.data[self.er_idx[0],:], self.data[self.wr_idx[1],:] - self.data[self.er_idx[1],:]])
-        e_w_xy_normalised = self.normalise_vector(e_w_xy)
+        e_w_vector = np.array([self.data[self.wr_idx[0],:] - self.data[self.er_idx[0],:], 
+                               self.data[self.wr_idx[1],:] - self.data[self.er_idx[1],:],
+                               self.data[self.wr_idx[2],:] - self.data[self.er_idx[2],:]])
+        e_w_vector_normalised = self.normalise_vector(e_w_vector)
+
+        # check if the 2 points have the same shape
+        if e_s_vector_normalised.shape != e_w_vector_normalised.shape:
+            raise ValueError(f"Shapes of point1 {e_s_vector_normalised.shape} and point2 {e_w_vector_normalised.shape} do not match!!")
+        # check shape and choose axis
+        if e_w_vector_normalised.shape[0] == 3 and e_w_vector_normalised.shape[1] > 1:
+            axis = 0
+        else:
+            axis = 1
+        
         # calculate elbow angle
-        cos_angle = np.clip(np.sum(e_s_xy_normalised * e_w_xy_normalised, axis=0), -1, 1)
+        cos_angle = np.clip(np.sum(e_s_vector_normalised * e_w_vector_normalised, axis=axis), -1, 1)
         return np.arccos(cos_angle)
 
     def calculateUpperArmPerpDist_mm(self, subject_biological_sex: str = "male", method: str = "com") -> float:
@@ -542,15 +577,20 @@ class MotionData(Timeseries):
         if not joint_idx1 or not joint_idx2:
             raise ValueError("Please provide 2 joint indices to get the length of the vector!!")
         
-        point1 = np.array([self.data[joint_idx1[0],:], self.data[joint_idx1[1],:]])
-        point2 = np.array([self.data[joint_idx2[0],:], self.data[joint_idx2[1],:]])
+        point1 = np.array([self.data[joint_idx1[0],:], 
+                           self.data[joint_idx1[1],:],
+                           self.data[joint_idx1[2],:]])
+        
+        point2 = np.array([self.data[joint_idx2[0],:], 
+                           self.data[joint_idx2[1],:],
+                           self.data[joint_idx2[2],:]])
 
         # check if the 2 points have the same shape
         if point1.shape != point2.shape:
             raise ValueError(f"Shapes of point1 {point1.shape} and point2 {point2.shape} do not match!!")
 
         # check shape and choose axis
-        if point1.shape[0] == 2 and point1.shape[1] > 1:
+        if point1.shape[0] == 3 and point1.shape[1] > 1:
             axis = 0
         else:
             axis = 1
@@ -694,7 +734,7 @@ class MotionData(Timeseries):
         """
         inp_vec = np.array(inp_vec)
         # check shape and choose axis
-        if inp_vec.shape[0] == 2 and inp_vec.shape[1] > 1:
+        if inp_vec.shape[0] == 3 and inp_vec.shape[1] > 1:
             axis = 0
         else:
             axis = 1
