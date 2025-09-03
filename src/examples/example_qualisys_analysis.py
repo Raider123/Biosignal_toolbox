@@ -7,7 +7,11 @@ from biosignal_toolbox.motion_lib import MotionData
 #? create a qualisys motion data object
 qualisys_data = MotionData(data_path= "data/test/", filename='complex_0g_set6.tsv')
 #? calculate the torques from qualisys .tsv
-qualisys_data.calculateTorque(body_weight_kg=80, obj_weight_g=0)
+qualisys_data.calculateTorque(body_weight_kg=80, 
+                              obj_weight_g=0, 
+                              subject_biological_sex="male",
+                              subject_hand_length_mm=113,
+                              method='com')
 #? save the torques into individual .npy files
 qualisys_data.saveTorques_npy(save_torques=True, save_dir="data/test", joints_to_save=['all'])
 
