@@ -151,6 +151,7 @@ class MotionData(Timeseries):
                 channel_names.append(marker+"_"+axis)
             
         self.channel_names = channel_names
+        print(self.channel_names)
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
         print(self.time_axis)
@@ -216,6 +217,8 @@ class MotionData(Timeseries):
             Raised if obj_weight_g is None
         ValueError
             Raised if subject_hand_length_mm is None
+        ValueError
+            Raised if self.channel_names don't match either shoulder_r_x or s_r_x style
         
         Author
         -----
@@ -242,10 +245,18 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-        self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y', 'shoulder_r_z']]
-        self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y', 'shoulder_l_z']]
-        self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y', 'elbow_r_z']]
-        self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y', 'wrist_r_z']]
+        if 'shoulder_r_x' in self.channel_names:
+            self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y', 'shoulder_r_z']]
+            self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y', 'shoulder_l_z']]
+            self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y', 'elbow_r_z']]
+            self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y', 'wrist_r_z']]
+        elif 's_r_x' in self.channel_names:
+            self.sr_idx = [self.channel_names.index(ch) for ch in ['s_r_x', 's_r_y', 's_r_z']]
+            self.sl_idx = [self.channel_names.index(ch) for ch in ['s_l_x', 's_l_y', 's_l_z']]
+            self.er_idx = [self.channel_names.index(ch) for ch in ['e_r_x', 'e_r_y', 'e_r_z']]
+            self.wr_idx = [self.channel_names.index(ch) for ch in ['w_r_x', 'w_r_y', 'w_r_z']]
+        else:
+            raise ValueError("Channel names don't match our library pattern -> 'shoulder_r_x' or 's_r_x'!!")
 
         #? calculate perpendicular distances
         # calculte perpendicular distance between shoulder and elbow in mm
