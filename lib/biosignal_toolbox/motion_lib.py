@@ -3,7 +3,7 @@
 # *********************************************************************************
 
 import numpy as np
-from np.typing import ArrayLike
+from numpy.typing import ArrayLike
 import warnings 
 from typing import List
 import mne
