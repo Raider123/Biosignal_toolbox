@@ -150,6 +150,7 @@ class MotionData(Timeseries):
                 channel_names.append(marker+"_"+axis)
             
         self.channel_names = channel_names
+        print(self.channel_names)
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
         # print(self.time_axis)
@@ -215,6 +216,8 @@ class MotionData(Timeseries):
             Raised if obj_weight_g is None
         ValueError
             Raised if subject_hand_length_mm is None
+        ValueError
+            Raised if self.channel_names don't match either shoulder_r_x or s_r_x style
         
         Author
         -----
