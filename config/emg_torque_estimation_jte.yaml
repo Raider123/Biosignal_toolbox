@@ -7,7 +7,7 @@
     quali_tsv_path:           'quali_data/BU62D/tsv/'
     quali_tsv_prefix:         '24_07_2025_BU62D'
     quali_path:               ['quali_data/BU62D/tsv/quali_torque_elbow_', 'quali_data/FW28D/Day1/quali_torque_front_', 'quali_data/FW28D/Day1/quali_torque_side_']
-    fig_save_path:            'data/m_rock/plots/test/'
+    fig_save_path:            'data/test/'
     quali_torques_save_path:  'data/jte/quali_data/BU62D/torques'
   
   data_param:
