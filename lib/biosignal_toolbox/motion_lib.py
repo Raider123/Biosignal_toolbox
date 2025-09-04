@@ -6,8 +6,7 @@ import numpy as np
 from numpy.typing import ArrayLike
 import warnings 
 from typing import List
-import mne
-import csv 
+import mne, csv, re
 from pathlib import Path
 from scipy.interpolate import interp1d
 from biosignal_toolbox.utils import getAbsolutePath
@@ -151,10 +150,9 @@ class MotionData(Timeseries):
                 channel_names.append(marker+"_"+axis)
             
         self.channel_names = channel_names
-        print(self.channel_names)
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
-        print(self.time_axis)
+        # print(self.time_axis)
         self.data = qualisys_data.T
          
     def interpQualisysData(self, kind: str = 'linear') -> None:
@@ -217,8 +215,6 @@ class MotionData(Timeseries):
             Raised if obj_weight_g is None
         ValueError
             Raised if subject_hand_length_mm is None
-        ValueError
-            Raised if self.channel_names don't match either shoulder_r_x or s_r_x style
         
         Author
         -----
@@ -245,18 +241,10 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-        if 'shoulder_r_x' in self.channel_names:
-            self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y', 'shoulder_r_z']]
-            self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y', 'shoulder_l_z']]
-            self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y', 'elbow_r_z']]
-            self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y', 'wrist_r_z']]
-        elif 's_r_x' in self.channel_names:
-            self.sr_idx = [self.channel_names.index(ch) for ch in ['s_r_x', 's_r_y', 's_r_z']]
-            self.sl_idx = [self.channel_names.index(ch) for ch in ['s_l_x', 's_l_y', 's_l_z']]
-            self.er_idx = [self.channel_names.index(ch) for ch in ['e_r_x', 'e_r_y', 'e_r_z']]
-            self.wr_idx = [self.channel_names.index(ch) for ch in ['w_r_x', 'w_r_y', 'w_r_z']]
-        else:
-            raise ValueError("Channel names don't match our library pattern -> 'shoulder_r_x' or 's_r_x'!!")
+        self.sr_idx = self.getChannelIndex(joint_name='shoulder', hand='right')
+        self.sl_idx = self.getChannelIndex(joint_name='shoulder', hand='left')
+        self.er_idx = self.getChannelIndex(joint_name='elbow', hand='right')
+        self.wr_idx = self.getChannelIndex(joint_name='wrist', hand='right')
 
         #? calculate perpendicular distances
         # calculte perpendicular distance between shoulder and elbow in mm
@@ -754,6 +742,63 @@ class MotionData(Timeseries):
             warnings.warn("zero vector! Not normalising!")
             return inp_vec
         return inp_vec / norm
+    
+    def getChannelIndex(self, joint_name: str = None, hand: str = None) -> list:
+        """
+        This methods outputs the channel indices for the requested joint and hand as a list [x_idx, y_idx, z_idx] with the help of regex.
+
+        Parameters
+        ----------
+        joint_name : str, optional
+            Name of the joint, by default None
+        hand : str, optional
+            Name of the hand/side out of 'right' or 'left', by default None
+
+        Returns
+        -------
+        list
+            List of x,y,z indices of the requested joint and side
+
+        Raises
+        ------
+        ValueError
+            Raised if joint_name or hand is None
+        ValueError
+            Raised if hand.lower() is not 'right' or 'left'
+        
+        Author
+        -----
+        Author : Kartik Chari \n
+        Last changed : 04.09.2025 (by Kartik Chari)
+        """
+        if joint_name is None or hand is None:
+            raise ValueError("Please enter joint_name and hand to proceed!!")
+        if hand.lower() not in ['left', 'right']:
+            raise ValueError("Invalid hand arg... hand must be \"left\" or \"right\"!!")
+        idx_list = []
+        # short hand for hand
+        hand_code = 'r' if hand.lower() == 'right' else 'l'
+        # short prefixes for joints
+        short_prefixes = {'shoulder': 's', 'elbow': 'e', 'wrist': 'w'}
+        short_joint_code = short_prefixes[joint_name]
+        
+        for axis in ['x', 'y', 'z']:
+            # regex pattern to ensure self.channel_name contains joint_name and hand anywhere in any style
+            match_pattern = (
+                    rf"(^({hand}|{hand_code})_?({joint_name}|{short_joint_code})_?{axis}$)|"   # side_joint_axis
+                    rf"(^({joint_name}|{short_joint_code})_?({hand}|{hand_code})_?{axis}$)|"   # joint_side_axis
+                    rf"(^({hand}|{hand_code})({joint_name}|{short_joint_code}){axis}$)|"       # camelCase style
+                    rf"(^({joint_name}|{short_joint_code})({hand}|{hand_code}){axis}$)"                                    # axis at end
+                    )
+            for ch_idx, ch_name in enumerate(self.channel_names):
+                if re.search(match_pattern, ch_name, flags=re.IGNORECASE):
+                    idx_list.append(ch_idx)
+                    break
+            else:
+                idx_list.append(None)
+
+        return idx_list
+
     
     def saveTorques_npy(self, save_torques: bool = False, save_dir: str = None, joints_to_save: List[str] = ['all']) -> None:
         """
