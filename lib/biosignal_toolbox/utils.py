@@ -190,7 +190,7 @@ def getProjectRoot(marker: str = None) -> Path:
     """
     filepath = Path(__file__).resolve()
     if not marker:
-        print("No markers provided to get project root! Assuming that there are not further sub-divisions in your folder structure!!")
+        # print("No markers provided to get project root! Assuming that there are not further sub-divisions in your folder structure!!")
         return filepath.parent.parent.parent
     else:
         for parent in filepath.parents:
