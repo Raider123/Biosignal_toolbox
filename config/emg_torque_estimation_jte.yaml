@@ -6,15 +6,15 @@
     emg_file_prefix:          '24072025_*_BU62D'
     quali_tsv_path:           'quali_data/BU62D/tsv/'
     quali_tsv_prefix:         '24_07_2025_BU62D'
-    quali_path:               ['quali_data/BU62D/tsv/quali_torque_elbow_', 'quali_data/FW28D/Day1/quali_torque_front_', 'quali_data/FW28D/Day1/quali_torque_side_']
+    quali_path:               ['quali_data/BU62D/torques/quali_torque_elbow_24_07_2025_', 'quali_data/BU62D/torques/quali_torque_front_24_07_2025_', 'quali_data/BU62D/torques/quali_torque_side_24_07_2025_']
     fig_save_path:            'data/test/'
     quali_torques_save_path:  'data/jte/quali_data/BU62D/torques'
   
   data_param:
     weights:              ['0g', '1100g', '1850g']
     mov_type:             ['complex', 'grasp']
-    set_num:              ['1', '2', '3']
-    subject_code:         ['FW28D']
+    set_num:              ['1', '2', '3', '4']
+    subject_code:         ['BU62D']
     subject_weight:       80    #weight in kg
     subject_bio_sex:      'male'
     subject_hand_len:     113  #wrist to 3rd knuckle len in mm

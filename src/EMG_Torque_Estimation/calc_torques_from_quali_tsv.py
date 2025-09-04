@@ -20,7 +20,7 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
     file_pattern = f"{cfg.filepath.quali_tsv_prefix}_{wgt_idx}_{mov_idx}_{set_idx}.tsv"
     matched_files = list(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_tsv_path).glob(file_pattern))
     if not matched_files:
-        warnings.warn("No files match the pattern :(")
+        warnings.warn(f"No files match the pattern {file_pattern} :(")
     for file in matched_files:
         #? create a qualisys motion data object
         qualisys_data = MotionData(data_path= cfg.filepath.data_path, 
