@@ -5,7 +5,7 @@ from biosignal_toolbox.motion_lib import MotionData
 from os import listdir
 from os.path import isfile, join
 
-data_path = "data/qualisys/WW06D/"
+data_path = "data/quali/WW06D/"
 joint_names = np.array(["elbow", "shoulder_front", "shoulder_side"])
 qualisys_files = [f for f in listdir(data_path) if isfile(join(data_path, f))]
 

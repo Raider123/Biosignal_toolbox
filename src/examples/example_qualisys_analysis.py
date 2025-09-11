@@ -4,9 +4,9 @@ from pathlib import Path
 from biosignal_toolbox.utils import getAbsolutePath
 from biosignal_toolbox.motion_lib import MotionData
 
-#? create a qualisys motion data object
-qualisys_data = MotionData(data_path= "data/qualisys/BU62D/", filename='24_07_2025_BU62D_0g_grasp_1.tsv')
-#? calculate the torques from qualisys .tsv
+#? create a quali motion data object
+qualisys_data = MotionData(data_path= "data/quali/BU62D/", filename='24_07_2025_BU62D_0g_grasp_1.tsv')
+#? calculate the torques from quali .tsv
 qualisys_data.calculateTorque(body_weight_kg=80, 
                               obj_weight_g=0, 
                               subject_biological_sex="male",

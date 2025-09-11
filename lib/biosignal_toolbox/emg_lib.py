@@ -92,11 +92,11 @@ class EMGData(Timeseries):
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()
-                # Adding an extra event channel at the end for qualisys markers
+                # Adding an extra event channel at the end for quali markers
                 column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
                 self.data = np.vstack((self.data,column_of_no_markers))
                 # Making the 4th and last samples of EMG as the boundaries for syncing
-                # This number is selected taking into account 20ms delay of qualisys and communication delay of arduino
+                # This number is selected taking into account 20ms delay of quali and communication delay of arduino
                 self.data[-1,3] = 1
                 self.data[-1,-1] = 1
                 print(f"Data: {self.data.shape}")

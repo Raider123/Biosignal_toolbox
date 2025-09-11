@@ -1,17 +1,23 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   filepath:
-
-    project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
-    data_path:     'data/JTE/'
-    emg_path:      'emg/BU62D/24072025_BU62D_'
-    quali_path:    ['qualisys/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
-    fig_save_path: '../../plots/m-rock_demo/'
+    data_path: 'data/jte/'
+    emg_path: 'emg/BU62D/'
+    emg_file_prefix: '24072025_BU62D_'
+    quali_tsv_path: 'quali/BU62D/tsv/'
+    quali_tsv_prefix: 'BU62D_'
+    quali_path: [ 'quali/BU62D/torques/quali_torque_elbow_24_07_2025_', 'quali/BU62D/torques/quali_torque_shoulder_front_24_07_2025_', 'quali/BU62D/torques/quali_torque_shoulder_side_24_07_2025_' ]
+    fig_save_path: 'data/test/'
+    quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
   data_param:
-    weights:              ['0g', '1100g', '1850g']
-    mov_type:             ['complex', 'grasp']
-    set_num:              ['1', '2', '3', '4', '5', '6', '7']
+    weights: [ '0g', '1100g', '1850g' ]
+    mov_type: [ 'complex', 'grasp' ]
+    set_num: [ '1', '2', '3', '4' ]
+    subject_code: [ 'BU62D' ]
+    subject_weight: 80    #weight in kg
+    subject_bio_sex: 'male'
+    subject_hand_len: 113  #wrist to 3rd knuckle len in mm
 
   workflow_param:
     mode:                 "train" # "train" or "infer"
@@ -28,15 +34,16 @@
     window_step:          10  #samples
     feature_size:         20  #samples
     feature_select:       'end'
+    feature_type:         'mav'
     neural_activation_fcn: False
 
-    f_samp:               500
-    f_cutoff_hpf:         15  #cutoff freq for bandpass 
-    f_cutoff_lpf:         200 #cutoff freq for bandpass 
-    filter_order:         2
+    f_samp: 500
+    f_cutoff_hpf: 15  #cutoff freq for bandpass
+    f_cutoff_lpf: 200 #cutoff freq for bandpass
+    filter_order: 2
 
-    f_cutoff_sm_lpf:      5   #cutoff freq for smoothing
-    sm_filter_order:      4   # filter order for smoothing lpf
+    f_cutoff_sm_lpf: 5   #cutoff freq for smoothing
+    sm_filter_order: 4   # filter order for smoothing lpf
 
     filter_method:        'zero_phase'
     var_filter_width:     20

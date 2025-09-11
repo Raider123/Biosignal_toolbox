@@ -3,9 +3,9 @@
   filepath:
 
     project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
-    data_path:     'data/JTE/'
+    data_path:     'data/jte/'
     emg_path:      'emg/BU62D/24072025_BU62D_'
-    quali_path:    ['qualisys/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'qualisys/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
+    quali_path:    ['quali/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
     fig_save_path: '../../plots/m-rock_demo/'
 
   data_param:

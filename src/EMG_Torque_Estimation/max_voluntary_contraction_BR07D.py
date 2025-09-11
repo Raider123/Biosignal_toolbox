@@ -20,7 +20,7 @@ from biosignal_toolbox.emg_lib import EMGData
 proj_path = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/"
 
 data_path = proj_path+"/data/m-rock_demo/"
-#data_path = proj_path+"/data/JTE/"
+#data_path = proj_path+"/data/jte/"
 
 #! Files for training
 train_file_prefix = "emg/24092024_FW28D_"

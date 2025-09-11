@@ -3,7 +3,7 @@ from os import listdir
 from os.path import isfile, join
 
 
-data_path = "data/qualisys/WW06D/"
+data_path = "data/quali/WW06D/"
 
 qualisys_files = [f for f in listdir(data_path) if (isfile(join(data_path, f)))]
 

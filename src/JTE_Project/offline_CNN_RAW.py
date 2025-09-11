@@ -14,7 +14,7 @@ import joblib
 # # own libs
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
-from biosignal_toolbox.utils import loadConfig, plotResults
+from biosignal_toolbox.utils import loadConfig, plotResults, getAbsolutePath
 
 from tensorflow.keras.models import load_model
 
@@ -177,9 +177,8 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
     for wgt_idx in range(len(config_param['data_param']['weights'])):
         for set_idx in range(len(config_param['data_param']['set_num'])):
 
-            current_emg_file_name = config_param['filepath']['emg_path'] + config_param['data_param']['weights'][wgt_idx] + '_' +config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][ set_idx] + '.txt'
-            complete_emg_path = config_param['filepath']['project_path'] + config_param['filepath']['data_path'] + current_emg_file_name
-
+            current_emg_file_name = config_param['filepath']['emg_path'] + config_param['filepath']['emg_file_prefix'] +  config_param['data_param']['weights'][wgt_idx] + '_' +config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][ set_idx] + '.txt'
+            complete_emg_path = getAbsolutePath(config_param['filepath']['data_path'] + current_emg_file_name)
             print(complete_emg_path)
 
             # ! Check if the file exists
@@ -187,8 +186,8 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
 
                 # ! Loading and epoching for training
                 EMG_Data = EMGData(format="ANTmini", filenames=[current_emg_file_name],
-                                   data_path=config_param['filepath']['project_path'] + config_param['filepath'][
-                                       'data_path'], f_samp=config_param['preprocess_param']['f_samp'],
+                                   data_path= getAbsolutePath(config_param['filepath'][
+                                       'data_path']), f_samp=config_param['preprocess_param']['f_samp'],
                                    channel_names=config_param['preprocess_param']['channel_names_emg'])
 
                 # ! Plotting the raw EMG data
@@ -203,12 +202,12 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                 # ! Loading the target values for the 3 joints
                 print("Creating Quali Elbow object!!")
                 Quali_Data_Elbow = EEGData(format="NumpyQualisys",
-                                           filenames=[config_param['filepath']['quali_path'][0] +
+                                           filenames=[config_param['filepath']['quali_path'][0] + config_param['filepath']['quali_tsv_prefix'] +
                                                       config_param['data_param']['weights'][wgt_idx] + '_' +
                                                       config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                       config_param['data_param']['set_num'][set_idx]],
-                                           data_path=config_param['filepath']['project_path'] +
-                                                     config_param['filepath']['data_path'],
+                                           data_path=getAbsolutePath(
+                                                     config_param['filepath']['data_path']),
                                            f_samp=config_param['preprocess_param']['f_samp'],
                                            channel_names=config_param['preprocess_param']['channel_names_quali'],
                                            file_type='individual',
@@ -216,12 +215,12 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
 
                 print("Creating Quali Shoulder Front object!!")
                 Quali_Data_Front = EEGData(format="NumpyQualisys",
-                                           filenames=[config_param['filepath']['quali_path'][1] +
+                                           filenames=[config_param['filepath']['quali_path'][1] + config_param['filepath']['quali_tsv_prefix'] +
                                                       config_param['data_param']['weights'][wgt_idx] + '_' +
                                                       config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                       config_param['data_param']['set_num'][set_idx]],
-                                           data_path=config_param['filepath']['project_path'] +
-                                                     config_param['filepath']['data_path'],
+                                           data_path=getAbsolutePath(
+                                                     config_param['filepath']['data_path']),
                                            f_samp=config_param['preprocess_param']['f_samp'],
                                            channel_names=config_param['preprocess_param']['channel_names_quali'],
                                            file_type='individual',
@@ -229,12 +228,12 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
 
                 print("Creating Quali Shoulder Side object!!")
                 Quali_Data_Side = EEGData(format="NumpyQualisys",
-                                          filenames=[config_param['filepath']['quali_path'][2] +
+                                          filenames=[config_param['filepath']['quali_path'][2] + config_param['filepath']['quali_tsv_prefix'] +
                                                      config_param['data_param']['weights'][wgt_idx] + '_' +
                                                      config_param['data_param']['mov_type'][typ_idx] + '_' +
                                                      config_param['data_param']['set_num'][set_idx]],
-                                          data_path=config_param['filepath']['project_path'] + config_param['filepath'][
-                                              'data_path'],
+                                          data_path=getAbsolutePath(config_param['filepath'][
+                                              'data_path']),
                                           f_samp=config_param['preprocess_param']['f_samp'],
                                           channel_names=config_param['preprocess_param']['channel_names_quali'],
                                           file_type='individual',
