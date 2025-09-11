@@ -94,17 +94,16 @@ class EMGData(Timeseries):
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
                 raw_data, self.time_axis,  = self.loadMiniANTEMGData(filename, self.f_samp)
 
-                        self.data = raw_data # store data in numpy array 
-                        self.createMNERaw()
-                        # Adding an extra event channel at the end for qualisys markers
-                        column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
-                        self.data = np.vstack((self.data,column_of_no_markers))
-                        # Making the 10th and last samples of EMG as the boundaries for syncing
-                        # This number is selected taking into account 20 ms start delay in qualisys
-                        offset_idx = 1*(20*f_samp/1000)
-                        self.data[-1,int(offset_idx)] = 1
-                        self.data[-1,-1] = 2
-                        print(f"Data: {self.data.shape}")
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
+                # Adding an extra event channel at the end for quali markers
+                column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
+                self.data = np.vstack((self.data,column_of_no_markers))
+                # Making the 4th and last samples of EMG as the boundaries for syncing
+                # This number is selected taking into account 20ms delay of quali and communication delay of arduino
+                self.data[-1,3] = 1
+                self.data[-1,-1] = 1
+                print(f"Data: {self.data.shape}")
 
                         # set annotation events (markers)
                         event_channel = self.data[-1, :]

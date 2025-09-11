@@ -1,24 +1,9 @@
 from biosignal_toolbox.motion_lib import MotionData
 from os import listdir
 from os.path import isfile, join
-from biosignal_toolbox.utils import loadConfig, getAbsolutePath
 
-# ! load config file
-from types import SimpleNamespace
 
-config_filename = 'jte.yaml'
-
-def namespace_to_dict(ns):
-    if isinstance(ns, SimpleNamespace):
-        return {k: namespace_to_dict(v) for k, v in vars(ns).items()}
-    elif isinstance(ns, dict):
-        return {k: namespace_to_dict(v) for k, v in ns.items()}
-    else:
-        return ns
-
-config_param = namespace_to_dict(loadConfig(filename=config_filename))
-
-data_path = getAbsolutePath(config_param['filepath']['data_path'] + config_param['filepath']['quali_tsv_path'])
+data_path = "data/quali/WW06D/"
 
 qualisys_files = [f for f in listdir(data_path) if (isfile(join(data_path, f)))]
 
