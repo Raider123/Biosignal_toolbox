@@ -153,6 +153,24 @@ class EEGData(Timeseries):
                 if(isinstance(filenames, list)): 
                     concat_list = []
                     for filename in filenames: 
+                        data = np.load(filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
+                        # print(f"Quali data shape: {data.shape}")
+                        if add_marker_channel:
+                            # Adding an extra event channel at the end for qualisys markers
+                            column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                            data = np.hstack((data,column_of_no_markers))
+                            # Making the first and last but 20th sample (considering 40ms offset at the end) as the boundaries for syncing
+                            offset_idx = -1*(40*f_samp/1000)
+                            # print(f"Quali offset: {int(offset_idx)}")
+                            data[0,-1] = 1
+                            data[int(offset_idx),-1] = 2
+                            # print(f"Data: {data.shape}")
+                            # print(f"Events: {np.where(data[:,1] == 1)[0]}")
+                        
+                            concat_list.append(data)
+                    
+                    data = np.vstack(concat_list)
+                    # print(np.where(data[:,1] == 1)[0])
                         concat_list.append(np.load(self.data_path /(filename+".npy"),allow_pickle=True, encoding='bytes'))
                     
                     data = np.concatenate(concat_list)
