@@ -84,17 +84,13 @@
     restore_best_weights: True
     start_from_epoch:     0
 
-    neurons_h1:           5
-    neurons_h2:           2
-    neurons_h1:           5
-    neurons_h2:           2
+    neurons_h1:               5
+    neurons_h2:               2
+    neurons_out:              0
 
-    act_inp:              'relu'
-    act_h1:               'relu'
-    act_h2:               'linear' 
-    act_inp:              'relu'
-    act_h1:               'relu'
-    act_h2:               'linear' 
+    act_h1:                   'relu'
+    act_h2:                   'relu'
+    act_out:                  'tanh' 
 
     is_save_model:        False
     save_model_path:      'data/m_rock/demo/zdemo_ml_models'
