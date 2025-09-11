@@ -30,7 +30,7 @@ class EEGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, file_type='individual', add_marker_channel = False, outer_key_order_d=[], inner_key_order_d=[]):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, add_marker_channel = False):
         """
         The constructor of the EEGData class. 
         
@@ -54,12 +54,6 @@ class EEGData(Timeseries):
             A numpy array with windowed data (shape: n_trials, n_channels, n_sampels, n_windows), only required for format "Live". 
         data : numpy ndarray, optional 
             The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format).
-        file_type : str, optional
-            Within the "NumpyQualisys" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
-        outer_key_order_d : list, optional
-            Desired sequence of outer keys to concatenate the data, by default order in which the data is read.
-        inner_key_order_d : list, optional
-            Desired sequence of inner keys to concatenate the data, by default order in which the data is read.
 
 
         Attributes
@@ -156,9 +150,27 @@ class EEGData(Timeseries):
         elif(format == "NumpyQualisys"): 
             if(filenames): # implement running over all files and appending data to each other 
 
-                if(len(filenames) > 1): 
+                if(isinstance(filenames, list)): 
                     concat_list = []
                     for filename in filenames: 
+                        data = np.load(filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
+                        # print(f"Quali data shape: {data.shape}")
+                        if add_marker_channel:
+                            # Adding an extra event channel at the end for qualisys markers
+                            column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                            data = np.hstack((data,column_of_no_markers))
+                            # Making the first and last but 20th sample (considering 40ms offset at the end) as the boundaries for syncing
+                            offset_idx = -1*(40*f_samp/1000)
+                            # print(f"Quali offset: {int(offset_idx)}")
+                            data[0,-1] = 1
+                            data[int(offset_idx),-1] = 2
+                            # print(f"Data: {data.shape}")
+                            # print(f"Events: {np.where(data[:,1] == 1)[0]}")
+                        
+                            concat_list.append(data)
+                    
+                    data = np.vstack(concat_list)
+                    # print(np.where(data[:,1] == 1)[0])
                         concat_list.append(np.load(self.data_path /(filename+".npy"),allow_pickle=True, encoding='bytes'))
                     
                     data = np.concatenate(concat_list)
@@ -215,7 +227,6 @@ class EEGData(Timeseries):
             # set annotation events (markers)
             self.createAnnotationEvents(data=data)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
-
             # print(type(self.events)) # (events, 3)
             # print("events", self.events)
 
