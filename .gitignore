@@ -16,6 +16,7 @@ data/
 plots/
 results/
 clients/
+.idea/
 *.npy
 rec/
 lib/biosignal_toolbox.egg-info
@@ -23,4 +24,3 @@ lib/biosignal_toolbox.egg-info
 variance_tools_api/
 .vscode/
 python_interpreter/
-.idea/
