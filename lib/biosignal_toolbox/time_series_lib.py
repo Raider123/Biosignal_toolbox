@@ -13,9 +13,12 @@ from os.path import dirname, join, abspath
 from scipy import signal as sig
 from scipy.signal import convolve, butter, sosfilt, sosfilt_zi, sosfiltfilt
 from scipy.fft import fft, fftfreq
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from tensorflow.keras.utils import to_categorical
 import mne_features.univariate as mne_feat
 from mne.preprocessing import ICA
+from mne.time_frequency import tfr_array_morlet
 import copy 
 from mne.preprocessing import Xdawn
 from pybv import write_brainvision
@@ -2142,7 +2145,7 @@ class Timeseries():
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_window_corr
 
 
-    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper"): 
+    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper", freq_bands=None): 
         """
         Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
 
@@ -2151,7 +2154,7 @@ class Timeseries():
         feature_type : str, optional
             _description_, by default "timepoints"
         feature_indices_windows : Numpy array, optional
-            Numpy array with feature indices inside the window in sample#, by default None
+            Numpy array with time feature indices inside the window in ms for timedomain features and [start_time, stop_time], by default None
         use_mean : bool, optional
             If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
@@ -2308,7 +2311,7 @@ class Timeseries():
             
             #windows (n_trials, n_channels, n_sampels, n_windows).
             
-            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            # freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
             #freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
             num_of_freq_bands = len(freq_bands)-1
 
@@ -2422,7 +2425,8 @@ class Timeseries():
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
         """ 
-
+        if self.feature_vec is None:
+            self.feature_vec = np.zeros((self.windows.shape[3],0))
         features = np.concatenate((self.feature_vec, x), axis = 1)
         self.feature_vec = features 
 
@@ -2436,7 +2440,7 @@ class Timeseries():
         Last changed: 08.03.2024 (by Niklas Kueper)
         """   
 
-        print("feature shape: ", self.feature_vec.shape)
+        print(f"feature shape: {self.feature_vec.shape}")
 
     def setWindowLabels(self, label_list):
         """
@@ -3020,6 +3024,40 @@ class Timeseries():
                     ssc_window[trial_idx, channel_idx] = np.sum(np.where((xi_minus_xip * xi_minus_xin) > threshold, 1, 0))
             features_ssc[window_idx,:] = ssc_window.flatten()
         return features_ssc
+    
+
+    def getMorletWaveletCoeffFeatures_windows(self, freqs=[], n_cycles=None):
+        features_mwc = np.zeros((self.windows.shape[3], self.windows.shape[1]*len(freqs)))
+
+        for window_idx in range(self.windows.shape[3]):
+            tfr_power = tfr_array_morlet(epoch_data=self.windows[:,:,:,window_idx], 
+                                         sfreq=self.f_samp, 
+                                         freqs=freqs, 
+                                         n_cycles=n_cycles, 
+                                         output='power', 
+                                         decim=1)
+            # take the mean of power over samples of each freq and append 
+            features_mwc[window_idx, :] = np.mean(tfr_power, axis=-1).flatten()
+        return features_mwc
+            
+
+    def scaleFeatures_windows(self, method="StandardScaler"):
+        if method == "StandardScaler":
+            scaler = StandardScaler()
+            self.feature_vec = scaler.fit_transform(self.feature_vec)
+        else:
+            warnings.warn("This method is not yet implemented! Returning without scaling!!")
+    
+
+    def reduceDimensions_windows(self, method="PCA", n_components='mle'):
+        if method == "PCA":
+            pca_decomposition = PCA(n_components=n_components)
+            print(f"Original feature vector shape: {self.feature_vec.shape}")
+            self.feature_vec = pca_decomposition.fit_transform(self.feature_vec)
+            print(f"Reduced feature vector shape: {self.feature_vec.shape}")
+        else:
+            warnings.warn("This method is not yet implemented! Returning without dimension reduction!!")
+
 
     def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True):
         """

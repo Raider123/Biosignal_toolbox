@@ -29,9 +29,6 @@
     window_size_x:            50  #samples
     window_size_y:            50  #samples
     window_step:              25  #samples
-    feature_size:             20  #samples
-    feature_select:           'end'
-    feature_type:             'mav'
 
     f_samp:                   500
     f_cutoff_hpf:             15  #cutoff freq for bandpass 
