@@ -1527,7 +1527,7 @@ class Timeseries():
     
     def getFeatures(self): 
         """
-        This functions returns the featuer vectors als floats
+        This function returns the feature vectors as floats
 
         Returns
         -------
@@ -1676,35 +1676,55 @@ class Timeseries():
         self.window_names = wind_names
 
 
-
     def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True): 
-        
-        # windows have shape trials, channels, sampels, windows 
-        start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0][0]
-        stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0][-1]
-        start_idx = self.events[start_marker_index, 0]
-        # print(f"Start Index EMG: {start_idx}")
-        stop_idx = self.events[stop_marker_index, 0]
-        # print(f"Stop Index EMG: {stop_idx}")
-        end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
-        # print(f"End indices: {end_indices}")
+        # windows have shape trials, channels, samples, windows 
         windows = []
         wind_names = []
-        counter = 0
-        for end_index in end_indices: 
-            current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
-            windows.append(current_window)
-            wind_names.append(str(counter)) # just numerate the windows
-            counter +=1
-        np_windows = np.array(windows)  # has wrong shape here 
-        self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
-        self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
-        print(self.windows.shape)
-        self.window_names = wind_names
+        window_boundary_arr = []
+        end_indices_arr = []
+        start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0]
+        stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0]
+        assert len(start_marker_index) == len(stop_marker_index)
+        for start_idx, stop_idx in zip(start_marker_index, stop_marker_index):
+            start_idx = self.events[start_idx, 0]
+            # print(f"Start Index EMG: {start_idx}")
+            stop_idx = self.events[stop_idx, 0]
+            # print(f"Stop Index EMG: {stop_idx}")
+            end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
+            counter = 0
+            for end_index in end_indices: 
+                current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
+                windows.append(current_window)
+                wind_names.append(str(counter)) # just numerate the windows
+                counter +=1
+            np_windows = np.array(windows)  # has wrong shape here 
+            self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
+            self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
+            window_boundary_arr.append(self.windows.shape[3])
+            # print(self.windows.shape[3])
+            self.window_names = wind_names
+            end_indices_arr.append(end_indices)
 
-        if(return_window_end_indices): 
-            return end_indices
+        outputs = []
+        outputs.append(window_boundary_arr)
+        if return_window_end_indices: 
+            outputs.append(np.concatenate(end_indices_arr))
         
+        return outputs
+            
+            
+    def sliceAndConcatWindows(self, start_slice=None, end_slice=None):
+        if start_slice is None or end_slice is None:
+            raise ValueError("Please provide the start slice and/or end slice arrays!!")
+        slices = []
+        slices.append(self.windows[..., 0:end_slice[0]])
+        for i in range(1,len(start_slice)):
+            start_idx = start_slice[i-1]
+            end_idx = end_slice[i]
+            slices.append(self.windows[..., start_idx:end_idx])
+        
+        self.windows = np.concatenate(slices, axis=-1)
+
 
     def windowSelection(self, selected_windows): 
         """
@@ -2176,7 +2196,7 @@ class Timeseries():
                     if(use_mean):
                         # shape channel, sampels
                         #  
-                        current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] # use the first and las value only 
+                        current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] 
                         k = int(current_wind.shape[1]/N) 
                         
 
@@ -2208,7 +2228,7 @@ class Timeseries():
 
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
-            #print(x_train.shape)
+            # print(x_train.shape)
 
 
             # train data for neighbour condition 
@@ -2845,8 +2865,8 @@ class Timeseries():
                 self.data = self.data / mvc
             elif mode == "online":
                 self.data_buffer[0,:,:,0] = self.data_buffer[0,:,(-1*self.n_samples):,0] / mvc
-        except:
-            print("Please provide the MVC for Normalisation!!")
+        except Exception as e:
+            print(f"Please provide the MVC for Normalisation: {e}!!")
     
     def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
         """
@@ -2970,6 +2990,37 @@ class Timeseries():
 
         return feature_mav 
     
+
+    def getRMSFeatures_windows(self, n_channels=8):
+        features_rms = np.zeros((self.windows.shape[3], self.windows.shape[0] * self.windows.shape[1]))
+
+        for window_idx in range(self.windows.shape[3]):
+            rms_window = np.sqrt(np.mean(self.windows[:, 0:n_channels, :, window_idx]**2, axis=2))
+            features_rms[window_idx,:] = rms_window.flatten()
+        return features_rms
+    
+    def getWaveformLengthFeatures_windows(self, n_channels=8):
+        features_wfl = np.zeros((self.windows.shape[3], self.windows.shape[0] * self.windows.shape[1]))
+
+        for window_idx in range(self.windows.shape[3]):
+            wfl_window = np.sum(np.abs(np.diff(self.windows[:, 0:n_channels, :, window_idx], axis=2)), axis=2)
+            features_wfl[window_idx,:] = wfl_window.flatten()
+        return features_wfl
+
+
+    def getSlopeSignChangeFeatures_windows(self, n_channels=8, threshold=0.01):
+        features_ssc = np.zeros((self.windows.shape[3], self.windows.shape[0] * self.windows.shape[1]))
+
+        for window_idx in range(self.windows.shape[3]):
+            ssc_window = np.zeros((self.windows.shape[0], self.windows.shape[1]))
+            for trial_idx in range(self.windows.shape[0]):
+                for channel_idx in range(self.windows.shape[1]):
+                    xi_minus_xip = self.windows[trial_idx, channel_idx, 1:-1, window_idx] - self.windows[trial_idx, channel_idx, 0:-2, window_idx]
+                    xi_minus_xin = self.windows[trial_idx, channel_idx, 1:-1, window_idx] - self.windows[trial_idx, channel_idx, 2:, window_idx]
+                    ssc_window[trial_idx, channel_idx] = np.sum(np.where((xi_minus_xip * xi_minus_xin) > threshold, 1, 0))
+            features_ssc[window_idx,:] = ssc_window.flatten()
+        return features_ssc
+
     def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True):
         """
         This is a general plotting function for the EMG plots. This method will be deprecated in the future and replaced by mne methods for visualisation.
