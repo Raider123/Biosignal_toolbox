@@ -164,9 +164,15 @@ class EEGData(Timeseries):
                     data = np.concatenate(concat_list)
                 else: 
                     if add_marker_channel:
-                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes').tolist()
+                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
                     else:
                         data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
+
+                    if isinstance(data, list):
+                        data = np.array(data)
+                    if data.ndim == 1:
+                        data = data[:, np.newaxis]
+
                     if isinstance(data,dict):
                         if file_type == 'combined':
                             #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array

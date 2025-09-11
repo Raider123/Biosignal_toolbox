@@ -15,13 +15,13 @@
     mov_type: [ 'complex', 'grasp' ]
     set_num: [ '1', '2', '3', '4' ]
     subject_code: [ 'BU62D' ]
-    subject_weight: 80    #weight in kg
+    subject_weight: 84   #weight in kg
     subject_bio_sex: 'male'
     subject_hand_len: 113  #wrist to 3rd knuckle len in mm
 
   workflow_param:
     mode:                 "train" # "train" or "infer"
-    input_mode:           "freq" # options: "time", "freq", "time+freq"
+    input_mode:           "time" # options: "time", "freq", "time+freq"
     model_dir:            "saved_models/TCN_MTL"
 
   preprocess_param:
@@ -35,7 +35,7 @@
     feature_size:         20  #samples
     feature_select:       'end'
     feature_type:         'mav'
-    neural_activation_fcn: False
+    neural_activation_fcn: True
 
     f_samp: 500
     f_cutoff_hpf: 15  #cutoff freq for bandpass
@@ -80,7 +80,7 @@
     savitzky_window_length: 21
     savitzky_polyorder:    3
     moving_av_window_size: 40
-    savitzky_on:           False
+    savitzky_on:           True
     moving_av_on:          False
 
   plot_param:
