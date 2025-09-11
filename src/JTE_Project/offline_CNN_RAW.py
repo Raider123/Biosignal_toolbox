@@ -31,7 +31,7 @@ tf.keras.mixed_precision.set_global_policy('mixed_float16')
 # ! load config file
 from types import SimpleNamespace
 
-config_filename = 'emg_torque_estimation_mav.yaml'
+config_filename = 'jte.yaml'
 
 def namespace_to_dict(ns):
     if isinstance(ns, SimpleNamespace):
