@@ -87,7 +87,7 @@ for i in range(len(cfg.data_param.mov_type)):
 for i in range(len(cfg.data_param.weights)):
     filename_suffix = filename_suffix + '_' + cfg.data_param.mov_type[i]
 for i in range(len(cfg.data_param.weights)):
-    filename_suffix = filename_suffix + '_' + cfg.data_param.mov_type[i]
+    filename_suffix = filename_suffix + '_' + cfg.data_param.weights[i]
 
 #? init performance results list
 #? init performance results list
