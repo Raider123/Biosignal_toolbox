@@ -5,14 +5,13 @@
     emg_path:             'emg_data/Day1/24092024_FW28D_'
     quali_path:           ['quali_data/FW28D/Day1/quali_torque_elbow_', 'quali_data/FW28D/Day1/quali_torque_front_', 'quali_data/FW28D/Day1/quali_torque_side_']
     fig_save_path:        'data/m_rock/plots/test/'
-    data_path:            'data/m_rock/demo/'
-    emg_path:             'emg_data/Day1/24092024_FW28D_'
-    quali_path:           ['quali_data/FW28D/Day1/quali_torque_elbow_', 'quali_data/FW28D/Day1/quali_torque_front_', 'quali_data/FW28D/Day1/quali_torque_side_']
-    fig_save_path:        'data/m_rock/plots/test/'
   
   data_param:
     weights:              ['0g']
+    weights:              ['0g']
     mov_type:             ['complex', 'grasp']
+    set_num:              ['1', '2', '3']
+    subject_code:         ['FW28D']
     set_num:              ['1', '2', '3']
     subject_code:         ['FW28D']
   
