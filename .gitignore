@@ -22,3 +22,5 @@ lib/biosignal_toolbox.egg-info
 *.ipynb
 variance_tools_api/
 .vscode/
+python_interpreter/
+.idea/
