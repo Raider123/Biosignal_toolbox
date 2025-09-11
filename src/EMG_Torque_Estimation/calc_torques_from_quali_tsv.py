@@ -28,10 +28,10 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
     if not matched_files:
         warnings.warn("No files match the pattern :(")
     for file in matched_files:
-        #? create a qualisys motion data object
+        #? create a quali motion data object
         qualisys_data = MotionData(data_path= cfg.filepath.data_path, 
                                    filename=cfg.filepath.quali_tsv_path+file.name)
-        #? calculate the torques from qualisys .tsv
+        #? calculate the torques from quali .tsv
         qualisys_data.calculateTorque(body_weight_kg=cfg.data_param.subject_weight, 
                                       obj_weight_g=int(re.search(r"\d+", wgt_idx).group()), 
                                       subject_biological_sex=cfg.data_param.subject_bio_sex, 

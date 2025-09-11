@@ -185,7 +185,7 @@ class EEGData(Timeseries):
                         elif file_type == 'individual':
                             data = data[list(data.keys())[0]][list(next(iter(data.values())).keys())[0]]
                 if add_marker_channel:
-                    # Adding an extra event channel at the end for qualisys markers
+                    # Adding an extra event channel at the end for quali markers
                     column_of_no_markers = -1 * np.ones((data.shape[0],1))
                     data = np.hstack((data,column_of_no_markers))
                     # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing

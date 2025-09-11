@@ -2,10 +2,10 @@
 ---
   filepath:
 
-    project_path:  '/home/dfki.uni-bremen.de/kschari/kc_ws/repos/biosignal_toolbox'
-    data_path:     'data/m-rock_demo/'
-    emg_path:      'emg_data/24092024_FW28D_'
-    quali_path:    ['quali_data/FW28D/quali_torque_elbow_', 'quali_data/FW28D/quali_torque_front_', 'quali_data/FW28D/quali_torque_side_']
+    project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
+    data_path:     'data/jte/'
+    emg_path:      'emg/BU62D/24072025_BU62D_'
+    quali_path:    ['quali/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
     fig_save_path: '../../plots/m-rock_demo/'
 
 
