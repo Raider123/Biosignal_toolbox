@@ -121,7 +121,7 @@ class MotionData(Timeseries):
 
     def loadQualisysData(self, header_rows: int = 11, columns_to_skip: int = 2) -> None: 
         """
-        This method loads the quali data into a numpy array and also extracts important information from header.
+        This method loads the qualisys data into a numpy array and also extracts important information from header.
 
         Parameters
         ----------

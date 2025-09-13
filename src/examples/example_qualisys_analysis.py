@@ -20,7 +20,7 @@ numpy_file_path = getAbsolutePath("results/BU62D/quali_torque_elbow_24_07_2025_B
 data = np.load(numpy_file_path)
 plt.plot(qualisys_data.time_axis, data)
 plt.grid(linestyle=':', linewidth=1.5)
-plt.title('Elbow Torque')
+plt.title('Front Shoulder Torque')
 plt.xlabel('time (sec.)')
 plt.ylabel('Joint Torque (N-m)')
 plt.minorticks_on()
