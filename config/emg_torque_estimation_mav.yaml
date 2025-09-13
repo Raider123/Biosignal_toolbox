@@ -1,6 +1,7 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   filepath:
+<<<<<<< HEAD
 
     project_path:  'F:/SMT_MASTERPROJEKT/biosignal_toolbox/'
     data_path:     'data/jte/'
@@ -8,9 +9,17 @@
     quali_path:    ['quali/BU62D_NPY/quali_torque_elbow_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_front_24_07_2025_BU62D_', 'quali/BU62D_NPY/quali_torque_shoulder_side_24_07_2025_BU62D_']
     fig_save_path: '../../plots/m-rock_demo/'
 
+=======
+    data_path:            'data/m_rock/demo/'
+    emg_path:             'emg_data/Day1/24092024_FW28D_'
+    quali_path:           ['quali_data/FW28D/Day1/quali_torque_elbow_', 'quali_data/FW28D/Day1/quali_torque_front_', 'quali_data/FW28D/Day1/quali_torque_side_']
+    fig_save_path:        'data/m_rock/plots/test/'
+  
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
   data_param:
     weights:              ['0g', '1100g', '1850g']
     mov_type:             ['complex', 'grasp']
+<<<<<<< HEAD
     set_num:              ['1', '2', '3', '4', '5', '6', '7']
 
   workflow_param:
@@ -26,6 +35,17 @@
     window_size_s:        150 # Shoulder Side Model
     window_size_f:        150 # Shoulder Front
     window_step:          10  #samples
+=======
+    set_num:              ['1', '2', '3']
+    subject_code:         ['FW28D']
+  
+  preprocess_param:
+    channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
+    channel_names_quali:  ['right', 'left', 'marker']
+    window_size_x:        50  #samples
+    window_size_y:        50  #samples
+    window_step:          50  #samples
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     feature_size:         20  #samples
     feature_select:       'end'
     neural_activation_fcn: False
@@ -78,12 +98,18 @@
     act_h2:               'linear' 
 
     is_save_model:        False
+    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
+    load_models:          False
 
   post_train_param:
     eval_type:            'offline' 
     filter_type:          'mean'
     filter_size:          3    
+<<<<<<< HEAD
     is_save_plot:         True
+=======
+    is_save_plot:         False
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
   
 
   post_processing_param:

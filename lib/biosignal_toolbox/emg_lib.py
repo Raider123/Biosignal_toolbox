@@ -11,11 +11,17 @@ import warnings
 import os
 import mne
 from pathlib import Path
+<<<<<<< HEAD
 from pathlib import Path
 from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
 from biosignal_toolbox.time_series_lib import Timeseries
 from biosignal_toolbox.utils import getAbsolutePath
 from biosignal_toolbox.utils import getAbsolutePath
+=======
+from biosignal_toolbox.time_series_lib import OnlineTimeseriesStreaming
+from biosignal_toolbox.time_series_lib import Timeseries
+from biosignal_toolbox.utils import getAbsolutePath
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
 
 # *********************************************************************************
@@ -83,6 +89,7 @@ class EMGData(Timeseries):
         self.events = None # not provided by loaded data yet 
         # absolute data path
         self.data_path = getAbsolutePath(input_path=data_path)
+<<<<<<< HEAD
         # absolute data path
         self.data_path = getAbsolutePath(input_path=data_path)
         
@@ -104,6 +111,29 @@ class EMGData(Timeseries):
                 self.data[-1,3] = 1
                 self.data[-1,-1] = 1
                 print(f"Data: {self.data.shape}")
+=======
+        
+        if(filenames):
+            if(isinstance(filenames, list)): # check if list or string class 
+                raw_list = []
+                events_list = []
+                # filename = filenames[0] # use only one 
+                for file in filenames:
+                    if(format == "ANTmini"):
+                        raw_data, self.time_axis,  = self.loadMiniANTEMGData(file, self.f_samp)
+
+                        self.data = raw_data # store data in numpy array 
+                        self.createMNERaw()
+                        # Adding an extra event channel at the end for qualisys markers
+                        column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
+                        self.data = np.vstack((self.data,column_of_no_markers))
+                        # Making the 10th and last samples of EMG as the boundaries for syncing
+                        # This number is selected taking into account 20 ms start delay in qualisys
+                        offset_idx = 1*(20*f_samp/1000)
+                        self.data[-1,int(offset_idx)] = 1
+                        self.data[-1,-1] = 2
+                        print(f"Data: {self.data.shape}")
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
                         # set annotation events (markers)
                         event_channel = self.data[-1, :]
@@ -114,9 +144,14 @@ class EMGData(Timeseries):
                         events[:, 2] = marker_numbers
                         self.events = events.astype(int)
 
+<<<<<<< HEAD
             else: 
                 warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
                 raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(filename)
+=======
+                    else: 
+                        raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
                         self.data = raw_data # store data in numpy array 
                         self.createMNERaw()
@@ -159,7 +194,10 @@ class EMGData(Timeseries):
 
 
     def loadCometaEMGData(self, file_str):
+<<<<<<< HEAD
     def loadCometaEMGData(self, file_str):
+=======
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         """
         This funcion loads the EMG data recorded from the Cometa EMG system (as txt file)
 
@@ -187,7 +225,10 @@ class EMGData(Timeseries):
         """
 
         filename = self.data_path / Path(file_str)
+<<<<<<< HEAD
         filename = self.data_path / Path(file_str)
+=======
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         emg_data = np.loadtxt(filename, dtype = float, delimiter=None, skiprows=5)
 
         # extract EMG channel names 
@@ -207,7 +248,10 @@ class EMGData(Timeseries):
 
 
     def loadMiniANTEMGData(self, file_str, f_samp): 
+<<<<<<< HEAD
     def loadMiniANTEMGData(self, file_str, f_samp): 
+=======
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         """
         TODO: No sampling rate given in the data
         This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
@@ -237,7 +281,10 @@ class EMGData(Timeseries):
 
         #seperate between data, meta and channel names 
         emg_data_raw = np.loadtxt(self.data_path / Path(file_str)) # at least th
+<<<<<<< HEAD
         emg_data_raw = np.loadtxt(self.data_path / Path(file_str)) # at least th
+=======
+>>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         emg_data = emg_data_raw[:-1, :-2]
         time_axis = np.arange(0, (len(emg_data)/f_samp), step = 1/f_samp)
 
