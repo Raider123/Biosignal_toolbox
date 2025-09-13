@@ -121,7 +121,7 @@ class MotionData(Timeseries):
 
     def loadQualisysData(self, header_rows: int = 11, columns_to_skip: int = 2) -> None: 
         """
-        This method loads the qualisys data into a numpy array and also extracts important information from header.
+        This method loads the quali data into a numpy array and also extracts important information from header.
 
         Parameters
         ----------
@@ -150,6 +150,7 @@ class MotionData(Timeseries):
                 channel_names.append(marker+"_"+axis)
             
         self.channel_names = channel_names
+        print(self.channel_names)
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
         # print(self.time_axis)

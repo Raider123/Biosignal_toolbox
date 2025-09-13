@@ -18,7 +18,6 @@ from sklearn.decomposition import PCA
 from tensorflow.keras.utils import to_categorical
 import mne_features.univariate as mne_feat
 from mne.preprocessing import ICA
-from mne.time_frequency import tfr_array_morlet
 import copy 
 from mne.preprocessing import Xdawn
 from pybv import write_brainvision
@@ -1545,7 +1544,7 @@ class Timeseries():
     
     def getFeatures(self): 
         """
-        This function returns the feature vectors as floats
+        This functions returns the featuer vectors als floats
 
         Returns
         -------
@@ -1698,55 +1697,35 @@ class Timeseries():
         self.window_names = wind_names
 
 
+
     def windowContinuousData(self, startmarkernumber=1, stopmarkernumber=1, window_size=1000, window_step=50, start_index_offset=0, start_channel_pick=0, end_channel_pick=10, return_window_end_indices=True): 
-        # windows have shape trials, channels, samples, windows 
+        
+        # windows have shape trials, channels, sampels, windows 
+        start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0][0]
+        stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0][-1]
+        start_idx = self.events[start_marker_index, 0]
+        # print(f"Start Index EMG: {start_idx}")
+        stop_idx = self.events[stop_marker_index, 0]
+        # print(f"Stop Index EMG: {stop_idx}")
+        end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
+        # print(f"End indices: {end_indices}")
         windows = []
         wind_names = []
-        window_boundary_arr = []
-        end_indices_arr = []
-        start_marker_index = np.where(self.events[:, -1] == startmarkernumber)[0]
-        stop_marker_index = np.where(self.events[:, -1] == stopmarkernumber)[0]
-        assert len(start_marker_index) == len(stop_marker_index)
-        for start_idx, stop_idx in zip(start_marker_index, stop_marker_index):
-            start_idx = self.events[start_idx, 0]
-            # print(f"Start Index EMG: {start_idx}")
-            stop_idx = self.events[stop_idx, 0]
-            # print(f"Stop Index EMG: {stop_idx}")
-            end_indices = np.arange(start = start_idx+window_size+start_index_offset, stop = stop_idx, step = window_step)
-            counter = 0
-            for end_index in end_indices: 
-                current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
-                windows.append(current_window)
-                wind_names.append(str(counter)) # just numerate the windows
-                counter +=1
-            np_windows = np.array(windows)  # has wrong shape here 
-            self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
-            self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
-            window_boundary_arr.append(self.windows.shape[3])
-            # print(self.windows.shape[3])
-            self.window_names = wind_names
-            end_indices_arr.append(end_indices)
+        counter = 0
+        for end_index in end_indices: 
+            current_window = self.data[start_channel_pick:end_channel_pick, end_index-window_size:end_index] # data in channels, sampels 
+            windows.append(current_window)
+            wind_names.append(str(counter)) # just numerate the windows
+            counter +=1
+        np_windows = np.array(windows)  # has wrong shape here 
+        self.windows = np.moveaxis(np_windows, 0 , -1) # has shape channels, sampels, windows now 
+        self.windows = np.expand_dims(self.windows, axis = 0) # add trial dimension for legacy support 
+        print(self.windows.shape)
+        self.window_names = wind_names
 
-        outputs = []
-        outputs.append(window_boundary_arr)
-        if return_window_end_indices: 
-            outputs.append(np.concatenate(end_indices_arr))
+        if(return_window_end_indices): 
+            return end_indices
         
-        return outputs
-            
-            
-    def sliceAndConcatWindows(self, start_slice=None, end_slice=None):
-        if start_slice is None or end_slice is None:
-            raise ValueError("Please provide the start slice and/or end slice arrays!!")
-        slices = []
-        slices.append(self.windows[..., 0:end_slice[0]])
-        for i in range(1,len(start_slice)):
-            start_idx = start_slice[i-1]
-            end_idx = end_slice[i]
-            slices.append(self.windows[..., start_idx:end_idx])
-        
-        self.windows = np.concatenate(slices, axis=-1)
-
 
     def windowSelection(self, selected_windows): 
         """
@@ -2164,7 +2143,7 @@ class Timeseries():
                     self.windows[trial_idx, channel_idx, :, window_idx] = current_window_corr
 
 
-    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper", freq_bands=None): 
+    def featureExtractionFromWindows(self,  feature_type = "timepoints", feature_indices_windows = None, use_mean = False, N = 1, add_neightbour_diffs  = False, neighbours_list = [("C1", "CZ")], psd_method = "multitaper"): 
         """
         Apply method to extract time or frequency features from time series data. See feature_types parameter for the types of features that are supported. 
 
@@ -2173,7 +2152,7 @@ class Timeseries():
         feature_type : str, optional
             _description_, by default "timepoints"
         feature_indices_windows : Numpy array, optional
-            Numpy array with time feature indices inside the window in ms for timedomain features and [start_time, stop_time], by default None
+            Numpy array with feature indices inside the window in sample#, by default None
         use_mean : bool, optional
             If True, the mean of the timepoints is calculated as features, by default False
         N : int, optional
@@ -2218,7 +2197,7 @@ class Timeseries():
                     if(use_mean):
                         # shape channel, sampels
                         #  
-                        current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] 
+                        current_wind = self.windows[trial_idx, :, feature_times_indices[0]:feature_times_indices[-1], window_idx] # use the first and las value only 
                         k = int(current_wind.shape[1]/N) 
                         
 
@@ -2250,7 +2229,7 @@ class Timeseries():
 
             # flatten the trials and windows as train instances 
             x_train = np.zeros((x_train_features.shape[0]*x_train_features.shape[1], x_train_features.shape[2]))
-            # print(x_train.shape)
+            #print(x_train.shape)
 
 
             # train data for neighbour condition 
@@ -2330,7 +2309,7 @@ class Timeseries():
             
             #windows (n_trials, n_channels, n_sampels, n_windows).
             
-            # freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
+            freq_bands = np.array([0.5, 4., 8., 13., 30., 100.]) # default that is used 
             #freq_bands = np.array([0.5, 1.0, 2.5, 4., 5.5, 6.5, 8. ,9.5, 11.5, 13., 16., 25., 30., 40.]) # default that is used
             num_of_freq_bands = len(freq_bands)-1
 
@@ -2444,8 +2423,7 @@ class Timeseries():
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
         """ 
-        if self.feature_vec is None:
-            self.feature_vec = np.zeros((self.windows.shape[3],0))
+
         features = np.concatenate((self.feature_vec, x), axis = 1)
         self.feature_vec = features 
 

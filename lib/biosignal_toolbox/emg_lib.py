@@ -104,30 +104,20 @@ class EMGData(Timeseries):
                         self.data[-1,-1] = 2
                         print(f"Data: {self.data.shape}")
 
-                        # set annotation events (markers)
-                        event_channel = self.data[-1, :]
-                        marker_indices = np.where(event_channel > 0)[0]
-                        marker_numbers = event_channel[marker_indices]
-                        events = np.zeros((len(marker_indices), 3))
-                        events[:, 0] = marker_indices
-                        events[:, 2] = marker_numbers
-                        self.events = events.astype(int)
+                # set annotation events (markers)
+                event_channel = self.data[-1, :]
+                marker_indices = np.where(event_channel > 0)[0]
+                marker_numbers = event_channel[marker_indices]
+                events = np.zeros((len(marker_indices), 3))
+                events[:, 0] = marker_indices
+                events[:, 2] = marker_numbers
+                self.events = events.astype(int)
 
                     else: 
                         raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
 
-                        self.data = raw_data # store data in numpy array 
-                        self.createMNERaw()
-                    
-                    raw_list.append(self.raw_obj)
-                    events_list.append(self.events)
-                
-                #? Check if the channel names match in all raws
-
-                for i, raw in enumerate(raw_list,start=1):
-                    assert raw.ch_names == raw_list[0].ch_names, f"Channel mismatch in raw {i}"
-                self.raw_obj, self.events = mne.concatenate_raws(raws=raw_list, events_list=events_list)
-                self.data = self.raw_obj.get_data()
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
 
         if (data_arr):
             raw_list = []
