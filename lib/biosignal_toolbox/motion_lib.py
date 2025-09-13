@@ -121,7 +121,7 @@ class MotionData(Timeseries):
 
     def loadQualisysData(self, header_rows: int = 11, columns_to_skip: int = 2) -> None: 
         """
-        This method loads the quali data into a numpy array and also extracts important information from header.
+        This method loads the qualisys data into a numpy array and also extracts important information from header.
 
         Parameters
         ----------
@@ -150,7 +150,6 @@ class MotionData(Timeseries):
                 channel_names.append(marker+"_"+axis)
             
         self.channel_names = channel_names
-        print(self.channel_names)
         
         self.time_axis = np.arange(0, 1/self.f_samp*qualisys_data.shape[0], 1/self.f_samp)
         # print(self.time_axis)
@@ -158,11 +157,7 @@ class MotionData(Timeseries):
          
     def interpQualisysData(self, kind: str = 'linear') -> None:
         """
-<<<<<<< HEAD
-        This method detects zeroes and Nan in the quali data and replaces them with smooth linear interpolation.
-=======
         This method detects zeroes and Nan in the qualisys data and replaces them with smooth linear interpolation.
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
         Parameters
         ----------
@@ -220,11 +215,6 @@ class MotionData(Timeseries):
             Raised if obj_weight_g is None
         ValueError
             Raised if subject_hand_length_mm is None
-<<<<<<< HEAD
-        ValueError
-            Raised if self.channel_names don't match either shoulder_r_x or s_r_x style
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         
         Author
         -----
@@ -251,25 +241,10 @@ class MotionData(Timeseries):
         torque_shoulder_side = 0
 
         #? get indices for relevant channels
-<<<<<<< HEAD
-        if 'shoulder_r_x' in self.channel_names:
-            self.sr_idx = [self.channel_names.index(ch) for ch in ['shoulder_r_x', 'shoulder_r_y', 'shoulder_r_z']]
-            self.sl_idx = [self.channel_names.index(ch) for ch in ['shoulder_l_x', 'shoulder_l_y', 'shoulder_l_z']]
-            self.er_idx = [self.channel_names.index(ch) for ch in ['elbow_r_x', 'elbow_r_y', 'elbow_r_z']]
-            self.wr_idx = [self.channel_names.index(ch) for ch in ['wrist_r_x', 'wrist_r_y', 'wrist_r_z']]
-        elif 's_r_x' in self.channel_names:
-            self.sr_idx = [self.channel_names.index(ch) for ch in ['s_r_x', 's_r_y', 's_r_z']]
-            self.sl_idx = [self.channel_names.index(ch) for ch in ['s_l_x', 's_l_y', 's_l_z']]
-            self.er_idx = [self.channel_names.index(ch) for ch in ['e_r_x', 'e_r_y', 'e_r_z']]
-            self.wr_idx = [self.channel_names.index(ch) for ch in ['w_r_x', 'w_r_y', 'w_r_z']]
-        else:
-            raise ValueError("Channel names don't match our library pattern -> 'shoulder_r_x' or 's_r_x'!!")
-=======
         self.sr_idx = self.getChannelIndex(joint_name='shoulder', hand='right')
         self.sl_idx = self.getChannelIndex(joint_name='shoulder', hand='left')
         self.er_idx = self.getChannelIndex(joint_name='elbow', hand='right')
         self.wr_idx = self.getChannelIndex(joint_name='wrist', hand='right')
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
         #? calculate perpendicular distances
         # calculte perpendicular distance between shoulder and elbow in mm
@@ -768,9 +743,6 @@ class MotionData(Timeseries):
             return inp_vec
         return inp_vec / norm
     
-<<<<<<< HEAD
-    def saveTorques_npy(self, save_torques=False, save_dir=None, joints_to_save=['all']):
-=======
     def getChannelIndex(self, joint_name: str = None, hand: str = None) -> list:
         """
         This methods outputs the channel indices for the requested joint and hand as a list [x_idx, y_idx, z_idx] with the help of regex.
@@ -829,7 +801,6 @@ class MotionData(Timeseries):
 
     
     def saveTorques_npy(self, save_torques: bool = False, save_dir: str = None, joints_to_save: List[str] = ['all']) -> None:
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         """
         This method save the calculated torques into numpy (.npy) files.
         It first checks whether the specified dir exists. If it does not, it will create one and then save.
@@ -840,11 +811,7 @@ class MotionData(Timeseries):
             Boolean to choose whether to save the calculated torques into a .npy file, by default False.
         save_dir: str, optional
             Path to the dir where the files need to be saved relative to the projec root, by default None.
-<<<<<<< HEAD
-        joints_to_save: lsit of str, optional
-=======
         joints_to_save: list of str, optional
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
             The joints whose torques must be saved out of 'elbow','shoulder_front', and 'shoulder_side',  by default ['all'].
 
         Author
@@ -865,16 +832,8 @@ class MotionData(Timeseries):
 
             if 'all' in joints_to_save:
                 joints_to_save = self.joint_names
-<<<<<<< HEAD
-            if 'all' in joints_to_save:
-                joints_to_save = self.joint_names
             # iterate over each joint name and save the torque in file
             for _, joint in enumerate(joints_to_save):
-            for _, joint in enumerate(joints_to_save):
-=======
-            # iterate over each joint name and save the torque in file
-            for _, joint in enumerate(joints_to_save):
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
                 if joint in self.joint_names:
                     # get index of the joint name
                     joint_idx = np.where(self.joint_names == joint)[0][0]

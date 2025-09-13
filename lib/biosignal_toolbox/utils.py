@@ -5,24 +5,13 @@
 
 import numpy as np
 import yaml
-<<<<<<< HEAD
-import yaml
-import yaml
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 import matplotlib.pyplot as plt
 from pathlib import Path
 from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Type, Union, List
-<<<<<<< HEAD
-from sys import exit, path
-path.append(str(Path(__file__).resolve().parents[2]))
-from config_root import project_root
-=======
 
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 import warnings
 import inspect
 #! ************************************************
@@ -30,11 +19,6 @@ import inspect
 #! ************************************************
 
 def customWarningFormat(message: str, category: Type[Warning], filename: str, lineno: int, line: str=None) -> str:
-<<<<<<< HEAD
-def customWarningFormat(message: str, category: Type[Warning], filename: str, lineno: int, line: str=None) -> str:
-def customWarningFormat(message: str, category: Type[Warning], filename: str, lineno: int, line: str=None) -> str:
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     Format warnings in a compact way by including only the category, 
     function name, and message.
@@ -82,11 +66,6 @@ warnings.formatwarning = customWarningFormat
 #! ************************************************
 
 def loadConfig(filename: str = None) -> dict:
-<<<<<<< HEAD
-def loadConfig(filename: str = None) -> dict:
-def loadConfig(filename: str = None) -> dict:
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     This function safely loads the yaml configuration file into a dictionary.
     It also converts the dict to a Namespace object wherein keys become attributes and can be accessed by '.' operator.
@@ -108,49 +87,11 @@ def loadConfig(filename: str = None) -> dict:
     TypeError
         Raised if the filename is None or not provided
 
-<<<<<<< HEAD
-        Name of the config file
-    
-    Returns
-    -------
-    dict
-        Dictionary containing all config parameters from the yaml file
-    
-    Raises
-    ------
-    IsADirectoryError
-        Raised if the filename is a dir and not a file
-    TypeError
-        Raised if the filename is None or not provided
-
-        Name of the config file
-    
-    Returns
-    -------
-    dict
-        Dictionary containing all config parameters from the yaml file
-    
-    Raises
-    ------
-    IsADirectoryError
-        Raised if the filename is a dir and not a file
-    TypeError
-        Raised if the filename is None or not provided
-
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     
     Author
     ------
     Author : Kartik Chari \n
     Last changed : 21.08.2025 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 21.08.2025 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 21.08.2025 (by Kartik Chari)
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     try:
         project_root = getProjectRoot()
@@ -163,13 +104,6 @@ def loadConfig(filename: str = None) -> dict:
         return convertDictToNamespace(dict_obj)
     except (IsADirectoryError, TypeError):
         print(f"ERROR: Please enter correct config filename in loadConfig!!")
-<<<<<<< HEAD
-    except (IsADirectoryError, TypeError):
-        print(f"ERROR: Please enter correct config filename in loadConfig!!")
-    except (IsADirectoryError, TypeError):
-        print(f"ERROR: Please enter correct config filename in loadConfig!!")
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         exit(1)
 
 def convertDictToNamespace(data_inp: Union[dict, list]) -> SimpleNamespace:
@@ -191,47 +125,6 @@ def convertDictToNamespace(data_inp: Union[dict, list]) -> SimpleNamespace:
     Author : Kartik Chari \n
     Last changed : 21.08.2025 (by Kartik Chari)
     """
-<<<<<<< HEAD
-def convertDictToNamespace(data_inp: Union[dict, list]) -> SimpleNamespace:
-    """
-    This function converts the input into a namespace that can be accessed like an attribute using a '.' operator.
-
-    Parameters
-    ----------
-    data_inp : Union[dict, list]
-        Input dict or list
-
-    Returns
-    -------
-    SimpleNamespace
-        Namespace of dict/list elements
-    
-    Author
-    ------
-    Author : Kartik Chari \n
-    Last changed : 21.08.2025 (by Kartik Chari)
-    """
-def convertDictToNamespace(data_inp: Union[dict, list]) -> SimpleNamespace:
-    """
-    This function converts the input into a namespace that can be accessed like an attribute using a '.' operator.
-
-    Parameters
-    ----------
-    data_inp : Union[dict, list]
-        Input dict or list
-
-    Returns
-    -------
-    SimpleNamespace
-        Namespace of dict/list elements
-    
-    Author
-    ------
-    Author : Kartik Chari \n
-    Last changed : 21.08.2025 (by Kartik Chari)
-    """
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     if isinstance(data_inp, dict):
         return SimpleNamespace(**{k: convertDictToNamespace(v) for k, v in data_inp.items()})
     elif isinstance(data_inp, list):
@@ -270,75 +163,8 @@ def convertNamespaceToDict(data_inp: SimpleNamespace) -> dict:
 
 
 def getProjectRoot(marker: str = None) -> Path:
-<<<<<<< HEAD
-def convertNamespaceToDict(data_inp: SimpleNamespace) -> dict:
-    """
-    This function converts the input nested namespace/dict  into a dict.
-
-    Parameters
-    ----------
-    data_inp : SimpleNamespace
-        Input NameSpace object
-
-    Returns
-    -------
-    dict
-        Dictionary converted from SimpleNamespace
-    
-    Author
-    ------
-    Author : Kartik Chari \n
-    Last changed : 04.09.2025 (by Kartik Chari)
-    """
-    if isinstance(data_inp, SimpleNamespace):
-        return {k: convertNamespaceToDict(v) for k, v in vars(data_inp).items()}
-    elif isinstance(data_inp, dict):
-        return {k: convertNamespaceToDict(v) for k, v in data_inp.items()}
-    elif isinstance(data_inp, (list, tuple)):
-        return [convertNamespaceToDict(v) for v in data_inp]
-    else:
-        return data_inp
-
-
-def getProjectRoot(marker: str = None) -> Path:
-def convertNamespaceToDict(data_inp: SimpleNamespace) -> dict:
-    """
-    This function converts the input nested namespace/dict  into a dict.
-
-    Parameters
-    ----------
-    data_inp : SimpleNamespace
-        Input NameSpace object
-
-    Returns
-    -------
-    dict
-        Dictionary converted from SimpleNamespace
-    
-    Author
-    ------
-    Author : Kartik Chari \n
-    Last changed : 04.09.2025 (by Kartik Chari)
-    """
-    if isinstance(data_inp, SimpleNamespace):
-        return {k: convertNamespaceToDict(v) for k, v in vars(data_inp).items()}
-    elif isinstance(data_inp, dict):
-        return {k: convertNamespaceToDict(v) for k, v in data_inp.items()}
-    elif isinstance(data_inp, (list, tuple)):
-        return [convertNamespaceToDict(v) for v in data_inp]
-    else:
-        return data_inp
-
-
-def getProjectRoot(marker: str = None) -> Path:
     """
     This function returns the project root folder path.
-    This function returns the project root folder path.
-    This function returns the project root folder path.
-=======
-    """
-    This function returns the project root folder path.
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
     Parameters
     -----
@@ -354,52 +180,15 @@ def getProjectRoot(marker: str = None) -> Path:
     ------
     RuntimeError
         Raised if the marker is not found in the filepath stems
-<<<<<<< HEAD
-        The dir name that helps to looks for the root folder in any project structure, by default ""
-    
-    Returns
-    -------
-    Path
-        Project root filepath
-    
-    Raises
-    ------
-    RuntimeError
-        Raised if the marker is not found in the filepath stems
-        The dir name that helps to looks for the root folder in any project structure, by default ""
-    
-    Returns
-    -------
-    Path
-        Project root filepath
-    
-    Raises
-    ------
-    RuntimeError
-        Raised if the marker is not found in the filepath stems
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
     Author
     ------
     Author : Kartik Chari \n
     Last changed : 28.08.2025 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 28.08.2025 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 28.08.2025 (by Kartik Chari)
-    """
-    filepath = Path(__file__).resolve()
-    if not marker:
-        print("No markers provided! Assuming that there are not further sub-divisions in your folder structure!!")
-        print("No markers provided! Assuming that there are not further sub-divisions in your folder structure!!")
-=======
     """
     filepath = Path(__file__).resolve()
     if not marker:
         # print("No markers provided to get project root! Assuming that there are not further sub-divisions in your folder structure!!")
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         return filepath.parent.parent.parent
     else:
         for parent in filepath.parents:
@@ -409,11 +198,6 @@ def getProjectRoot(marker: str = None) -> Path:
 
 
 def getAbsolutePath(input_path: str = None) -> Path:
-<<<<<<< HEAD
-def getAbsolutePath(input_path: str = None) -> Path:
-def getAbsolutePath(input_path: str = None) -> Path:
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     This function ensures that the input path is absolute. It first gets the root of the project and then appends the input path to it. This function does not work with relative paths.
 
@@ -433,59 +217,14 @@ def getAbsolutePath(input_path: str = None) -> Path:
         Raised if the input_path is None
     ValueError
         Raised if project root is not generated properly
-<<<<<<< HEAD
-
-        Path (wrt project root) to be made absolute, by default empty
-    
-    Returns
-    -------
-    Path
-        Absolute path of the input_path
-    
-    Returns
-    -------
-    ValueError
-        Raised if the input_path is None
-    ValueError
-        Raised if project root is not generated properly
-
-        Path (wrt project root) to be made absolute, by default empty
-    
-    Returns
-    -------
-    Path
-        Absolute path of the input_path
-    
-    Returns
-    -------
-    ValueError
-        Raised if the input_path is None
-    ValueError
-        Raised if project root is not generated properly
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
     Author
     ------
     Author : Kartik Chari \n
     Last changed : 27.08.2025 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 27.08.2025 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 27.08.2025 (by Kartik Chari)
     """
     if input_path is None:
         raise ValueError("Please provide a valid input path !!")
-    if input_path is None:
-        raise ValueError("Please provide a valid input path !!")
-    if input_path is None:
-        raise ValueError("Please provide a valid input path !!")
-=======
-    """
-    if input_path is None:
-        raise ValueError("Please provide a valid input path !!")
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     # get project root
     project_root = getProjectRoot()
 
@@ -508,12 +247,6 @@ def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -
     This function checks whether the fig_save_path exists or not. If it does not exist, it will create the directory. In addition, it will create the output dir where the output plots and readme will be saved.
     The output dir will look like fig_save_path/sub_code/date_time_plot_1. It also checks the last integer and increments it to prevent overwrite.
     
-<<<<<<< HEAD
-    This function checks whether the fig_save_path exists or not. If it does not exist, it will create the directory. In addition, it will create the output dir where the output plots and readme will be saved.
-    The output dir will look like fig_save_path/sub_code/date_time_plot_1. It also checks the last integer and increments it to prevent overwrite.
-    
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     Parameters
     ----------
     param_obj: dict
@@ -535,13 +268,6 @@ def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -
     ------
     Author : Kartik Chari \n
     Last changed : 13.11.2024 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     #TODO: Make it general
     if param_obj is None:
@@ -572,11 +298,6 @@ def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -
 
 
 def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path = None, sections_to_include: List[str] = None) -> None:
-<<<<<<< HEAD
-def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path = None, sections_to_include: List[str] = None) -> None:
-def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path = None, sections_to_include: List[str] = None) -> None:
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     """
     This function creates a readme file in the same dir as the plots with all necessary hyperparameters of the model.
 
@@ -595,45 +316,11 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
         Raised if param_obj is neither a dict nor SimpleNamespace
     KeyError
         Raised if the dict keys filepath or fig_save_path do not exist
-<<<<<<< HEAD
-    param_obj : dict or SimpleNamespace
-        Object imported from the .yaml file, by default None
-    dir_path: Path
-        Path of dir where readme file needs to be created
-    sections_to_include: list of str
-        Names of the sections that need to be included in the readme
-    
-    Raises
-    ------
-    TypeError
-        Raised if param_obj is neither a dict nor SimpleNamespace
-    KeyError
-        Raised if the dict keys filepath or fig_save_path do not exist
-    param_obj : dict or SimpleNamespace
-        Object imported from the .yaml file, by default None
-    dir_path: Path
-        Path of dir where readme file needs to be created
-    sections_to_include: list of str
-        Names of the sections that need to be included in the readme
-    
-    Raises
-    ------
-    TypeError
-        Raised if param_obj is neither a dict nor SimpleNamespace
-    KeyError
-        Raised if the dict keys filepath or fig_save_path do not exist
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     
     Author
     ------
     Author : Kartik Chari \n
     Last changed : 04.09.2025 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 04.09.2025 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 04.09.2025 (by Kartik Chari)
     """
     try:
         # convert SimpleNamespace → dict only if needed
@@ -650,42 +337,6 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
                 raise KeyError("Missing filepath.fig_save_path in config file!!!")
             dir_path = getAbsolutePath(param_dict["filepath"]["fig_save_path"])
     
-=======
-    """
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
-    try:
-        # convert SimpleNamespace → dict only if needed
-        if isinstance(param_obj, SimpleNamespace):
-            param_dict = convertNamespaceToDict(param_obj)
-        elif isinstance(param_obj, dict):
-            param_dict = convertNamespaceToDict(param_obj)
-        else:
-            raise TypeError("param_obj must be a dict or SimpleNamespace!!")
-
-        if dir_path is None:
-            warnings.warn("Missing dir_path argument!! Trying to access fig_save_path from config instead!!")
-            if "filepath" not in param_dict or "fig_save_path" not in param_dict["filepath"]:
-                raise KeyError("Missing filepath.fig_save_path in config file!!!")
-            dir_path = getAbsolutePath(param_dict["filepath"]["fig_save_path"])
-    
-<<<<<<< HEAD
-    try:
-        # convert SimpleNamespace → dict only if needed
-        if isinstance(param_obj, SimpleNamespace):
-            param_dict = convertNamespaceToDict(param_obj)
-        elif isinstance(param_obj, dict):
-            param_dict = convertNamespaceToDict(param_obj)
-        else:
-            raise TypeError("param_obj must be a dict or SimpleNamespace!!")
-
-        if dir_path is None:
-            warnings.warn("Missing dir_path argument!! Trying to access fig_save_path from config instead!!")
-            if "filepath" not in param_dict or "fig_save_path" not in param_dict["filepath"]:
-                raise KeyError("Missing filepath.fig_save_path in config file!!!")
-            dir_path = getAbsolutePath(param_dict["filepath"]["fig_save_path"])
-    
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         readme_file = dir_path / "readme.txt"
         readme_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -700,66 +351,16 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
         else:
             filter_dict = param_dict
         
-<<<<<<< HEAD
-        readme_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # filter sections if needed
-        if sections_to_include is not None:
-            filter_dict = {}
-            for sec in sections_to_include:
-                if sec in param_dict:
-                    filter_dict[sec] = param_dict[sec]
-                else:
-                    filter_dict[sec] = "(NOT FOUND)"
-        else:
-            filter_dict = param_dict
-        
-        readme_file.parent.mkdir(parents=True, exist_ok=True)
-
-        # filter sections if needed
-        if sections_to_include is not None:
-            filter_dict = {}
-            for sec in sections_to_include:
-                if sec in param_dict:
-                    filter_dict[sec] = param_dict[sec]
-                else:
-                    filter_dict[sec] = "(NOT FOUND)"
-        else:
-            filter_dict = param_dict
-        
-=======
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
         with readme_file.open("w") as f:
             f.write("Configuration Used for Training!!\n\n")
             yaml.dump(filter_dict, f, sort_keys=False, default_flow_style=False)
         
         print(f"Readme created at: {readme_file}")
 
-<<<<<<< HEAD
-            f.write("Configuration Used for Training!!\n\n")
-            yaml.dump(filter_dict, f, sort_keys=False, default_flow_style=False)
-        
-        print(f"Readme created at: {readme_file}")
-
-            f.write("Configuration Used for Training!!\n\n")
-            yaml.dump(filter_dict, f, sort_keys=False, default_flow_style=False)
-        
-        print(f"Readme created at: {readme_file}")
-
-    except KeyError:
-        print("ERROR!! Please ensure you pass correct args to createReadme!!")
-        print("ERROR!! Please ensure you pass correct args to createReadme!!")
-        print("ERROR!! Please ensure you pass correct args to createReadme!!")
-        exit(1)
-    
-    
-    
-=======
     except KeyError:
         print("ERROR!! Please ensure you pass correct args to createReadme!!")
         exit(1)
     
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
 
 def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Time in s", ylabel="", is_grid_on=True):
     """
@@ -788,19 +389,8 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
     ------
     Author : Kartik Chari \n
     Last changed : 13.11.2024 (by Kartik Chari)
-<<<<<<< HEAD
-    Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
-    Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
     """
     #TODO: Improve to make it more general
-    #TODO: Improve to make it more general
-    #TODO: Improve to make it more general
-=======
-    """
-    #TODO: Improve to make it more general
->>>>>>> 306e0a815e9ebbcf68f8bb2e035814839e083b34
     plt.figure()
 
     x_samples = np.arange(0, len(data_ref),1)
