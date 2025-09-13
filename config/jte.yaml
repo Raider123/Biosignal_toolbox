@@ -34,7 +34,6 @@
     window_step:          10  #samples
     feature_size:         20  #samples
     feature_select:       'end'
-    feature_type:         'mav'
     neural_activation_fcn: False
 
     f_samp: 500

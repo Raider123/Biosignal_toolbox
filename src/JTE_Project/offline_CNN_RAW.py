@@ -15,7 +15,7 @@ import joblib
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.utils import loadConfig, plotResults, getAbsolutePath
-
+from tensorflow.keras import layers, models, Input
 from tensorflow.keras.models import load_model
 
 import warnings
@@ -100,33 +100,18 @@ else:
 
 result_file_name = '_' + config_param['data_param']['weights'][0]
 
-# ! Initialise arrays to append data
-n_channels_from_config = int(len(config_param['preprocess_param']['channel_names_emg']))
-length_of_each_feature_window = int(config_param['preprocess_param']['window_size_x'])
-
-x_test_combined = np.empty(shape=[0, length_of_each_feature_window])
-x_train_combined = np.empty(shape=[0, length_of_each_feature_window])
-
-y_e_train_combined = np.empty((0,))
-y_e_test_combined = np.empty((0,))
-
-y_f_train_combined = np.empty((0,))
-y_f_test_combined = np.empty((0,))
-
-y_s_train_combined = np.empty((0,))
-y_s_test_combined = np.empty((0,))
-
-window_train_combined = np.empty((0, length_of_each_feature_window, n_channels_from_config))  # z.B. (0, 50, 8)
-window_test_combined = np.empty((0, length_of_each_feature_window, n_channels_from_config))
-
-freq_train_combined = None
-freq_test_combined = None
+# Listen für die Input und Output Features
+window_train_list, window_test_list = [], []
+y_e_train_list, y_e_test_list = [], []
+y_f_train_list, y_f_test_list = [], []
+y_s_train_list, y_s_test_list = [], []
+freq_train_list, freq_test_list = [], []
+temporal_train_list, temporal_test_list = [], []
 
 # *********************************************************************************
 # ***************** Load train, test, val sets for every iteration ****************
 # *********************************************************************************
 from scipy.signal import welch
-import numpy as np
 
 def extract_freq_features(windows, fs):
     """
@@ -137,7 +122,6 @@ def extract_freq_features(windows, fs):
     """
 
     # typische EMG-Bänder (anpassen je nach fs!)
-    #bands = [(20, 60), (60, 120), (120, 250), (250, 450)]
     bands =  [(20, 60), (60, 150), (150, 250)]
 
     n_windows, n_samples, n_channels = windows.shape
@@ -172,6 +156,47 @@ def extract_freq_features(windows, fs):
         features[w, :] = np.array(feat_w, dtype=np.float32)
 
     return features
+
+def extract_temporal_features(windows, threshold=0.01):
+    """
+    Berechnet klassische EMG-Features im Zeitbereich.
+    windows: np.array, shape (n_windows, n_samples, n_channels)
+    returns: np.array, shape (n_windows, n_channels * n_features)
+    """
+    n_windows, n_samples, n_channels = windows.shape
+    feats = []
+
+    for w in range(n_windows):
+        feat_w = []
+        for ch in range(n_channels):
+            x = windows[w, :, ch]
+
+            # MAV
+            mav = np.mean(np.abs(x))
+
+            # RMS
+            rms = np.sqrt(np.mean(x**2))
+
+            # VAR
+            var = np.var(x)
+
+            # Waveform Length
+            wl = np.sum(np.abs(np.diff(x)))
+
+            # Zero Crossing
+            zc = np.sum(((x[:-1] * x[1:]) < 0) &
+                        (np.abs(x[:-1] - x[1:]) >= threshold))
+
+            # Slope Sign Change
+            diff = np.diff(x)
+            ssc = np.sum(((diff[:-1] * diff[1:]) < 0) &
+                         (np.abs(diff[:-1] - diff[1:]) >= threshold))
+
+            feat_w.extend([mav, rms, var, wl, zc, ssc])
+        feats.append(feat_w)
+
+    return np.array(feats, dtype=np.float32)
+
 
 for typ_idx in range(len(config_param['data_param']['mov_type'])):
     for wgt_idx in range(len(config_param['data_param']['weights'])):
@@ -210,7 +235,6 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                                                      config_param['filepath']['data_path']),
                                            f_samp=config_param['preprocess_param']['f_samp'],
                                            channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                           file_type='individual',
                                            add_marker_channel=True)
 
                 print("Creating Quali Shoulder Front object!!")
@@ -223,7 +247,6 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                                                      config_param['filepath']['data_path']),
                                            f_samp=config_param['preprocess_param']['f_samp'],
                                            channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                           file_type='individual',
                                            add_marker_channel=True)
 
                 print("Creating Quali Shoulder Side object!!")
@@ -236,7 +259,6 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                                               'data_path']),
                                           f_samp=config_param['preprocess_param']['f_samp'],
                                           channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                          file_type='individual',
                                           add_marker_channel=True)
 
                 # ! ************************************************
@@ -391,6 +413,12 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                     fs=config_param['preprocess_param']['f_samp']
                 )
                 #---------------------------------------------------------------------------------------
+                # Temporal features berechnen
+                temporal_features = extract_temporal_features(
+                    windows,
+                    threshold=0.01  # kann aus config_param gesetzt werden
+                )
+                #----------------------------------------------------------------------------------------
                 print("Extracting features from windowed data ...")
                 EMG_Data.featureExtractionFromWindows(feature_type="timepoints",
                                                       feature_indices_windows=feature_indices_windows_x)
@@ -416,35 +444,49 @@ for typ_idx in range(len(config_param['data_param']['mov_type'])):
                 #-------------------------
                 freq_features = freq_features[:min_len]
                 #-------------------------
+                temporal_features = temporal_features[:min_len]
+                #-------------------------
 
                 # Split-Index berechnen
                 split_idx = int(round(config_param['model_param']['train_test_split'] * min_len))
 
                 # Split durchführen und an die kombinierten Arrays anhängen
-                window_train_combined = np.concatenate((window_train_combined, windows[:split_idx]), axis=0)
-                window_test_combined = np.concatenate((window_test_combined, windows[split_idx:]), axis=0)
+                window_train_list.append(windows[:split_idx])
+                window_test_list.append(windows[split_idx:])
 
-                y_e_train_combined = np.concatenate((y_e_train_combined, y_e[:split_idx]))
-                y_e_test_combined = np.concatenate((y_e_test_combined, y_e[split_idx:]))
+                y_e_train_list.append(y_e[:split_idx])
+                y_e_test_list.append(y_e[split_idx:])
+                y_f_train_list.append(y_f[:split_idx])
+                y_f_test_list.append(y_f[split_idx:])
+                y_s_train_list.append(y_s[:split_idx])
+                y_s_test_list.append(y_s[split_idx:])
 
-                y_f_train_combined = np.concatenate((y_f_train_combined, y_f[:split_idx]))
-                y_f_test_combined = np.concatenate((y_f_test_combined, y_f[split_idx:]))
+                freq_train_list.append(freq_features[:split_idx])
+                freq_test_list.append(freq_features[split_idx:])
 
-                y_s_train_combined = np.concatenate((y_s_train_combined, y_s[:split_idx]))
-                y_s_test_combined = np.concatenate((y_s_test_combined, y_s[split_idx:]))
+                temporal_train_list.append(temporal_features[:split_idx])
+                temporal_test_list.append(temporal_features[split_idx:])
 
-                if freq_train_combined is None:
-                    # Erstes Mal: Arrays initialisieren mit richtiger Spaltenzahl
-                    freq_train_combined = np.empty((0, freq_features.shape[1]))
-                    freq_test_combined = np.empty((0, freq_features.shape[1]))
-
-                # Jetzt normal anhängen
-                freq_train_combined = np.concatenate((freq_train_combined, freq_features[:split_idx]), axis=0)
-                freq_test_combined = np.concatenate((freq_test_combined, freq_features[split_idx:]), axis=0)
-
-
-            else:
+        else:
                 continue
+
+
+# Finales Stapeln aller Listen
+window_train_combined = np.concatenate(window_train_list, axis=0)
+window_test_combined  = np.concatenate(window_test_list, axis=0)
+
+y_e_train_combined = np.concatenate(y_e_train_list)
+y_e_test_combined  = np.concatenate(y_e_test_list)
+y_f_train_combined = np.concatenate(y_f_train_list)
+y_f_test_combined  = np.concatenate(y_f_test_list)
+y_s_train_combined = np.concatenate(y_s_train_list)
+y_s_test_combined  = np.concatenate(y_s_test_list)
+
+freq_train_combined = np.concatenate(freq_train_list, axis=0)
+freq_test_combined  = np.concatenate(freq_test_list, axis=0)
+
+temporal_train_combined = np.concatenate(temporal_train_list, axis=0)
+temporal_test_combined = np.concatenate(temporal_test_list, axis=0)
 # **********************************************************************************
 # *************************** Train, load or test Model ****************************
 # **********************************************************************************
@@ -454,6 +496,7 @@ from sklearn.preprocessing import StandardScaler
 
 SCALER_FILE_TIME = MODEL_DIR / "std_scaler_time.pkl"
 SCALER_FILE_FREQ = MODEL_DIR / "std_scaler_freq.pkl"
+SCALER_FILE_TEMPORAL = MODEL_DIR / "std_scaler_temporal.pkl"
 
 if RUN_MODE == "train":
     # --- Zeit-Features ---
@@ -474,6 +517,12 @@ if RUN_MODE == "train":
     freq_test_combined = scaler_freq.transform(freq_test_combined)
     joblib.dump(scaler_freq, SCALER_FILE_FREQ)
 
+    # Zusätzliche Zeit-Features (Temporal)
+    scaler_temp = StandardScaler()
+    temporal_train_combined = scaler_temp.fit_transform(temporal_train_combined)
+    temporal_test_combined = scaler_temp.transform(temporal_test_combined)
+    joblib.dump(scaler_temp, SCALER_FILE_TEMPORAL)
+
 else:  # infer
     # Zeit-Features
     scaler_time = joblib.load(SCALER_FILE_TIME)
@@ -485,59 +534,24 @@ else:  # infer
     scaler_freq = joblib.load(SCALER_FILE_FREQ)
     freq_test_combined = scaler_freq.transform(freq_test_combined)
 
+    # Zusätzliche Zeit-Features
+    scaler_temp = joblib.load(SCALER_FILE_TEMPORAL)
+    temporal_test_combined = scaler_temp.transform(temporal_test_combined)
+
 # Vor Modellerstellung
 tf.config.optimizer.set_jit(True)
 
-import tensorflow as tf
-from tensorflow.keras import layers, models, Input
-
 # ------------------------------------------------------------------
-# Modell: Dilated Temporal Convolutional Network (Multi-Task)
-#     – feste Hyperparameter nach Tuner-Ergebnis (filters 32, stacks 2, dropout 0.02)
+# Modelldefinition: Dilated Temporal Convolutional Network (Multi-Task)
 # ------------------------------------------------------------------
-def build_tcn_mtl(input_shape,
-                  filters=32,  # optimaler Wert
-                  stacks=2,  # optimaler Wert
-                  dropout_rate=0.02):  # optimaler Wert
-    inp = Input(shape=input_shape, name='emg_input')
-    x = inp
 
-    for s in range(stacks):
-        dilation = 2 ** s  # 1, 2
-        # -------- Residual Branch --------
-        y = layers.Conv1D(filters, 3, padding='causal',
-                          dilation_rate=dilation,
-                          activation='relu')(x)
-        y = layers.Conv1D(filters, 3, padding='causal',
-                          dilation_rate=dilation,
-                          activation='relu')(y)
-
-        # -------- Shortcut Branch --------
-        if x.shape[-1] != filters:  # Kanal-Match
-            x = layers.Conv1D(filters, 1, padding='same')(x)
-
-        x = layers.add([x, y])  # Residual-Add
-        x = layers.Activation('relu')(x)
-
-    # -------- Output-Head --------
-    x = layers.GlobalAveragePooling1D()(x)
-    x = layers.Dense(64, activation='relu')(x)
-    x = layers.Dropout(dropout_rate)(x)
-
-    out_e = layers.Dense(1, name='torque_elbow')(x)
-    out_f = layers.Dense(1, name='torque_shoulder_front')(x)
-    out_s = layers.Dense(1, name='torque_shoulder_side')(x)
-
-    return models.Model(inp, [out_e, out_f, out_s], name='TCN_MTL')
-
-
-def build_model(input_shape_time, input_shape_freq,
-                mode="time+freq", filters=32, stacks=2, dropout_rate=0.2):
+def build_model(input_shape_time, input_shape_freq, input_shape_temporal,
+                mode="time+freq", filters=32, stacks=2, dropout_rate=0.02):
 
     inputs = []
     branches = []
 
-    if mode in ["time", "time+freq"]:
+    if mode in ["time", "time+freq", "time+temporal"]:
         # Zeit-Pfad (TCN)
         inp_time = Input(shape=input_shape_time, name='emg_input')
         x = inp_time
@@ -559,6 +573,13 @@ def build_model(input_shape_time, input_shape_freq,
         f = layers.Dropout(dropout_rate)(f)
         inputs.append(inp_freq)
         branches.append(f)
+
+    if mode in ['temporal', 'time+temporal']:
+        inp_temp = Input(shape=input_shape_temporal, name='temp_input')
+        t = layers.Dense(64, activation="relu")(inp_temp)
+        t = layers.Dropout(dropout_rate)(t)
+        inputs.append(inp_temp)
+        branches.append(t)
 
     # Fusion (falls mehrere Zweige)
     if len(branches) > 1:
@@ -583,21 +604,33 @@ def build_model(input_shape_time, input_shape_freq,
 # Shapes
 input_shape_time = (window_train_combined.shape[1], window_train_combined.shape[2])
 input_shape_freq = (freq_train_combined.shape[1],)
+input_shape_temporal = (temporal_train_combined.shape[1],)
+
+# Trainingsdaten auswählen
+if INPUT_MODE == "time":
+    X_train, X_test = window_train_combined, window_test_combined
+elif INPUT_MODE == "freq":
+    X_train, X_test = freq_train_combined, freq_test_combined
+elif INPUT_MODE == "time+freq":
+    X_train, X_test = [window_train_combined, freq_train_combined], [window_test_combined, freq_test_combined]
+elif INPUT_MODE == "temporal":
+    X_train, X_test = temporal_train_combined, temporal_test_combined
+elif INPUT_MODE == "time+temporal":
+    X_train, X_test = [window_train_combined, temporal_train_combined], \
+                      [window_test_combined, temporal_test_combined]
 
 if RUN_MODE == "train":
-    model_mtl = build_model(input_shape_time, input_shape_freq, mode=INPUT_MODE)
+    model_mtl = build_model(input_shape_time,
+                            input_shape_freq,
+                            input_shape_temporal,
+                            mode=INPUT_MODE,
+                            filters=32,
+                            stacks=2,
+                            dropout_rate=0.02)
 
     # Compile
     model_mtl.compile(optimizer=config_param['model_param']['optimizer'],
                       loss=config_param['model_param']['loss_fcn'])
-
-    # Trainingsdaten auswählen
-    if INPUT_MODE == "time":
-        X_train, X_test = window_train_combined, window_test_combined
-    elif INPUT_MODE == "freq":
-        X_train, X_test = freq_train_combined, freq_test_combined
-    else:  # "time+freq"
-        X_train, X_test = [window_train_combined, freq_train_combined], [window_test_combined, freq_test_combined]
 
     # Fit
     history = model_mtl.fit(
@@ -622,19 +655,17 @@ else:  # RUN_MODE == "infer"
 # Vorhersagen erzeugen
 # ------------------------------------------------------------------------------
 
-# Prediction
-# --- Vorhersagen erzeugen ---
-if INPUT_MODE == "time":
-    X_test = window_test_combined
-elif INPUT_MODE == "freq":
-    X_test = freq_test_combined
-else:  # "time+freq"
-    X_test = [window_test_combined, freq_test_combined]
-
+# Test - Prediction
 predictions_e, predictions_f, predictions_s = model_mtl.predict(X_test)
 predictions_e = predictions_e.flatten()
 predictions_f = predictions_f.flatten()
 predictions_s = predictions_s.flatten()
+
+# Train - Prediction
+train_pred_e, train_pred_f, train_pred_s = model_mtl.predict(X_train)
+train_pred_e = train_pred_e.flatten()
+train_pred_f = train_pred_f.flatten()
+train_pred_s = train_pred_s.flatten()
 
 # ------------------------------------------------------------------------------
 # Post-Processing
@@ -652,7 +683,6 @@ if config_param['post_processing_param']['savitzky_on']:
 
 
 def moving_average(x, w):
-    import numpy as np
     return np.convolve(x, np.ones(w), 'same') / w
 
 
@@ -663,43 +693,29 @@ if config_param['post_processing_param']['moving_av_on']:
     predictions_s = moving_average(predictions_s, filter_window_size)
 
 # ------------------------------------------------------------------------------
-# RMSE-Berechnung (Test + Train) und Ausgabe
+# RMSE-Berechnung (Test + Train + R^2) und Ausgabe
 # ------------------------------------------------------------------------------
 
-from sklearn.metrics import mean_squared_error
-import numpy as np
+from sklearn.metrics import mean_squared_error, r2_score
+
+rmse_e_train = np.sqrt(mean_squared_error(y_e_train_combined, train_pred_e))
+rmse_f_train = np.sqrt(mean_squared_error(y_f_train_combined, train_pred_f))
+rmse_s_train = np.sqrt(mean_squared_error(y_s_train_combined, train_pred_s))
 
 # Test-RMSE
 rmse_e = np.sqrt(mean_squared_error(y_e_test_combined, predictions_e))
 rmse_f = np.sqrt(mean_squared_error(y_f_test_combined, predictions_f))
 rmse_s = np.sqrt(mean_squared_error(y_s_test_combined, predictions_s))
 
-# Train-RMSE
-# --- Train-RMSE ---
-if INPUT_MODE == "time":
-    X_train = window_train_combined
-elif INPUT_MODE == "freq":
-    X_train = freq_train_combined
-else:  # "time+freq"
-    X_train = [window_train_combined, freq_train_combined]
-
-train_pred_e, train_pred_f, train_pred_s = model_mtl.predict(X_train)
-
-rmse_e_train = np.sqrt(mean_squared_error(y_e_train_combined, train_pred_e.flatten()))
-rmse_f_train = np.sqrt(mean_squared_error(y_f_train_combined, train_pred_f.flatten()))
-rmse_s_train = np.sqrt(mean_squared_error(y_s_train_combined, train_pred_s.flatten()))
+# R^2 Wert (Für Test)
+r2_e = r2_score(y_e_test_combined, predictions_e)
+r2_f = r2_score(y_f_test_combined, predictions_f)
+r2_s = r2_score(y_s_test_combined, predictions_s)
 
 print('Ergebnisse (Multi-Task):')
 print(f"Ellbogen      -> Test-RMSE: {rmse_e:.2f}  | Train-RMSE: {rmse_e_train:.2f}")
 print(f"Schulter Front-> Test-RMSE: {rmse_f:.2f}  | Train-RMSE: {rmse_f_train:.2f}")
 print(f"Schulter Side -> Test-RMSE: {rmse_s:.2f}  | Train-RMSE: {rmse_s_train:.2f}")
-
-# --- Zeitachsen der Plots anpassen (bisher über window_step_size gelöst)  ------------------------------------------
-fs = config_param['preprocess_param']['f_samp']  # Abtastfreq. [Hz]
-step = config_param['preprocess_param']['window_step']  # Fenster-Schritt [Samples]
-time_ax_e = np.arange(len(predictions_e)) * step / fs * 5  # Zeit [s]
-time_ax_f = np.arange(len(predictions_f)) * step / fs * 5  # Zeit [s]
-time_ax_s = np.arange(len(predictions_s)) * step / fs * 5  # Zeit [s]
 
 # ------------------------------------------------------------------------------
 # 6) Visualisierung
@@ -707,19 +723,19 @@ time_ax_s = np.arange(len(predictions_s)) * step / fs * 5  # Zeit [s]
 
 plotResults(y_e_test_combined, "real torque",
             predictions_e, "predicted torque",
-            f"Elbow Joint Filtered; RMSE: {rmse_e:.4f} N-m",
+            f"Elbow Joint Filtered; RMSE: {rmse_e:.4f} N-m | R²: {r2_e:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 
 plotResults(y_f_test_combined, "real torque",
             predictions_f, "predicted torque",
-            f"Shoulder Front Joint Filtered; RMSE: {rmse_f:.4f} N-m",
+            f"Shoulder Front Joint Filtered; RMSE: {rmse_f:.4f} N-m | R²: {r2_f:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 
 plotResults(y_s_test_combined, "real torque",
             predictions_s, "predicted torque",
-            f"Shoulder Side Joint Filtered; RMSE: {rmse_s:.4f} N-m",
+            f"Shoulder Side Joint Filtered; RMSE: {rmse_s:.4f} N-m | R²: {r2_s:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 

@@ -11,7 +11,9 @@ from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Type, Union, List
-
+from sys import exit, path
+path.append(str(Path(__file__).resolve().parents[2]))
+#from config_root import project_root
 import warnings
 import inspect
 #! ************************************************

@@ -84,49 +84,38 @@ class EMGData(Timeseries):
         
         if(filenames):
             if(isinstance(filenames, list)): # check if list or string class 
-                raw_list = []
-                events_list = []
-                # filename = filenames[0] # use only one 
-                for file in filenames:
-                    if(format == "ANTmini"):
-                        raw_data, self.time_axis,  = self.loadMiniANTEMGData(file, self.f_samp)
+                filename = filenames[0] # use only one 
+            
+            if(format == "ANTmini"):
+                warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
+                raw_data, self.time_axis,  = self.loadMiniANTEMGData(filename, self.f_samp)
 
-                        self.data = raw_data # store data in numpy array 
-                        self.createMNERaw()
-                        # Adding an extra event channel at the end for qualisys markers
-                        column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
-                        self.data = np.vstack((self.data,column_of_no_markers))
-                        # Making the 10th and last samples of EMG as the boundaries for syncing
-                        # This number is selected taking into account 20 ms start delay in qualisys
-                        offset_idx = 1*(20*f_samp/1000)
-                        self.data[-1,int(offset_idx)] = 1
-                        self.data[-1,-1] = 2
-                        print(f"Data: {self.data.shape}")
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
+                # Adding an extra event channel at the end for quali markers
+                column_of_no_markers = -1 * np.ones((1,self.data.shape[1]))
+                self.data = np.vstack((self.data,column_of_no_markers))
+                # Making the 4th and last samples of EMG as the boundaries for syncing
+                # This number is selected taking into account 20ms delay of quali and communication delay of arduino
+                self.data[-1,3] = 1
+                self.data[-1,-1] = 1
+                print(f"Data: {self.data.shape}")
 
-                        # set annotation events (markers)
-                        event_channel = self.data[-1, :]
-                        marker_indices = np.where(event_channel > 0)[0]
-                        marker_numbers = event_channel[marker_indices]
-                        events = np.zeros((len(marker_indices), 3))
-                        events[:, 0] = marker_indices
-                        events[:, 2] = marker_numbers
-                        self.events = events.astype(int)
+                # set annotation events (markers)
+                event_channel = self.data[-1, :]
+                marker_indices = np.where(event_channel > 0)[0]
+                marker_numbers = event_channel[marker_indices]
+                events = np.zeros((len(marker_indices), 3))
+                events[:, 0] = marker_indices
+                events[:, 2] = marker_numbers
+                self.events = events.astype(int)
 
-                    else: 
-                        raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
+            else: 
+                warnings.warn("only one (first) dataset can be loaded currently! Ignoring if more than one filename is included in the list ... ")
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(filename)
 
-                        self.data = raw_data # store data in numpy array 
-                        self.createMNERaw()
-                    
-                    raw_list.append(self.raw_obj)
-                    events_list.append(self.events)
-                
-                #? Check if the channel names match in all raws
-
-                for i, raw in enumerate(raw_list,start=1):
-                    assert raw.ch_names == raw_list[0].ch_names, f"Channel mismatch in raw {i}"
-                self.raw_obj, self.events = mne.concatenate_raws(raws=raw_list, events_list=events_list)
-                self.data = self.raw_obj.get_data()
+                self.data = raw_data # store data in numpy array 
+                self.createMNERaw()
 
 
         # print("data shape:", self.data.shape)
