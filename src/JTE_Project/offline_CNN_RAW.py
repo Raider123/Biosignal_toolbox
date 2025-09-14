@@ -583,7 +583,7 @@ tf.config.optimizer.set_jit(True)
 # ------------------------------------------------------------------
 
 def build_model(input_shape_time, input_shape_freq, input_shape_temporal,
-                mode="time+freq", filters=64, stacks=4, dropout_rate=0.10, kernel_size=3):
+                mode, filters, stacks, dropout_rate, kernel_size):
 
     inputs = []
     branches = []
@@ -660,7 +660,7 @@ def build_model(input_shape_time, input_shape_freq, input_shape_temporal,
 # ------------------------------------------------------------------
 # Kompilieren & Trainieren
 # ------------------------------------------------------------------
-# Shapes
+# Shapes für das Modell bauen
 input_shape_time = (window_train_combined.shape[1], window_train_combined.shape[2])
 input_shape_freq = (freq_train_combined.shape[1],)
 input_shape_temporal = (temporal_train_combined.shape[1],)
@@ -679,14 +679,14 @@ elif INPUT_MODE == "time+temporal":
                       [window_test_combined, temporal_test_combined]
 
 if RUN_MODE == "train":
-    model_mtl = build_model(input_shape_time,
-                            input_shape_freq,
-                            input_shape_temporal,
+    model_mtl = build_model(input_shape_time=input_shape_time,
+                            input_shape_freq=input_shape_freq,
+                            input_shape_temporal=input_shape_temporal,
                             mode=INPUT_MODE,
-                            filters=32,
-                            stacks=2,
-                            dropout_rate=0.02)
-
+                            filters=64,
+                            stacks = 4,
+                            dropout_rate = 0.10,
+                            kernel_size=3)
     # Compile
     model_mtl.compile(optimizer=config_param['model_param']['optimizer'],
                       loss=config_param['model_param']['loss_fcn'])
