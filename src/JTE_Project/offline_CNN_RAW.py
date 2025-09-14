@@ -122,7 +122,7 @@ def extract_freq_features(windows, fs):
     """
 
     # typische EMG-Bänder (anpassen je nach fs!)
-    bands =  [(20, 60), (60, 150), (150, 250)]
+    bands =  [(20, 60), (60, 150), (20, 200)]
 
     n_windows, n_samples, n_channels = windows.shape
     n_bands = len(bands)
@@ -197,296 +197,332 @@ def extract_temporal_features(windows, threshold=0.01):
 
     return np.array(feats, dtype=np.float32)
 
+if config_param['workflow_param']['old_preprocessing_mode'] == False:
+    for typ_idx in range(len(config_param['data_param']['mov_type'])):
+        for wgt_idx in range(len(config_param['data_param']['weights'])):
+            for set_idx in range(len(config_param['data_param']['set_num'])):
 
-for typ_idx in range(len(config_param['data_param']['mov_type'])):
-    for wgt_idx in range(len(config_param['data_param']['weights'])):
-        for set_idx in range(len(config_param['data_param']['set_num'])):
+                current_emg_file_name = config_param['filepath']['emg_path'] + config_param['filepath']['emg_file_prefix'] +  config_param['data_param']['weights'][wgt_idx] + '_' +config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][ set_idx] + '.txt'
+                complete_emg_path = getAbsolutePath(config_param['filepath']['data_path'] + current_emg_file_name)
+                print(complete_emg_path)
 
-            current_emg_file_name = config_param['filepath']['emg_path'] + config_param['filepath']['emg_file_prefix'] +  config_param['data_param']['weights'][wgt_idx] + '_' +config_param['data_param']['mov_type'][typ_idx] + '_' + config_param['data_param']['set_num'][ set_idx] + '.txt'
-            complete_emg_path = getAbsolutePath(config_param['filepath']['data_path'] + current_emg_file_name)
-            print(complete_emg_path)
+                # ! Check if the file exists
+                if Path(complete_emg_path).is_file():
 
-            # ! Check if the file exists
-            if Path(complete_emg_path).is_file():
+                    # ! Loading and epoching for training
+                    EMG_Data = EMGData(format="ANTmini", filenames=[current_emg_file_name],
+                                       data_path= getAbsolutePath(config_param['filepath'][
+                                           'data_path']), f_samp=config_param['preprocess_param']['f_samp'],
+                                       channel_names=config_param['preprocess_param']['channel_names_emg'])
 
-                # ! Loading and epoching for training
-                EMG_Data = EMGData(format="ANTmini", filenames=[current_emg_file_name],
-                                   data_path= getAbsolutePath(config_param['filepath'][
-                                       'data_path']), f_samp=config_param['preprocess_param']['f_samp'],
-                                   channel_names=config_param['preprocess_param']['channel_names_emg'])
+                    # ! Plotting the raw EMG data
+                    if config_param['plot_param']['is_plot_raw']:
+                        EMG_Data.plotEMG(data=EMG_Data.data[4, :],
+                                         unit="uV",
+                                         title="Raw EMG plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in uV",
+                                         is_grid_on=True)
 
-                # ! Plotting the raw EMG data
-                if config_param['plot_param']['is_plot_raw']:
-                    EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                                     unit="uV",
-                                     title="Raw EMG plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in uV",
-                                     is_grid_on=True)
+                    # ! Loading the target values for the 3 joints
+                    print("Creating Quali Elbow object!!")
+                    Quali_Data_Elbow = EEGData(format="NumpyQualisys",
+                                               filenames=[config_param['filepath']['quali_path'][0] + config_param['filepath']['quali_tsv_prefix'] +
+                                                          config_param['data_param']['weights'][wgt_idx] + '_' +
+                                                          config_param['data_param']['mov_type'][typ_idx] + '_' +
+                                                          config_param['data_param']['set_num'][set_idx]],
+                                               data_path=getAbsolutePath(
+                                                         config_param['filepath']['data_path']),
+                                               f_samp=config_param['preprocess_param']['f_samp'],
+                                               channel_names=config_param['preprocess_param']['channel_names_quali'],
+                                               add_marker_channel=True)
 
-                # ! Loading the target values for the 3 joints
-                print("Creating Quali Elbow object!!")
-                Quali_Data_Elbow = EEGData(format="NumpyQualisys",
-                                           filenames=[config_param['filepath']['quali_path'][0] + config_param['filepath']['quali_tsv_prefix'] +
-                                                      config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                      config_param['data_param']['mov_type'][typ_idx] + '_' +
-                                                      config_param['data_param']['set_num'][set_idx]],
-                                           data_path=getAbsolutePath(
-                                                     config_param['filepath']['data_path']),
-                                           f_samp=config_param['preprocess_param']['f_samp'],
-                                           channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                           add_marker_channel=True)
+                    print("Creating Quali Shoulder Front object!!")
+                    Quali_Data_Front = EEGData(format="NumpyQualisys",
+                                               filenames=[config_param['filepath']['quali_path'][1] + config_param['filepath']['quali_tsv_prefix'] +
+                                                          config_param['data_param']['weights'][wgt_idx] + '_' +
+                                                          config_param['data_param']['mov_type'][typ_idx] + '_' +
+                                                          config_param['data_param']['set_num'][set_idx]],
+                                               data_path=getAbsolutePath(
+                                                         config_param['filepath']['data_path']),
+                                               f_samp=config_param['preprocess_param']['f_samp'],
+                                               channel_names=config_param['preprocess_param']['channel_names_quali'],
+                                               add_marker_channel=True)
 
-                print("Creating Quali Shoulder Front object!!")
-                Quali_Data_Front = EEGData(format="NumpyQualisys",
-                                           filenames=[config_param['filepath']['quali_path'][1] + config_param['filepath']['quali_tsv_prefix'] +
-                                                      config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                      config_param['data_param']['mov_type'][typ_idx] + '_' +
-                                                      config_param['data_param']['set_num'][set_idx]],
-                                           data_path=getAbsolutePath(
-                                                     config_param['filepath']['data_path']),
-                                           f_samp=config_param['preprocess_param']['f_samp'],
-                                           channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                           add_marker_channel=True)
+                    print("Creating Quali Shoulder Side object!!")
+                    Quali_Data_Side = EEGData(format="NumpyQualisys",
+                                              filenames=[config_param['filepath']['quali_path'][2] + config_param['filepath']['quali_tsv_prefix'] +
+                                                         config_param['data_param']['weights'][wgt_idx] + '_' +
+                                                         config_param['data_param']['mov_type'][typ_idx] + '_' +
+                                                         config_param['data_param']['set_num'][set_idx]],
+                                              data_path=getAbsolutePath(config_param['filepath'][
+                                                  'data_path']),
+                                              f_samp=config_param['preprocess_param']['f_samp'],
+                                              channel_names=config_param['preprocess_param']['channel_names_quali'],
+                                              add_marker_channel=True)
 
-                print("Creating Quali Shoulder Side object!!")
-                Quali_Data_Side = EEGData(format="NumpyQualisys",
-                                          filenames=[config_param['filepath']['quali_path'][2] + config_param['filepath']['quali_tsv_prefix'] +
-                                                     config_param['data_param']['weights'][wgt_idx] + '_' +
-                                                     config_param['data_param']['mov_type'][typ_idx] + '_' +
-                                                     config_param['data_param']['set_num'][set_idx]],
-                                          data_path=getAbsolutePath(config_param['filepath'][
-                                              'data_path']),
-                                          f_samp=config_param['preprocess_param']['f_samp'],
-                                          channel_names=config_param['preprocess_param']['channel_names_quali'],
-                                          add_marker_channel=True)
+                    # ! ************************************************
+                    # ! Data Pre-processing
+                    # ! ************************************************
 
-                # ! ************************************************
-                # ! Data Pre-processing
-                # ! ************************************************
+                    # ? High pass filter
+                    # * design the highpass filter
+                    sos_hp = EMG_Data.designFilter(f_high=config_param['preprocess_param']['f_cutoff_hpf'],
+                                                   f_low=config_param['preprocess_param']['f_cutoff_lpf'],
+                                                   order=config_param['preprocess_param']['filter_order'],
+                                                   filter_type="scipy_butter",
+                                                   return_type="sos")
+                    # * apply hpf filter
+                    EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
+                                                sos=sos_hp)
+                    # ? Plotting HP filtered data
+                    if config_param['plot_param']['is_plot_hpf']:
+                        EMG_Data.plotEMG(data=EMG_Data.data[4, :],
+                                         unit="uV",
+                                         title="High-Pass Filtered plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in uV",
+                                         is_grid_on=True)
 
-                # ? High pass filter
-                # * design the highpass filter
-                sos_hp = EMG_Data.designFilter(f_high=config_param['preprocess_param']['f_cutoff_hpf'],
-                                               f_low=config_param['preprocess_param']['f_cutoff_lpf'],
-                                               order=config_param['preprocess_param']['filter_order'],
-                                               filter_type="scipy_butter",
-                                               return_type="sos")
-                # * apply hpf filter
-                EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
-                                            sos=sos_hp)
-                # ? Plotting HP filtered data
-                if config_param['plot_param']['is_plot_hpf']:
-                    EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                                     unit="uV",
-                                     title="High-Pass Filtered plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in uV",
-                                     is_grid_on=True)
+                    # ? Apply Variance Filter from variance_tools_api
+                    print("Applying Variance filter ...")
+                    width = config_param['preprocess_param']['var_filter_width']
+                    ring_buffer = np.zeros(width)
+                    index = 0
+                    EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer,
+                                                      width=width,
+                                                      index=index)
+                    print("Variance Filter applied!!\n")
 
-                # ? Apply Variance Filter from variance_tools_api
-                print("Applying Variance filter ...")
-                width = config_param['preprocess_param']['var_filter_width']
-                ring_buffer = np.zeros(width)
-                index = 0
-                EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer,
-                                                  width=width,
-                                                  index=index)
-                print("Variance Filter applied!!\n")
+                    # ? Plot and print specific variance filtered windows
+                    # var_filtered_window_x = EMG_Data.filtered_data
+                    # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
+                    # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
 
-                # ? Plot and print specific variance filtered windows
-                # var_filtered_window_x = EMG_Data.filtered_data
-                # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
-                # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
+                    if config_param['plot_param']['is_plot_var_filter']:
+                        EMG_Data.plotEMG(data=EMG_Data.data[4, :],
+                                         unit="uV",
+                                         title="Variance Filtered EMG plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in uV",
+                                         is_grid_on=True)
 
-                if config_param['plot_param']['is_plot_var_filter']:
-                    EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                                     unit="uV",
-                                     title="Variance Filtered EMG plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in uV",
-                                     is_grid_on=True)
+                    # ? Normalisation
+                    print("Performing Normalization with Max Voluntary Contraction ...")
+                    EMG_Data.normalizeContinuousData(mvc=config_param['preprocess_param']['mvc'])
+                    print("Normalization with Max Voluntary Contraction performed !!\n")
 
-                # ? Normalisation
-                print("Performing Normalization with Max Voluntary Contraction ...")
-                EMG_Data.normalizeContinuousData(mvc=config_param['preprocess_param']['mvc'])
-                print("Normalization with Max Voluntary Contraction performed !!\n")
+                    # ? Low pass filter to smoothen the signal
+                    # * design the lowpass filter
+                    sos_lp = EMG_Data.designFilter(f_low=config_param['preprocess_param']['f_cutoff_sm_lpf'],
+                                                   order=config_param['preprocess_param']['sm_filter_order'],
+                                                   filter_type="scipy_butter",
+                                                   return_type="sos")
+                    # * apply lpf filter
+                    EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
+                                                sos=sos_lp)
 
-                # ? Low pass filter to smoothen the signal
-                # * design the lowpass filter
-                sos_lp = EMG_Data.designFilter(f_low=config_param['preprocess_param']['f_cutoff_sm_lpf'],
-                                               order=config_param['preprocess_param']['sm_filter_order'],
-                                               filter_type="scipy_butter",
-                                               return_type="sos")
-                # * apply lpf filter
-                EMG_Data.filterData_offline(filter_method=config_param['preprocess_param']['filter_method'],
-                                            sos=sos_lp)
+                    # ? Plot normalised and smoothened data
+                    if config_param['plot_param']['is_plot_smoothed']:
+                        EMG_Data.plotEMG(data=EMG_Data.data[4, :],
+                                         unit="V",
+                                         title="Normalised and Smoothed EMG plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in V",
+                                         is_grid_on=True)
 
-                # ? Plot normalised and smoothened data
-                if config_param['plot_param']['is_plot_smoothed']:
-                    EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                                     unit="V",
-                                     title="Normalised and Smoothed EMG plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in V",
-                                     is_grid_on=True)
+                    if config_param['preprocess_param']['neural_activation_fcn']:
+                        # ? Calculate Neural Activation Force
+                        print("Replacing sample with its force activation value ...")
+                        EMG_Data.calculateActivationForceFunction(d=config_param['preprocess_param']['act_delay'],
+                                                                  b1=config_param['preprocess_param']['act_beta1'],
+                                                                  b2=config_param['preprocess_param']['act_beta2'],
+                                                                  g=config_param['preprocess_param']['act_gamma'],
+                                                                  nonlinear_shape_factor=config_param['preprocess_param']['act_A'])
+                        print("Replaced each sample with its force activation value !!\n")
 
-                if config_param['preprocess_param']['neural_activation_fcn']:
-                    # ? Calculate Neural Activation Force
-                    print("Replacing sample with its force activation value ...")
-                    EMG_Data.calculateActivationForceFunction(d=config_param['preprocess_param']['act_delay'],
-                                                              b1=config_param['preprocess_param']['act_beta1'],
-                                                              b2=config_param['preprocess_param']['act_beta2'],
-                                                              g=config_param['preprocess_param']['act_gamma'],
-                                                              nonlinear_shape_factor=config_param['preprocess_param']['act_A'])
-                    print("Replaced each sample with its force activation value !!\n")
+                    # ? Plot force activation data
+                    if config_param['plot_param']['is_plot_act']:
+                        EMG_Data.plotEMG(data=EMG_Data.data[4, :],
+                                         unit="V",
+                                         title="Force Activated EMG plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in V",
+                                         is_grid_on=True)
 
-                # ? Plot force activation data
-                if config_param['plot_param']['is_plot_act']:
-                    EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                                     unit="V",
-                                     title="Force Activated EMG plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in V",
-                                     is_grid_on=True)
+                    # ! Windowing the filtered data
+                    _ = EMG_Data.windowContinuousData(startmarkernumber=1,
+                                                      stopmarkernumber=1,
+                                                      window_size=config_param['preprocess_param']['window_size_x'],
+                                                      window_step=config_param['preprocess_param']['window_step'],
+                                                      start_index_offset=0,
+                                                      start_channel_pick=0,
+                                                      end_channel_pick=8,
+                                                      return_window_end_indices=True)
 
-                # ! Windowing the filtered data
-                _ = EMG_Data.windowContinuousData(startmarkernumber=1,
-                                                  stopmarkernumber=1,
-                                                  window_size=config_param['preprocess_param']['window_size_x'],
-                                                  window_step=config_param['preprocess_param']['window_step'],
-                                                  start_index_offset=0,
-                                                  start_channel_pick=0,
-                                                  end_channel_pick=8,
-                                                  return_window_end_indices=True)
+                    _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1,
+                                                              stopmarkernumber=1,
+                                                              window_size=config_param['preprocess_param']['window_size_e'],
+                                                              window_step=config_param['preprocess_param']['window_step'],
+                                                              start_index_offset=0,
+                                                              start_channel_pick=0,
+                                                              end_channel_pick=3,
+                                                              return_window_end_indices=True)
 
-                _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1,
-                                                          stopmarkernumber=1,
-                                                          window_size=config_param['preprocess_param']['window_size_e'],
-                                                          window_step=config_param['preprocess_param']['window_step'],
-                                                          start_index_offset=0,
-                                                          start_channel_pick=0,
-                                                          end_channel_pick=3,
-                                                          return_window_end_indices=True)
+                    _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1,
+                                                              stopmarkernumber=1,
+                                                              window_size=config_param['preprocess_param']['window_size_s'],
+                                                              window_step=config_param['preprocess_param']['window_step'],
+                                                              start_index_offset=0,
+                                                              start_channel_pick=0,
+                                                              end_channel_pick=3,
+                                                              return_window_end_indices=True)
 
-                _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1,
-                                                          stopmarkernumber=1,
-                                                          window_size=config_param['preprocess_param']['window_size_s'],
-                                                          window_step=config_param['preprocess_param']['window_step'],
-                                                          start_index_offset=0,
-                                                          start_channel_pick=0,
-                                                          end_channel_pick=3,
-                                                          return_window_end_indices=True)
+                    _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1,
+                                                             stopmarkernumber=1,
+                                                             window_size=config_param['preprocess_param']['window_size_f'],
+                                                             window_step=config_param['preprocess_param']['window_step'],
+                                                             start_index_offset=0,
+                                                             start_channel_pick=0,
+                                                             end_channel_pick=3,
+                                                             return_window_end_indices=True)
+                    # use the EMG_Data.windows if you want to access the windowed data
 
-                _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1,
-                                                         stopmarkernumber=1,
-                                                         window_size=config_param['preprocess_param']['window_size_f'],
-                                                         window_step=config_param['preprocess_param']['window_step'],
-                                                         start_index_offset=0,
-                                                         start_channel_pick=0,
-                                                         end_channel_pick=3,
-                                                         return_window_end_indices=True)
-                # use the EMG_Data.windows if you want to access the windowed data
+                    # ! Plot specific filtered windows for debugging
+                    if config_param['plot_param']['is_plot_filt_win']:
+                        EMG_Data.plotEMG(data=EMG_Data.getWindows()[0, 2, :, 18],  # [trl,chn,smpl,wnd]
+                                         n_samples=EMG_Data.getWindows().shape[2],
+                                         unit="V",
+                                         title="Force Activated EMG plot for Channel 5",
+                                         xlabel="Time in s",
+                                         ylabel="Voltage in V",
+                                         is_grid_on=True)
 
-                # ! Plot specific filtered windows for debugging
-                if config_param['plot_param']['is_plot_filt_win']:
-                    EMG_Data.plotEMG(data=EMG_Data.getWindows()[0, 2, :, 18],  # [trl,chn,smpl,wnd]
-                                     n_samples=EMG_Data.getWindows().shape[2],
-                                     unit="V",
-                                     title="Force Activated EMG plot for Channel 5",
-                                     xlabel="Time in s",
-                                     ylabel="Voltage in V",
-                                     is_grid_on=True)
+                    # **********************************************************************************
+                    # ******************************* Feature Extraction *******************************
+                    # **********************************************************************************
+                    # Fenster extrahieren
+                    windows = EMG_Data.getWindows()[0]  # (n_channels, n_samples, n_windows)
 
-                # **********************************************************************************
-                # ******************************* Feature Extraction *******************************
-                # **********************************************************************************
-                # Fenster extrahieren
-                windows = EMG_Data.getWindows()[0]  # (n_channels, n_samples, n_windows)
+                    # Umformen zu (n_windows, n_samples, n_channels)
+                    windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
+                    #----------------------------------------------------------------------------------
+                    # Frequenzfeatures berechnen
+                    freq_features = extract_freq_features(
+                        windows,
+                        fs=config_param['preprocess_param']['f_samp']
+                    )
+                    #---------------------------------------------------------------------------------------
+                    # Temporal features berechnen
+                    temporal_features = extract_temporal_features(
+                        windows,
+                        threshold=0.01  # kann aus config_param gesetzt werden
+                    )
+                    #----------------------------------------------------------------------------------------
+                    print("Extracting features from windowed data ...")
+                    EMG_Data.featureExtractionFromWindows(feature_type="timepoints",
+                                                          feature_indices_windows=feature_indices_windows_x)
+                    Quali_Data_Elbow.featureExtractionFromWindows(feature_type="timepoints",
+                                                                  feature_indices_windows=feature_indices_windows_e)
+                    Quali_Data_Front.featureExtractionFromWindows(feature_type="timepoints",
+                                                                  feature_indices_windows=feature_indices_windows_s)
+                    Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
+                                                                 feature_indices_windows=feature_indices_windows_f)
+                    print("Feature extraction from windowed data completed !!\n")
 
-                # Umformen zu (n_windows, n_samples, n_channels)
-                windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
-                #----------------------------------------------------------------------------------
-                # Frequenzfeatures berechnen
-                freq_features = extract_freq_features(
-                    windows,
-                    fs=config_param['preprocess_param']['f_samp']
-                )
-                #---------------------------------------------------------------------------------------
-                # Temporal features berechnen
-                temporal_features = extract_temporal_features(
-                    windows,
-                    threshold=0.01  # kann aus config_param gesetzt werden
-                )
-                #----------------------------------------------------------------------------------------
-                print("Extracting features from windowed data ...")
-                EMG_Data.featureExtractionFromWindows(feature_type="timepoints",
-                                                      feature_indices_windows=feature_indices_windows_x)
-                Quali_Data_Elbow.featureExtractionFromWindows(feature_type="timepoints",
-                                                              feature_indices_windows=feature_indices_windows_e)
-                Quali_Data_Front.featureExtractionFromWindows(feature_type="timepoints",
-                                                              feature_indices_windows=feature_indices_windows_s)
-                Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
-                                                             feature_indices_windows=feature_indices_windows_f)
-                print("Feature extraction from windowed data completed !!\n")
+                    # Labels extrahieren (wie gehabt)
+                    y_e = Quali_Data_Elbow.getFeatures()[:, 0]  # (n_windows,)
+                    y_f = Quali_Data_Front.getFeatures()[:, 0]
+                    y_s = Quali_Data_Side.getFeatures()[:, 0]
 
-                # Labels extrahieren (wie gehabt)
-                y_e = Quali_Data_Elbow.getFeatures()[:, 0]  # (n_windows,)
-                y_f = Quali_Data_Front.getFeatures()[:, 0]
-                y_s = Quali_Data_Side.getFeatures()[:, 0]
+                    # Sicherstellen, dass alles gleich lang ist
+                    min_len = min(windows.shape[0], y_e.shape[0], y_f.shape[0], y_s.shape[0])
+                    windows = windows[:min_len]
+                    y_e = y_e[:min_len]
+                    y_f = y_f[:min_len]
+                    y_s = y_s[:min_len]
+                    #-------------------------
+                    freq_features = freq_features[:min_len]
+                    #-------------------------
+                    temporal_features = temporal_features[:min_len]
+                    #-------------------------
 
-                # Sicherstellen, dass alles gleich lang ist
-                min_len = min(windows.shape[0], y_e.shape[0], y_f.shape[0], y_s.shape[0])
-                windows = windows[:min_len]
-                y_e = y_e[:min_len]
-                y_f = y_f[:min_len]
-                y_s = y_s[:min_len]
-                #-------------------------
-                freq_features = freq_features[:min_len]
-                #-------------------------
-                temporal_features = temporal_features[:min_len]
-                #-------------------------
+                    # Split-Index berechnen
+                    split_idx = int(round(config_param['model_param']['train_test_split'] * min_len))
 
-                # Split-Index berechnen
-                split_idx = int(round(config_param['model_param']['train_test_split'] * min_len))
+                    # Split durchführen und an die kombinierten Arrays anhängen
+                    window_train_list.append(windows[:split_idx])
+                    window_test_list.append(windows[split_idx:])
 
-                # Split durchführen und an die kombinierten Arrays anhängen
-                window_train_list.append(windows[:split_idx])
-                window_test_list.append(windows[split_idx:])
+                    y_e_train_list.append(y_e[:split_idx])
+                    y_e_test_list.append(y_e[split_idx:])
+                    y_f_train_list.append(y_f[:split_idx])
+                    y_f_test_list.append(y_f[split_idx:])
+                    y_s_train_list.append(y_s[:split_idx])
+                    y_s_test_list.append(y_s[split_idx:])
 
-                y_e_train_list.append(y_e[:split_idx])
-                y_e_test_list.append(y_e[split_idx:])
-                y_f_train_list.append(y_f[:split_idx])
-                y_f_test_list.append(y_f[split_idx:])
-                y_s_train_list.append(y_s[:split_idx])
-                y_s_test_list.append(y_s[split_idx:])
+                    freq_train_list.append(freq_features[:split_idx])
+                    freq_test_list.append(freq_features[split_idx:])
 
-                freq_train_list.append(freq_features[:split_idx])
-                freq_test_list.append(freq_features[split_idx:])
+                    temporal_train_list.append(temporal_features[:split_idx])
+                    temporal_test_list.append(temporal_features[split_idx:])
 
-                temporal_train_list.append(temporal_features[:split_idx])
-                temporal_test_list.append(temporal_features[split_idx:])
-
-        else:
-                continue
+            else:
+                    continue
 
 
-# Finales Stapeln aller Listen
-window_train_combined = np.concatenate(window_train_list, axis=0)
-window_test_combined  = np.concatenate(window_test_list, axis=0)
+    # Finales Stapeln aller Listen
+    window_train_combined = np.concatenate(window_train_list, axis=0)
+    window_test_combined  = np.concatenate(window_test_list, axis=0)
 
-y_e_train_combined = np.concatenate(y_e_train_list)
-y_e_test_combined  = np.concatenate(y_e_test_list)
-y_f_train_combined = np.concatenate(y_f_train_list)
-y_f_test_combined  = np.concatenate(y_f_test_list)
-y_s_train_combined = np.concatenate(y_s_train_list)
-y_s_test_combined  = np.concatenate(y_s_test_list)
+    y_e_train_combined = np.concatenate(y_e_train_list)
+    y_e_test_combined  = np.concatenate(y_e_test_list)
+    y_f_train_combined = np.concatenate(y_f_train_list)
+    y_f_test_combined  = np.concatenate(y_f_test_list)
+    y_s_train_combined = np.concatenate(y_s_train_list)
+    y_s_test_combined  = np.concatenate(y_s_test_list)
 
-freq_train_combined = np.concatenate(freq_train_list, axis=0)
-freq_test_combined  = np.concatenate(freq_test_list, axis=0)
+    freq_train_combined = np.concatenate(freq_train_list, axis=0)
+    freq_test_combined  = np.concatenate(freq_test_list, axis=0)
 
-temporal_train_combined = np.concatenate(temporal_train_list, axis=0)
-temporal_test_combined = np.concatenate(temporal_test_list, axis=0)
+    temporal_train_combined = np.concatenate(temporal_train_list, axis=0)
+    temporal_test_combined = np.concatenate(temporal_test_list, axis=0)
+
+    # Abspeichern der vorverarbeiteten Daten für ein gezieltes Modelltraining (Zeitersparnis)
+    np.savez_compressed(
+        "jte_data_train_test_scaled.npz",
+        window_train_combined=window_train_combined,
+        window_test_combined=window_test_combined,
+        y_e_train_combined=y_e_train_combined,
+        y_e_test_combined=y_e_test_combined,
+        y_f_train_combined=y_f_train_combined,
+        y_f_test_combined=y_f_test_combined,
+        y_s_train_combined=y_s_train_combined,
+        y_s_test_combined=y_s_test_combined,
+        freq_train_combined=freq_train_combined,
+        freq_test_combined=freq_test_combined,
+        temporal_train_combined=temporal_train_combined,
+        temporal_test_combined=temporal_test_combined
+    )
+
+# Laden der gespeicherten Daten
+if config_param['workflow_param']['old_preprocessing_mode'] == True:
+    print("Start loading old preprocessed data!")
+    data = np.load("jte_data_train_test_scaled.npz")
+    window_train_combined = data["window_train_combined"]
+    window_test_combined  = data["window_test_combined"]
+    y_e_train_combined    = data["y_e_train_combined"]
+    y_e_test_combined     = data["y_e_test_combined"]
+    y_f_train_combined    = data["y_f_train_combined"]
+    y_f_test_combined     = data["y_f_test_combined"]
+    y_s_train_combined    = data["y_s_train_combined"]
+    y_s_test_combined     = data["y_s_test_combined"]
+    freq_train_combined   = data["freq_train_combined"]
+    freq_test_combined    = data["freq_test_combined"]
+    temporal_train_combined = data["temporal_train_combined"]
+    temporal_test_combined  = data["temporal_test_combined"]
+    print("Loading data successful.")
+
 # **********************************************************************************
 # *************************** Train, load or test Model ****************************
 # **********************************************************************************
@@ -543,10 +579,11 @@ tf.config.optimizer.set_jit(True)
 
 # ------------------------------------------------------------------
 # Modelldefinition: Dilated Temporal Convolutional Network (Multi-Task)
+#filters=32,  kernel_size=3,  stacks=2,  dropout_rate=0.0.02
 # ------------------------------------------------------------------
 
 def build_model(input_shape_time, input_shape_freq, input_shape_temporal,
-                mode="time+freq", filters=32, stacks=2, dropout_rate=0.02):
+                mode="time+freq", filters=64, stacks=4, dropout_rate=0.10, kernel_size=3):
 
     inputs = []
     branches = []
@@ -555,16 +592,38 @@ def build_model(input_shape_time, input_shape_freq, input_shape_temporal,
         # Zeit-Pfad (TCN)
         inp_time = Input(shape=input_shape_time, name='emg_input')
         x = inp_time
+
         for s in range(stacks):
-            dilation = 2 ** s
-            y = layers.Conv1D(filters, 3, padding='causal', dilation_rate=dilation)(x)
-            y = layers.Conv1D(filters, 3, padding='causal', dilation_rate=dilation)(y)
+            d = 4 ** s  # Dilatation: 1,2,4,8,...
+            y = layers.Conv1D(filters,
+                              kernel_size,
+                              padding='causal',
+                              dilation_rate=d,
+                              kernel_initializer='he_normal')(x)
+            y = layers.ReLU()(y)
+            y = layers.LayerNormalization()(y)
+            y = layers.SpatialDropout1D(dropout_rate)(y)
+
+            y = layers.Conv1D(filters,
+                              kernel_size,
+                              padding='causal',
+                              dilation_rate=d,
+                              kernel_initializer='he_normal')(y)
+            y = layers.ReLU()(y)
+            y = layers.LayerNormalization()(y)
+
+            # Residual-Shortcut ggf. an Kanäle anpassen
             if x.shape[-1] != filters:
-                x = layers.Conv1D(filters, 1, padding='same')(x)
+                x = layers.Conv1D(filters, 1, padding='same',
+                                  kernel_initializer='he_normal')(x)
+
             x = layers.add([x, y])
+
+        # Seq-to-one Readout
         x = layers.GlobalAveragePooling1D()(x)
         inputs.append(inp_time)
         branches.append(x)
+
 
     if mode in ["freq", "time+freq"]:
         # Frequenz-Pfad (Dense)

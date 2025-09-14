@@ -20,18 +20,19 @@
     subject_hand_len: 113  #wrist to 3rd knuckle len in mm
 
   workflow_param:
-    mode:                 "train" # "train" or "infer"
-    input_mode:           "time+freq" # options: "time", "freq", "time+freq"
+    old_preprocessing_mode: True
+    mode:                 "infer" # "train" or "infer"
+    input_mode:           "time" # options: "time", "freq", "time+freq", "time+temporal"
     model_dir:            "saved_models/TCN_MTL"
 
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left']
-    window_size_x:        250  #samples
-    window_size_e:        250  # Elbow Model
-    window_size_s:        150 # Shoulder Side Model
-    window_size_f:        150 # Shoulder Front
-    window_step:          10  #samples
+    window_size_x:        50  #samples
+    window_size_e:        50  # Elbow Model
+    window_size_s:        50 # Shoulder Side Model
+    window_size_f:        50 # Shoulder Front
+    window_step:          25  #samples
     feature_size:         20  #samples
     feature_select:       'end'
     neural_activation_fcn: False
@@ -64,7 +65,7 @@
     loss_fcn:             'mse' # mse
     optimizer:            'adam'
 
-    train_test_split:     0.8
+    train_test_split:     0.9
     validation_split:     0.1
 
     is_early_stop:        True
