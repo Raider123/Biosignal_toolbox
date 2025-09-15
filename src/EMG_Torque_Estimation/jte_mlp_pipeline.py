@@ -385,7 +385,7 @@ window_size_ms = cfg.preprocess_param.window_size_x * 1000 / EMG_Data.f_samp
 feature_indices_windows_x = np.array([0, window_size_ms])
 EMG_Data.featureExtractionFromWindows(feature_type="timepoints", 
                                       feature_indices_windows=feature_indices_windows_x)
-EMG_Data.printFeatureShape()
+# EMG_Data.printFeatureShape()
 #? time domain feature extraction
 ## EMG Feature Extraction
 rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
@@ -444,30 +444,15 @@ print("Feature extraction from windowed data completed!!\n")
 #? Merge output features
 target_features = np.concatenate([Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
 
-#? Creating history of features
-history_len = 3
 input_features = EMG_Data.getFeatures()
-input_features_hist = np.zeros((input_features.shape[0]-history_len+1, history_len*input_features.shape[1]))
-target_features_hist = np.zeros((target_features.shape[0]-history_len+1, target_features.shape[1]))
 
-for i in range(history_len, input_features.shape[0]+1):
-    input_features_hist[i-history_len] = input_features[i-history_len:i].flatten()
-    target_features_hist[i-history_len] = target_features[i-1]
-
-# input_features_hist = input_features_hist.astype(np.float32)
-# target_features_hist = target_features_hist.astype(np.float32)
-print(f"Target: {target_features_hist.shape}")
-#? Setter for feature vec
-EMG_Data.setFeatures(features_inp=input_features_hist)
-
-#? Dimensionality Reduction - PCA
-EMG_Data.reduceDimensions_windows(method="PCA",
-                                  n_components=0.98)
-print(f"Reduced feature set: {EMG_Data.getFeatures().shape}")
+#? Print input feature and target feature length
+print(f"Input feature shape (pre-merge): {EMG_Data.getFeatures().shape}")
+print(f"Target feature shape (pre-merge): {target_features.shape}")
 
 #? Split data into train, validation, and test sets
-X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(EMG_Data.getFeatures(),
-                                                    target_features_hist, 
+X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(input_features,
+                                                    target_features, 
                                                     train_size=cfg.model_param.train_test_split,
                                                     shuffle=False)
 
@@ -475,6 +460,35 @@ X_train, X_val, Y_train, Y_val = train_test_split(X_train_temp,
                                                   Y_train_temp, 
                                                   train_size= 1 - cfg.model_param.validation_split,
                                                   shuffle=False)
+print("Split data into train, test, and val!!")
+
+#? Creating history of features
+history_len = 3
+X_train, Y_train = EMG_Data.stackHistory_windows(x_inp=X_train, 
+                                                 y_inp=Y_train, 
+                                                 history_len=history_len)
+X_test, Y_test = EMG_Data.stackHistory_windows(x_inp=X_test, 
+                                               y_inp=Y_test, 
+                                               history_len=history_len)
+X_val, Y_val = EMG_Data.stackHistory_windows(x_inp=X_val, 
+                                             y_inp=Y_val, 
+                                             history_len=history_len)
+print(f"{history_len} feature vectors stacked together!!")
+print(f"Stacked x_train feature shape: {X_train.shape}")
+print(f"Stacked y_train feature shape: {Y_train.shape}")
+
+#? Pre-PCA scaling
+X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+                                                        test_data=X_test, 
+                                                        val_data=X_val, 
+                                                        method="StandardScaler")
+
+#? Dimensionality Reduction - PCA
+X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
+                                  test_data = X_test,
+                                  val_data = X_val,
+                                  method="PCA",
+                                  n_components=0.98)
 
 #? Scale the features -> StandardScaler
 X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
