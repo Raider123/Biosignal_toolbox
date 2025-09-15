@@ -223,16 +223,16 @@ else:
 print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
 #? Output Normalisation
-print("Calculating maximum absolute torque for output normalisation...")
-max_torque_e = np.max(np.abs(Quali_Data_Elbow.data), axis=1).reshape(-1,1)
-max_torque_sf = np.max(np.abs(Quali_Data_Front.data), axis=1).reshape(-1,1)
-max_torque_ss = np.max(np.abs(Quali_Data_Side.data), axis=1).reshape(-1,1)
+# print("Calculating maximum absolute torque for output normalisation...")
+# max_torque_e = np.max(np.abs(Quali_Data_Elbow.data), axis=1).reshape(-1,1)
+# max_torque_sf = np.max(np.abs(Quali_Data_Front.data), axis=1).reshape(-1,1)
+# max_torque_ss = np.max(np.abs(Quali_Data_Side.data), axis=1).reshape(-1,1)
 
-print("Performing Output Normalisation with Max Value...")
-Quali_Data_Elbow.normalizeContinuousData(mvc=max_torque_e)
-Quali_Data_Front.normalizeContinuousData(mvc=max_torque_sf)
-Quali_Data_Side.normalizeContinuousData(mvc=max_torque_ss)
-print("Output Normalisation with max. value performed!!\n")
+# print("Performing Output Normalisation with Max Value...")
+# Quali_Data_Elbow.normalizeContinuousData(mvc=max_torque_e)
+# Quali_Data_Front.normalizeContinuousData(mvc=max_torque_sf)
+# Quali_Data_Side.normalizeContinuousData(mvc=max_torque_ss)
+# print("Output Normalisation with max. value performed!!\n")
 
 #? Low pass filter to smoothen the EMG signal
 #* design the lowpass filter
@@ -477,24 +477,30 @@ print(f"{history_len} feature vectors stacked together!!")
 print(f"Stacked x_train feature shape: {X_train.shape}")
 print(f"Stacked y_train feature shape: {Y_train.shape}")
 
-#? Pre-PCA scaling
-X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
-                                                        test_data=X_test, 
-                                                        val_data=X_val, 
-                                                        method="StandardScaler")
+#? Pre-PCA scaling of input features
+_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+                                                           test_data=X_test, 
+                                                           val_data=X_val, 
+                                                           method="StandardScaler")
 
 #? Dimensionality Reduction - PCA
 X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                   test_data = X_test,
                                   val_data = X_val,
                                   method="PCA",
-                                  n_components=0.98)
+                                  n_components=0.99)
 
-#? Scale the features -> StandardScaler
-X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
-                                                        test_data=X_test, 
-                                                        val_data=X_val, 
-                                                        method="StandardScaler")
+#? Scale the input features -> StandardScaler
+_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+                                                           test_data=X_test, 
+                                                           val_data=X_val, 
+                                                           method="StandardScaler")
+#? Scale output features -> [-1,1] for tanh
+Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
+                                                                  test_data=Y_test, 
+                                                                  val_data=Y_val, 
+                                                                  method="MinMaxScaler",
+                                                                  feature_range=(-1,1))
 
 #! ************************************************
 #! Train, Load, or Test Model
@@ -520,7 +526,7 @@ MLP_model = MLModel(model = train_model, type= "keras")
 #? Train model
 print("Training MLP model for elbow joint...")
 save_model_path = cfg.filepath.save_model_path + filename_suffix
-print(save_model_path)
+# print(save_model_path)
 MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
                      model_filename=save_model_path, 
                      train_epochs=cfg.model_param.n_epochs, 
@@ -530,7 +536,6 @@ MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model,
                      y_train=Y_train, 
                      x_val=X_val,
                      y_val=Y_val,
-                    #  validation_split=cfg.model_param.validation_split, 
                      loss_fcn=cfg.model_param.loss_fcn, 
                      optimizer=cfg.model_param.optimizer, 
                      metrics=cfg.model_param.metrics, 
@@ -550,22 +555,34 @@ MLP_model.predictTarget(data=X_test,
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
 
 #? Rescaling output
-max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
-perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
-Y_ref = Y_test * max_torques.flatten()
+# max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
+# perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
+# Y_ref = Y_test * max_torques.flatten()
+
+perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
+Y_ref = Y_scaler.inverse_transform(Y_test)
 
 MLP_model.setPredictionScores(perf_results_MLP)
 
 #! ************************************************
 #! Post-prediction Filtering
 #! ************************************************
-
+#? Median filter for removing spikes/outliers
+MLP_model.applyFilter_prediction(method="median",
+                                 window_length=5)
 #? Savitsky Golay filter
 MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=11,
-                                 poly_order=3)
+                                 window_length=21,
+                                 poly_order=5)
 
 perf_results_MLP = MLP_model.getPredictionScores()
+# print(perf_results_MLP.shape)
+
+#? Calculate the model eval metrics on the filtered predicted values
+MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
+MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
+MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
+
 plt.figure()
 plt.plot(Y_ref[:,0])
 plt.plot(perf_results_MLP[:,0])
@@ -579,12 +596,6 @@ plt.plot(Y_ref[:,2])
 plt.plot(perf_results_MLP[:,2])
 
 plt.show()
-
-
-# #? Calculate the RMSE values on the filtered predicted values
-# rmse_elbow  = MLModel.calculateRMSE(y_e_test_combined[:,0], filtered_perf_results_MLP_e)
-# rmse_front  = MLModel.calculateRMSE(y_f_test_combined[:,0], filtered_perf_results_MLP_f)
-# rmse_side   = MLModel.calculateRMSE(y_s_test_combined[:,0], filtered_perf_results_MLP_s)
 
 # #? Calculate the RMSE values on the filtered predicted values
 # rmse_elbow_raw  = MLModel.calculateRMSE(y_e_test_combined[:,0], perf_results_MLP_e)
