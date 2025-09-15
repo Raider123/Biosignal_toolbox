@@ -32,7 +32,7 @@
     window_size_y:        50  # samples
     window_step:          25  #samples
     use_activation_fncn: False
-    target_feature_select: 'mean'
+    target_feature_select: 'end'
     f_samp: 500
     f_cutoff_hpf: 15  #cutoff freq for bandpass
     f_cutoff_lpf: 200 #cutoff freq for bandpass
@@ -43,12 +43,7 @@
 
     filter_method:        'zero_phase'
     var_filter_width:     20
-    normalisation_method:     'channel_wise_mvc'
-    mvc:                  3.941259927517915e-06
-      # BR07D: 4.569592924022451e-06
-      # FW28D: 1.1657004817469086e-06
-      # BU62D:  3.941259927517915e-06
-      # WW06D: 0.09238221776255644
+    normalisation_method: 'channel_wise_mvc'
     act_delay:            25
     act_beta1:            0.25
     act_beta2:            0.05

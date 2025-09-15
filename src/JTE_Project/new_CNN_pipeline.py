@@ -402,12 +402,11 @@ EMG_Data.printFeatureShape()
 rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names))  # RMS value
 EMG_Data.addFeatures(rms_feature)
 # print(EMG_Data.getFeatures()[1,:])
-wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-EMG_Data.addFeatures(wfl_feature)
+#wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
+#EMG_Data.addFeatures(wfl_feature)
 # print(EMG_Data.getFeatures()[1,:])
-ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
-                                                          threshold=0.02)  # Slope Sign Change
-EMG_Data.addFeatures(ssc_feature)
+#ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),threshold=0.02)  # Slope Sign Change
+#EMG_Data.addFeatures(ssc_feature)
 # print(EMG_Data.getFeatures()[1,:])
 
 # ? freq domain feature extraction
@@ -505,7 +504,20 @@ X_val_seq   = X_val.reshape(-1, timesteps, n_features)
 X_test_seq  = X_test.reshape(-1, timesteps, n_features)
 
 print("Reshaped input arrays for the model training.")
-print(X_train_seq.shape)  # (N, 3, n_features)
+
+# Prepare the training data
+Y_train_e = Y_train[:, 0]
+Y_train_f = Y_train[:, 1]
+Y_train_s = Y_train[:, 2]
+
+Y_val_e = Y_val[:, 0]
+Y_val_f = Y_val[:, 1]
+Y_val_s = Y_val[:, 2]
+
+# Prepare the test data
+Y_test_e = Y_test[:, 0]
+Y_test_f = Y_test[:, 1]
+Y_test_s = Y_test[:, 2]
 
 # ! ************************************************
 # ! Model Definition
@@ -551,7 +563,6 @@ def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
     inputs.append(inp_time)
     branches.append(x)
 
-
     combined = branches[0]
     combined = layers.Dense(64, activation="relu")(combined)
     combined = layers.Dropout(dropout_rate)(combined)
@@ -565,9 +576,9 @@ def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
 # ! ************************************************
 # ! Building and Compiling the TCN-Model
 # ! ************************************************
-filters = 32
-stacks = 3
-dropout_rate = 0.3
+filters = 64
+stacks = 4
+dropout_rate = 0.10
 kernel_size = 3
 
 model = build_model(
@@ -592,13 +603,6 @@ model.compile(
 # ! ************************************************
 # ! Training the TCN-Model
 # ! ************************************************
-Y_train_e = Y_train[:, 0]
-Y_train_f = Y_train[:, 1]
-Y_train_s = Y_train[:, 2]
-
-Y_val_e = Y_val[:, 0]
-Y_val_f = Y_val[:, 1]
-Y_val_s = Y_val[:, 2]
 
 history = model.fit(
     X_train_seq,
@@ -619,11 +623,6 @@ history = model.fit(
 # ! ************************************************
 # ! Model-Prediction
 # ! ************************************************
-
-# Prepare the test data
-Y_test_e = Y_test[:, 0]
-Y_test_f = Y_test[:, 1]
-Y_test_s = Y_test[:, 2]
 
 # Prediction for all three joints
 y_pred = model.predict(X_test_seq)
@@ -700,4 +699,3 @@ plotResults(Y_test_s, "real torque",
             is_grid_on=True)
 
 plt.show()
-
