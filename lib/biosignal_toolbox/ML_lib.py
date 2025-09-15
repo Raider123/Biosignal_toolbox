@@ -8,10 +8,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import load_model
+from keras.optimizers import Nadam
 from time import perf_counter_ns
 from dtw import *
 import copy 
 from sklearn.metrics import mean_squared_error, r2_score
+from scipy.signal import savgol_filter
 
 import tensorflow as tf
 import warnings
@@ -125,15 +127,21 @@ class MLModel:
         
         # compile model 
         if (self.type == "keras"): 
-            self.model.compile(loss=self.loss_fcn, optimizer=self.optimizer, metrics=self.metrics)
+            if optimizer == 'nadam':
+                self.optimizer = Nadam(learning_rate=0.001)
+
+            self.model.compile(loss=self.loss_fcn, 
+                               optimizer=self.optimizer, 
+                               metrics=self.metrics)
+
             history = self.model.fit(self.x_train,
                                 self.y_train,
                                 epochs  = self.epochs,
                                 batch_size= self.batch_size,
                                 shuffle = self.shuffle,
                                 class_weight=self.class_weights,
-                                validation_split=validation_split,
-                                # validation_data = (self.x_val, self.y_val),
+                                # validation_split=validation_split,
+                                validation_data = (self.x_val, self.y_val),
                                 callbacks = self.callbacks)
         
             # history of training process
@@ -162,13 +170,15 @@ class MLModel:
                 ax2.legend()
                 ax2.set_title(self.metrics+" over trained epochs")
 
-                # plt.show()
+                plt.show()
 
             val_acc_values = history_dict["val_"+self.metrics]
 
         if(save_trained_model):
-            model_filename = getAbsolutePath(input_path=model_filename) 
-            save_model(self.model, model_filename+".h5") # save 
+            choice = input("Do you want to save the model? (Y/N)").strip().lower()
+            if choice in ["y", "yes"]:
+                model_filename = getAbsolutePath(input_path=model_filename + ".keras") 
+                save_model(self.model, model_filename) # save 
         
         return loss_values[-1], val_loss_values[-1]
 
@@ -472,8 +482,18 @@ class MLModel:
         Author : Niklas Kueper \n
         Last changed: 17.11.2023 (by Niklas Kueper
         """
-        
-        return np.array(self.prediction_scores) 
+        if isinstance(self.prediction_scores, tf.Tensor):
+            return self.prediction_scores.numpy()
+        elif isinstance(self.prediction_scores, np.ndarray):
+            return self.prediction_scores
+    
+    def setPredictionScores(self, scores_inp):
+
+        assert scores_inp.shape == self.prediction_scores.shape, f"scores_inp shape {scores_inp.shape} doesn't match the self.prediction_scores shape {self.prediction_scores.shape} for setter!!"
+
+        self.prediction_scores = scores_inp
+
+
 
     def printKerasModelLayerNames(self): 
 
@@ -493,6 +513,15 @@ class MLModel:
         print("Weights for layer '{}':".format(layer.name))
         for w in weights:
             print(w)
+    
+    def applyFilter_prediction(self, method="savgol", window_length=11, poly_order=3):
+        if method.lower() == "savgol":
+            self.prediction_scores = savgol_filter(x=self.prediction_scores, 
+                                                   window_length=window_length, 
+                                                   polyorder=poly_order,
+                                                   axis=0)
+        else:
+            warnings.warn("Sorry!! This method is not implemented yet... No filter applied!!")
     
     @staticmethod
     def calculateRMSE(target_arr=np.array([]), predicted_arr=np.array([])):

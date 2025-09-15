@@ -29,24 +29,21 @@
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left']
     window_size_x:        50  #samples
-    window_size_e:        50  # Elbow Model
-    window_size_s:        50 # Shoulder Side Model
-    window_size_f:        50 # Shoulder Front
+    window_size_y:        50  # samples
     window_step:          25  #samples
-    feature_size:         10  #samples
-    feature_select:       'end'
-    neural_activation_fcn: False
-
+    use_activation_fncn: False
+    target_feature_select: 'mean'
     f_samp: 500
     f_cutoff_hpf: 15  #cutoff freq for bandpass
     f_cutoff_lpf: 200 #cutoff freq for bandpass
     filter_order: 2
 
     f_cutoff_sm_lpf: 5   #cutoff freq for smoothing
-    sm_filter_order: 4   # filter order for smoothing lpf
+    sm_filter_order: 4   #filter order smoothing lpf
 
     filter_method:        'zero_phase'
     var_filter_width:     20
+    normalisation_method:     'channel_wise_mvc'
     mvc:                  3.941259927517915e-06
       # BR07D: 4.569592924022451e-06
       # FW28D: 1.1657004817469086e-06

@@ -11,9 +11,7 @@ from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Type, Union, List
-from sys import exit, path
-path.append(str(Path(__file__).resolve().parents[2]))
-#from config_root import project_root
+
 import warnings
 import inspect
 #! ************************************************
@@ -281,19 +279,19 @@ def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -
     inp_parent_dir = getAbsolutePath(param_obj.filepath.fig_save_path)
     parent_dir = inp_parent_dir / f"{param_obj.data_param.subject_code}"
     # ensure the input directory exists
-    inp_parent_dir.mkdir(parents=True, exist_ok=True)
+    parent_dir.mkdir(parents=True, exist_ok=True)
     # prepare timestamp-based folder name
     timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
     base_name = f"{timestamp}_{suffix_str}"
     # check existing folders to find max x
-    existing_dirs = [d for d in inp_parent_dir.iterdir() if d.is_dir() and d.name.startswith(base_name)]
+    existing_dirs = [d for d in parent_dir.iterdir() if d.is_dir() and d.name.startswith(base_name)]
     numbers = []
     for d in existing_dirs:
         suffix = d.name[len(base_name):].lstrip("_")  # get the number after '_'
         if suffix.isdigit():
             numbers.append(int(suffix))
     next_number = max(numbers) + 1 if numbers else 1
-    new_dir = inp_parent_dir / f"{base_name}{next_number}"
+    new_dir = parent_dir / f"{base_name}{next_number}"
     # create the new folder
     new_dir.mkdir()
     return new_dir

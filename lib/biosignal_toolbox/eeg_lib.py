@@ -30,7 +30,7 @@ class EEGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, file_type='individual', add_marker_channel = False, outer_key_order_d=[], inner_key_order_d=[]):
+    def __init__(self, format = "Brainvision", filenames = None, data_path = None, epochs = None, raw_obj = None, f_samp = 500, channel_names = None, windows = None, data = None, add_marker_channel = False):
         """
         The constructor of the EEGData class. 
         
@@ -54,12 +54,6 @@ class EEGData(Timeseries):
             A numpy array with windowed data (shape: n_trials, n_channels, n_sampels, n_windows), only required for format "Live". 
         data : numpy ndarray, optional 
             The channel wise (raw) data as numpy array (shape: n_channel, n_sampels), currently fully optional (not used by any format).
-        file_type : str, optional
-            Within the "NumpyQualisys" format, if the input file is a dict obj, this parameter indicates whether the dict is for a single file with 1 outer key or a combination of several files resulting in more than 1 outer and inner keys. It could be either "combined" or "individual", by default "individual".
-        outer_key_order_d : list, optional
-            Desired sequence of outer keys to concatenate the data, by default order in which the data is read.
-        inner_key_order_d : list, optional
-            Desired sequence of inner keys to concatenate the data, by default order in which the data is read.
 
 
         Attributes
@@ -156,58 +150,27 @@ class EEGData(Timeseries):
         elif(format == "NumpyQualisys"): 
             if(filenames): # implement running over all files and appending data to each other 
 
-                if(len(filenames) > 1): 
+                if(isinstance(filenames, list)): 
                     concat_list = []
                     for filename in filenames: 
-                        concat_list.append(np.load(self.data_path /(filename+".npy"),allow_pickle=True, encoding='bytes'))
+                        data = np.load(self.data_path / filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
+                        # print(f"Quali data shape: {data.shape}")
+                        if add_marker_channel:
+                            # Adding an extra event channel at the end for qualisys markers
+                            column_of_no_markers = -1 * np.ones((data.shape[0],1))
+                            data = np.hstack((data,column_of_no_markers))
+                            # Making the first and last but 20th sample (considering 40ms offset at the end) as the boundaries for syncing
+                            offset_idx = -1*(40*f_samp/1000)
+                            # print(f"Quali offset: {int(offset_idx)}")
+                            data[0,-1] = 1
+                            data[int(offset_idx),-1] = 2
+                            # print(f"Data: {data.shape}")
+                            # print(f"Events: {np.where(data[:,1] == 1)[0]}")
+                        
+                            concat_list.append(data)
                     
-                    data = np.concatenate(concat_list)
-                else: 
-                    if add_marker_channel:
-                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
-                    else:
-                        data = np.load(self.data_path / (filenames[0]+".npy"),allow_pickle=True, encoding='bytes')
-
-                    if isinstance(data, list):
-                        data = np.array(data)
-                    if data.ndim == 1:
-                        data = data[:, np.newaxis]
-
-                    if isinstance(data,dict):
-                        if file_type == 'combined':
-                            #! Access data in the same order as EMG data and concatenate the arrays into a single numpy array
-                            if outer_key_order_d == [] and inner_key_order_d == []:
-                                weights_order = list(data.keys())
-                                type_order = list(next(iter(data.values())).keys())
-                            elif outer_key_order_d == [] and inner_key_order_d != []:
-                                weights_order = list(data.keys())
-                                type_order = inner_key_order_d
-                            elif outer_key_order_d != [] and inner_key_order_d == []:
-                                weights_order = outer_key_order_d
-                                type_order = list(next(iter(data.values())).keys())
-                            else:
-                                weights_order = outer_key_order_d
-                                type_order = inner_key_order_d
-
-                            tmp_array_of_lists = []
-                            for weight in weights_order:
-                                for mov_type in type_order:
-                                    tmp_array_of_lists.append(data[weight][mov_type])
-                            data = np.concatenate(tmp_array_of_lists)
-                        elif file_type == 'individual':
-                            data = data[list(data.keys())[0]][list(next(iter(data.values())).keys())[0]]
-                if add_marker_channel:
-                    # Adding an extra event channel at the end for quali markers
-                    column_of_no_markers = -1 * np.ones((data.shape[0],1))
-                    data = np.hstack((data,column_of_no_markers))
-                    # Making the first and last but 5th sample (considering 20ms offset) as the boundaries for syncing
-                    offset_idx = -1*(20*f_samp/1000)
-                    # print(f"Quali offset: {int(offset_idx)}")
-                    data[0,-1] = 1
-                    data[int(offset_idx),-1] = 1
-                    print(f"Data: {data.shape}")
-                else:
-                    pass
+                    data = np.vstack(concat_list)
+                    # print(np.where(data[:,1] == 1)[0])
 
             self.f_samp = f_samp
             self.channel_names = channel_names
@@ -215,7 +178,6 @@ class EEGData(Timeseries):
             # set annotation events (markers)
             self.createAnnotationEvents(data=data)
             self.data = self.raw_obj.get_data() # data as numpy array in shape (channels, sampels) 
-
             # print(type(self.events)) # (events, 3)
             # print("events", self.events)
 

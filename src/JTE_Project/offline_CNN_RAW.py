@@ -523,6 +523,46 @@ if config_param['workflow_param']['old_preprocessing_mode'] == True:
     temporal_test_combined  = data["temporal_test_combined"]
     print("Loading data successful.")
 
+
+def triple_time_array(arr, n_steps=3):
+    """
+    Baut ein Array mit 3-facher Zeitlänge (zeitliche Konkatenation).
+    arr: np.ndarray mit Shape (samples, timesteps, features)
+         oder (samples, features) bei Labels/Frequenzen
+    """
+    new_arr = []
+    n = len(arr)
+
+    # Falls es ein 3D-Array ist (Fenster)
+    if arr.ndim == 3:
+        for i in range(n - n_steps + 1):
+            new_arr.append(np.concatenate(arr[i:i + n_steps], axis=0))
+    else:
+        # Für Labels/Frequenz/temporal: Wert vom letzten Schritt nehmen
+        for i in range(n - n_steps + 1):
+            new_arr.append(arr[i + n_steps - 1])
+
+    return np.array(new_arr)
+
+# --- Überschreiben der Arrays ---
+window_train_combined   = triple_time_array(window_train_combined)
+window_test_combined    = triple_time_array(window_test_combined)
+
+y_e_train_combined      = triple_time_array(y_e_train_combined)
+y_e_test_combined       = triple_time_array(y_e_test_combined)
+
+y_f_train_combined      = triple_time_array(y_f_train_combined)
+y_f_test_combined       = triple_time_array(y_f_test_combined)
+
+y_s_train_combined      = triple_time_array(y_s_train_combined)
+y_s_test_combined       = triple_time_array(y_s_test_combined)
+
+freq_train_combined     = triple_time_array(freq_train_combined)
+freq_test_combined      = triple_time_array(freq_test_combined)
+
+temporal_train_combined = triple_time_array(temporal_train_combined)
+temporal_test_combined  = triple_time_array(temporal_test_combined)
+
 # **********************************************************************************
 # *************************** Train, load or test Model ****************************
 # **********************************************************************************

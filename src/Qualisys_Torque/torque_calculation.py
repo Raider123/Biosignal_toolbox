@@ -6,7 +6,7 @@ from biosignal_toolbox.utils import loadConfig
 # ! load config file
 from types import SimpleNamespace
 
-config_filename = 'jte.yaml'
+config_filename = 'new_jte.yaml'
 
 def namespace_to_dict(ns):
     if isinstance(ns, SimpleNamespace):
