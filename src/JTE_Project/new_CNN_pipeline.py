@@ -474,9 +474,9 @@ print(f"Target: {target_features_hist.shape}")
 EMG_Data.setFeatures(features_inp=input_features_hist)
 
 # ? Dimensionality Reduction - PCA
-EMG_Data.reduceDimensions_windows(method="PCA",
-                                  n_components=0.98)
-print(f"Reduced feature set: {EMG_Data.getFeatures().shape}")
+#EMG_Data.reduceDimensions_windows(method="PCA",
+#                                  n_components=0.98)
+#print(f"Reduced feature set: {EMG_Data.getFeatures().shape}")
 
 # ? Split data into train, validation, and test sets
 X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(EMG_Data.getFeatures(),
@@ -546,10 +546,10 @@ def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
 
         x = layers.add([x, y])
 
-        # Seq-to-one Readout
-        x = layers.GlobalAveragePooling1D()(x)
-        inputs.append(inp_time)
-        branches.append(x)
+    # Seq-to-one Readout
+    x = layers.GlobalAveragePooling1D()(x)
+    inputs.append(inp_time)
+    branches.append(x)
 
 
     combined = branches[0]
@@ -611,7 +611,7 @@ history = model.fit(
          "torque_shoulder_front": Y_val_f,
          "torque_shoulder_side": Y_val_s}
     ),
-    epochs=cfg.model_param.epochs,
+    epochs=cfg.model_param.n_epochs,
     batch_size=cfg.model_param.batch_size,
     callbacks=[early_callback] if early_callback else None
 )
