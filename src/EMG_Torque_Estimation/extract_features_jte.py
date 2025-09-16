@@ -1,25 +1,22 @@
 
-#* This script is the general training script for joint torque estimation using sEMG signals offline. It loads all the hyper-parameters from a yaml_config file.
+#* This script preprocesses EMG and Qualisys data, extracts relevant temporal, spectral and time-freq features and saves them into a numpy file
 
 #! ************************************************
 #! Imports
 #! ************************************************
 
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import itertools
 from copy import deepcopy
 from sklearn.model_selection import train_test_split
 from datetime import datetime
-import random
+from joblib import dump
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
-from biosignal_toolbox.ML_lib import MLModel
-from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
+from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 import warnings
 warnings.formatwarning = customWarningFormat
@@ -31,18 +28,6 @@ warnings.formatwarning = customWarningFormat
 #? load config file
 config_filename = 'emg_torque_estimation_jte.yaml'
 cfg = loadConfig(filename=config_filename)
-
-#? init early stopping 
-if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
-                                                      min_delta=cfg.model_param.min_delta, 
-                                                      patience=cfg.model_param.patience, 
-                                                      verbose=cfg.model_param.verbose, 
-                                                      baseline=cfg.model_param.baseline, 
-                                                      restore_best_weights=cfg.model_param.restore_best_weights, 
-                                                      start_from_epoch=cfg.model_param.start_from_epoch)
-else:
-    early_callback = None
 
 #? filename suffix
 timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
@@ -503,149 +488,23 @@ Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_t
                                                                   method="MinMaxScaler",
                                                                   feature_range=(-1,1))
 
-#! ************************************************
-#! Train, Load, or Test Model
-#! ************************************************
+#? Save features
+if cfg.preprocess_param.is_save_features:
+    save_path = getAbsolutePath(input_path=cfg.filepath.save_features_path)
+    if cfg.preprocess_param.use_activation_fncn:
+        filename_suffix = filename_suffix + "_act"
+    else:
+        filename_suffix = filename_suffix
+    filename_npz = "features_" + filename_suffix
+    filename_pkl = "scaler_" + filename_suffix
 
-# --- set global seed ---
-seed = 7
-np.random.seed(seed)
-random.seed(seed)
-tf.random.set_seed(seed)
-
-neurons_inp = X_train.shape[1]
-#? Init model with norm layer
-train_model = AAN_Model(neurons_inp=neurons_inp, 
-                        neurons_h1=cfg.model_param.neurons_h1, 
-                        act_h1=cfg.model_param.act_h1, 
-                        neurons_h2=cfg.model_param.neurons_h2, 
-                        act_h2=cfg.model_param.act_h2,
-                        neurons_h3=cfg.model_param.neurons_h3, 
-                        act_h3=cfg.model_param.act_h3,
-                        neurons_h4=cfg.model_param.neurons_h4, 
-                        act_h4=cfg.model_param.act_h4,
-                        neuron_out=cfg.model_param.neurons_out,
-                        act_out=cfg.model_param.act_out)
-
-MLP_model = MLModel(model = train_model, type= "keras")
-
-#? Set the weights and deltas for weighted huber
-var_torques = np.var(Y_train, axis=0, ddof=1)
-weights_inp = 1.0 / (var_torques ** 1)
-weights_inp = weights_inp / np.sum(weights_inp)
-max_weight = np.percentile(weights_inp, 95)
-min_weight = np.percentile(weights_inp, 5)
-weights_inp = np.clip(weights_inp, min_weight, max_weight)
-
-# weights_inp = [5,5,1]
-MLP_model.setHuberWeights(weights_inp=weights_inp)
-MLP_model.setHuberDeltas(deltas_inp=[0.25, 0.35, 0.2])
-
-#? Train model
-print("Training MLP model for elbow joint...")
-save_model_path = cfg.filepath.save_model_path + filename_suffix
-# print(save_model_path)
-MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                     model_filename=save_model_path, 
-                     train_epochs=cfg.model_param.n_epochs, 
-                     batch_size=cfg.model_param.batch_size, 
-                     class_weights=None, 
-                     x_train=X_train, 
-                     y_train=Y_train, 
-                     x_val=X_val,
-                     y_val=Y_val,
-                     loss_fcn=cfg.model_param.loss_fcn, 
-                     optimizer=cfg.model_param.optimizer, 
-                     metrics=cfg.model_param.metrics, 
-                     show_train_results=cfg.model_param.show_train_results, 
-                     callbacks=early_callback)
-print("MLP training done!!\n")
-
-#? Predict and get results 
-print("Predicting joint torques...")
-MLP_model.predictTarget(data=X_test, 
-                          labels=Y_test, 
-                          classification=False, 
-                          show_results=False, 
-                          show_pred_time=False, 
-                          eval_type=cfg.post_train_param.eval_type)
-
-perf_results_MLP_scaled = MLP_model.getPredictionScores()
-
-#? Rescaling output
-# max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
-# perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
-# Y_ref = Y_test * max_torques.flatten()
-
-perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
-Y_ref = Y_scaler.inverse_transform(Y_test)
-
-MLP_model.setPredictionScores(perf_results_MLP)
-
-print("Pre-filtering Eval Metrics!!")
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
-print("\n")
-#! ************************************************
-#! Post-prediction Filtering
-#! ************************************************
-#? Median filter for removing spikes/outliers
-MLP_model.applyFilter_prediction(method="median",
-                                 window_length=11)
-#? Savitsky Golay filter
-MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=25,
-                                 poly_order=3)
-
-perf_results_MLP = MLP_model.getPredictionScores()
-# print(perf_results_MLP.shape)
-
-#? Calculate the model eval metrics on the filtered predicted values
-print("Post-filtering Eval Metrics!!")
-r2_elbow, rmse_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-r2_front, rmse_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
-
-#? Check if the save dir exists. If not create one
-#? Create a readme.txt and include all parameters in it
-if cfg.post_train_param.is_save_plot:
-    choice = input("Do you want to save the model? (Y/N)").strip().lower()
-    if choice in ["y", "yes"]:
-        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
-        createReadme(param_obj=cfg,
-                     dir_path=dir_path)
-
-#? Plotting the filtered prediction results
-plotResults(data_ref=Y_ref[:,0],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,0], 
-            label_out="predicted torque", 
-            title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_elbow_{cfg.post_train_param.filter_type}.png"))
-
-plotResults(data_ref=Y_ref[:,1],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,1], 
-            label_out="predicted torque", 
-            title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_front_{cfg.post_train_param.filter_type}.png"))
-
-plotResults(data_ref=Y_ref[:,2],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,2], 
-            label_out="predicted torque", 
-            title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_side_{cfg.post_train_param.filter_type}.png"))
-
-#? Showing the plots
-plt.show()
+    np.savez_compressed(save_path / (filename_npz+".npz"), 
+                        X_train=X_train,
+                        Y_train=Y_train,
+                        X_test=X_test,
+                        Y_test=Y_test,
+                        X_val=X_val,
+                        Y_val=Y_val)
+    
+    dump(Y_scaler, save_path / (filename_pkl+".pkl"))
+    print("Features saved in files!!")
