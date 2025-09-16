@@ -389,6 +389,7 @@ if cfg.plot_param.is_plot_filt_win:
 # ! ************************************************
 # ! Feature Extraction
 # ! ************************************************
+'''
 print("Extracting features from windowed data...")
 
 # ? EMG signal timepoints feature extraction
@@ -402,11 +403,11 @@ EMG_Data.printFeatureShape()
 rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names))  # RMS value
 EMG_Data.addFeatures(rms_feature)
 # print(EMG_Data.getFeatures()[1,:])
-#wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-#EMG_Data.addFeatures(wfl_feature)
+wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
+EMG_Data.addFeatures(wfl_feature)
 # print(EMG_Data.getFeatures()[1,:])
-#ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),threshold=0.02)  # Slope Sign Change
-#EMG_Data.addFeatures(ssc_feature)
+ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),threshold=0.02)  # Slope Sign Change
+EMG_Data.addFeatures(ssc_feature)
 # print(EMG_Data.getFeatures()[1,:])
 
 # ? freq domain feature extraction
@@ -493,9 +494,87 @@ X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         test_data=X_test,
                                                         val_data=X_val,
                                                         method="StandardScaler")
+'''
+
+# extract raw emg
+x = EMG_Data.getWindows()[0]  # (n_channels, n_samples, n_windows)
+# reshape to (n_windows, n_samples, n_channels)
+x = np.transpose(x, (2, 1, 0))  # (n_windows, n_samples, n_channels)
+
+print("Extracting features from windowed data ...")
+# defining the feature window sizes
+window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
+if cfg.preprocess_param.target_feature_select == 'mean':
+    feature_indices_windows_x = np.array([0, window_size_ms])
+    feature_indices_windows_y = np.array([0, window_size_ms])
+    use_mean_bool = True
+elif cfg.preprocess_param.target_feature_select == 'mid':
+    feature_indices_windows_x = np.array([(window_size_ms / 2) - 2, window_size_ms / 2])
+    feature_indices_windows_y = np.array([(window_size_ms / 2) - 2, window_size_ms / 2])
+    use_mean_bool = False
+elif cfg.preprocess_param.target_feature_select == 'end':
+    feature_indices_windows_x = np.array([window_size_ms - 2, window_size_ms])
+    feature_indices_windows_y = np.array([window_size_ms - 2, window_size_ms])
+    use_mean_bool = False
+else:
+    raise ValueError(
+        f"Provided target_feature_select {cfg.preprocess_param.target_feature_select} is not yet implemented... Please choose between 'mean', 'mid', and 'end'")
+
+# extracting the input/output features (raw timepoints)
+EMG_Data.featureExtractionFromWindows(feature_type="timepoints", feature_indices_windows=feature_indices_windows_x)
+Quali_Data_Elbow.featureExtractionFromWindows(feature_type="timepoints",
+                                              feature_indices_windows=feature_indices_windows_y,
+                                              use_mean=use_mean_bool)
+Quali_Data_Front.featureExtractionFromWindows(feature_type="timepoints",
+                                              feature_indices_windows=feature_indices_windows_y,
+                                              use_mean=use_mean_bool)
+Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
+                                             feature_indices_windows=feature_indices_windows_y,
+                                             use_mean=use_mean_bool)
+print("Feature extraction from windowed data completed !!\n")
+
+# extract output feature labels
+y_e = Quali_Data_Elbow.getFeatures()[:, 0]  # (n_windows,)
+y_f = Quali_Data_Front.getFeatures()[:, 0]
+y_s = Quali_Data_Side.getFeatures()[:, 0]
+
+# Merge all three targets
+Y = np.stack([y_e, y_f, y_s], axis=-1)  # (n_windows, 3)
+
+# Creating history of features (Y --> target_features_hist but with kernel 3)
+history_len = 3
+input_features = EMG_Data.getFeatures()
+input_features_hist = np.zeros((input_features.shape[0] - history_len + 1, history_len * input_features.shape[1]))
+target_features_hist = np.zeros((Y.shape[0] - history_len + 1, Y.shape[1]))
+
+for i in range(history_len, input_features.shape[0] + 1):
+    input_features_hist[i - history_len] = input_features[i - history_len:i].flatten()
+    target_features_hist[i - history_len] = Y[i - 1]
+input_features_hist = input_features_hist.astype(np.float32)
+target_features_hist = target_features_hist.astype(np.float32)
+
+# Make sure that input and output feature lengths are equal
+min_len = min(x.shape[0], target_features_hist.shape[0])
+x = x[:min_len]
+target_features_hist = target_features_hist[:min_len]
+
+# ---- Split in Train/Val/Test ----
+X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(
+    x, target_features_hist,
+    train_size=cfg.model_param.train_test_split,
+    shuffle=False
+)
+
+X_train, X_val, Y_train, Y_val = train_test_split(
+    X_train_temp, Y_train_temp,
+    train_size=1 - cfg.model_param.validation_split,
+    shuffle=False
+)
+
 # ! ************************************************
 # ! Preparing the data for the TCN-Model
 # ! ************************************************
+'''
 timesteps = history_len
 n_features = X_train.shape[1] // timesteps
 
@@ -504,6 +583,17 @@ X_val_seq   = X_val.reshape(-1, timesteps, n_features)
 X_test_seq  = X_test.reshape(-1, timesteps, n_features)
 
 print("Reshaped input arrays for the model training.")
+'''
+
+# For raw data, reshaping is not necessary (n_channels, n_samples, n_windows)
+timesteps  = X_train.shape[1]
+n_features = X_train.shape[2]
+input_shape_time = (timesteps, n_features)
+
+X_train_seq = X_train
+X_val_seq   = X_val
+X_test_seq  = X_test
+
 
 # Prepare the training data
 Y_train_e = Y_train[:, 0]
@@ -582,23 +672,18 @@ dropout_rate = 0.10
 kernel_size = 3
 
 model = build_model(
-    input_shape_time=(timesteps, n_features),
+    input_shape_time=input_shape_time,
     filters=filters,
     stacks=stacks,
     dropout_rate=dropout_rate,
     kernel_size=kernel_size
 )
 
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(1e-3),
-    loss={
+model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss={
         "torque_elbow": "mse",
         "torque_shoulder_front": "mse",
         "torque_shoulder_side": "mse",
-    },
-    loss_weights={"torque_elbow": 1.0, "torque_shoulder_front": 1.0, "torque_shoulder_side": 1.0},
-    metrics=["mae"]
-)
+    })
 
 # ! ************************************************
 # ! Training the TCN-Model
