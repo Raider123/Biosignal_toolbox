@@ -427,6 +427,20 @@ Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
                                                 use_mean=use_mean_bool)
 print("Feature extraction from windowed data completed!!\n")
 
+#? Median filter on target values
+# Quali_Data_Elbow.applyMedianFilter_features(window_length=51)
+# Quali_Data_Front.applyMedianFilter_features(window_length=51)
+# Quali_Data_Side.applyMedianFilter_features(window_length=21)
+
+#? Savitsky-Golay filter on target values
+# Quali_Data_Elbow.applySavitskyGolayFilter_features(window_length=51, poly_order=2)
+# Quali_Data_Front.applySavitskyGolayFilter_features(window_length=51, poly_order=2)
+# Quali_Data_Side.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
+
+# plt.figure()
+# plt.plot(Quali_Data_Front.getFeatures()[-1083:])
+# plt.show()
+
 #? Merge output features
 target_features = np.concatenate([Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
 
