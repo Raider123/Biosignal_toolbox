@@ -90,19 +90,26 @@ train_model = AAN_Model(neurons_inp=neurons_inp,
 MLP_model = MLModel(model = train_model, type= "keras")
 
 #? Set the weights and deltas for weighted huber
-# var_torques = np.var(Y_train, axis=0, ddof=1)
-# weights_inp = 1.0 / (var_torques ** 1)
-# weights_inp = weights_inp / np.sum(weights_inp)
-# max_weight = np.percentile(weights_inp, 95)
-# min_weight = np.percentile(weights_inp, 5)
-# weights_inp = np.clip(weights_inp, min_weight, max_weight)
+if cfg.model_param.huber_weight_method == 'var':
+    var_torques = np.var(Y_train, axis=0, ddof=1)
+    weights_inp = 1.0 / (var_torques ** 1)
+    weights_inp = weights_inp / np.sum(weights_inp)
+    max_weight = np.percentile(weights_inp, 95)
+    min_weight = np.percentile(weights_inp, 5)
+    weights_inp = np.clip(weights_inp, min_weight, max_weight)
+elif cfg.model_param.huber_weight_method == 'manual':
+    weights_inp = [5,5,1]
+elif cfg.model_param.huber_weight_method == 'dynamic_huber':
+    weights_inp = [1,1,1]
+else:
+    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var', 'manual', and 'dynamic_huber'!!")
 
-weights_inp = [5,5,1]
+
 MLP_model.setHuberWeights(weights_inp=weights_inp)
-MLP_model.setHuberDeltas(deltas_inp=[0.25, 0.35, 0.2])
+MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
 #? Train model
-print("Training MLP model for elbow joint...")
+print("Training MLP model for all joints...")
 save_model_path = cfg.filepath.save_model_path + filename_suffix
 # print(save_model_path)
 MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
@@ -119,6 +126,20 @@ MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model,
                      metrics=cfg.model_param.metrics, 
                      show_train_results=cfg.model_param.show_train_results, 
                      callbacks=early_callback)
+
+# MLP_model.trainModel_dynamicHuber(train_epochs=cfg.model_param.n_epochs, 
+#                      batch_size=cfg.model_param.batch_size, 
+#                      x_train=X_train, 
+#                      y_train=Y_train, 
+#                      x_val=X_val,
+#                      y_val=Y_val,
+#                      loss_fcn=cfg.model_param.loss_fcn, 
+#                      optimizer=cfg.model_param.optimizer, 
+#                      metrics=cfg.model_param.metrics, 
+#                      update_every=15,
+#                      factor=10.0,
+#                      alpha=0.3)
+
 print("MLP training done!!\n")
 
 #? Predict and get results 
@@ -151,12 +172,12 @@ print("\n")
 #! Post-prediction Filtering
 #! ************************************************
 #? Median filter for removing spikes/outliers
-MLP_model.applyFilter_prediction(method="median",
-                                 window_length=11)
+MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
+                                 window_length=cfg.post_train_param.filter_size)
 #? Savitsky Golay filter
 MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=25,
-                                 poly_order=3)
+                                 window_length=cfg.post_train_param.savgol_window_len,
+                                 poly_order=cfg.post_train_param.savgol_poly_order)
 
 perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP.shape)
@@ -167,15 +188,6 @@ r2_elbow, rmse_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP
 r2_front, rmse_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
 r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
 
-#? Check if the save dir exists. If not create one
-#? Create a readme.txt and include all parameters in it
-if cfg.post_train_param.is_save_plot:
-    choice = input("Do you want to save the model? (Y/N)").strip().lower()
-    if choice in ["y", "yes"]:
-        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
-        createReadme(param_obj=cfg,
-                     dir_path=dir_path)
-
 #? Plotting the filtered prediction results
 plotResults(data_ref=Y_ref[:,0],
             label_ref="real torque", 
@@ -184,8 +196,6 @@ plotResults(data_ref=Y_ref[:,0],
             title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_elbow_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=Y_ref[:,1],
             label_ref="real torque", 
@@ -194,8 +204,6 @@ plotResults(data_ref=Y_ref[:,1],
             title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_front_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=Y_ref[:,2],
             label_ref="real torque", 
@@ -204,8 +212,39 @@ plotResults(data_ref=Y_ref[:,2],
             title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_side_{cfg.post_train_param.filter_type}.png"))
 
 #? Showing the plots
 plt.show()
+
+#? Check if the save dir exists. If not create one
+#? Create a readme.txt and include all parameters in it
+if cfg.post_train_param.is_save_plot:
+    choice = input("Do you want to save the plots? (Y/N)").strip().lower()
+    if choice in ["y", "yes"]:
+        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
+        createReadme(param_obj=cfg,
+                     dir_path=dir_path)
+        
+        figs = [("elbow", Y_ref[:, 0], perf_results_MLP[:, 0],
+         f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}"),
+        ("front", Y_ref[:, 1], perf_results_MLP[:, 1],
+         f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}"),
+        ("side", Y_ref[:, 2], perf_results_MLP[:, 2],
+         f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}"),]
+        
+        for name, ref, out, title in figs:
+            plt.figure()
+            plotResults(data_ref=ref,
+            label_ref="real torque", 
+            data_out=out, 
+            label_out="predicted torque", 
+            title=title, 
+            ylabel="Torque in N-m", 
+            is_grid_on=True)
+
+            plt.savefig(dir_path / f"test_{name}.png")
+            plt.close()
+        print(f"✅ Saved all plots in {dir_path}")
+else:
+    print("❌ Plots not saved.")
+        
