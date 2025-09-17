@@ -442,6 +442,16 @@ Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
                                                 use_mean=use_mean_bool)
 print("Feature extraction from windowed data completed!!\n")
 
+#? Median filter on target values
+# Quali_Data_Elbow.applyMedianFilter_features(window_length=21)
+# Quali_Data_Front.applyMedianFilter_features(window_length=21)
+# Quali_Data_Side.applyMedianFilter_features(window_length=21)
+
+#? Savitsky-Golay filter on target values
+# Quali_Data_Elbow.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
+# Quali_Data_Front.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
+# Quali_Data_Side.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
+
 #? Merge output features
 target_features = np.concatenate([Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
 
@@ -607,15 +617,6 @@ r2_elbow, rmse_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP
 r2_front, rmse_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
 r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
 
-#? Check if the save dir exists. If not create one
-#? Create a readme.txt and include all parameters in it
-if cfg.post_train_param.is_save_plot:
-    choice = input("Do you want to save the model? (Y/N)").strip().lower()
-    if choice in ["y", "yes"]:
-        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
-        createReadme(param_obj=cfg,
-                     dir_path=dir_path)
-
 #? Plotting the filtered prediction results
 plotResults(data_ref=Y_ref[:,0],
             label_ref="real torque", 
@@ -624,8 +625,6 @@ plotResults(data_ref=Y_ref[:,0],
             title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_elbow_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=Y_ref[:,1],
             label_ref="real torque", 
@@ -634,8 +633,6 @@ plotResults(data_ref=Y_ref[:,1],
             title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_front_{cfg.post_train_param.filter_type}.png"))
 
 plotResults(data_ref=Y_ref[:,2],
             label_ref="real torque", 
@@ -644,8 +641,38 @@ plotResults(data_ref=Y_ref[:,2],
             title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
-if cfg.post_train_param.is_save_plot and choice in ["y", "yes"]:
-    plt.savefig(dir_path / (f"test_side_{cfg.post_train_param.filter_type}.png"))
 
 #? Showing the plots
 plt.show()
+
+#? Check if the save dir exists. If not create one
+#? Create a readme.txt and include all parameters in it
+if cfg.post_train_param.is_save_plot:
+    choice = input("Do you want to save the plots? (Y/N)").strip().lower()
+    if choice in ["y", "yes"]:
+        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
+        createReadme(param_obj=cfg,
+                     dir_path=dir_path)
+        
+        figs = [("elbow", Y_ref[:, 0], perf_results_MLP[:, 0],
+         f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}"),
+        ("front", Y_ref[:, 1], perf_results_MLP[:, 1],
+         f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}"),
+        ("side", Y_ref[:, 2], perf_results_MLP[:, 2],
+         f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}"),]
+        
+        for name, ref, out, title in figs:
+            plt.figure()
+            plotResults(data_ref=ref,
+            label_ref="real torque", 
+            data_out=out, 
+            label_out="predicted torque", 
+            title=title, 
+            ylabel="Torque in N-m", 
+            is_grid_on=True)
+
+            plt.savefig(dir_path / f"test_{name}.png")
+            plt.close()
+        print(f"✅ Saved all plots in {dir_path}")
+else:
+    print("❌ Plots not saved.")

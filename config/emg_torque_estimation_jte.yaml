@@ -51,7 +51,7 @@
     act_gamma:                0.7
     act_A:                    -1.5
 
-    is_save_features:         True
+    is_save_features:         False
     
   
   model_param:
@@ -90,7 +90,7 @@
 
     is_save_model:            False
     load_models:              False
-    show_train_results:       False
+    show_train_results:       True
 
   post_train_param:
     eval_type:                'offline' 
