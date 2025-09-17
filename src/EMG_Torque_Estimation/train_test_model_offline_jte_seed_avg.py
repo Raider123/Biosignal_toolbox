@@ -1,5 +1,5 @@
 
-#* This script loads the saved extracted input and target features, trains the model and tests it to get the prediction results.
+#* This script loads the saved extracted input and target features, trains the model and tests it to get the prediction results on 5 different seeds to get the average performance.
 
 #! ************************************************
 #! Imports
