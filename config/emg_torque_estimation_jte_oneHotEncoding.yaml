@@ -13,12 +13,14 @@
     quali_torques_save_path:  'data/jte/quali_data/BU62D/torques'
     save_model_path:          'data/jte/ml_models/BU62D/'
     save_features_path:       'data/jte/features/BU62D/'
-    saved_features:           ['features_250916_153115_grasp_complex_1100g_1850g.npz', 'scaler_250916_153115_grasp_complex_1100g_1850g.pkl']
+    saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
   data_param:
-    # weights:                  ['0g', '1100g', '1850g']
-    weights:                  ['1100g', '1850g']
+    weights:                  ['0g', '1100g', '1850g']
+    # weights:                  ['1100g', '1850g']
     mov_type:                 ['grasp', 'complex']
+    # weights:                  ['1850g']
+    # mov_type:                 ['complex']
     set_num:                  ['1', '2', '3', '4']
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg
@@ -45,7 +47,7 @@
     var_filter_width:         20
     normalisation_method:     'channel_wise_mvc'
 
-    use_activation_fncn:      False
+    use_activation_fncn:      True
     act_delay:                25
     act_beta1:                0.25
     act_beta2:                0.05
@@ -60,7 +62,7 @@
     batch_size:               32
 
     loss_fcn:                 'weighted_huber'
-    huber_weight_method:      'var'
+    huber_weight_method:      'smooth_var'
     huber_deltas:             [0.25, 0.35, 0.2]
     optimizer:                'nadam'
     metrics:                  'mse'
@@ -89,17 +91,17 @@
     act_h4:                   'relu'
     act_out:                  'tanh' 
 
-    is_save_model:            False
+    is_save_model:            True
     load_models:              False
-    show_train_results:       True
+    show_train_results:       False
 
   post_train_param:
     eval_type:                'offline' 
-    filter_type:              'mean'
-    filter_size:              11
+    filter_type:              'median'
+    filter_size:              5
     savgol_window_len:        21
-    savgol_poly_order:        3    
-    is_save_plot:             False
+    savgol_poly_order:        2    
+    is_save_plot:             True
   
   plot_param:
     is_plot_raw:              False

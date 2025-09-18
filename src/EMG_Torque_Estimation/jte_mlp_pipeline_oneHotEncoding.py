@@ -85,7 +85,7 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type, cfg.
         continue
     else:
         emg_filenames.append(emg_matched_files[0])
-    print(emg_filenames)
+    
     quali_e_matched_files = list(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_torque_path).glob(quali_e_file_pattern))
     if not quali_e_matched_files:
         continue
@@ -341,29 +341,43 @@ _, _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1,
                                             start_channel_pick=0, 
                                             end_channel_pick=1,
                                             return_window_end_indices=True)
+
 #? Ensure the number of windows of each file are the same for inp and target
+ref_emg_window_boundary_idx = emg_window_boundary_idx
+ref_quali_window_boundary_idx = quali_window_boundary_idx
+
+slice_ref = []
 if emg_window_boundary_idx == quali_window_boundary_idx:
     print("Window boundary indices match!!")
 else:
-    ref_window_boundary_idx = []
-    for emg_win, quali_e_win in zip(emg_window_boundary_idx, quali_window_boundary_idx):
-        if emg_win != quali_e_win:
-            print(f"Window mismatch -> EMG: {emg_win}; Quali: {quali_e_win}")
-        ref_window_boundary_idx.append(min(emg_win, quali_e_win))
-    #? Slice and concat windows
-    if ref_window_boundary_idx != emg_window_boundary_idx:
-        EMG_Data.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                       start_slice=emg_window_boundary_idx)
-        EMG_Data_freq.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                       start_slice=emg_window_boundary_idx)
-    if ref_window_boundary_idx != quali_window_boundary_idx:
-        Quali_Data_Elbow.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-        Quali_Data_Front.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-        Quali_Data_Side.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-    print("Windows sliced and equalled!!")
+    for idx, (emg_win, quali_win) in enumerate(zip(emg_window_boundary_idx, quali_window_boundary_idx)):
+        if emg_win != quali_win:
+            delta = emg_win - quali_win  # positive if EMG is larger
+            print(f"Window mismatch -> EMG: {emg_win}; Quali: {quali_win}; Delta: {delta}")
+            for i in range(idx, len(emg_window_boundary_idx)):
+                emg_window_boundary_idx[i] -= delta
+            slice_ref.append((idx, delta))
+
+#? Slice and concat windows
+if len(slice_ref) > 0:
+    for i in range (len(slice_ref)):
+        idx, delta = slice_ref[i]
+        if delta > 0:
+            windows_to_remove = list(range(ref_emg_window_boundary_idx[idx]-1, ref_emg_window_boundary_idx[idx]-1+delta))
+            print(windows_to_remove)
+            EMG_Data.windows = np.delete(EMG_Data.getWindows(), windows_to_remove, axis=-1)
+            EMG_Data_freq.windows = np.delete(EMG_Data_freq.getWindows(), windows_to_remove, axis=-1)
+        elif delta <0:
+            print("Entered quali part")
+            delta = np.abs(delta)
+            windows_to_remove = list(range(ref_quali_window_boundary_idx[idx-1], ref_quali_window_boundary_idx[idx-1+delta]))
+            Quali_Data_Elbow.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+            Quali_Data_Front.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+            Quali_Data_Side.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+
+ref_window_boundary_idx = emg_window_boundary_idx
+print("Windows sliced and equalled!!")
+    
 assert EMG_Data.windows.shape[3] == Quali_Data_Elbow.windows.shape[3]
 
 #? Get number of windows for each file
@@ -448,6 +462,11 @@ n_cycles[1] = 4
 mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
                                                                   n_cycles=n_cycles)    # Morlet transform
 EMG_Data.addFeatures(mwc_feature)
+# print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+
+#? Change between consecutive samples (window i and wind i+1)
+peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
+EMG_Data.addFeatures(peak_detection)
 print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
 #? Output feature extraction
@@ -505,7 +524,7 @@ X_train, X_val, Y_train, Y_val = train_test_split(X_train_temp,
                                                   train_size= 1 - cfg.model_param.validation_split,
                                                   shuffle=False)
 
-#? Split data into train, validation, and test sets
+#? Split categorical data into train, validation, and test sets
 X_train_cat_temp, X_test_cat= train_test_split(x_cat,
                                           train_size=cfg.model_param.train_test_split,
                                           shuffle=False)
@@ -524,36 +543,23 @@ X_val_cat = encoder.transform(X_val_cat)
 
 #? Creating history of features
 history_len = 3
-X_train, Y_train, ref_train = EMG_Data.stackHistory_windows(x_inp=X_train, 
-                                                 y_inp=Y_train, 
+X_train, Y_train, ref_train_idx = EMG_Data.stackHistoryCat_windows(x_num=X_train, 
+                                                 y_num=Y_train, 
+                                                 x_cat=X_train_cat,
                                                  history_len=history_len)
-X_test, Y_test, ref_test = EMG_Data.stackHistory_windows(x_inp=X_test, 
-                                               y_inp=Y_test, 
+
+X_test, Y_test, ref_test_idx = EMG_Data.stackHistoryCat_windows(x_num=X_test, 
+                                               y_num=Y_test, 
+                                               x_cat=X_test_cat,
                                                history_len=history_len)
-X_val, Y_val, ref_val = EMG_Data.stackHistory_windows(x_inp=X_val, 
-                                             y_inp=Y_val, 
+X_val, Y_val, ref_val_idx = EMG_Data.stackHistoryCat_windows(x_num=X_val, 
+                                             y_num=Y_val, 
+                                             x_cat=X_val_cat,
                                              history_len=history_len)
+
 print(f"{history_len} feature vectors stacked together!!")
 print(f"Stacked x_train feature shape: {X_train.shape}")
 print(f"Stacked y_train feature shape: {Y_train.shape}")
-
-#? Creating history of categorical info
-ref_code_idx = []
-for i in range(int(len(ref_window_boundary_idx)/2)):
-    ref_code_idx.append(ref_window_boundary_idx[2*i + 1])
-
-# get the fragments to cut from the cat arrays
-X_train_cat, _ = EMG_Data.sliceHistoryCat_windows(arr=X_train_cat,
-                                                  start_ref=ref_code_idx,
-                                                  end_ref=ref_train)
-
-X_test_cat, _ = EMG_Data.sliceHistoryCat_windows(arr=X_test_cat,
-                                                  start_ref=ref_code_idx,
-                                                  end_ref=ref_test)
-
-X_val_cat, _ = EMG_Data.sliceHistoryCat_windows(arr=X_val_cat,
-                                                  start_ref=ref_code_idx,
-                                                  end_ref=ref_val)
 
 #? Pre-PCA scaling of input features
 _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
@@ -573,6 +579,12 @@ _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                            test_data=X_test, 
                                                            val_data=X_val, 
                                                            method="StandardScaler")
+
+#? Extract categorical features corr to the stacked history frames
+X_train_cat = X_train_cat[[end-1 for _, end in ref_train_idx]]
+X_test_cat = X_test_cat[[end-1 for _, end in ref_test_idx]]
+X_val_cat = X_val_cat[[end-1 for _, end in ref_val_idx]]
+
 #? Add categorical features to the input sets
 X_train = np.concatenate([X_train, X_train_cat], axis=1)
 X_test = np.concatenate([X_test, X_test_cat], axis=1)
@@ -612,16 +624,28 @@ train_model = AAN_Model(neurons_inp=neurons_inp,
 MLP_model = MLModel(model = train_model, type= "keras")
 
 #? Set the weights and deltas for weighted huber
-var_torques = np.var(Y_train, axis=0, ddof=1)
-weights_inp = 1.0 / (var_torques ** 1)
-weights_inp = weights_inp / np.sum(weights_inp)
-max_weight = np.percentile(weights_inp, 95)
-min_weight = np.percentile(weights_inp, 5)
-weights_inp = np.clip(weights_inp, min_weight, max_weight)
+if cfg.model_param.huber_weight_method == 'var':
+    var_torques = np.var(Y_train, axis=0, ddof=1)
+    weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
+    # weights_inp = weights_inp / np.sum(weights_inp)
+    max_weight = np.percentile(weights_inp, 95)
+    min_weight = np.percentile(weights_inp, 5)
+    weights_inp = np.clip(weights_inp, min_weight, max_weight)
+    weights_inp = weights_inp / np.mean(weights_inp)
+elif cfg.model_param.huber_weight_method == 'smooth_var':
+    weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
+                                   clip_percentile=[5,75],
+                                   window_len=5,
+                                   poly_order=2)
+elif cfg.model_param.huber_weight_method == 'manual':
+    weights_inp = [5,5,1]
+elif cfg.model_param.huber_weight_method == 'dynamic_huber':
+    weights_inp = [1,1,1]
+else:
+    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
 
-# weights_inp = [5,5,1]
 MLP_model.setHuberWeights(weights_inp=weights_inp)
-MLP_model.setHuberDeltas(deltas_inp=[0.25, 0.35, 0.2])
+MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
 #? Train model
 print("Training MLP model for elbow joint...")
@@ -673,12 +697,12 @@ print("\n")
 #! Post-prediction Filtering
 #! ************************************************
 #? Median filter for removing spikes/outliers
-MLP_model.applyFilter_prediction(method="median",
-                                 window_length=11)
+MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
+                                 window_length=cfg.post_train_param.filter_size)
 #? Savitsky Golay filter
 MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=25,
-                                 poly_order=3)
+                                 window_length=cfg.post_train_param.savgol_window_len,
+                                 poly_order=cfg.post_train_param.savgol_poly_order)
 
 perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP.shape)

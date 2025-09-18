@@ -540,16 +540,22 @@ train_model = AAN_Model(neurons_inp=neurons_inp,
 MLP_model = MLModel(model = train_model, type= "keras")
 
 #? Set the weights and deltas for weighted huber
-var_torques = np.var(Y_train, axis=0, ddof=1)
-weights_inp = 1.0 / (var_torques ** 1)
-weights_inp = weights_inp / np.sum(weights_inp)
-max_weight = np.percentile(weights_inp, 95)
-min_weight = np.percentile(weights_inp, 5)
-weights_inp = np.clip(weights_inp, min_weight, max_weight)
+if cfg.model_param.huber_weight_method == 'var':
+    var_torques = np.var(Y_train, axis=0, ddof=1)
+    weights_inp = 1.0 / (var_torques ** 1)
+    weights_inp = weights_inp / np.sum(weights_inp)
+    max_weight = np.percentile(weights_inp, 95)
+    min_weight = np.percentile(weights_inp, 5)
+    weights_inp = np.clip(weights_inp, min_weight, max_weight)
+elif cfg.model_param.huber_weight_method == 'manual':
+    weights_inp = [5,5,1]
+elif cfg.model_param.huber_weight_method == 'dynamic_huber':
+    weights_inp = [1,1,1]
+else:
+    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var', 'manual', and 'dynamic_huber'!!")
 
-# weights_inp = [5,5,1]
 MLP_model.setHuberWeights(weights_inp=weights_inp)
-MLP_model.setHuberDeltas(deltas_inp=[0.25, 0.35, 0.2])
+MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
 #? Train model
 print("Training MLP model for elbow joint...")
@@ -601,12 +607,12 @@ print("\n")
 #! Post-prediction Filtering
 #! ************************************************
 #? Median filter for removing spikes/outliers
-MLP_model.applyFilter_prediction(method="median",
-                                 window_length=11)
+MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
+                                 window_length=cfg.post_train_param.filter_size)
 #? Savitsky Golay filter
 MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=25,
-                                 poly_order=3)
+                                 window_length=cfg.post_train_param.savgol_window_len,
+                                 poly_order=cfg.post_train_param.savgol_poly_order)
 
 perf_results_MLP = MLP_model.getPredictionScores()
 # print(perf_results_MLP.shape)

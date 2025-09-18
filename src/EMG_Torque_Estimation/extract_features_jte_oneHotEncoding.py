@@ -1,48 +1,30 @@
 
-#* This script is the general training script for joint torque estimation using sEMG signals offline. It loads all the hyper-parameters from a yaml_config file.
+#* This script preprocesses EMG and Qualisys data, extracts relevant temporal, spectral and time-freq features and saves them into a numpy file
 
 #! ************************************************
 #! Imports
 #! ************************************************
 
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import itertools
 from copy import deepcopy
 from sklearn.model_selection import train_test_split
 from datetime import datetime
-import random
+from joblib import dump
+from sklearn.preprocessing import OneHotEncoder
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
-from biosignal_toolbox.ML_lib import MLModel
-from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
+from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 import warnings
 warnings.formatwarning = customWarningFormat
 
-#! ************************************************
-#! User Parameters and Data Collection
-#! ************************************************
-
 #? load config file
-config_filename = 'emg_torque_estimation_jte_individual.yaml'
+config_filename = 'emg_torque_estimation_jte_oneHotEncoding.yaml'
 cfg = loadConfig(filename=config_filename)
-
-#? init early stopping 
-if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
-                                                      min_delta=cfg.model_param.min_delta, 
-                                                      patience=cfg.model_param.patience, 
-                                                      verbose=cfg.model_param.verbose, 
-                                                      baseline=cfg.model_param.baseline, 
-                                                      restore_best_weights=cfg.model_param.restore_best_weights, 
-                                                      start_from_epoch=cfg.model_param.start_from_epoch)
-else:
-    early_callback = None
 
 #? filename suffix
 timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
@@ -363,7 +345,40 @@ else:
         Quali_Data_Side.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
                                                start_slice=quali_window_boundary_idx)
     print("Windows sliced and equalled!!")
+    
 assert EMG_Data.windows.shape[3] == Quali_Data_Elbow.windows.shape[3]
+
+#? Get number of windows for each file
+ref_window_sizes = [ref_window_boundary_idx[0]]
+for i in range(1, len(ref_window_boundary_idx)):
+    ref_window_sizes.append(ref_window_boundary_idx[i] - ref_window_boundary_idx[i-1])
+
+#? One Hot Encoding for 3 weights and 2 movements
+weights_code = []
+mov_code = []
+idx_counter = 0
+
+for mov, wgt in itertools.product(cfg.data_param.mov_type, cfg.data_param.weights):
+    if mov == 'grasp':
+        mov_code += [0] * (ref_window_sizes[2*idx_counter] + ref_window_sizes[2*idx_counter + 1])
+    elif mov == 'complex':
+        mov_code += [1] * (ref_window_sizes[2*idx_counter] + ref_window_sizes[2*idx_counter + 1])
+    else:
+        raise ValueError("Wrong mov type string added... move should be either grasp or complex!!")
+    
+    if wgt == '0g':
+        weights_code += [0] * (ref_window_sizes[2*idx_counter] + ref_window_sizes[2*idx_counter + 1])
+    elif wgt == '1100g':
+        weights_code += [1] * (ref_window_sizes[2*idx_counter] + ref_window_sizes[2*idx_counter + 1])
+    elif wgt == '1850g':
+        weights_code += [2] * (ref_window_sizes[2*idx_counter] + ref_window_sizes[2*idx_counter + 1])
+    else:
+        raise ValueError("Wrong weight string added... weight should be either 0g, 1100g or 1850g!!")
+    
+    idx_counter += 1
+
+#? Merge weights_code and mov_code to form categorical feat set
+x_cat = np.column_stack([weights_code, mov_code])
 
 # use the EMG_Data.windows if you want to access the windowed data 
 #? Plot specific filtered windows for debugging
@@ -415,6 +430,11 @@ n_cycles[1] = 4
 mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
                                                                   n_cycles=n_cycles)    # Morlet transform
 EMG_Data.addFeatures(mwc_feature)
+# print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+
+#? Change between consecutive samples (window i and wind i+1)
+peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
+EMG_Data.addFeatures(peak_detection)
 print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
 #? Output feature extraction
@@ -443,13 +463,13 @@ Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints",
 print("Feature extraction from windowed data completed!!\n")
 
 #? Median filter on target values
-# Quali_Data_Elbow.applyMedianFilter_features(window_length=11)
-# Quali_Data_Front.applyMedianFilter_features(window_length=11)
+# Quali_Data_Elbow.applyMedianFilter_features(window_length=21)
+# Quali_Data_Front.applyMedianFilter_features(window_length=21)
 # Quali_Data_Side.applyMedianFilter_features(window_length=21)
 
 #? Savitsky-Golay filter on target values
-# Quali_Data_Elbow.applySavitskyGolayFilter_features(window_length=11, poly_order=2)
-# Quali_Data_Front.applySavitskyGolayFilter_features(window_length=11, poly_order=2)
+# Quali_Data_Elbow.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
+# Quali_Data_Front.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
 # Quali_Data_Side.applySavitskyGolayFilter_features(window_length=21, poly_order=2)
 
 #? Merge output features
@@ -471,19 +491,40 @@ X_train, X_val, Y_train, Y_val = train_test_split(X_train_temp,
                                                   Y_train_temp, 
                                                   train_size= 1 - cfg.model_param.validation_split,
                                                   shuffle=False)
+
+#? Split categorical data into train, validation, and test sets
+X_train_cat_temp, X_test_cat= train_test_split(x_cat,
+                                          train_size=cfg.model_param.train_test_split,
+                                          shuffle=False)
+
+X_train_cat, X_val_cat, = train_test_split(X_train_cat_temp,
+                                          train_size= 1 - cfg.model_param.validation_split,
+                                          shuffle=False)
+
 print("Split data into train, test, and val!!")
+
+#? One Hot encoding
+encoder = OneHotEncoder(sparse_output=False)
+X_train_cat = encoder.fit_transform(X_train_cat)
+X_test_cat = encoder.transform(X_test_cat)
+X_val_cat = encoder.transform(X_val_cat)
 
 #? Creating history of features
 history_len = 3
-X_train, Y_train = EMG_Data.stackHistory_windows(x_inp=X_train, 
-                                                 y_inp=Y_train, 
+X_train, Y_train, ref_train_idx = EMG_Data.stackHistoryCat_windows(x_num=X_train, 
+                                                 y_num=Y_train, 
+                                                 x_cat=X_train_cat,
                                                  history_len=history_len)
-X_test, Y_test = EMG_Data.stackHistory_windows(x_inp=X_test, 
-                                               y_inp=Y_test, 
+
+X_test, Y_test, ref_test_idx = EMG_Data.stackHistoryCat_windows(x_num=X_test, 
+                                               y_num=Y_test, 
+                                               x_cat=X_test_cat,
                                                history_len=history_len)
-X_val, Y_val = EMG_Data.stackHistory_windows(x_inp=X_val, 
-                                             y_inp=Y_val, 
+X_val, Y_val, ref_val_idx = EMG_Data.stackHistoryCat_windows(x_num=X_val, 
+                                             y_num=Y_val, 
+                                             x_cat=X_val_cat,
                                              history_len=history_len)
+
 print(f"{history_len} feature vectors stacked together!!")
 print(f"Stacked x_train feature shape: {X_train.shape}")
 print(f"Stacked y_train feature shape: {Y_train.shape}")
@@ -506,6 +547,17 @@ _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                            test_data=X_test, 
                                                            val_data=X_val, 
                                                            method="StandardScaler")
+
+#? Extract categorical features corr to the stacked history frames
+X_train_cat = X_train_cat[[end-1 for _, end in ref_train_idx]]
+X_test_cat = X_test_cat[[end-1 for _, end in ref_test_idx]]
+X_val_cat = X_val_cat[[end-1 for _, end in ref_val_idx]]
+
+#? Add categorical features to the input sets
+X_train = np.concatenate([X_train, X_train_cat], axis=1)
+X_test = np.concatenate([X_test, X_test_cat], axis=1)
+X_val = np.concatenate([X_val, X_val_cat], axis=1)
+
 #? Scale output features -> [-1,1] for tanh
 Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
                                                                   test_data=Y_test, 
@@ -513,277 +565,23 @@ Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_t
                                                                   method="MinMaxScaler",
                                                                   feature_range=(-1,1))
 
-#! ************************************************
-#! Train, Load, or Test Model
-#! ************************************************
+#? Save features
+if cfg.preprocess_param.is_save_features:
+    save_path = getAbsolutePath(input_path=cfg.filepath.save_features_path)
+    if cfg.preprocess_param.use_activation_fncn:
+        filename_suffix = filename_suffix + "_act"
+    else:
+        filename_suffix = filename_suffix
+    filename_npz = "features_ohe_" + filename_suffix
+    filename_pkl = "scaler_ohe_" + filename_suffix
 
-# --- set global seed ---
-seed = 7
-np.random.seed(seed)
-random.seed(seed)
-tf.random.set_seed(seed)
-
-neurons_inp = X_train.shape[1]
-#? Init model with norm layer
-train_model_e = AAN_Model(neurons_inp=neurons_inp, 
-                        neurons_h1=cfg.model_param.neurons_h1, 
-                        act_h1=cfg.model_param.act_h1, 
-                        neurons_h2=cfg.model_param.neurons_h2, 
-                        act_h2=cfg.model_param.act_h2,
-                        neurons_h3=cfg.model_param.neurons_h3, 
-                        act_h3=cfg.model_param.act_h3,
-                        neurons_h4=cfg.model_param.neurons_h4, 
-                        act_h4=cfg.model_param.act_h4,
-                        neuron_out=cfg.model_param.neurons_out,
-                        act_out=cfg.model_param.act_out)
-
-train_model_sf = AAN_Model(neurons_inp=neurons_inp, 
-                        neurons_h1=cfg.model_param.neurons_h1, 
-                        act_h1=cfg.model_param.act_h1, 
-                        neurons_h2=cfg.model_param.neurons_h2, 
-                        act_h2=cfg.model_param.act_h2,
-                        neurons_h3=64, 
-                        act_h3=cfg.model_param.act_h3,
-                        neurons_h4=32, 
-                        act_h4=cfg.model_param.act_h4,
-                        neuron_out=1,
-                        act_out=cfg.model_param.act_out)
-
-train_model_ss = AAN_Model(neurons_inp=neurons_inp, 
-                        neurons_h1=cfg.model_param.neurons_h1, 
-                        act_h1=cfg.model_param.act_h1, 
-                        neurons_h2=cfg.model_param.neurons_h2, 
-                        act_h2=cfg.model_param.act_h2,
-                        neurons_h3=cfg.model_param.neurons_h3, 
-                        act_h3=cfg.model_param.act_h3,
-                        neurons_h4=cfg.model_param.neurons_h4, 
-                        act_h4=cfg.model_param.act_h4,
-                        neuron_out=cfg.model_param.neurons_out,
-                        act_out=cfg.model_param.act_out)
-
-MLP_model_e = MLModel(model = train_model_e, type= "keras")
-MLP_model_sf = MLModel(model = train_model_sf, type= "keras")
-MLP_model_ss = MLModel(model = train_model_ss, type= "keras")
-
-#? Set the weights and deltas for weighted huber
-if cfg.model_param.huber_weight_method == 'var':
-    var_torques = np.var(Y_train, axis=0, ddof=1)
-    weights_inp = 1.0 / (var_torques ** 1)
-    weights_inp = weights_inp / np.sum(weights_inp)
-    max_weight = np.percentile(weights_inp, 95)
-    min_weight = np.percentile(weights_inp, 5)
-    weights_inp = np.clip(weights_inp, min_weight, max_weight)
-elif cfg.model_param.huber_weight_method == 'manual':
-    weights_inp = [5,5,1]
-elif cfg.model_param.huber_weight_method == 'dynamic_huber':
-    weights_inp = [1,1,1]
-else:
-    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var', 'manual', and 'dynamic_huber'!!")
-
-
-#? Train model
-print("Training MLP model for elbow joint...")
-MLP_model_e.setHuberWeights(weights_inp=weights_inp[0])
-MLP_model_e.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas[0])
-
-save_model_path = cfg.filepath.save_model_path + filename_suffix + "_elbow"
-# print(save_model_path)
-
-MLP_model_e.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                     model_filename=save_model_path, 
-                     train_epochs=cfg.model_param.n_epochs, 
-                     batch_size=cfg.model_param.batch_size, 
-                     class_weights=None, 
-                     x_train=X_train, 
-                     y_train=Y_train[:,0], 
-                     x_val=X_val,
-                     y_val=Y_val[:,0],
-                     loss_fcn=cfg.model_param.loss_fcn, 
-                     optimizer=cfg.model_param.optimizer, 
-                     metrics=cfg.model_param.metrics, 
-                     show_train_results=cfg.model_param.show_train_results, 
-                     callbacks=early_callback)
-
-print("Training MLP model for shoulder front joint...")
-MLP_model_sf.setHuberWeights(weights_inp=weights_inp[1])
-MLP_model_sf.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas[1])
-
-save_model_path = cfg.filepath.save_model_path + filename_suffix + "_front"
-# print(save_model_path)
-
-MLP_model_sf.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                     model_filename=save_model_path, 
-                     train_epochs=cfg.model_param.n_epochs, 
-                     batch_size=cfg.model_param.batch_size, 
-                     class_weights=None, 
-                     x_train=X_train, 
-                     y_train=Y_train[:,1], 
-                     x_val=X_val,
-                     y_val=Y_val[:,1],
-                     loss_fcn=cfg.model_param.loss_fcn, 
-                     optimizer=cfg.model_param.optimizer, 
-                     metrics=cfg.model_param.metrics, 
-                     show_train_results=cfg.model_param.show_train_results, 
-                     callbacks=early_callback)
-
-print("Training MLP model for shoulder side joint...")
-MLP_model_ss.setHuberWeights(weights_inp=weights_inp[2])
-MLP_model_ss.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas[2])
-
-save_model_path = cfg.filepath.save_model_path + filename_suffix + "_side"
-# print(save_model_path)
-
-MLP_model_ss.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                     model_filename=save_model_path, 
-                     train_epochs=cfg.model_param.n_epochs, 
-                     batch_size=cfg.model_param.batch_size, 
-                     class_weights=None, 
-                     x_train=X_train, 
-                     y_train=Y_train[:,2], 
-                     x_val=X_val,
-                     y_val=Y_val[:,2],
-                     loss_fcn=cfg.model_param.loss_fcn, 
-                     optimizer=cfg.model_param.optimizer, 
-                     metrics=cfg.model_param.metrics, 
-                     show_train_results=cfg.model_param.show_train_results, 
-                     callbacks=early_callback)
-
-print("MLP training done!!\n")
-
-#? Predict and get results 
-print("Predicting joint torques...")
-MLP_model_e.predictTarget(data=X_test, 
-                          labels=Y_test[:,0], 
-                          classification=False, 
-                          show_results=False, 
-                          show_pred_time=False, 
-                          eval_type=cfg.post_train_param.eval_type)
-
-MLP_model_sf.predictTarget(data=X_test, 
-                          labels=Y_test[:,1], 
-                          classification=False, 
-                          show_results=False, 
-                          show_pred_time=False, 
-                          eval_type=cfg.post_train_param.eval_type)
-
-MLP_model_ss.predictTarget(data=X_test, 
-                          labels=Y_test[:,2], 
-                          classification=False, 
-                          show_results=False, 
-                          show_pred_time=False, 
-                          eval_type=cfg.post_train_param.eval_type)
-
-perf_results_MLP_e_scaled = MLP_model_e.getPredictionScores()
-perf_results_MLP_sf_scaled = MLP_model_sf.getPredictionScores()
-perf_results_MLP_ss_scaled = MLP_model_ss.getPredictionScores()
-
-perf_results_MLP_scaled = np.concatenate([perf_results_MLP_e_scaled, perf_results_MLP_sf_scaled, perf_results_MLP_ss_scaled], axis=1)
-# perf_results_MLP_scaled = np.concatenate([perf_results_MLP_e_scaled, perf_results_MLP_sf_scaled], axis=1)
-#? Rescaling output
-Y_ref = Y_scaler.inverse_transform(Y_test)
-perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
-
-perf_results_MLP_e = perf_results_MLP[:,0]
-perf_results_MLP_sf = perf_results_MLP[:,1]
-perf_results_MLP_ss = perf_results_MLP[:,2]
-
-MLP_model_e.setPredictionScores(perf_results_MLP_e.reshape(-1,1))
-MLP_model_sf.setPredictionScores(perf_results_MLP_sf.reshape(-1,1))
-MLP_model_ss.setPredictionScores(perf_results_MLP_ss.reshape(-1,1))
-
-print("Pre-filtering Eval Metrics!!")
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP_e)
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP_sf)
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP_ss)
-print("\n")
-#! ************************************************
-#! Post-prediction Filtering
-#! ************************************************
-#? Median filter for removing spikes/outliers
-MLP_model_e.applyFilter_prediction(method=cfg.post_train_param.filter_type,
-                                 window_length=cfg.post_train_param.filter_size)
-MLP_model_sf.applyFilter_prediction(method=cfg.post_train_param.filter_type,
-                                 window_length=cfg.post_train_param.filter_size)
-MLP_model_ss.applyFilter_prediction(method=cfg.post_train_param.filter_type,
-                                 window_length=cfg.post_train_param.filter_size)
-#? Savitsky Golay filter
-MLP_model_e.applyFilter_prediction(method="savgol",
-                                 window_length=cfg.post_train_param.savgol_window_len,
-                                 poly_order=cfg.post_train_param.savgol_poly_order)
-MLP_model_sf.applyFilter_prediction(method="savgol",
-                                 window_length=cfg.post_train_param.savgol_window_len,
-                                 poly_order=cfg.post_train_param.savgol_poly_order)
-MLP_model_ss.applyFilter_prediction(method="savgol",
-                                 window_length=cfg.post_train_param.savgol_window_len,
-                                 poly_order=cfg.post_train_param.savgol_poly_order)
-
-perf_results_MLP_e = MLP_model_e.getPredictionScores()
-perf_results_MLP_sf = MLP_model_sf.getPredictionScores()
-perf_results_MLP_ss = MLP_model_ss.getPredictionScores()
-# print(perf_results_MLP.shape)
-
-#? Calculate the model eval metrics on the filtered predicted values
-print("Post-filtering Eval Metrics!!")
-r2_elbow, rmse_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP_e)
-r2_front, rmse_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP_sf)
-r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP_ss)
-
-#? Plotting the filtered prediction results
-plotResults(data_ref=Y_ref[:,0],
-            label_ref="real torque", 
-            data_out=perf_results_MLP_e, 
-            label_out="predicted torque", 
-            title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-
-plotResults(data_ref=Y_ref[:,1],
-            label_ref="real torque", 
-            data_out=perf_results_MLP_sf, 
-            label_out="predicted torque", 
-            title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-
-plotResults(data_ref=Y_ref[:,2],
-            label_ref="real torque", 
-            data_out=perf_results_MLP_ss, 
-            label_out="predicted torque", 
-            title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-
-#? Showing the plots
-plt.show()
-
-#? Check if the save dir exists. If not create one
-#? Create a readme.txt and include all parameters in it
-if cfg.post_train_param.is_save_plot:
-    choice = input("Do you want to save the plots? (Y/N)").strip().lower()
-    if choice in ["y", "yes"]:
-        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
-        createReadme(param_obj=cfg,
-                     dir_path=dir_path)
-        
-        figs = [("elbow", Y_ref[:, 0], perf_results_MLP_e,
-         f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}"),
-        ("front", Y_ref[:, 1], perf_results_MLP_sf,
-         f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}"),
-        ("side", Y_ref[:, 2], perf_results_MLP_ss,
-         f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}"),]
-        
-        for name, ref, out, title in figs:
-            plt.figure()
-            plotResults(data_ref=ref,
-            label_ref="real torque", 
-            data_out=out, 
-            label_out="predicted torque", 
-            title=title, 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
-
-            plt.savefig(dir_path / f"test_{name}.png")
-            plt.close()
-        print(f"✅ Saved all plots in {dir_path}")
-else:
-    print("❌ Plots not saved.")
+    np.savez_compressed(save_path / (filename_npz+".npz"), 
+                        X_train=X_train,
+                        Y_train=Y_train,
+                        X_test=X_test,
+                        Y_test=Y_test,
+                        X_val=X_val,
+                        Y_val=Y_val)
+    
+    dump(Y_scaler, save_path / (filename_pkl+".pkl"))
+    print("Features saved in files!!")
