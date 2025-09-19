@@ -91,7 +91,7 @@
     act_h4:                   'relu'
     act_out:                  'tanh' 
 
-    is_save_model:            True
+    is_save_model:            False
     load_models:              False
     show_train_results:       False
 
@@ -101,7 +101,7 @@
     filter_size:              5
     savgol_window_len:        21
     savgol_poly_order:        2    
-    is_save_plot:             True
+    is_save_plot:             False
   
   plot_param:
     is_plot_raw:              False
