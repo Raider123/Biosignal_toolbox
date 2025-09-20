@@ -1,7 +1,7 @@
 from biosignal_toolbox.motion_lib import MotionData
 from os import listdir
 from os.path import isfile, join
-from biosignal_toolbox.utils import loadConfig
+from biosignal_toolbox.utils import loadConfig, getAbsolutePath
 
 # ! load config file
 from types import SimpleNamespace
@@ -18,7 +18,7 @@ def namespace_to_dict(ns):
 
 config_param = namespace_to_dict(loadConfig(filename=config_filename))
 
-data_path = "data/quali/BU62D/"
+data_path = config_param["filepath"]["data_path"] + config_param["filepath"]["quali_tsv_path"]
 
 qualisys_files = [f for f in listdir(data_path) if (isfile(join(data_path, f)))]
 
@@ -27,5 +27,9 @@ for file in qualisys_files:
 
     _, _, _, subject, obj_weight, movement, set_no = qualisys_data.parseFilename()
 
-    qualisys_data.calculateTorque(body_weight_kg=config_param['data_param']['subject_weight'], obj_weight_g=int(obj_weight.strip('g')))
-    qualisys_data.saveTorques_npy(save_torques=True, save_dir=f"results/{subject}/{obj_weight}", joint_to_save=['all'])
+    qualisys_data.calculateTorque(body_weight_kg=config_param['data_param']['subject_weight'], 
+                                  obj_weight_g=int(obj_weight.strip('g')),
+                                  subject_hand_length_mm=config_param["data_param"]["subject_hand_len"],
+                                  subject_biological_sex=config_param["data_param"]["subject_bio_sex"],
+                                  method="com")
+    qualisys_data.saveTorques_npy(save_torques=True, save_dir=f"data/jte/quali/{subject}/torques", joints_to_save=['all'])

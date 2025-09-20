@@ -5,7 +5,7 @@ from biosignal_toolbox.motion_lib import MotionData
 from os import listdir
 from os.path import isfile, join
 
-data_path = "data/qualisys/WW06D/"
+data_path = "data/jte/quali/BU62D/tsv"
 joint_names = np.array(["elbow", "shoulder_front", "shoulder_side"])
 qualisys_files = [f for f in listdir(data_path) if isfile(join(data_path, f))]
 
@@ -26,5 +26,5 @@ for file in qualisys_files:
         plt.xlabel('time (sec.)')
         plt.ylabel('Joint Torque (N-m)')
         plt.minorticks_on()
-        plt.savefig(fullpath)
+        plt.show()
         plt.close()

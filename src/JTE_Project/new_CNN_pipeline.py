@@ -223,7 +223,7 @@ print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
 '''
 # ? Output Normalisation
-print("Calculating maximum absolute torque for output normalisation...")
+""" print("Calculating maximum absolute torque for output normalisation...")
 max_torque_e = np.max(np.abs(Quali_Data_Elbow.data), axis=1).reshape(-1, 1)
 max_torque_sf = np.max(np.abs(Quali_Data_Front.data), axis=1).reshape(-1, 1)
 max_torque_ss = np.max(np.abs(Quali_Data_Side.data), axis=1).reshape(-1, 1)
@@ -232,8 +232,7 @@ print("Performing Output Normalisation with Max Value...")
 Quali_Data_Elbow.normalizeContinuousData(mvc=max_torque_e)
 Quali_Data_Front.normalizeContinuousData(mvc=max_torque_sf)
 Quali_Data_Side.normalizeContinuousData(mvc=max_torque_ss)
-print("Output Normalisation with max. value performed!!\n")
-'''
+print("Output Normalisation with max. value performed!!\n") """
 
 # ? Low pass filter to smoothen the EMG signal
 # * design the lowpass filter
