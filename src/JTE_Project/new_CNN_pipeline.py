@@ -109,7 +109,7 @@ mov_types_all = []
 # extrahiere aus Dateinamen die Metadaten
 for fname in emg_filenames:
     parts = Path(fname).stem.split("_")
-    weight = parts[-3]      # Beispiel: '5kg'
+    weight = parts[-3]      # Beispiel: '0g'
     mov_type = parts[-2]    # Beispiel: 'curl'
 
     # Gewicht -> Zahl
@@ -123,8 +123,13 @@ mov_types_all = np.array(mov_types_all)
 
 from sklearn.preprocessing import OneHotEncoder
 
+# --- Gewicht und Movement-Type One-Hot encoden ---
+
 enc = OneHotEncoder(sparse_output=False)
 mov_types_onehot = enc.fit_transform(mov_types_all.reshape(-1, 1))
+
+enc_weight = OneHotEncoder(sparse_output=False)
+weights_onehot = enc_weight.fit_transform(weights_all.reshape(-1, 1))
 
 # ! ************************************************
 # ! Load training, testing data
@@ -280,7 +285,7 @@ if cfg.plot_param.is_plot_smoothed:
                      ylabel="Voltage in V",
                      is_grid_on=True)
 
-'''
+
 # ? Low pass filter to smoothen the torques
 Quali_Data_Elbow.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                     sos=sos_lp)
@@ -288,7 +293,7 @@ Quali_Data_Front.filterData_offline(filter_method=cfg.preprocess_param.filter_me
                                     sos=sos_lp)
 Quali_Data_Side.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                    sos=sos_lp)
-'''
+
 
 # ? Plot normalised and smoothened data
 if cfg.plot_param.is_plot_smoothed:
@@ -536,11 +541,13 @@ x = np.transpose(x, (2, 1, 0))  # (n_windows, n_samples, n_channels)
 # --------------------------------------------
 n_windows = x.shape[0]  # Anzahl der EMG-Fenster
 
-# Gewichte und Bewegungen auf die Länge der Fenster broadcasten
-weights_feat = np.repeat(weights_all, n_windows // len(weights_all))[:n_windows].reshape(-1, 1)
+# One-Hot Encoder für Movement-Types und Gewichte
+# --- Fenster-Länge anpassen ---
+weights_feat = np.repeat(weights_onehot, n_windows // len(weights_all), axis=0)[:n_windows]
 mov_types_feat = np.repeat(mov_types_onehot, n_windows // len(weights_all), axis=0)[:n_windows]
 
-extra_features = np.hstack([weights_feat, mov_types_feat])  # Shape: (n_windows, n_features_extra)
+# --- Features kombinieren ---
+extra_features = np.hstack([weights_feat, mov_types_feat])
 
 print("Extracting features from windowed data ...")
 # defining the feature window sizes
@@ -778,7 +785,6 @@ y_pred = model.predict([X_test_seq, extra_test])
 # y_pred is a list [pred_elbow, pred_front, pred_side]
 pred_elbow, pred_front, pred_side = y_pred
 
-#
 predictions_e = pred_elbow.flatten()
 predictions_f = pred_front.flatten()
 predictions_s = pred_side.flatten()
