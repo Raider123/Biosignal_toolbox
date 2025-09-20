@@ -100,6 +100,32 @@ print(quali_e_filenames)
 print(quali_sf_filenames)
 print(quali_ss_filenames)
 
+# --------------------------------------------
+# Zusatzfeatures: Gewicht + Bewegungstyp
+# --------------------------------------------
+weights_all = []
+mov_types_all = []
+
+# extrahiere aus Dateinamen die Metadaten
+for fname in emg_filenames:
+    parts = Path(fname).stem.split("_")
+    weight = parts[-3]      # Beispiel: '5kg'
+    mov_type = parts[-2]    # Beispiel: 'curl'
+
+    # Gewicht -> Zahl
+    weight_val = float(weight.replace("g", "")) / 1000.0
+
+    weights_all.append(weight_val)
+    mov_types_all.append(mov_type)
+
+weights_all = np.array(weights_all)
+mov_types_all = np.array(mov_types_all)
+
+from sklearn.preprocessing import OneHotEncoder
+
+enc = OneHotEncoder(sparse_output=False)
+mov_types_onehot = enc.fit_transform(mov_types_all.reshape(-1, 1))
+
 # ! ************************************************
 # ! Load training, testing data
 # ! ************************************************
@@ -221,6 +247,7 @@ else:
     warnings.warn("This method is not yet implemented!! Omitting!")
 print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
+'''
 # ? Output Normalisation
 print("Calculating maximum absolute torque for output normalisation...")
 max_torque_e = np.max(np.abs(Quali_Data_Elbow.data), axis=1).reshape(-1, 1)
@@ -232,6 +259,7 @@ Quali_Data_Elbow.normalizeContinuousData(mvc=max_torque_e)
 Quali_Data_Front.normalizeContinuousData(mvc=max_torque_sf)
 Quali_Data_Side.normalizeContinuousData(mvc=max_torque_ss)
 print("Output Normalisation with max. value performed!!\n")
+'''
 
 # ? Low pass filter to smoothen the EMG signal
 # * design the lowpass filter
@@ -252,6 +280,7 @@ if cfg.plot_param.is_plot_smoothed:
                      ylabel="Voltage in V",
                      is_grid_on=True)
 
+'''
 # ? Low pass filter to smoothen the torques
 Quali_Data_Elbow.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                     sos=sos_lp)
@@ -259,6 +288,7 @@ Quali_Data_Front.filterData_offline(filter_method=cfg.preprocess_param.filter_me
                                     sos=sos_lp)
 Quali_Data_Side.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                    sos=sos_lp)
+'''
 
 # ? Plot normalised and smoothened data
 if cfg.plot_param.is_plot_smoothed:
@@ -501,6 +531,17 @@ x = EMG_Data.getWindows()[0]  # (n_channels, n_samples, n_windows)
 # reshape to (n_windows, n_samples, n_channels)
 x = np.transpose(x, (2, 1, 0))  # (n_windows, n_samples, n_channels)
 
+# --------------------------------------------
+# Zusatzfeatures auf Fenster-Länge bringen
+# --------------------------------------------
+n_windows = x.shape[0]  # Anzahl der EMG-Fenster
+
+# Gewichte und Bewegungen auf die Länge der Fenster broadcasten
+weights_feat = np.repeat(weights_all, n_windows // len(weights_all))[:n_windows].reshape(-1, 1)
+mov_types_feat = np.repeat(mov_types_onehot, n_windows // len(weights_all), axis=0)[:n_windows]
+
+extra_features = np.hstack([weights_feat, mov_types_feat])  # Shape: (n_windows, n_features_extra)
+
 print("Extracting features from windowed data ...")
 # defining the feature window sizes
 window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
@@ -554,22 +595,49 @@ input_features_hist = input_features_hist.astype(np.float32)
 target_features_hist = target_features_hist.astype(np.float32)
 
 # Make sure that input and output feature lengths are equal
-min_len = min(x.shape[0], target_features_hist.shape[0])
+min_len = min(x.shape[0], target_features_hist.shape[0], extra_features.shape[0])
 x = x[:min_len]
 target_features_hist = target_features_hist[:min_len]
+extra_features = extra_features[:min_len]
 
-# ---- Split in Train/Val/Test ----
-X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(
-    x, target_features_hist,
+# ---- Split in Train/Val/Test (mit extra_features) ----
+X_train_temp, X_test, extra_train_temp, extra_test, Y_train_temp, Y_test = train_test_split(
+    x, extra_features, target_features_hist,
     train_size=cfg.model_param.train_test_split,
     shuffle=False
 )
 
-X_train, X_val, Y_train, Y_val = train_test_split(
-    X_train_temp, Y_train_temp,
+X_train, X_val, extra_train, extra_val, Y_train, Y_val = train_test_split(
+    X_train_temp, extra_train_temp, Y_train_temp,
     train_size=1 - cfg.model_param.validation_split,
     shuffle=False
 )
+
+
+# ? Scale the features -> StandardScaler
+from sklearn.preprocessing import StandardScaler
+scaler_x = StandardScaler()
+
+# gleiche Form wie vorher
+X_train_scaled = np.zeros_like(X_train)
+X_val_scaled   = np.zeros_like(X_val)
+X_test_scaled  = np.zeros_like(X_test)
+
+for ch in range(X_train.shape[2]):  # über Kanäle iterieren
+    # Flatten über timesteps
+    X_train_ch = X_train[:, :, ch]
+    X_val_ch   = X_val[:, :, ch]
+    X_test_ch  = X_test[:, :, ch]
+
+    # Fit nur auf Training
+    scaler_x.fit(X_train_ch)
+
+    # Transform
+    X_train_scaled[:, :, ch] = scaler_x.transform(X_train_ch)
+    X_val_scaled[:, :, ch]   = scaler_x.transform(X_val_ch)
+    X_test_scaled[:, :, ch]  = scaler_x.transform(X_test_ch)
+
+X_train, X_val, X_test = X_train_scaled, X_val_scaled, X_test_scaled
 
 # ! ************************************************
 # ! Preparing the data for the TCN-Model
@@ -613,54 +681,47 @@ Y_test_s = Y_test[:, 2]
 # ! Model Definition
 # ! ************************************************
 
-def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
-
-    inputs = []
-    branches = []
-
-    # Zeit-Pfad (TCN)
+def build_model(input_shape_time, extra_dim, filters, stacks, dropout_rate, kernel_size):
+    # --- Zeitserien-Input (TCN) ---
     inp_time = Input(shape=input_shape_time, name='emg_input')
     x = inp_time
-
     for s in range(stacks):
-        d = 4 ** s  # Dilatation: 1,2,4,8,...
-        y = layers.Conv1D(filters,
-                          kernel_size,
-                          padding='causal',
-                          dilation_rate=d,
-                          kernel_initializer='he_normal')(x)
+        d = 4 ** s
+        y = layers.Conv1D(filters, kernel_size, padding='causal',
+                          dilation_rate=d, kernel_initializer='he_normal')(x)
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
         y = layers.SpatialDropout1D(dropout_rate)(y)
 
-        y = layers.Conv1D(filters,
-                          kernel_size,
-                          padding='causal',
-                          dilation_rate=d,
-                          kernel_initializer='he_normal')(y)
+        y = layers.Conv1D(filters, kernel_size, padding='causal',
+                          dilation_rate=d, kernel_initializer='he_normal')(y)
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
 
-        # Residual-Shortcut ggf. an Kanäle anpassen
         if x.shape[-1] != filters:
             x = layers.Conv1D(filters, 1, padding='same',
                               kernel_initializer='he_normal')(x)
 
         x = layers.add([x, y])
 
-    # Seq-to-one Readout
     x = layers.GlobalAveragePooling1D()(x)
-    inputs.append(inp_time)
-    branches.append(x)
 
-    combined = branches[0]
+    # --- Zusatzfeatures-Input ---
+    inp_extra = Input(shape=(extra_dim,), name="extra_input")
+    z = layers.Dense(32, activation="relu")(inp_extra)
+
+    # --- Fusion ---
+    combined = layers.concatenate([x, z])
     combined = layers.Dense(64, activation="relu")(combined)
     combined = layers.Dropout(dropout_rate)(combined)
 
+    # --- Outputs ---
     out_e = layers.Dense(1, name='torque_elbow')(combined)
     out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
     out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
-    return models.Model(inputs, [out_e, out_f, out_s], name="MTL_TCN")
+
+    return models.Model([inp_time, inp_extra], [out_e, out_f, out_s], name="MTL_TCN")
+
 
 
 # ! ************************************************
@@ -673,6 +734,7 @@ kernel_size = 3
 
 model = build_model(
     input_shape_time=input_shape_time,
+    extra_dim=extra_train.shape[1],
     filters=filters,
     stacks=stacks,
     dropout_rate=dropout_rate,
@@ -690,27 +752,28 @@ model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss={
 # ! ************************************************
 
 history = model.fit(
-    X_train_seq,
-    {"torque_elbow": Y_train_e,
-     "torque_shoulder_front": Y_train_f,
-     "torque_shoulder_side": Y_train_s},
+    [X_train_seq, extra_train],
+    {"torque_elbow": Y_train[:, 0],
+     "torque_shoulder_front": Y_train[:, 1],
+     "torque_shoulder_side": Y_train[:, 2]},
     validation_data=(
-        X_val_seq,
-        {"torque_elbow": Y_val_e,
-         "torque_shoulder_front": Y_val_f,
-         "torque_shoulder_side": Y_val_s}
+        [X_val_seq, extra_val],
+        {"torque_elbow": Y_val[:, 0],
+         "torque_shoulder_front": Y_val[:, 1],
+         "torque_shoulder_side": Y_val[:, 2]}
     ),
     epochs=cfg.model_param.n_epochs,
     batch_size=cfg.model_param.batch_size,
     callbacks=[early_callback] if early_callback else None
 )
 
+
 # ! ************************************************
 # ! Model-Prediction
 # ! ************************************************
 
 # Prediction for all three joints
-y_pred = model.predict(X_test_seq)
+y_pred = model.predict([X_test_seq, extra_test])
 
 # y_pred is a list [pred_elbow, pred_front, pred_side]
 pred_elbow, pred_front, pred_side = y_pred

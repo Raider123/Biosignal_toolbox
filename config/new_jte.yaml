@@ -6,13 +6,13 @@
     emg_file_prefix: '24072025_BU62D_'
     quali_tsv_path: 'quali/BU62D/tsv/'
     quali_tsv_prefix: 'BU62D_'
-    quali_path: [ 'quali/BU62D/torques/quali_torque_elbow_24_07_2025_', 'quali/BU62D/torques/quali_torque_shoulder_front_24_07_2025_', 'quali/BU62D/torques/quali_torque_shoulder_side_24_07_2025_' ]
+    quali_path: [ 'quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_', 'quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_', 'quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_' ]
     fig_save_path: 'data/test/'
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
   data_param:
-    weights: [ '0g', '1100g', '1850g' ]
-    mov_type: [ 'complex', 'grasp' ]
+    weights: ['0g', '1100g']
+    mov_type: [ 'complex' , 'grasp']
     set_num: [ '1', '2', '3', '4' ]
     subject_code: [ 'BU62D' ]
     subject_weight: 80    #weight in kg
@@ -20,16 +20,16 @@
     subject_hand_len: 113  #wrist to 3rd knuckle len in mm
 
   workflow_param:
+    model_train: True
     old_preprocessing_mode: True
-    mode:                 "train" # "train" or "infer"
     input_mode:           "time" # options: "time", "freq", "time+freq", "time+temporal"
     model_dir:            "saved_models/TCN_MTL"
 
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left']
-    window_size_x:        50  #samples
-    window_size_y:        50  # samples
+    window_size_x:        100  #samples
+    window_size_y:        100  # samples
     window_step:          25  #samples
     use_activation_fncn: False
     target_feature_select: 'end'
