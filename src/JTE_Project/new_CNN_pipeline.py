@@ -11,6 +11,7 @@ from pathlib import Path
 from copy import deepcopy
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_squared_error, r2_score
+from scipy.stats import pearsonr
 
 # own libs
 from biosignal_toolbox.eeg_lib import EEGData
@@ -688,6 +689,7 @@ kf = KFold(n_splits=cfg.model_param.k_fold_splits)
 
 all_rmse_e, all_rmse_f, all_rmse_s = [], [], []
 all_r2_e, all_r2_f, all_r2_s = [], [], []
+all_pcc_e, all_pcc_f, all_pcc_s = [], [], []
 
 
 for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
@@ -891,34 +893,42 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     all_r2_f.append(r2_f)
     all_r2_s.append(r2_s)
 
+    # Pearson Correlation coefficient for test
+    pcc_e = pearsonr(Y_test_e, predictions_e).statistic
+    pcc_f = pearsonr(Y_test_f, predictions_f).statistic
+    pcc_s = pearsonr(Y_test_s, predictions_s).statistic
+    all_pcc_e.append(pcc_e)
+    all_pcc_f.append(pcc_f)
+    all_pcc_s.append(pcc_s)
+
     print('Ergebnisse (Multi-Task):')
-    print(f"Ellbogen       -> Test-RMSE: {rmse_e:.2f}   | R²: {r2_e:.3f}")
-    print(f"Schulter Front -> Test-RMSE: {rmse_f:.2f}   | R²: {r2_f:.3f}")
-    print(f"Schulter Side  -> Test-RMSE: {rmse_s:.2f}   | R²: {r2_s:.3f}")
+    print(f"Ellbogen       -> Test-RMSE: {rmse_e:.2f}  | R²: {r2_e:.3f} | PCC: {pcc_e:.3f}")
+    print(f"Schulter Front -> Test-RMSE: {rmse_f:.2f}  | R²: {r2_f:.3f} | PCC: {pcc_f:.3f}")
+    print(f"Schulter Side  -> Test-RMSE: {rmse_s:.2f}  | R²: {r2_s:.3f} | PCC: {pcc_s:.3f}")
 
 
 print('Ergebnisse (k-Fold):')
-print(f"Ellbogen       -> Test-RMSE: {np.mean(all_rmse_e):.2f} ± {np.std(all_rmse_e):.3f}  | R²: {np.mean(all_r2_e):.3f} ± {np.std(all_r2_e):.3f}")
-print(f"Schulter Front -> Test-RMSE: {np.mean(all_rmse_f):.2f} ± {np.std(all_rmse_f):.3f}  | R²: {np.mean(all_r2_f):.3f} ± {np.std(all_r2_f):.3f}")
-print(f"Schulter Side  -> Test-RMSE: {np.mean(all_rmse_s):.2f} ± {np.std(all_rmse_s):.3f}  | R²: {np.mean(all_r2_s):.3f} ± {np.std(all_r2_s):.3f}")
+print(f"Ellbogen       -> Test-RMSE: {np.mean(all_rmse_e):.2f} ± {np.std(all_rmse_e):.3f}  | R²: {np.mean(all_r2_e):.3f} ± {np.std(all_r2_e):.3f} | PCC: {np.mean(all_pcc_e):.3f} ± {np.std(all_pcc_e):.3f}")
+print(f"Schulter Front -> Test-RMSE: {np.mean(all_rmse_f):.2f} ± {np.std(all_rmse_f):.3f}  | R²: {np.mean(all_r2_f):.3f} ± {np.std(all_r2_f):.3f} | PCC: {np.mean(all_pcc_f):.3f} ± {np.std(all_pcc_f):.3f}")
+print(f"Schulter Side  -> Test-RMSE: {np.mean(all_rmse_s):.2f} ± {np.std(all_rmse_s):.3f}  | R²: {np.mean(all_r2_s):.3f} ± {np.std(all_r2_s):.3f} | PCC: {np.mean(all_pcc_s):.3f} ± {np.std(all_pcc_s):.3f}")
 # ------------------------------------------------------------------------------
 # Visualization
 # ------------------------------------------------------------------------------
 plotResults(Y_test_e, "real torque",
             predictions_e, "predicted torque",
-            f"Elbow Joint Filtered; RMSE: {rmse_e:.4f} N-m | R²: {r2_e:.3f}",
+            f"Elbow Joint Filtered; RMSE: {rmse_e:.4f} N-m | R²: {r2_e:.3f} | PCC: {pcc_e:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 
 plotResults(Y_test_f, "real torque",
             predictions_f, "predicted torque",
-            f"Shoulder Front Joint Filtered; RMSE: {rmse_f:.4f} N-m | R²: {r2_f:.3f}",
+            f"Shoulder Front Joint Filtered; RMSE: {rmse_f:.4f} N-m | R²: {r2_f:.3f} | PCC: {pcc_f:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 
 plotResults(Y_test_s, "real torque",
             predictions_s, "predicted torque",
-            f"Shoulder Side Joint Filtered; RMSE: {rmse_s:.4f} N-m | R²: {r2_s:.3f}",
+            f"Shoulder Side Joint Filtered; RMSE: {rmse_s:.4f} N-m | R²: {r2_s:.3f} | PCC: {pcc_f:.3f}",
             ylabel="Torque in N-m",
             is_grid_on=True)
 
