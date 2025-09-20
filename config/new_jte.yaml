@@ -31,7 +31,7 @@
     window_size_x:        100  #samples
     window_size_y:        100  # samples
     window_step:          25  #samples
-    use_activation_fncn: False
+    use_activation_fncn: True
     target_feature_select: 'end'
     f_samp: 500
     f_cutoff_hpf: 15  #cutoff freq for bandpass

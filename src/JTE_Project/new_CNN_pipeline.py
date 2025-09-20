@@ -100,37 +100,6 @@ print(quali_e_filenames)
 print(quali_sf_filenames)
 print(quali_ss_filenames)
 
-# --------------------------------------------
-# Zusatzfeatures: Gewicht + Bewegungstyp
-# --------------------------------------------
-weights_all = []
-mov_types_all = []
-
-# extrahiere aus Dateinamen die Metadaten
-for fname in emg_filenames:
-    parts = Path(fname).stem.split("_")
-    weight = parts[-3]      # Beispiel: '0g'
-    mov_type = parts[-2]    # Beispiel: 'curl'
-
-    # Gewicht -> Zahl
-    weight_val = float(weight.replace("g", "")) / 1000.0
-
-    weights_all.append(weight_val)
-    mov_types_all.append(mov_type)
-
-weights_all = np.array(weights_all)
-mov_types_all = np.array(mov_types_all)
-
-from sklearn.preprocessing import OneHotEncoder
-
-# --- Gewicht und Movement-Type One-Hot encoden ---
-
-enc = OneHotEncoder(sparse_output=False)
-mov_types_onehot = enc.fit_transform(mov_types_all.reshape(-1, 1))
-
-enc_weight = OneHotEncoder(sparse_output=False)
-weights_onehot = enc_weight.fit_transform(weights_all.reshape(-1, 1))
-
 # ! ************************************************
 # ! Load training, testing data
 # ! ************************************************
@@ -387,6 +356,38 @@ quali_idx = quali_idx[:min_len]
 # Take element-wise minimum as reference
 ref_idx = np.minimum(emg_idx, quali_idx)
 
+# --- Zusatzfeatures: Gewicht & Bewegung pro Fenster (robust über ref_idx) ---
+from pathlib import Path
+from sklearn.preprocessing import OneHotEncoder
+
+# ref_idx enthält die kumulierten Fensterenden pro Datei nach dem Slicing
+ref_idx_arr = np.array(ref_idx, dtype=int)
+starts = np.concatenate(([0], ref_idx_arr[:-1]))
+ends = ref_idx_arr
+
+w_codes = []
+m_codes = []
+span_slices = []  # (start, end, weight_str, mov_str) für spätere Ziel-Skalierung
+
+for i, (s, e) in enumerate(zip(starts, ends)):
+    n = int(e - s)
+    parts = Path(emg_filenames[i]).stem.split("_")
+    w_str = parts[-3]   # z.B. '0g' | '1100g' | '1850g'
+    m_str = parts[-2]   # z.B. 'grasp' | 'complex'
+    w_codes.extend([w_str] * n)
+    m_codes.extend([m_str] * n)
+    span_slices.append((s, e, w_str, m_str))
+
+w_codes = np.array(w_codes)
+m_codes = np.array(m_codes)
+
+enc_w = OneHotEncoder(sparse_output=False)
+enc_m = OneHotEncoder(sparse_output=False)
+w_one = enc_w.fit_transform(w_codes.reshape(-1, 1))
+m_one = enc_m.fit_transform(m_codes.reshape(-1, 1))
+extra_features = np.hstack([w_one, m_one]).astype(np.float32)
+
+
 # Slice EMG windows if needed
 if not np.array_equal(ref_idx, emg_idx):
     EMG_Data.sliceAndConcatWindows(end_slice=ref_idx, start_slice=emg_idx)
@@ -541,14 +542,6 @@ x = np.transpose(x, (2, 1, 0))  # (n_windows, n_samples, n_channels)
 # --------------------------------------------
 n_windows = x.shape[0]  # Anzahl der EMG-Fenster
 
-# One-Hot Encoder für Movement-Types und Gewichte
-# --- Fenster-Länge anpassen ---
-weights_feat = np.repeat(weights_onehot, n_windows // len(weights_all), axis=0)[:n_windows]
-mov_types_feat = np.repeat(mov_types_onehot, n_windows // len(weights_all), axis=0)[:n_windows]
-
-# --- Features kombinieren ---
-extra_features = np.hstack([weights_feat, mov_types_feat])
-
 print("Extracting features from windowed data ...")
 # defining the feature window sizes
 window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
@@ -588,6 +581,18 @@ y_s = Quali_Data_Side.getFeatures()[:, 0]
 
 # Merge all three targets
 Y = np.stack([y_e, y_f, y_s], axis=-1)  # (n_windows, 3)
+
+# --- Ziel-Skalierung pro Datei/Gruppe ([-1, 1]) ---
+from sklearn.preprocessing import MinMaxScaler
+
+Y = Y.astype(np.float32)
+scalers = {}  # key: (w_str, m_str) -> MinMaxScaler
+
+for s, e, w_str, m_str in span_slices:
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    Y[s:e] = scaler.fit_transform(Y[s:e])
+    scalers[(w_str, m_str)] = scaler
+
 
 # Creating history of features (Y --> target_features_hist but with kernel 3)
 history_len = 3
@@ -747,12 +752,40 @@ model = build_model(
     dropout_rate=dropout_rate,
     kernel_size=kernel_size
 )
-
+'''
 model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss={
         "torque_elbow": "mse",
         "torque_shoulder_front": "mse",
         "torque_shoulder_side": "mse",
     })
+'''
+###EXPERIMENTAL
+# --- Varianz-basierte Loss-Gewichtung (ähnlich MLP 'var') ---
+var_torques = np.var(Y_train, axis=0, ddof=1)
+weights_inp = 1.0 / (np.sqrt(var_torques) + 1e-6)
+# optional clippen/normalisieren wie in MLP
+p95, p05 = np.percentile(weights_inp, 95), np.percentile(weights_inp, 5)
+weights_inp = np.clip(weights_inp, p05, p95)
+weights_inp = weights_inp / np.mean(weights_inp)
+
+loss_weights = {
+    "torque_elbow": float(weights_inp[0]),
+    "torque_shoulder_front": float(weights_inp[1]),
+    "torque_shoulder_side": float(weights_inp[2]),
+}
+
+model.compile(
+    optimizer=tf.keras.optimizers.Adam(1e-3),
+    loss={
+        "torque_elbow": tf.keras.losses.Huber(delta=1.0),
+        "torque_shoulder_front": tf.keras.losses.Huber(delta=1.0),
+        "torque_shoulder_side": tf.keras.losses.Huber(delta=1.0),
+    },
+    loss_weights=loss_weights,
+)
+
+
+###
 
 # ! ************************************************
 # ! Training the TCN-Model
@@ -788,6 +821,40 @@ pred_elbow, pred_front, pred_side = y_pred
 predictions_e = pred_elbow.flatten()
 predictions_f = pred_front.flatten()
 predictions_s = pred_side.flatten()
+
+### EXPERIMENTAL
+# --- Inverse Skalierung der Test-Predictions auf Originaleinheiten ---
+# Rekonstruiere die globalen Test-Indices im Gesamtsignal (keine Shuffle!)
+test_start = X_train.shape[0] + X_val.shape[0]
+test_end = test_start + X_test.shape[0]
+
+# Stapel Vorhersagen (skaliert) in (n_test, 3)
+Y_pred_test_scaled = np.stack([predictions_e, predictions_f, predictions_s], axis=-1)
+
+# Platzhalter für unskalierte Wahrheiten und Vorhersagen
+Y_test_true_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
+Y_test_pred_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
+
+cursor = 0  # Fortschritt innerhalb des Test-Bereichs
+for s, e, w_str, m_str in span_slices:
+    a = max(s, test_start)
+    b = min(e, test_end)
+    if a < b:
+        k = b - a
+        scaler = scalers[(w_str, m_str)]
+        Y_test_pred_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y_pred_test_scaled[cursor:cursor+k])
+        Y_test_true_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y[a:b])
+        cursor += k
+
+# Überschreibe für nachfolgende Auswertung
+Y_test_e = Y_test_true_unscaled[:, 0]
+Y_test_f = Y_test_true_unscaled[:, 1]
+Y_test_s = Y_test_true_unscaled[:, 2]
+predictions_e = Y_test_pred_unscaled[:, 0]
+predictions_f = Y_test_pred_unscaled[:, 1]
+predictions_s = Y_test_pred_unscaled[:, 2]
+###
+
 # ------------------------------------------------------------------------------
 # Post-Processing
 # ------------------------------------------------------------------------------
