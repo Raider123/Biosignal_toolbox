@@ -58,6 +58,7 @@
     optimizer:            'adam'
 
     train_test_split:     0.9
+    k_fold_splits:        10
     validation_split:     0.1
 
     is_early_stop:        True

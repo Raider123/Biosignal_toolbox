@@ -9,7 +9,8 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 from pathlib import Path
 from copy import deepcopy
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
+from sklearn.metrics import mean_squared_error, r2_score
 
 # own libs
 from biosignal_toolbox.eeg_lib import EEGData
@@ -23,8 +24,68 @@ import warnings
 warnings.formatwarning = customWarningFormat
 
 # ! ************************************************
+# ! Function definition
+# ! ************************************************
+
+def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
+
+    inputs = []
+    branches = []
+
+    # Zeit-Pfad (TCN)
+    inp_time = Input(shape=input_shape_time, name='emg_input')
+    x = inp_time
+
+    for s in range(stacks):
+        d = 4 ** s  # Dilatation: 1,2,4,8,...
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(x)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+        y = layers.SpatialDropout1D(dropout_rate)(y)
+
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(y)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+
+        # Residual-Shortcut ggf. an Kanäle anpassen
+        if x.shape[-1] != filters:
+            x = layers.Conv1D(filters, 1, padding='same',
+                              kernel_initializer='he_normal')(x)
+
+        x = layers.add([x, y])
+
+    # Seq-to-one Readout
+    x = layers.GlobalAveragePooling1D()(x)
+    inputs.append(inp_time)
+    branches.append(x)
+
+    combined = branches[0]
+    combined = layers.Dense(64, activation="relu")(combined)
+    combined = layers.Dropout(dropout_rate)(combined)
+
+    out_e = layers.Dense(1, name='torque_elbow')(combined)
+    out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
+    out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
+    return models.Model(inputs, [out_e, out_f, out_s], name="MTL_TCN")
+
+
+# ! ************************************************
 # ! User Parameters and Data Collection
 # ! ************************************************
+
+filters = 64
+stacks = 4
+dropout_rate = 0.10
+kernel_size = 3
+
 
 # ? load config file
 config_filename = 'new_jte.yaml'
@@ -221,7 +282,6 @@ else:
     warnings.warn("This method is not yet implemented!! Omitting!")
 print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
-'''
 # ? Output Normalisation
 """ print("Calculating maximum absolute torque for output normalisation...")
 max_torque_e = np.max(np.abs(Quali_Data_Elbow.data), axis=1).reshape(-1, 1)
@@ -606,297 +666,241 @@ input_features_hist = input_features_hist.astype(np.float32)
 target_features_hist = target_features_hist.astype(np.float32)
 
 # Make sure that input and output feature lengths are equal
-min_len = min(x.shape[0], target_features_hist.shape[0], extra_features.shape[0])
+min_len = min(x.shape[0], target_features_hist.shape[0])
 x = x[:min_len]
 target_features_hist = target_features_hist[:min_len]
-extra_features = extra_features[:min_len]
 
-# ---- Split in Train/Val/Test (mit extra_features) ----
-X_train_temp, X_test, extra_train_temp, extra_test, Y_train_temp, Y_test = train_test_split(
-    x, extra_features, target_features_hist,
+# ---- Split in Train/Val/Test using k-fold crossvalidation ----
+X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(
+    x, target_features_hist,
     train_size=cfg.model_param.train_test_split,
     shuffle=False
 )
 
-X_train, X_val, extra_train, extra_val, Y_train, Y_val = train_test_split(
-    X_train_temp, extra_train_temp, Y_train_temp,
+""" X_train, X_val, Y_train, Y_val = train_test_split(
+    X_train_temp, Y_train_temp,
     train_size=1 - cfg.model_param.validation_split,
     shuffle=False
 )
+ """
+
+kf = KFold(n_splits=cfg.model_param.k_fold_splits)
+
+all_rmse_e, all_rmse_f, all_rmse_s = [], [], []
+all_r2_e, all_r2_f, all_r2_s = [], [], []
 
 
-# ? Scale the features -> StandardScaler
-from sklearn.preprocessing import StandardScaler
-scaler_x = StandardScaler()
+for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
+    print(f"--- Fold {fold+1} ---")
+    X_train, X_val = X_train_temp[train_idx], X_train_temp[val_idx]
+    Y_train, Y_val = Y_train_temp[train_idx], Y_train_temp[val_idx]
 
-# gleiche Form wie vorher
-X_train_scaled = np.zeros_like(X_train)
-X_val_scaled   = np.zeros_like(X_val)
-X_test_scaled  = np.zeros_like(X_test)
+    # ! ************************************************
+    # ! Preparing the data for the TCN-Model
+    # ! ************************************************
+    '''
+    timesteps = history_len
+    n_features = X_train.shape[1] // timesteps
 
-for ch in range(X_train.shape[2]):  # über Kanäle iterieren
-    # Flatten über timesteps
-    X_train_ch = X_train[:, :, ch]
-    X_val_ch   = X_val[:, :, ch]
-    X_test_ch  = X_test[:, :, ch]
+    X_train_seq = X_train.reshape(-1, timesteps, n_features)
+    X_val_seq   = X_val.reshape(-1, timesteps, n_features)
+    X_test_seq  = X_test.reshape(-1, timesteps, n_features)
 
-    # Fit nur auf Training
-    scaler_x.fit(X_train_ch)
+    print("Reshaped input arrays for the model training.")
+    '''
+    # For raw data, reshaping is not necessary (n_channels, n_samples, n_windows)
+    timesteps  = X_train.shape[1]
+    n_features = X_train.shape[2]
+    input_shape_time = (timesteps, n_features)
 
-    # Transform
-    X_train_scaled[:, :, ch] = scaler_x.transform(X_train_ch)
-    X_val_scaled[:, :, ch]   = scaler_x.transform(X_val_ch)
-    X_test_scaled[:, :, ch]  = scaler_x.transform(X_test_ch)
-
-X_train, X_val, X_test = X_train_scaled, X_val_scaled, X_test_scaled
-
-# ! ************************************************
-# ! Preparing the data for the TCN-Model
-# ! ************************************************
-'''
-timesteps = history_len
-n_features = X_train.shape[1] // timesteps
-
-X_train_seq = X_train.reshape(-1, timesteps, n_features)
-X_val_seq   = X_val.reshape(-1, timesteps, n_features)
-X_test_seq  = X_test.reshape(-1, timesteps, n_features)
-
-print("Reshaped input arrays for the model training.")
-'''
-
-# For raw data, reshaping is not necessary (n_channels, n_samples, n_windows)
-timesteps  = X_train.shape[1]
-n_features = X_train.shape[2]
-input_shape_time = (timesteps, n_features)
-
-X_train_seq = X_train
-X_val_seq   = X_val
-X_test_seq  = X_test
+    X_train_seq = X_train
+    X_val_seq   = X_val
+    X_test_seq  = X_test
 
 
-# Prepare the training data
-Y_train_e = Y_train[:, 0]
-Y_train_f = Y_train[:, 1]
-Y_train_s = Y_train[:, 2]
+    # Prepare the training data
+    Y_train_e = Y_train[:, 0]
+    Y_train_f = Y_train[:, 1]
+    Y_train_s = Y_train[:, 2]
 
-Y_val_e = Y_val[:, 0]
-Y_val_f = Y_val[:, 1]
-Y_val_s = Y_val[:, 2]
+    Y_val_e = Y_val[:, 0]
+    Y_val_f = Y_val[:, 1]
+    Y_val_s = Y_val[:, 2]
 
-# Prepare the test data
-Y_test_e = Y_test[:, 0]
-Y_test_f = Y_test[:, 1]
-Y_test_s = Y_test[:, 2]
-
-# ! ************************************************
-# ! Model Definition
-# ! ************************************************
-
-def build_model(input_shape_time, extra_dim, filters, stacks, dropout_rate, kernel_size):
-    # --- Zeitserien-Input (TCN) ---
-    inp_time = Input(shape=input_shape_time, name='emg_input')
-    x = inp_time
-    for s in range(stacks):
-        d = 4 ** s
-        y = layers.Conv1D(filters, kernel_size, padding='causal',
-                          dilation_rate=d, kernel_initializer='he_normal')(x)
-        y = layers.ReLU()(y)
-        y = layers.LayerNormalization()(y)
-        y = layers.SpatialDropout1D(dropout_rate)(y)
-
-        y = layers.Conv1D(filters, kernel_size, padding='causal',
-                          dilation_rate=d, kernel_initializer='he_normal')(y)
-        y = layers.ReLU()(y)
-        y = layers.LayerNormalization()(y)
-
-        if x.shape[-1] != filters:
-            x = layers.Conv1D(filters, 1, padding='same',
-                              kernel_initializer='he_normal')(x)
-
-        x = layers.add([x, y])
-
-    x = layers.GlobalAveragePooling1D()(x)
-
-    # --- Zusatzfeatures-Input ---
-    inp_extra = Input(shape=(extra_dim,), name="extra_input")
-    z = layers.Dense(32, activation="relu")(inp_extra)
-
-    # --- Fusion ---
-    combined = layers.concatenate([x, z])
-    combined = layers.Dense(64, activation="relu")(combined)
-    combined = layers.Dropout(dropout_rate)(combined)
-
-    # --- Outputs ---
-    out_e = layers.Dense(1, name='torque_elbow')(combined)
-    out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
-    out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
-
-    return models.Model([inp_time, inp_extra], [out_e, out_f, out_s], name="MTL_TCN")
+    # Prepare the test data
+    Y_test_e = Y_test[:, 0]
+    Y_test_f = Y_test[:, 1]
+    Y_test_s = Y_test[:, 2]
 
 
+    # ! ************************************************
+    # ! Building and Compiling the TCN-Model
+    # ! ************************************************
 
-# ! ************************************************
-# ! Building and Compiling the TCN-Model
-# ! ************************************************
-filters = 64
-stacks = 4
-dropout_rate = 0.10
-kernel_size = 3
+    model = build_model(
+        input_shape_time=input_shape_time,
+        filters=filters,
+        stacks=stacks,
+        dropout_rate=dropout_rate,
+        kernel_size=kernel_size
+    )
 
-model = build_model(
-    input_shape_time=input_shape_time,
-    extra_dim=extra_train.shape[1],
-    filters=filters,
-    stacks=stacks,
-    dropout_rate=dropout_rate,
-    kernel_size=kernel_size
-)
-'''
-model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss={
-        "torque_elbow": "mse",
-        "torque_shoulder_front": "mse",
-        "torque_shoulder_side": "mse",
-    })
-'''
-###EXPERIMENTAL
-# --- Varianz-basierte Loss-Gewichtung (ähnlich MLP 'var') ---
-var_torques = np.var(Y_train, axis=0, ddof=1)
-weights_inp = 1.0 / (np.sqrt(var_torques) + 1e-6)
-# optional clippen/normalisieren wie in MLP
-p95, p05 = np.percentile(weights_inp, 95), np.percentile(weights_inp, 5)
-weights_inp = np.clip(weights_inp, p05, p95)
-weights_inp = weights_inp / np.mean(weights_inp)
+    model.compile(optimizer=tf.keras.optimizers.Adam(1e-3), loss={
+            "torque_elbow": "mse",
+            "torque_shoulder_front": "mse",
+            "torque_shoulder_side": "mse",
+        })
+    '''
+    ###EXPERIMENTAL
+    # --- Varianz-basierte Loss-Gewichtung (ähnlich MLP 'var') ---
+    var_torques = np.var(Y_train, axis=0, ddof=1)
+    weights_inp = 1.0 / (np.sqrt(var_torques) + 1e-6)
+    # optional clippen/normalisieren wie in MLP
+    p95, p05 = np.percentile(weights_inp, 95), np.percentile(weights_inp, 5)
+    weights_inp = np.clip(weights_inp, p05, p95)
+    weights_inp = weights_inp / np.mean(weights_inp)
 
-loss_weights = {
-    "torque_elbow": float(weights_inp[0]),
-    "torque_shoulder_front": float(weights_inp[1]),
-    "torque_shoulder_side": float(weights_inp[2]),
-}
+    loss_weights = {
+        "torque_elbow": float(weights_inp[0]),
+        "torque_shoulder_front": float(weights_inp[1]),
+        "torque_shoulder_side": float(weights_inp[2]),
+    }
 
-model.compile(
-    optimizer=tf.keras.optimizers.Adam(1e-3),
-    loss={
-        "torque_elbow": tf.keras.losses.Huber(delta=1.0),
-        "torque_shoulder_front": tf.keras.losses.Huber(delta=1.0),
-        "torque_shoulder_side": tf.keras.losses.Huber(delta=1.0),
-    },
-    loss_weights=loss_weights,
-)
+    model.compile(
+        optimizer=tf.keras.optimizers.Adam(1e-3),
+        loss={
+            "torque_elbow": tf.keras.losses.Huber(delta=1.0),
+            "torque_shoulder_front": tf.keras.losses.Huber(delta=1.0),
+            "torque_shoulder_side": tf.keras.losses.Huber(delta=1.0),
+        },
+        loss_weights=loss_weights,
+    )
 
 
-###
+    ###
+    '''
 
-# ! ************************************************
-# ! Training the TCN-Model
-# ! ************************************************
+    # ! ************************************************
+    # ! Training the TCN-Model
+    # ! ************************************************
 
-history = model.fit(
-    [X_train_seq, extra_train],
-    {"torque_elbow": Y_train[:, 0],
-     "torque_shoulder_front": Y_train[:, 1],
-     "torque_shoulder_side": Y_train[:, 2]},
-    validation_data=(
-        [X_val_seq, extra_val],
-        {"torque_elbow": Y_val[:, 0],
-         "torque_shoulder_front": Y_val[:, 1],
-         "torque_shoulder_side": Y_val[:, 2]}
-    ),
-    epochs=cfg.model_param.n_epochs,
-    batch_size=cfg.model_param.batch_size,
-    callbacks=[early_callback] if early_callback else None
-)
+    history = model.fit(
+        X_train_seq,
+        {"torque_elbow": Y_train_e,
+        "torque_shoulder_front": Y_train_f,
+        "torque_shoulder_side": Y_train_s},
+        validation_data=(
+            X_val_seq,
+            {"torque_elbow": Y_val_e,
+            "torque_shoulder_front": Y_val_f,
+            "torque_shoulder_side": Y_val_s}
+        ),
+        epochs=cfg.model_param.n_epochs,
+        batch_size=cfg.model_param.batch_size,
+        callbacks=[early_callback] if early_callback else None
+    )
+
+    # ! ************************************************
+    # ! Model-Prediction
+    # ! ************************************************
+
+    # Prediction for all three joints
+    y_pred = model.predict(X_test_seq)
+
+    # y_pred is a list [pred_elbow, pred_front, pred_side]
+    pred_elbow, pred_front, pred_side = y_pred
+
+    predictions_e = pred_elbow.flatten()
+    predictions_f = pred_front.flatten()
+    predictions_s = pred_side.flatten()
+
+    ''' 
+    ### EXPERIMENTAL
+    # --- Inverse Skalierung der Test-Predictions auf Originaleinheiten ---
+    # Rekonstruiere die globalen Test-Indices im Gesamtsignal (keine Shuffle!)
+    test_start = X_train.shape[0] + X_val.shape[0]
+    test_end = test_start + X_test.shape[0]
+
+    # Stapel Vorhersagen (skaliert) in (n_test, 3)
+    Y_pred_test_scaled = np.stack([predictions_e, predictions_f, predictions_s], axis=-1)
+
+    # Platzhalter für unskalierte Wahrheiten und Vorhersagen
+    Y_test_true_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
+    Y_test_pred_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
+
+    cursor = 0  # Fortschritt innerhalb des Test-Bereichs
+    for s, e, w_str, m_str in span_slices:
+        a = max(s, test_start)
+        b = min(e, test_end)
+        if a < b:
+            k = b - a
+            scaler = scalers[(w_str, m_str)]
+            Y_test_pred_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y_pred_test_scaled[cursor:cursor+k])
+            Y_test_true_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y[a:b])
+            cursor += k
+
+    # Überschreibe für nachfolgende Auswertung
+    Y_test_e = Y_test_true_unscaled[:, 0]
+    Y_test_f = Y_test_true_unscaled[:, 1]
+    Y_test_s = Y_test_true_unscaled[:, 2]
+    predictions_e = Y_test_pred_unscaled[:, 0]
+    predictions_f = Y_test_pred_unscaled[:, 1]
+    predictions_s = Y_test_pred_unscaled[:, 2]
+    ###
+    '''
+    # ------------------------------------------------------------------------------
+    # Post-Processing
+    # ------------------------------------------------------------------------------
+
+    window_length = cfg.post_processing_param.savitzky_window_length
+    polyorder = cfg.post_processing_param.savitzky_polyorder
+
+    if cfg.post_processing_param.savitzky_on:
+        from scipy.signal import savgol_filter
+
+        predictions_e = savgol_filter(predictions_e, window_length, polyorder)
+        predictions_f = savgol_filter(predictions_f, window_length, polyorder)
+        predictions_s = savgol_filter(predictions_s, window_length, polyorder)
+
+    def moving_average(x, w):
+        return np.convolve(x, np.ones(w), 'same') / w
+
+    filter_window_size = cfg.post_processing_param.moving_av_window_size
+    if cfg.post_processing_param.moving_av_on:
+        predictions_e = moving_average(predictions_e, filter_window_size)
+        predictions_f = moving_average(predictions_f, filter_window_size)
+        predictions_s = moving_average(predictions_s, filter_window_size)
+
+    # ------------------------------------------------------------------------------
+    # RMSE-Calculation (Test + R²)
+    # ------------------------------------------------------------------------------
+
+    # Test-RMSE
+    rmse_e = np.sqrt(mean_squared_error(Y_test_e, predictions_e))
+    rmse_f = np.sqrt(mean_squared_error(Y_test_f, predictions_f))
+    rmse_s = np.sqrt(mean_squared_error(Y_test_s, predictions_s))
+    all_rmse_e.append(rmse_e)
+    all_rmse_f.append(rmse_f)
+    all_rmse_s.append(rmse_s)
+
+    # R² for Test
+    r2_e = r2_score(Y_test_e, predictions_e)
+    r2_f = r2_score(Y_test_f, predictions_f)
+    r2_s = r2_score(Y_test_s, predictions_s)
+    all_r2_e.append(r2_e)
+    all_r2_f.append(r2_f)
+    all_r2_s.append(r2_s)
+
+    print('Ergebnisse (Multi-Task):')
+    print(f"Ellbogen       -> Test-RMSE: {rmse_e:.2f}   | R²: {r2_e:.3f}")
+    print(f"Schulter Front -> Test-RMSE: {rmse_f:.2f}   | R²: {r2_f:.3f}")
+    print(f"Schulter Side  -> Test-RMSE: {rmse_s:.2f}   | R²: {r2_s:.3f}")
 
 
-# ! ************************************************
-# ! Model-Prediction
-# ! ************************************************
-
-# Prediction for all three joints
-y_pred = model.predict([X_test_seq, extra_test])
-
-# y_pred is a list [pred_elbow, pred_front, pred_side]
-pred_elbow, pred_front, pred_side = y_pred
-
-predictions_e = pred_elbow.flatten()
-predictions_f = pred_front.flatten()
-predictions_s = pred_side.flatten()
-
-### EXPERIMENTAL
-# --- Inverse Skalierung der Test-Predictions auf Originaleinheiten ---
-# Rekonstruiere die globalen Test-Indices im Gesamtsignal (keine Shuffle!)
-test_start = X_train.shape[0] + X_val.shape[0]
-test_end = test_start + X_test.shape[0]
-
-# Stapel Vorhersagen (skaliert) in (n_test, 3)
-Y_pred_test_scaled = np.stack([predictions_e, predictions_f, predictions_s], axis=-1)
-
-# Platzhalter für unskalierte Wahrheiten und Vorhersagen
-Y_test_true_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
-Y_test_pred_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
-
-cursor = 0  # Fortschritt innerhalb des Test-Bereichs
-for s, e, w_str, m_str in span_slices:
-    a = max(s, test_start)
-    b = min(e, test_end)
-    if a < b:
-        k = b - a
-        scaler = scalers[(w_str, m_str)]
-        Y_test_pred_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y_pred_test_scaled[cursor:cursor+k])
-        Y_test_true_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y[a:b])
-        cursor += k
-
-# Überschreibe für nachfolgende Auswertung
-Y_test_e = Y_test_true_unscaled[:, 0]
-Y_test_f = Y_test_true_unscaled[:, 1]
-Y_test_s = Y_test_true_unscaled[:, 2]
-predictions_e = Y_test_pred_unscaled[:, 0]
-predictions_f = Y_test_pred_unscaled[:, 1]
-predictions_s = Y_test_pred_unscaled[:, 2]
-###
-
-# ------------------------------------------------------------------------------
-# Post-Processing
-# ------------------------------------------------------------------------------
-from sklearn.metrics import mean_squared_error, r2_score
-
-window_length = cfg.post_processing_param.savitzky_window_length
-polyorder = cfg.post_processing_param.savitzky_polyorder
-
-if cfg.post_processing_param.savitzky_on:
-    from scipy.signal import savgol_filter
-
-    predictions_e = savgol_filter(predictions_e, window_length, polyorder)
-    predictions_f = savgol_filter(predictions_f, window_length, polyorder)
-    predictions_s = savgol_filter(predictions_s, window_length, polyorder)
-
-def moving_average(x, w):
-    return np.convolve(x, np.ones(w), 'same') / w
-
-filter_window_size = cfg.post_processing_param.moving_av_window_size
-if cfg.post_processing_param.moving_av_on:
-    predictions_e = moving_average(predictions_e, filter_window_size)
-    predictions_f = moving_average(predictions_f, filter_window_size)
-    predictions_s = moving_average(predictions_s, filter_window_size)
-
-# ------------------------------------------------------------------------------
-# RMSE-Calculation (Test + R²)
-# ------------------------------------------------------------------------------
-
-# Test-RMSE
-rmse_e = np.sqrt(mean_squared_error(Y_test_e, predictions_e))
-rmse_f = np.sqrt(mean_squared_error(Y_test_f, predictions_f))
-rmse_s = np.sqrt(mean_squared_error(Y_test_s, predictions_s))
-
-# R² for Test
-r2_e = r2_score(Y_test_e, predictions_e)
-r2_f = r2_score(Y_test_f, predictions_f)
-r2_s = r2_score(Y_test_s, predictions_s)
-
-print('Ergebnisse (Multi-Task):')
-print(f"Ellbogen       -> Test-RMSE: {rmse_e:.2f}   | R²: {r2_e:.3f}")
-print(f"Schulter Front -> Test-RMSE: {rmse_f:.2f}   | R²: {r2_f:.3f}")
-print(f"Schulter Side  -> Test-RMSE: {rmse_s:.2f}   | R²: {r2_s:.3f}")
-
+print('Ergebnisse (k-Fold):')
+print(f"Ellbogen       -> Test-RMSE: {np.mean(all_rmse_e):.2f} ± {np.std(all_rmse_e):.3f}  | R²: {np.mean(all_r2_e):.3f} ± {np.std(all_r2_e):.3f}")
+print(f"Schulter Front -> Test-RMSE: {np.mean(all_rmse_f):.2f} ± {np.std(all_rmse_f):.3f}  | R²: {np.mean(all_r2_f):.3f} ± {np.std(all_r2_f):.3f}")
+print(f"Schulter Side  -> Test-RMSE: {np.mean(all_rmse_s):.2f} ± {np.std(all_rmse_s):.3f}  | R²: {np.mean(all_r2_s):.3f} ± {np.std(all_r2_s):.3f}")
 # ------------------------------------------------------------------------------
 # Visualization
 # ------------------------------------------------------------------------------
