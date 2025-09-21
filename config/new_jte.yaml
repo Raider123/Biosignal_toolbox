@@ -20,10 +20,12 @@
     subject_hand_len: 113  #wrist to 3rd knuckle len in mm
 
   workflow_param:
-    model_train: True
+    use_seed:               True
+    seed:                   42
+    model_train:            True
     old_preprocessing_mode: False
-    input_mode:           "time" # options: "time", "freq", "time+freq", "time+temporal"
-    model_dir:            "saved_models/TCN_MTL"
+    input_mode:             "time" # options: "time", "freq", "time+freq", "time+temporal"
+    model_dir:              "saved_models/TCN_MTL"
 
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -59,7 +61,7 @@
 
     train_test_split:     0.9
     validation_split:     0.1
-    use_k_fold:           True
+    use_k_fold:           False
     k_fold_splits:        10
     k_fold_shuffle:       True
 

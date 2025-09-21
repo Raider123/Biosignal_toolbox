@@ -21,6 +21,7 @@ from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
 
 from tensorflow.keras import layers, models, Input
+from keras.utils import set_random_seed
 
 import warnings
 
@@ -105,6 +106,10 @@ if cfg.model_param.is_early_stop:
                                                       restore_best_weights=cfg.model_param.restore_best_weights)
 else:
     early_callback = None
+
+if cfg.workflow_param.use_seed:
+    set_random_seed(cfg.workflow_param.seed)
+    tf.config.experimental.enable_op_determinism()
 
 # ? Read the filenames and create Arrays containing all the used filenames
 emg_filenames = []
