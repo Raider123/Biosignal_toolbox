@@ -58,8 +58,10 @@
     optimizer:            'adam'
 
     train_test_split:     0.9
-    k_fold_splits:        10
     validation_split:     0.1
+    use_k_fold:           False
+    k_fold_splits:        10
+    k_fold_shuffle:       True
 
     is_early_stop:        True
     monitor:              'val_loss'

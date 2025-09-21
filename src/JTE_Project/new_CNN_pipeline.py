@@ -13,6 +13,7 @@ from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_squared_error, r2_score
 from scipy.stats import pearsonr
 
+
 # own libs
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
@@ -678,14 +679,14 @@ X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(
     shuffle=False
 )
 
-""" X_train, X_val, Y_train, Y_val = train_test_split(
-    X_train_temp, Y_train_temp,
-    train_size=1 - cfg.model_param.validation_split,
-    shuffle=False
-)
- """
-
-kf = KFold(n_splits=cfg.model_param.k_fold_splits)
+if not cfg.model_param.use_k_fold:
+    X_train, X_val, Y_train, Y_val = train_test_split(
+        X_train_temp, Y_train_temp,
+        train_size=1 - cfg.model_param.validation_split,
+        shuffle=False)
+    kf = KFold(n_splits=2)
+else:
+    kf = KFold(n_splits=cfg.model_param.k_fold_splits, shuffle=cfg.model_param.k_fold_shuffle)
 
 all_rmse_e, all_rmse_f, all_rmse_s = [], [], []
 all_r2_e, all_r2_f, all_r2_s = [], [], []
@@ -694,8 +695,9 @@ all_pcc_e, all_pcc_f, all_pcc_s = [], [], []
 
 for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     print(f"--- Fold {fold+1} ---")
-    X_train, X_val = X_train_temp[train_idx], X_train_temp[val_idx]
-    Y_train, Y_val = Y_train_temp[train_idx], Y_train_temp[val_idx]
+    if cfg.model_param.use_k_fold:
+        X_train, X_val = X_train_temp[train_idx], X_train_temp[val_idx]
+        Y_train, Y_val = Y_train_temp[train_idx], Y_train_temp[val_idx]
 
     # ! ************************************************
     # ! Preparing the data for the TCN-Model
@@ -906,6 +908,8 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     print(f"Schulter Front -> Test-RMSE: {rmse_f:.2f}  | R²: {r2_f:.3f} | PCC: {pcc_f:.3f}")
     print(f"Schulter Side  -> Test-RMSE: {rmse_s:.2f}  | R²: {r2_s:.3f} | PCC: {pcc_s:.3f}")
 
+    if not cfg.model_param.use_k_fold:
+        break
 
 print('Ergebnisse (k-Fold):')
 print(f"Ellbogen       -> Test-RMSE: {np.mean(all_rmse_e):.2f} ± {np.std(all_rmse_e):.3f}  | R²: {np.mean(all_r2_e):.3f} ± {np.std(all_r2_e):.3f} | PCC: {np.mean(all_pcc_e):.3f} ± {np.std(all_pcc_e):.3f}")
