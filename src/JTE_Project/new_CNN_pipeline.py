@@ -694,10 +694,12 @@ if not cfg.model_param.use_k_fold:
 else:
     kf = KFold(n_splits=cfg.model_param.k_fold_splits, shuffle=cfg.model_param.k_fold_shuffle)
 
+time_feat_ext_end = time.perf_counter()
+
 all_rmse_e, all_rmse_f, all_rmse_s = [], [], []
 all_r2_e, all_r2_f, all_r2_s = [], [], []
 all_pcc_e, all_pcc_f, all_pcc_s = [], [], []
-
+training_time = []
 
 for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     print(f"--- Fold {fold+1} ---")
@@ -742,9 +744,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     Y_test_f = Y_test[:, 1]
     Y_test_s = Y_test[:, 2]
 
-time_feat_ext_end = time.perf_counter()
-
-time_model = time.perf_counter()
+    time_model = time.perf_counter()
 
     # ! ************************************************
     # ! Building and Compiling the TCN-Model
@@ -815,6 +815,7 @@ time_model = time.perf_counter()
 
     time_model_end = time.perf_counter()
     passed_time = time_model_end - time_model
+    training_time.append(passed_time)
     print(f"Model_Training im K_Fold: {passed_time:.4f} Sekunden")
 
     # ! ************************************************
@@ -931,10 +932,14 @@ print(f"Schulter Side  -> Test-RMSE: {np.mean(all_rmse_s):.2f} ± {np.std(all_rm
 
 # Timings
 passed_preproc_time = time_preproc_end - time_preproc
-print(f"Preprocessing Zeit {passed_preproc_time :.4f} Sekunden")
+print(f"Preprocessing Zeit: {passed_preproc_time :.4f} Sekunden")
 
 passed_feat_time = time_feat_ext_end - time_feat_ext
-print(f"Feature Extraction Zeit {passed_feat_time :.4f} Sekunden")
+print(f"Feature Extraction Zeit: {passed_feat_time :.4f} Sekunden")
+
+passed_train_time = np.mean(training_time)
+train_time_std = np.std(training_time)
+print(f"Model Training Zeit: {passed_train_time :.4f} ± {train_time_std :.2f} Sekunden")
 # ------------------------------------------------------------------------------
 # Visualization
 # ------------------------------------------------------------------------------
