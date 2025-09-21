@@ -697,7 +697,9 @@ if not cfg.model_param.use_k_fold:
         shuffle=False)
     kf = KFold(n_splits=2)
 else:
-    kf = KFold(n_splits=cfg.model_param.k_fold_splits, shuffle=cfg.model_param.k_fold_shuffle)
+    kf = KFold(n_splits=cfg.model_param.k_fold_splits, 
+               shuffle=cfg.model_param.k_fold_shuffle, 
+               random_state=cfg.model_param.shuffle_seed)
 
 time_feat_ext_end = time.perf_counter()
 
