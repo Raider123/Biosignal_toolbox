@@ -11,8 +11,8 @@
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
   data_param:
-    weights: ['0g']
-    mov_type: [ 'grasp']
+    weights: ['1100g', '1850g']
+    mov_type: [ 'grasp', 'complex']
     set_num: [ '1', '2', '3', '4' ]
     subject_code: [ 'BU62D' ]
     subject_weight: 80    #weight in kg

@@ -12,6 +12,7 @@ from copy import deepcopy
 from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_squared_error, r2_score
 from scipy.stats import pearsonr
+import time
 
 
 # own libs
@@ -88,6 +89,7 @@ stacks = 4
 dropout_rate = 0.10
 kernel_size = 3
 
+time_preproc = time.perf_counter()
 
 # ? load config file
 config_filename = 'new_jte.yaml'
@@ -358,6 +360,10 @@ if cfg.plot_param.is_plot_act:
                      xlabel="Time in s",
                      ylabel="Voltage in V",
                      is_grid_on=True)
+
+time_preproc_end = time.perf_counter()
+
+time_feat_ext = time.perf_counter()
 
 # ? Windowing the data
 emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1,
@@ -736,6 +742,9 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     Y_test_f = Y_test[:, 1]
     Y_test_s = Y_test[:, 2]
 
+time_feat_ext_end = time.perf_counter()
+
+time_model = time.perf_counter()
 
     # ! ************************************************
     # ! Building and Compiling the TCN-Model
@@ -803,6 +812,10 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
         batch_size=cfg.model_param.batch_size,
         callbacks=[early_callback] if early_callback else None
     )
+
+    time_model_end = time.perf_counter()
+    passed_time = time_model_end - time_model
+    print(f"Model_Training im K_Fold: {passed_time:.4f} Sekunden")
 
     # ! ************************************************
     # ! Model-Prediction
@@ -915,6 +928,13 @@ print('Ergebnisse (k-Fold):')
 print(f"Ellbogen       -> Test-RMSE: {np.mean(all_rmse_e):.2f} ± {np.std(all_rmse_e):.3f}  | R²: {np.mean(all_r2_e):.3f} ± {np.std(all_r2_e):.3f} | PCC: {np.mean(all_pcc_e):.3f} ± {np.std(all_pcc_e):.3f}")
 print(f"Schulter Front -> Test-RMSE: {np.mean(all_rmse_f):.2f} ± {np.std(all_rmse_f):.3f}  | R²: {np.mean(all_r2_f):.3f} ± {np.std(all_r2_f):.3f} | PCC: {np.mean(all_pcc_f):.3f} ± {np.std(all_pcc_f):.3f}")
 print(f"Schulter Side  -> Test-RMSE: {np.mean(all_rmse_s):.2f} ± {np.std(all_rmse_s):.3f}  | R²: {np.mean(all_r2_s):.3f} ± {np.std(all_r2_s):.3f} | PCC: {np.mean(all_pcc_s):.3f} ± {np.std(all_pcc_s):.3f}")
+
+# Timings
+passed_preproc_time = time_preproc_end - time_preproc
+print(f"Preprocessing Zeit {passed_preproc_time :.4f} Sekunden")
+
+passed_feat_time = time_feat_ext_end - time_feat_ext
+print(f"Feature Extraction Zeit {passed_feat_time :.4f} Sekunden")
 # ------------------------------------------------------------------------------
 # Visualization
 # ------------------------------------------------------------------------------
