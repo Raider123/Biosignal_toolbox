@@ -153,7 +153,7 @@ class EEGData(Timeseries):
                 if(isinstance(filenames, list)): 
                     concat_list = []
                     for filename in filenames: 
-                        data = np.load(self.data_path / filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
+                        data = np.load(filename,allow_pickle=True, encoding='bytes').reshape(-1,1)
                         # print(f"Quali data shape: {data.shape}")
                         if add_marker_channel:
                             # Adding an extra event channel at the end for qualisys markers
