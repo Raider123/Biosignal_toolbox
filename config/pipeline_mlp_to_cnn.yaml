@@ -16,6 +16,7 @@
     save_features_path:       'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
+
   data_param:
     weights:                  ['0g', '1100g', '1850g']
     # weights:                  ['1100g', '1850g']
@@ -59,8 +60,8 @@
     
   
   model_param:
-    n_epochs:                 300
-    batch_size:               32
+    n_epochs:                 40
+    batch_size:               64
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'
@@ -74,7 +75,7 @@
     is_early_stop:            True
     monitor:                  'val_loss'
     min_delta:                0.01
-    patience:                 30
+    patience:                 10
     verbose:                  0
     baseline:                 null
     restore_best_weights:     True

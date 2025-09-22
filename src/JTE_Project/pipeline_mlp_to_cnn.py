@@ -26,9 +26,65 @@ from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolute
 import warnings
 warnings.formatwarning = customWarningFormat
 
+# Für Keras / Model-Train
+from tensorflow.keras import Input, layers, models, optimizers
+# Für Post-Filter (nutze SciPy falls vorhanden)
+from scipy.signal import medfilt, savgol_filter
+
+
 #! ************************************************
 #! User Parameters and Data Collection
 #! ************************************************
+
+def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
+
+    inputs = []
+    branches = []
+
+    # Zeit-Pfad (TCN)
+    inp_time = Input(shape=input_shape_time, name='emg_input')
+    x = inp_time
+
+    for s in range(stacks):
+        d = 2 ** s  # Dilatation: 1,2,4,8,...
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(x)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+        y = layers.SpatialDropout1D(dropout_rate)(y)
+
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(y)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+
+        # Residual-Shortcut ggf. an Kanäle anpassen
+        if x.shape[-1] != filters:
+            x = layers.Conv1D(filters, 1, padding='same',
+                              kernel_initializer='he_normal')(x)
+
+        x = layers.add([x, y])
+
+    # Seq-to-one Readout
+    x = layers.GlobalAveragePooling1D()(x)
+    inputs.append(inp_time)
+    branches.append(x)
+
+    combined = branches[0]
+    combined = layers.Dense(64, activation="relu")(combined)
+    combined = layers.Dropout(dropout_rate)(combined)
+
+    out_e = layers.Dense(1, name='torque_elbow')(combined)
+    out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
+    out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
+    return models.Model(inputs, [out_e, out_f, out_s], name="MTL_TCN")
+
 
 #? load config file
 config_filename = 'pipeline_mlp_to_cnn.yaml'
@@ -675,7 +731,7 @@ Y_val = np.concatenate(Y_val_combined, axis=0)
 
 
 # --- set global seed ---
-seed_arr = [1, 7, 25, 45, 70]
+seed_arr = [1]
 r2_e_arr = []
 r2_sf_arr = []
 r2_ss_arr = []
@@ -689,126 +745,151 @@ for seed in seed_arr:
     random.seed(seed)
     tf.random.set_seed(seed)
 
+    # ---------------------------
+    # Replace MLP training with TCN training (minimal changes)
+    # ---------------------------
+
     neurons_inp = X_train.shape[1]
-    #? Init model with norm layer
-    train_model = AAN_Model(neurons_inp=neurons_inp, 
-                            neurons_h1=cfg.model_param.neurons_h1, 
-                            act_h1=cfg.model_param.act_h1, 
-                            neurons_h2=cfg.model_param.neurons_h2, 
-                            act_h2=cfg.model_param.act_h2,
-                            neurons_h3=cfg.model_param.neurons_h3, 
-                            act_h3=cfg.model_param.act_h3,
-                            neurons_h4=cfg.model_param.neurons_h4, 
-                            act_h4=cfg.model_param.act_h4,
-                            neuron_out=cfg.model_param.neurons_out,
-                            act_out=cfg.model_param.act_out)
 
-    MLP_model = MLModel(model = train_model, type= "keras")
+    # reshape existing 2D feature vectors -> 3D for Conv1D:
+    # time dimension = neurons_inp, channels = 1 (minimal change so rest of pipeline unchanged)
+    X_train_cnn = X_train.reshape((-1, neurons_inp, 1))
+    X_val_cnn = X_val.reshape((-1, neurons_inp, 1))
+    X_test_cnn = X_test.reshape((-1, neurons_inp, 1))
 
-    #? Set the weights and deltas for weighted huber
+    # --- Preserve existing huber/weight logic from your script: compute weights_inp ---
     if cfg.model_param.huber_weight_method == 'var':
         var_torques = np.var(Y_train, axis=0, ddof=1)
         weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
-        # weights_inp = weights_inp / np.sum(weights_inp)
         max_weight = np.percentile(weights_inp, 95)
         min_weight = np.percentile(weights_inp, 5)
         weights_inp = np.clip(weights_inp, min_weight, max_weight)
         weights_inp = weights_inp / np.mean(weights_inp)
     elif cfg.model_param.huber_weight_method == 'smooth_var':
-        weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
-                                    clip_percentile=[5,75],
-                                    window_len=5,
-                                    poly_order=2)
+        # the original uses MLP_model.getSmoothVarWeights; replicate previous behaviour if needed
+        # fallback: call the helper from MLModel (static method) if available:
+        # Note: original code used MLP_model.getSmoothVarWeights -> here we call MLModel.getSmoothVarWeights
+        weights_inp = MLModel.getSmoothVarWeights(y_train=Y_train,
+                                                    clip_percentile=[5, 75],
+                                                    window_len=5,
+                                                    poly_order=2)
     elif cfg.model_param.huber_weight_method == 'manual':
-        weights_inp = [5,5,1]
+        weights_inp = [5, 5, 1]
     elif cfg.model_param.huber_weight_method == 'dynamic_huber':
-        weights_inp = [1,1,1]
+        weights_inp = [1, 1, 1]
     else:
-        raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
+        raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}...")
 
-    MLP_model.setHuberWeights(weights_inp=weights_inp)
-    MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
+    # --- Build TCN model ---
+    filters = 32
+    stacks = 2
+    dropout_rate = 0.10
+    kernel_size = 3
 
-    #? Train model
-    print("Training MLP model for elbow joint...")
+    input_shape_time = (neurons_inp, 1)
+    tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
+
+    # choose loss function similar to previous pipeline (if cfg.model_param.loss_fcn contains 'huber' use Huber)
+    if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
+        loss_fn = tf.keras.losses.Huber()
+    else:
+        loss_fn = tf.keras.losses.MeanSquaredError()
+
+    loss_weights = {'torque_elbow': weights_inp[0],
+                    'torque_shoulder_front': weights_inp[1],
+                    'torque_shoulder_side': weights_inp[2]}
+
+    tcn_model.compile(
+        optimizer=optimizers.Adam(learning_rate=getattr(cfg.model_param, 'learning_rate', 1e-3)),
+        loss={'torque_elbow': loss_fn,
+              'torque_shoulder_front': loss_fn,
+              'torque_shoulder_side': loss_fn},
+        loss_weights=loss_weights,
+        metrics=['mae']
+    )
+
+    # --- Train ---
     save_model_path = cfg.filepath.save_model_path
-    # print(save_model_path)
-    MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                        model_filename=save_model_path, 
-                        train_epochs=cfg.model_param.n_epochs, 
-                        batch_size=cfg.model_param.batch_size, 
-                        class_weights=None, 
-                        x_train=X_train, 
-                        y_train=Y_train, 
-                        x_val=X_val,
-                        y_val=Y_val,
-                        loss_fcn=cfg.model_param.loss_fcn, 
-                        optimizer=cfg.model_param.optimizer, 
-                        metrics=cfg.model_param.metrics, 
-                        show_train_results=cfg.model_param.show_train_results, 
-                        callbacks=early_callback)
-    print("MLP training done!!\n")
 
-    #? Predict and get results 
-    print("Predicting joint torques...")
-    MLP_model.predictTarget(data=X_test, 
-                            labels=Y_test, 
-                            classification=False, 
-                            show_results=False, 
-                            show_pred_time=False, 
-                            eval_type=cfg.post_train_param.eval_type)
+    callbacks_list = [early_callback] if early_callback is not None else None
 
-    perf_results_MLP_scaled = MLP_model.getPredictionScores()
+    history = tcn_model.fit(
+        X_train_cnn,
+        {'torque_elbow': Y_train[:, 0],
+         'torque_shoulder_front': Y_train[:, 1],
+         'torque_shoulder_side': Y_train[:, 2]},
+        validation_data=(X_val_cnn, {
+            'torque_elbow': Y_val[:, 0],
+            'torque_shoulder_front': Y_val[:, 1],
+            'torque_shoulder_side': Y_val[:, 2]
+        }),
+        epochs=cfg.model_param.n_epochs,
+        batch_size=cfg.model_param.batch_size,
+        callbacks=callbacks_list,
+        verbose=1
+    )
 
-    #? Rescaling output
-    # perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
-    # Y_ref = Y_scaler.inverse_transform(Y_test)
+    # Save model analogous to previous saving behaviour
+    if cfg.model_param.is_save_model:
+        tcn_model.save(save_model_path)
 
+    # --- Predict auf Testdaten ---
+    preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
+    perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
+
+    # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
     Y_ref = []
-    perf_results_MLP = []
+    perf_results_TCN = []
 
     for wgt, mov, start_idx, end_idx in Y_scaler_info:
         Y_ref_scaled = Y_test[start_idx:end_idx]
-        Y_pred_scaled = perf_results_MLP_scaled[start_idx:end_idx]
+        Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
 
         scaler = Y_scaler_dict[wgt][mov]
         Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
-        perf_results_MLP.append(scaler.inverse_transform(Y_pred_scaled))
+        perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
 
     Y_ref = np.concatenate(Y_ref, axis=0)
-    perf_results_MLP = np.concatenate(perf_results_MLP, axis=0)
+    perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
 
-    MLP_model.setPredictionScores(perf_results_MLP)
+    # --- Eval Metrics (wie früher)
+    print("Pre-filtering Eval Metrics (TCN)!!")
+    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
+    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
+    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
 
-    print("Pre-filtering Eval Metrics!!")
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
-    print("\n")
-    #! ************************************************
-    #! Post-prediction Filtering
-    #! ************************************************
-    #? Median filter for removing spikes/outliers
-    MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
-                                    window_length=cfg.post_train_param.filter_size)
-    #? Savitsky Golay filter
-    MLP_model.applyFilter_prediction(method="savgol",
-                                    window_length=cfg.post_train_param.savgol_window_len,
-                                    poly_order=cfg.post_train_param.savgol_poly_order)
+    r2_e_arr.append(r2_elbow)
+    rho_e_arr.append(rho_elbow)
 
-    perf_results_MLP = MLP_model.getPredictionScores()
-    # print(perf_results_MLP.shape)
+    r2_sf_arr.append(r2_front)
+    rho_sf_arr.append(rho_front)
 
-    #? Calculate the model eval metrics on the filtered predicted values
-    print("Post-filtering Eval Metrics!!")
-    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], 
-                                                                   perf_results_MLP[:,0], is_Pearson=True)
-    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:,1], 
-                                                                   perf_results_MLP[:,1],
-                                                                   is_Pearson=True)
-    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:,2], 
-                                                                perf_results_MLP[:,2],
-                                                                is_Pearson=True)
+    r2_ss_arr.append(r2_side)
+    rho_ss_arr.append(rho_side)
+
+    # ! ************************************************
+    # ! Post-prediction Filtering (manuell, da MLP_model.applyFilter_prediction entfällt)
+    # ! ************************************************
+    # Median filter
+    if cfg.post_train_param.filter_type == 'median':
+        for i in range(3):
+            perf_results_TCN[:, i] = medfilt(perf_results_TCN[:, i], kernel_size=cfg.post_train_param.filter_size)
+
+    # Savitzky-Golay
+    if getattr(cfg.post_train_param, 'savgol_window_len', None) is not None:
+        for i in range(3):
+            perf_results_TCN[:, i] = savgol_filter(perf_results_TCN[:, i],
+                                                   cfg.post_train_param.savgol_window_len,
+                                                   cfg.post_train_param.savgol_poly_order)
+
+    # Post-filter Eval
+    print("Post-filtering Eval Metrics (TCN)!!")
+    r2_elbow_pf, rmse_elbow_pf, rho_elbow_pf = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0],
+                                                                            is_Pearson=True)
+    r2_front_pf, rmse_front_pf, rho_front_pf = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1],
+                                                                            is_Pearson=True)
+    r2_side_pf, rmse_side_pf, rho_side_pf = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2],
+                                                                         is_Pearson=True)
 
     r2_e_arr.append(r2_elbow)
     rho_e_arr.append(rho_elbow)
@@ -833,8 +914,3 @@ print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_ar
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
-
-
-    
-
-    
