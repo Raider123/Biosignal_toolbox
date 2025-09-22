@@ -8,12 +8,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tensorflow.keras.models import save_model
 from tensorflow.keras.models import load_model
+from tensorflow.keras.losses import Huber, MeanSquaredError
 from keras.optimizers import Nadam
 from time import perf_counter_ns
 from dtw import *
 import copy 
 from sklearn.metrics import mean_squared_error, r2_score
-from scipy.signal import savgol_filter
+from scipy.signal import savgol_filter, medfilt
+from scipy.stats import pearsonr
 
 import tensorflow as tf
 import warnings
@@ -58,7 +60,9 @@ class MLModel:
         """
 
         self.type = type 
-        self.model = model 
+        self.model = model
+        self.weights = None     # weighted Huber loss weights
+        self.deltas = None      # weighted Huber loss thresholds
         
         #self.use_input_norm = use_input_norm
 
@@ -120,7 +124,14 @@ class MLModel:
         self.y_val = y_val
         self.y_train = y_train
         self.callbacks = callbacks
-        self.loss_fcn = loss_fcn
+        if loss_fcn == 'mse':
+            self.loss_fcn = MeanSquaredError()
+        elif loss_fcn == 'huber':
+            self.loss_fcn = Huber(delta=0.2)
+        elif loss_fcn == 'weighted_huber':
+            self.loss_fcn = self.weightedHuber
+        else:
+            self.loss_fcn = loss_fcn
         self.optimizer = optimizer
         self.metrics = metrics 
         self.perf_results = None
@@ -128,7 +139,7 @@ class MLModel:
         # compile model 
         if (self.type == "keras"): 
             if optimizer == 'nadam':
-                self.optimizer = Nadam(learning_rate=0.001)
+                self.optimizer = Nadam(learning_rate=0.0001)#0.001
 
             self.model.compile(loss=self.loss_fcn, 
                                optimizer=self.optimizer, 
@@ -181,6 +192,68 @@ class MLModel:
                 save_model(self.model, model_filename) # save 
         
         return loss_values[-1], val_loss_values[-1]
+    
+
+    def trainModel_dynamicHuber(self, train_epochs = 10, batch_size = 16, x_train = None, y_train = None, x_val = None, y_val = None, loss_fcn = None, optimizer = None, metrics = "accuracy", update_every=5, factor=1.0, alpha=0.5):
+
+        self.epochs = train_epochs
+        self.batch_size = batch_size
+        self.x_train = x_train
+        self.x_val = x_val
+        self.y_val = y_val
+        self.y_train = y_train
+        if loss_fcn == 'mse':
+            self.loss_fcn = MeanSquaredError()
+        elif loss_fcn == 'huber':
+            self.loss_fcn = Huber(delta=0.2)
+        elif loss_fcn == 'weighted_huber':
+            self.loss_fcn = self.weightedHuber
+        else:
+            self.loss_fcn = loss_fcn
+        self.optimizer = optimizer
+        self.metrics = metrics 
+
+
+        self.model.compile(loss=self.loss_fcn, 
+                           optimizer=self.optimizer, 
+                           metrics=self.metrics)
+        for epoch in range(train_epochs):
+            self.model.fit(self.x_train,
+                           self.y_train,
+                           epochs  = 1,
+                           batch_size= self.batch_size,
+                           validation_data = (self.x_val, self.y_val))
+
+            # adaptive update
+            if (epoch + 1) % update_every == 0:
+                y_pred_val = self.model.predict(self.x_val, verbose=0)
+
+                # per-channel R²
+                r2_per_channel = np.array([r2_score(self.y_val[:, i], y_pred_val[:, i])
+                    for i in range(self.y_train.shape[1])])
+
+                # update weights (inverse of R²) + smoothing
+                epsilon = 0.01
+                self.weights = np.array(self.weights, dtype=np.float32)
+                self.deltas = np.array(self.deltas, dtype=np.float32)
+                
+                new_weights = 1.0 / (r2_per_channel + epsilon)
+                new_weights /= np.mean(new_weights)
+                self.weights = alpha * self.weights + (1 - alpha) * new_weights
+
+                # update δ (Huber threshold) + smoothing
+                new_deltas = self.getHuberDelta(self.y_val, y_pred_val, factor=factor)
+                self.deltas = alpha * self.deltas + (1 - alpha) * new_deltas
+
+                # recompile with updated params
+                self.model.compile(optimizer=self.optimizer,
+                                   loss=self.loss_fcn,
+                                   metrics=self.metrics)
+
+                print(f"\n[AdaptiveLoss] Epoch {epoch+1}")
+                print(f"   R²: {r2_per_channel.round(3)}")
+                print(f"   Weights: {self.weights.round(3)}")
+                print(f"   Deltas: {self.deltas.round(5)}")
 
 
     def loadModel(self, filename, path = ""): 
@@ -486,6 +559,8 @@ class MLModel:
             return self.prediction_scores.numpy()
         elif isinstance(self.prediction_scores, np.ndarray):
             return self.prediction_scores
+        else:
+            return np.array(self.prediction_scores)
     
     def setPredictionScores(self, scores_inp):
 
@@ -515,22 +590,94 @@ class MLModel:
             print(w)
     
     def applyFilter_prediction(self, method="savgol", window_length=11, poly_order=3):
+        
         if method.lower() == "savgol":
             self.prediction_scores = savgol_filter(x=self.prediction_scores, 
                                                    window_length=window_length, 
                                                    polyorder=poly_order,
                                                    axis=0)
+        elif method.lower() == "median":
+            self.prediction_scores = medfilt(volume=self.prediction_scores,
+                                             kernel_size=(window_length,1))
+        elif method.lower() == "mean":
+            for channel_idx in range(self.prediction_scores.shape[1]):
+                self.prediction_scores[:,channel_idx] = np.convolve(self.prediction_scores[:,channel_idx], np.ones(window_length)/window_length, mode='same')
         else:
             warnings.warn("Sorry!! This method is not implemented yet... No filter applied!!")
     
+    def weightedHuber(self, y_true, y_pred):
+
+        deltas = tf.constant(self.deltas, dtype=tf.float32)
+        weights = tf.constant(self.weights, dtype=tf.float32)
+        error = y_true - y_pred
+        abs_error = tf.abs(error)
+        quadratic_term = 0.5 * tf.square(error)
+        linear_term = deltas * (abs_error - 0.5*deltas)
+        huber = tf.where(abs_error <= deltas, quadratic_term, linear_term)
+        huber = huber * weights
+        return tf.reduce_mean(huber)
+    
     @staticmethod
-    def calculateRMSE(target_arr=np.array([]), predicted_arr=np.array([])):
+    def getHuberDelta(y_true, y_pred, method='mad', factor=1.0, min_delta=1e-4):
+
+        residuals = y_true - y_pred
+        deltas = np.zeros(y_true.shape[1], dtype=np.float32)
+
+        for channel_idx in range(y_true.shape[1]):
+            r = residuals[:, channel_idx]
+            if method == 'mad':     # Median Absolute Deviation
+                mad = 1.4826 * np.median(np.abs(r - np.median(r)))
+                deltas[channel_idx] = max(factor * mad, min_delta)
+            elif method == 'std':
+                deltas[channel_idx] = max(factor * np.std(r), min_delta)
+            else:
+                raise ValueError("method must be 'mad' or 'std'")
+        return deltas
+
+
+    def setHuberWeights(self, weights_inp=None):
+
+        if weights_inp is None:
+            raise ValueError("Please provide input weights vector!!")
+        self.weights = weights_inp
+    
+    def setHuberDeltas(self, deltas_inp=None):
+
+        if deltas_inp is None:
+            raise ValueError("Please provide input delta vector!!")
+        self.deltas = deltas_inp
+    
+    @staticmethod
+    def getSmoothVarWeights(y_train=None, clip_percentile=[5,95], smooth=True, window_len=5, poly_order=2):
+        # Channel variance
+        var_torques = np.var(y_train, axis=0, ddof=1)
+        
+        # Inverse variance weighting (stabilized)
+        weights = 1.0 / (var_torques + 1e-6)
+        
+        # Optional smoothing across channels
+        if smooth and len(weights) > window_len:
+            wl = min(window_len, len(weights) if len(weights)%2==1 else len(weights)-1)
+            weights = savgol_filter(weights, window_length=wl, polyorder=poly_order)
+        
+        # Clip extremes
+        min_w, max_w = np.percentile(weights, clip_percentile)
+        weights = np.clip(weights, min_w, max_w)
+        
+        # Normalize so average weight = 1
+        weights = weights / np.mean(weights)
+        
+        return weights
+
+
+    @staticmethod
+    def calculateEvalMetrics(ref_arr=None, predicted_arr=None, is_Pearson=False):
         """
-        This method calculated the root mean square error on your predicted values.
+        This method calculated the model evaluation metrics like root mean square error and R2 coefficient on your predicted values.
 
         Parameters
         ----------
-        target_arr : 1D numpy array
+        ref_arr : 1D numpy array
             array of target values for supervised learning
         predicted_arr : 1D numpy array
             array of predicted regression values
@@ -540,21 +687,18 @@ class MLModel:
         float
             RMSE of the entire array.
         """
-        if target_arr.size == 0 or predicted_arr.size == 0:
-            print("Please provide a non-zero array(s) as an arg to the method!!")
-            return
+        if ref_arr is None or predicted_arr is None:
+            raise ValueError("Please provide non-zero array(s) as argumetn to calculate the evaluation metrics!!")
+        
+        r2_score_out = r2_score(ref_arr,predicted_arr)
+        rmse_out = np.sqrt(mean_squared_error(ref_arr,predicted_arr))
+        corr_coeff, _ = pearsonr(ref_arr, predicted_arr)
+        print(f"R2 Score: {r2_score_out}")
+        print(f"RMSE: {rmse_out}")
+        print(f"Correlation Coeff: {corr_coeff}")
 
-        # #! Calculate the error/difference array
-        # diff_arr = target_arr - predicted_arr
-
-        # #! Square the difference
-        # sq_diff_arr = diff_arr ** 2
-
-        # #! Mean of squared difference
-        # mean_sq_diff_arr = np.mean(sq_diff_arr)
-
-        # return np.sqrt(mean_sq_diff_arr)
-        print(f"R2 Score: {r2_score(target_arr,predicted_arr)}")
-
-        return np.sqrt(mean_squared_error(target_arr,predicted_arr))
+        if is_Pearson:
+            return r2_score_out, rmse_out, corr_coeff
+        else:
+            return r2_score_out, rmse_out
         

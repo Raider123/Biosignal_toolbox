@@ -277,7 +277,7 @@ def createOutputDir(param_obj: SimpleNamespace = None, suffix_str: str = None) -
         suffix_str = "temp"
     
     inp_parent_dir = getAbsolutePath(param_obj.filepath.fig_save_path)
-    parent_dir = inp_parent_dir / f"{param_obj.data_param.subject_code}"
+    parent_dir = inp_parent_dir / f"{param_obj.data_param.subject_code[0]}"
     # ensure the input directory exists
     parent_dir.mkdir(parents=True, exist_ok=True)
     # prepare timestamp-based folder name
@@ -394,11 +394,12 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
     plt.figure()
 
     x_samples = np.arange(0, len(data_ref),1)
-    plt.plot(x_samples, data_ref, ls="dashed", label=label_ref)
-    plt.plot(x_samples, data_out, label=label_out)
+    plt.plot(x_samples, data_ref, label=label_ref)
+    plt.plot(x_samples, data_out, ls="dashed", label=label_out)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
+    plt.legend()
     if is_grid_on:
         plt.grid()
 

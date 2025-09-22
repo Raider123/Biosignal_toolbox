@@ -654,6 +654,7 @@ y_s = Quali_Data_Side.getFeatures()[:, 0]
 # Merge all three targets
 Y = np.stack([y_e, y_f, y_s], axis=-1)  # (n_windows, 3)
 
+'''
 # --- Ziel-Skalierung pro Datei/Gruppe ([-1, 1]) ---
 from sklearn.preprocessing import MinMaxScaler
 
@@ -664,7 +665,7 @@ for s, e, w_str, m_str in span_slices:
     scaler = MinMaxScaler(feature_range=(-1, 1))
     Y[s:e] = scaler.fit_transform(Y[s:e])
     scalers[(w_str, m_str)] = scaler
-
+'''
 
 # Creating history of features (Y --> target_features_hist but with kernel 3)
 history_len = 3
@@ -696,12 +697,14 @@ if not cfg.model_param.use_k_fold:
         train_size=1 - cfg.model_param.validation_split,
         shuffle=False)
     kf = KFold(n_splits=2)
+
+    time_feat_ext_end = time.perf_counter()
 else:
     kf = KFold(n_splits=cfg.model_param.k_fold_splits, 
                shuffle=cfg.model_param.k_fold_shuffle, 
                random_state=cfg.model_param.shuffle_seed)
 
-time_feat_ext_end = time.perf_counter()
+    time_feat_ext_end = time.perf_counter()
 
 all_rmse_e, all_rmse_f, all_rmse_s = [], [], []
 all_r2_e, all_r2_f, all_r2_s = [], [], []
@@ -770,35 +773,6 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
             "torque_shoulder_front": "mse",
             "torque_shoulder_side": "mse",
         })
-    '''
-    ###EXPERIMENTAL
-    # --- Varianz-basierte Loss-Gewichtung (ähnlich MLP 'var') ---
-    var_torques = np.var(Y_train, axis=0, ddof=1)
-    weights_inp = 1.0 / (np.sqrt(var_torques) + 1e-6)
-    # optional clippen/normalisieren wie in MLP
-    p95, p05 = np.percentile(weights_inp, 95), np.percentile(weights_inp, 5)
-    weights_inp = np.clip(weights_inp, p05, p95)
-    weights_inp = weights_inp / np.mean(weights_inp)
-
-    loss_weights = {
-        "torque_elbow": float(weights_inp[0]),
-        "torque_shoulder_front": float(weights_inp[1]),
-        "torque_shoulder_side": float(weights_inp[2]),
-    }
-
-    model.compile(
-        optimizer=tf.keras.optimizers.Adam(1e-3),
-        loss={
-            "torque_elbow": tf.keras.losses.Huber(delta=1.0),
-            "torque_shoulder_front": tf.keras.losses.Huber(delta=1.0),
-            "torque_shoulder_side": tf.keras.losses.Huber(delta=1.0),
-        },
-        loss_weights=loss_weights,
-    )
-
-
-    ###
-    '''
 
     # ! ************************************************
     # ! Training the TCN-Model
@@ -839,40 +813,6 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(X_train_temp)):
     predictions_f = pred_front.flatten()
     predictions_s = pred_side.flatten()
 
-    ''' 
-    ### EXPERIMENTAL
-    # --- Inverse Skalierung der Test-Predictions auf Originaleinheiten ---
-    # Rekonstruiere die globalen Test-Indices im Gesamtsignal (keine Shuffle!)
-    test_start = X_train.shape[0] + X_val.shape[0]
-    test_end = test_start + X_test.shape[0]
-
-    # Stapel Vorhersagen (skaliert) in (n_test, 3)
-    Y_pred_test_scaled = np.stack([predictions_e, predictions_f, predictions_s], axis=-1)
-
-    # Platzhalter für unskalierte Wahrheiten und Vorhersagen
-    Y_test_true_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
-    Y_test_pred_unscaled = np.empty_like(Y_pred_test_scaled, dtype=np.float32)
-
-    cursor = 0  # Fortschritt innerhalb des Test-Bereichs
-    for s, e, w_str, m_str in span_slices:
-        a = max(s, test_start)
-        b = min(e, test_end)
-        if a < b:
-            k = b - a
-            scaler = scalers[(w_str, m_str)]
-            Y_test_pred_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y_pred_test_scaled[cursor:cursor+k])
-            Y_test_true_unscaled[cursor:cursor+k] = scaler.inverse_transform(Y[a:b])
-            cursor += k
-
-    # Überschreibe für nachfolgende Auswertung
-    Y_test_e = Y_test_true_unscaled[:, 0]
-    Y_test_f = Y_test_true_unscaled[:, 1]
-    Y_test_s = Y_test_true_unscaled[:, 2]
-    predictions_e = Y_test_pred_unscaled[:, 0]
-    predictions_f = Y_test_pred_unscaled[:, 1]
-    predictions_s = Y_test_pred_unscaled[:, 2]
-    ###
-    '''
     # ------------------------------------------------------------------------------
     # Post-Processing
     # ------------------------------------------------------------------------------

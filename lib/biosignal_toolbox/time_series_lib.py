@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 import mne
 from os.path import dirname, join, abspath
 from scipy import signal as sig
-from scipy.signal import convolve, butter, sosfilt, sosfilt_zi, sosfiltfilt
+from scipy.signal import convolve, butter, sosfilt, sosfilt_zi, sosfiltfilt, savgol_filter, medfilt
 from scipy.fft import fft, fftfreq
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.decomposition import PCA
 from tensorflow.keras.utils import to_categorical
 import mne_features.univariate as mne_feat
@@ -2444,7 +2444,7 @@ class Timeseries():
         Last changed: 08.03.2024 (by Niklas Kueper)
         """   
 
-        print(f"feature shape: {self.feature_vec.shape}")
+        print(f"Feature shape: {self.feature_vec.shape}")
 
     def setWindowLabels(self, label_list):
         """
@@ -3044,29 +3044,141 @@ class Timeseries():
             features_mwc[window_idx, :] = np.mean(tfr_power, axis=-1).flatten()
         return features_mwc
             
-    def scaleFeatures_windows(self, train_data=None, test_data=None, val_data=None, method="StandardScaler"):
+    def scaleFeatures_windows(self, train_data=None, test_data=None, val_data=None, method="StandardScaler", feature_range=None):
         
-        if method == "StandardScaler":
+        if method.lower() == "standardscaler":
             scaler = StandardScaler()
-            if train_data is None and test_data is None and val_data is None: 
-                self.feature_vec = scaler.fit_transform(self.feature_vec)
-            else:
-                scaler.fit(train_data)
-                return scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
+        elif method.lower() == "minmaxscaler":
+            if feature_range is None:
+                warnings.warn("No feature range provided... Using (-1,1) as default")
+            scaler = MinMaxScaler(feature_range=(-1,1))
         else:
             warnings.warn("This method is not yet implemented! Returning without scaling!!")
-    
 
-    def reduceDimensions_windows(self, method="PCA", n_components='mle'):
+        if train_data is None and test_data is None and val_data is None: 
+            self.feature_vec = scaler.fit_transform(self.feature_vec)
+        else:
+            scaler.fit(train_data)
+            return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
+
+    def reduceDimensions_windows(self, train_data=None, test_data=None, val_data=None, method="PCA", n_components='mle'):
+
         if method == "PCA":
-            pca_decomposition = PCA(n_components=n_components)
-            print(f"Original feature vector shape: {self.feature_vec.shape}")
-            self.feature_vec = pca_decomposition.fit_transform(self.feature_vec)
-            print(f"Reduced feature vector shape: {self.feature_vec.shape}")
+            if train_data is None and test_data is None and val_data is None:
+                pca_decomposition = PCA(n_components=n_components)
+                print(f"Original feature vector shape: {self.feature_vec.shape}")
+                self.feature_vec = pca_decomposition.fit_transform(self.feature_vec)
+                print(f"Reduced feature vector shape: {self.feature_vec.shape}")
+            else:
+                pca_decomposition = PCA(n_components=n_components)
+                train_data_pca = pca_decomposition.fit_transform(train_data)
+                test_data_pca = pca_decomposition.transform(test_data)
+                val_data_pca = pca_decomposition.transform(val_data)
+                print(f"Reduced train_data feature shape: {train_data_pca.shape}")
+
+                return train_data_pca, test_data_pca, val_data_pca
         else:
             warnings.warn("This method is not yet implemented! Returning without dimension reduction!!")
+    
+    def applySavitskyGolayFilter_features(self, window_length=11, poly_order=3):
 
+        self.feature_vec = savgol_filter(x=self.feature_vec, 
+                                         window_length=window_length, 
+                                         polyorder=poly_order,
+                                         axis=0)
+    
+    def applyMedianFilter_features(self, window_length=5):
+        
+        self.feature_vec = medfilt(volume=self.feature_vec,
+                                   kernel_size=(window_length,1))
+    
+    @staticmethod
+    def stackHistory_windows(x_inp=None, y_inp=None, history_len=3):
 
+        if x_inp is None and y_inp is None:
+            raise ValueError("Please ensure x_inp and/or y_inp is provided!!")
+        
+        if x_inp is not None:
+            x_inp_hist = np.zeros((x_inp.shape[0]-history_len, history_len*x_inp.shape[1]))
+        else:
+            x_inp_hist = None
+
+        if y_inp is not None:
+            y_inp_hist = np.zeros((y_inp.shape[0]-history_len, y_inp.shape[1]))
+        else:
+            y_inp_hist = None
+
+        for i in range(history_len, (x_inp.shape[0] if x_inp is not None else y_inp.shape[0])):
+            if x_inp is not None:
+                x_inp_hist[i-history_len] = x_inp[i-history_len:i].flatten()
+            if y_inp is not None:
+                y_inp_hist[i-history_len] = y_inp[i-1]
+        
+        return x_inp_hist, y_inp_hist
+
+    @staticmethod
+    def stackHistoryCat_windows(x_num=None, y_num=None, x_cat=None, history_len=3):
+        # Find points where category changes
+        cat_diff = np.any(np.diff(x_cat, axis=0) != 0, axis=1)  # True where category changes
+        change_indices = np.where(cat_diff)[0] + 1  # add 1 to get start of new sequence
+        split_indices = np.concatenate([[0], change_indices, [len(x_cat)]])  # start and end
+
+        x_hist_list = []
+        y_hist_list = []
+        hist_indices = []
+
+        # Loop over sequences
+        for start, end in zip(split_indices[:-1], split_indices[1:]):
+            seq_len = end - start
+            if seq_len >= history_len:
+                for j in range(start + history_len, end):
+                    x_hist_list.append(x_num[j-history_len:j].flatten())
+                    if y_num is not None:
+                        y_hist_list.append(y_num[j])
+                    hist_indices.append((j-history_len, j))
+
+        x_hist = np.array(x_hist_list)
+        y_hist = np.array(y_hist_list) if y_num is not None else None
+
+        return x_hist, y_hist, hist_indices
+    
+    @staticmethod
+    def stackHistoryCatMeta_windows(x_num=None, y_num=None, x_cat=None, history_len=3, wgt=None, mov=None):
+        # Find points where category changes
+        cat_diff = np.any(np.diff(x_cat, axis=0) != 0, axis=1)  # True where category changes
+        change_indices = np.where(cat_diff)[0] + 1  # add 1 to get start of new sequence
+        split_indices = np.concatenate([[0], change_indices, [len(x_cat)]])  # start and end
+
+        x_hist_list = []
+        y_hist_list = []
+        meatdata = []
+
+        # Loop over sequences
+        for start, end in zip(split_indices[:-1], split_indices[1:]):
+            seq_len = end - start
+            if seq_len >= history_len:
+                for j in range(start + history_len, end):
+                    x_hist_list.append(x_num[j-history_len:j].flatten())
+                    if y_num is not None:
+                        y_hist_list.append(y_num[j])
+                    meatdata.append({
+                        'hist_indices': (j-history_len, j),
+                        'wgt': wgt,
+                        'mov': mov
+                        })
+
+        x_hist = np.array(x_hist_list)
+        y_hist = np.array(y_hist_list) if y_num is not None else None
+
+        return x_hist, y_hist, meatdata
+    
+    @staticmethod
+    def convertMetaToArray(meta=None):
+        wgt_arr = np.array([m['wgt'] for m in meta]).reshape(-1,1)
+        mov_arr = np.array([m['mov'] for m in meta]).reshape(-1,1)
+        return wgt_arr, mov_arr
+    
+    
     def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True):
         """
         This is a general plotting function for the EMG plots. This method will be deprecated in the future and replaced by mne methods for visualisation.

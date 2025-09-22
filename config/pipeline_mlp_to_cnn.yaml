@@ -1,0 +1,114 @@
+# This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
+---
+  filepath:
+    data_path: 'data/jte/'
+
+    emg_path: 'emg/BU62D/'
+    emg_file_prefix: '24072025_BU62D'
+
+    quali_torque_path: 'quali/BU62D/torques_kartik/'
+    quali_torque_prefix: [ 'quali_torque_elbow_24_07_2025', 'quali_torque_shoulder_front_24_07_2025', 'quali_torque_shoulder_side_24_07_2025' ]
+
+    fig_save_path: 'data/test/'
+    quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
+
+    save_model_path:          'data/jte/ml_models/BU62D/'
+    save_features_path:       'data/jte/features/BU62D/'
+    saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
+  
+  data_param:
+    weights:                  ['0g', '1100g', '1850g']
+    # weights:                  ['1100g', '1850g']
+    mov_type:                 ['grasp', 'complex']
+    # weights:                  ['1850g']
+    # mov_type:                 ['complex']
+    set_num:                  ['1', '2', '3', '4']
+    subject_code:             ['BU62D']
+    subject_weight:           80    #weight in kg
+    subject_bio_sex:          'male'
+    subject_hand_len:         113  #wrist to 3rd knuckle len mm
+  
+  preprocess_param:
+    channel_names_emg:        ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
+    channel_names_quali:      ['right', 'marker']
+    window_size_x:            50  #samples
+    window_size_y:            50  #samples
+    window_step:              25  #samples
+    target_feature_select:    'end'
+
+    f_samp:                   500
+    f_cutoff_hpf:             15  #cutoff freq for bandpass 
+    f_cutoff_lpf:             200 #cutoff freq for bandpass 
+    filter_order:             2
+
+    f_cutoff_sm_lpf:          5   #cutoff freq for smoothing
+    sm_filter_order:          4   #filter order smoothing lpf
+
+    filter_method:            'zero_phase'
+    var_filter_width:         20
+    normalisation_method:     'channel_wise_mvc'
+
+    use_activation_fncn:      True
+    act_delay:                25
+    act_beta1:                0.25
+    act_beta2:                0.05
+    act_gamma:                0.7
+    act_A:                    -1.5
+
+    is_save_features:         False
+    
+  
+  model_param:
+    n_epochs:                 300
+    batch_size:               32
+
+    loss_fcn:                 'weighted_huber'
+    huber_weight_method:      'smooth_var'
+    huber_deltas:             [0.25, 0.35, 0.2]
+    optimizer:                'nadam'
+    metrics:                  'mse'
+
+    train_test_split:         0.9
+    validation_split:         0.15
+
+    is_early_stop:            True
+    monitor:                  'val_loss'
+    min_delta:                0.01
+    patience:                 30
+    verbose:                  0
+    baseline:                 null
+    restore_best_weights:     True
+    start_from_epoch:         0
+
+    neurons_h1:               256
+    neurons_h2:               128
+    neurons_h3:               32
+    neurons_h4:               16
+    neurons_out:              3
+
+    act_h1:                   'relu'
+    act_h2:                   'relu'
+    act_h3:                   'relu'
+    act_h4:                   'relu'
+    act_out:                  'tanh' 
+
+    is_save_model:            False
+    load_models:              False
+    show_train_results:       False
+
+  post_train_param:
+    eval_type:                'offline' 
+    filter_type:              'median'
+    filter_size:              5
+    savgol_window_len:        21
+    savgol_poly_order:        2    
+    is_save_plot:             False
+  
+  plot_param:
+    is_plot_raw:              False
+    is_plot_quali:            False
+    is_plot_hpf:              False
+    is_plot_var_filter:       False
+    is_plot_smoothed:         False
+    is_plot_act:              False
+    is_plot_filt_win:         False        

@@ -11,7 +11,7 @@
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
   data_param:
-    weights: ['0g', '1100g', '1850g']
+    weights: ['1100g', '1850g']
     mov_type: [ 'grasp', 'complex']
     set_num: [ '1', '2', '3', '4' ]
     subject_code: [ 'BU62D' ]
@@ -21,7 +21,7 @@
 
   workflow_param:
     use_seed:               True
-    seed:                   42
+    seed:                   50
     model_train:            True
     old_preprocessing_mode: False
     input_mode:             "time" # options: "time", "freq", "time+freq", "time+temporal"
@@ -30,8 +30,8 @@
   preprocess_param:
     channel_names_emg:    ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:  ['right', 'left']
-    window_size_x:        100  #samples
-    window_size_y:        100  # samples
+    window_size_x:        50  #samples
+    window_size_y:        50  # samples
     window_step:          25  #samples
     use_activation_fncn: True
     target_feature_select: 'end'
@@ -53,15 +53,15 @@
     act_A:                -1.5
 
   model_param:
-    n_epochs:             100
-    batch_size:           256
+    n_epochs:             200
+    batch_size:           32
 
     loss_fcn:             'mse' # mse
     optimizer:            'adam'
 
     train_test_split:     0.9
     validation_split:     0.1
-    use_k_fold:           True
+    use_k_fold:           False
     k_fold_splits:        10
     k_fold_shuffle:       True
     shuffle_seed:         30
@@ -69,7 +69,7 @@
     is_early_stop:        True
     monitor:              'val_loss'
     min_delta:            0.0001
-    patience:             20
+    patience:             10
     verbose:              0
     baseline:             null
     restore_best_weights: True
