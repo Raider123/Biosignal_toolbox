@@ -731,7 +731,7 @@ for seed in seed_arr:
 
     #? Train model
     print("Training MLP model for elbow joint...")
-    save_model_path = cfg.filepath.save_model_path + filename_suffix
+    save_model_path = cfg.filepath.save_model_path
     # print(save_model_path)
     MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
                         model_filename=save_model_path, 

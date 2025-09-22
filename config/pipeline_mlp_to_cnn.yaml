@@ -12,7 +12,7 @@
     fig_save_path: 'data/test/'
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
-    save_model_path:          'data/jte/ml_models/BU62D/'
+    save_model_path:          "saved_models/NEW_MODELS"
     save_features_path:       'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
