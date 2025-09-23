@@ -694,6 +694,10 @@ rho_e_arr = []
 rho_sf_arr = []
 rho_ss_arr = []
 
+rmse_e_arr = []
+rmse_sf_arr = []
+rmse_ss_arr = []
+
 for seed in seed_arr:
     np.random.seed(seed)
     random.seed(seed)
@@ -822,12 +826,15 @@ for seed in seed_arr:
 
     r2_e_arr.append(r2_elbow)
     rho_e_arr.append(rho_elbow)
+    rmse_e_arr.append(rmse_elbow)
 
     r2_sf_arr.append(r2_front)
     rho_sf_arr.append(rho_front)
+    rmse_sf_arr.append(rmse_front)
 
     r2_ss_arr.append(r2_side)
     rho_ss_arr.append(rho_side)
+    rmse_ss_arr.append(rmse_side)
 
 
 print("The results across seed are...\n")
@@ -838,6 +845,10 @@ print(f"Side R2: {r2_ss_arr}\n")
 print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
 print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
 print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
+
+print(f"Elbow RMSE stats: Mean: {np.mean(rmse_e_arr)}  Std. : {np.std(rmse_e_arr)}")
+print(f"Front RMSE stats: Mean: {np.mean(rmse_sf_arr)}  Std. : {np.std(rmse_sf_arr)}")
+print(f"Side RMSE stats: Mean: {np.mean(rmse_ss_arr)}  Std. : {np.std(rmse_ss_arr)}\n")
 
 print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
