@@ -412,7 +412,7 @@ def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predict
     Author
     ------
     Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
+    Last changed : 25.09.2025 (by Anas Homsi)
     """
     #TODO: Improve to make it more general
     plt.figure()
