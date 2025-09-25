@@ -362,7 +362,7 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
         exit(1)
     
 
-def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Time in s", ylabel="", is_grid_on=True):
+def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Sample", ylabel="", is_grid_on=True, is_list=False):
     """
     This function plots the result of the BPNN model
 
@@ -384,18 +384,27 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
         ylabel for the plot, by default ""
     is_grid_on : bool, optional
         boolean to decide grid lines visibility, by default True
+    is_list: bool, optional
+        boolean to decide if the incoming predicted data is in a list, by default False
     
     Author
     ------
     Author : Kartik Chari \n
-    Last changed : 13.11.2024 (by Kartik Chari)
+    Last changed : 25.09.2025 (by Anas Homsi)
     """
     #TODO: Improve to make it more general
     plt.figure()
 
+    if is_list:
+        arr_data = np.vstack(data_out)
+        data_out = np.mean(arr_data, axis=0)
+        out_std = np.std(arr_data, axis=0)
+
     x_samples = np.arange(0, len(data_ref),1)
-    plt.plot(x_samples, data_ref, label=label_ref)
-    plt.plot(x_samples, data_out, ls="dashed", label=label_out)
+    plt.plot(x_samples, data_ref, ls="-.", label=label_ref, color = "red")
+    plt.plot(x_samples, data_out, ls="-", label=label_out, color="blue")
+    if is_list:
+        plt.fill_between(x_samples, data_out - out_std, data_out + out_std, color="blue", alpha=0.3)    
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
