@@ -53,20 +53,19 @@ class EMGPreprocessor:
         self.channelwise_mvc = None
         self.features = None
 
-    def load_emg_file(self, emg_filepath):
+    def load_emg_file(self, data_array):
         """
         Load a single EMG file.
 
         Parameters
         ----------
-        emg_filepath : str or Path
-            Path to the EMG.TXT file
+        data_array cf. EMGData class in emg_lib.py
         """
-        print(f"Loading EMG file: {emg_filepath}")
 
         self.emg_data = EMGData(
+            data_arr = data_array,
             format="ANTmini",
-            filenames=[emg_filepath],
+            filenames=None,
             data_path=self.cfg.filepath.data_path,
             f_samp=self.cfg.preprocess_param.f_samp,
             channel_names=self.cfg.preprocess_param.channel_names_emg
@@ -273,6 +272,8 @@ class EMGPreprocessor:
             method="StandardScaler"
         )
 
+        self.features = scaled_features
+
         '''
         # Dimensionality reduction with PCA
         self.features = self.emg_data.reduceDimensions_windows(
@@ -285,27 +286,24 @@ class EMGPreprocessor:
         
         # Extract Array from Tuple
         self.features = self.features[0]
-        '''
-        self.features = scaled_features
-
+        
         print(f"Features after PCA: {self.features.shape}")
         print("Feature scaling completed!\n")
-
-    def preprocess(self, emg_filepath):
+        '''
+    def preprocess(self, data_array):
         """
         Run the complete preprocessing pipeline.
 
         Parameters
         ----------
-        emg_filepath : str or Path
-            Path to the EMG.TXT file
+        data_array: cf. EMG_Data class in emg_lib.py
 
         Returns
         -------
         np.ndarray
             Preprocessed features ready for model input
         """
-        self.load_emg_file(emg_filepath)
+        self.load_emg_file(data_array)
         self.apply_bandpass_filter()
         self.apply_variance_filter()
         self.normalize_data()
@@ -370,14 +368,13 @@ class OnlineEMGPredictor:
         self.model = load_model(model_path, compile=False)
         print("Model loaded successfully!\n")
 
-    def predict(self, emg_filepath):
+    def predict(self, data_array):
         """
         Process EMG file and predict joint torques.
 
         Parameters
         ----------
-        emg_filepath : str or Path
-            Path to the single EMG.TXT file
+        data_array : Preloaded EMG Data (cf. EMGData class in emg_lib.py)
 
         Returns
         -------
@@ -385,7 +382,7 @@ class OnlineEMGPredictor:
             Predicted torques for [elbow, shoulder_front, shoulder_side]
         """
         # Preprocess the EMG data
-        features = self.preprocessor.preprocess(emg_filepath)
+        features = self.preprocessor.preprocess(data_array)
 
         # Reshape for CNN/TCN input: (samples, features, channels)
         n_features = features.shape[1]
@@ -433,6 +430,7 @@ class OnlineEMGPredictor:
                     kernel_size=self.cfg.post_train_param.filter_size
                 )
 
+        '''
         # Savitzky-Golay filter
         if getattr(self.cfg.post_train_param, 'savgol_window_len', None):
             print(f"Applying Savitzky-Golay filter (window: "
@@ -444,61 +442,33 @@ class OnlineEMGPredictor:
                     self.cfg.post_train_param.savgol_window_len,
                     self.cfg.post_train_param.savgol_poly_order
                 )
-
+        '''
         self.predictions = filtered_predictions
         print("Post-prediction filtering completed!\n")
 
         return self.predictions
 
-    def run(self, emg_filepath):
+    def run(self, data_arr):
         """
         Complete pipeline: preprocess, predict, and filter.
 
         Parameters
         ----------
-        emg_filepath : str or Path
-            Path to the single EMG.TXT file
+        data_array : Preloaded data (look into EMG_Data in emg_lib)
 
         Returns
         -------
         np.ndarray
             Final filtered torque predictions
         """
-        # Load model if not already loaded
+        # Load model if not already loaded (Hardcoded Model)
         if self.model is None:
             self.load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/saved_models/NEW_MODELS/tcn_mtl.keras/tcn_mtl.keras')
 
         # Predict
-        self.predict(emg_filepath)
+        self.predict(data_arr)
 
         # Apply post-filtering
         final_predictions = self.apply_post_filter()
 
         return final_predictions
-
-    def save_predictions(self, output_path, predictions=None):
-        """
-        Save predictions to file.
-
-        Parameters
-        ----------
-        output_path : str or Path
-            Path to save the predictions
-        predictions : np.ndarray, optional
-            Predictions to save. If None, uses self.predictions
-        """
-        if predictions is None:
-            predictions = self.predictions
-
-        if predictions is None:
-            warnings.warn("No predictions available to save!")
-            return
-
-        np.savetxt(
-            output_path,
-            predictions,
-            delimiter=',',
-            header='Elbow,Shoulder_Front,Shoulder_Side',
-            comments=''
-        )
-        print(f"Predictions saved to: {output_path}\n")
