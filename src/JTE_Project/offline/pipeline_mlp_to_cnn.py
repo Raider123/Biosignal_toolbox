@@ -15,6 +15,7 @@ from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
 import random
 from collections import defaultdict
+import os
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -611,7 +612,7 @@ for wgt_idx, wgt in enumerate(weights):
         X_val_cat = encoder.transform(X_val_cat)
 
         #? Creating history of features
-        history_len = 3
+        history_len = 1
         X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train, 
                                                                                 y_num=Y_train, 
                                                                                 x_cat=X_train_cat,
@@ -809,7 +810,8 @@ for seed in seed_arr:
     )
 
     # --- Train ---
-    save_model_path = cfg.filepath.save_model_path
+    #save_model_path = cfg.filepath.save_model_path F:\SMT_MASTERPROJEKT\biosignal_toolbox\src\JTE_Project\saved_models\NEW_MODELS\tcn_mtl.keras
+    save_model_path = 'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/saved_models/NEW_MODELS/tcn_mtl.keras'
 
     callbacks_list = [early_callback] if early_callback is not None else None
 
@@ -831,7 +833,7 @@ for seed in seed_arr:
 
     # Save model analogous to previous saving behaviour
     if cfg.model_param.is_save_model:
-        tcn_model.save(save_model_path)
+        tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
