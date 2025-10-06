@@ -101,7 +101,7 @@
     eval_type:                'offline' 
     filter_type:              'median'
     filter_size:              5
-    savgol_window_len:        21
+    savgol_window_len:        15
     savgol_poly_order:        2    
     is_save_plot:             False
   
