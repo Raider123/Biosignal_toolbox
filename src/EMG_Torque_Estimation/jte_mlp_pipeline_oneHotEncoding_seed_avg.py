@@ -114,7 +114,7 @@ EMG_Data = EMGData(format="ANTmini", filenames=emg_filenames, data_path=cfg.file
 # print(EMG_Data.events)
 #? Plotting the raw EMG data
 if cfg.plot_param.is_plot_raw:
-    EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
+    EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                         unit="uV", 
                         title="Raw EMG plot for Channel 5", 
                         xlabel="Time in s", 
@@ -248,7 +248,7 @@ EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
 
 #? Plot normalised and smoothened data
 if cfg.plot_param.is_plot_smoothed:
-    EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
+    EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                         unit="V", 
                         title="Normalised and Smoothed EMG plot for Channel 5", 
                         xlabel="Time in s", 
@@ -596,146 +596,229 @@ Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_t
                                                                   val_data=Y_val, 
                                                                   method="MinMaxScaler",
                                                                   feature_range=(-1,1))
+
 #! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
 
 # --- set global seed ---
-seed = 7
-np.random.seed(seed)
-random.seed(seed)
-tf.random.set_seed(seed)
+seed_arr = [1, 7, 25, 45, 70]
 
-neurons_inp = X_train.shape[1]
-#? Init model with norm layer
-train_model = AAN_Model(neurons_inp=neurons_inp, 
-                        neurons_h1=cfg.model_param.neurons_h1, 
-                        act_h1=cfg.model_param.act_h1, 
-                        neurons_h2=cfg.model_param.neurons_h2, 
-                        act_h2=cfg.model_param.act_h2,
-                        neurons_h3=cfg.model_param.neurons_h3, 
-                        act_h3=cfg.model_param.act_h3,
-                        neurons_h4=cfg.model_param.neurons_h4, 
-                        act_h4=cfg.model_param.act_h4,
-                        neuron_out=cfg.model_param.neurons_out,
-                        act_out=cfg.model_param.act_out)
+# Shape (seed, samples, joint)
+pred_results = np.zeros((len(seed_arr), Y_test.shape[0], 3))
 
-MLP_model = MLModel(model = train_model, type= "keras")
+r2_e_pre_arr = []
+r2_sf_pre_arr = []
+r2_ss_pre_arr = []
 
-#? Set the weights and deltas for weighted huber
-if cfg.model_param.huber_weight_method == 'var':
-    var_torques = np.var(Y_train, axis=0, ddof=1)
-    weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
-    # weights_inp = weights_inp / np.sum(weights_inp)
-    max_weight = np.percentile(weights_inp, 95)
-    min_weight = np.percentile(weights_inp, 5)
-    weights_inp = np.clip(weights_inp, min_weight, max_weight)
-    weights_inp = weights_inp / np.mean(weights_inp)
-elif cfg.model_param.huber_weight_method == 'smooth_var':
-    weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
-                                   clip_percentile=[5,75],
-                                   window_len=5,
-                                   poly_order=2)
-elif cfg.model_param.huber_weight_method == 'manual':
-    weights_inp = [5,5,1]
-elif cfg.model_param.huber_weight_method == 'dynamic_huber':
-    weights_inp = [1,1,1]
-else:
-    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
+rho_e_pre_arr = []
+rho_sf_pre_arr = []
+rho_ss_pre_arr = []
 
-MLP_model.setHuberWeights(weights_inp=weights_inp)
-MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
+rmse_e_pre_arr = []
+rmse_sf_pre_arr = []
+rmse_ss_pre_arr = []
 
-#? Train model
-print("Training MLP model for elbow joint...")
-save_model_path = cfg.filepath.save_model_path + filename_suffix
-# print(save_model_path)
-MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
-                     model_filename=save_model_path, 
-                     train_epochs=cfg.model_param.n_epochs, 
-                     batch_size=cfg.model_param.batch_size, 
-                     class_weights=None, 
-                     x_train=X_train, 
-                     y_train=Y_train, 
-                     x_val=X_val,
-                     y_val=Y_val,
-                     loss_fcn=cfg.model_param.loss_fcn, 
-                     optimizer=cfg.model_param.optimizer, 
-                     metrics=cfg.model_param.metrics, 
-                     show_train_results=cfg.model_param.show_train_results, 
-                     callbacks=early_callback)
-print("MLP training done!!\n")
+r2_e_arr = []
+r2_sf_arr = []
+r2_ss_arr = []
 
-#? Predict and get results 
-print("Predicting joint torques...")
-MLP_model.predictTarget(data=X_test, 
-                          labels=Y_test, 
-                          classification=False, 
-                          show_results=False, 
-                          show_pred_time=False, 
-                          eval_type=cfg.post_train_param.eval_type)
+rho_e_arr = []
+rho_sf_arr = []
+rho_ss_arr = []
 
-perf_results_MLP_scaled = MLP_model.getPredictionScores()
+rmse_e_arr = []
+rmse_sf_arr = []
+rmse_ss_arr = []
 
-#? Rescaling output
-# max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
-# perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
-# Y_ref = Y_test * max_torques.flatten()
+for idx in range(len(seed_arr)):
+    np.random.seed(seed_arr[idx])
+    random.seed(seed_arr[idx])
+    tf.random.set_seed(seed_arr[idx])
+    tf.config.experimental.enable_op_determinism()
+    print(f"Seed: {seed_arr[idx]}")
 
-perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
-Y_ref = Y_scaler.inverse_transform(Y_test)
+    neurons_inp = X_train.shape[1]
+    #? Init model with norm layer
+    train_model = AAN_Model(neurons_inp=neurons_inp, 
+                            neurons_h1=cfg.model_param.neurons_h1, 
+                            act_h1=cfg.model_param.act_h1, 
+                            neurons_h2=cfg.model_param.neurons_h2, 
+                            act_h2=cfg.model_param.act_h2,
+                            neurons_h3=cfg.model_param.neurons_h3, 
+                            act_h3=cfg.model_param.act_h3,
+                            neurons_h4=cfg.model_param.neurons_h4, 
+                            act_h4=cfg.model_param.act_h4,
+                            neuron_out=cfg.model_param.neurons_out,
+                            act_out=cfg.model_param.act_out)
 
-MLP_model.setPredictionScores(perf_results_MLP)
+    MLP_model = MLModel(model = train_model, type= "keras")
 
-print("Pre-filtering Eval Metrics!!")
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-_,_ = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
-print("\n")
-#! ************************************************
-#! Post-prediction Filtering
-#! ************************************************
-#? Median filter for removing spikes/outliers
-MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
-                                 window_length=cfg.post_train_param.filter_size)
-#? Savitsky Golay filter
-MLP_model.applyFilter_prediction(method="savgol",
-                                 window_length=cfg.post_train_param.savgol_window_len,
-                                 poly_order=cfg.post_train_param.savgol_poly_order)
+    #? Set the weights and deltas for weighted huber
+    if cfg.model_param.huber_weight_method == 'var':
+        var_torques = np.var(Y_train, axis=0, ddof=1)
+        weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
+        # weights_inp = weights_inp / np.sum(weights_inp)
+        max_weight = np.percentile(weights_inp, 95)
+        min_weight = np.percentile(weights_inp, 5)
+        weights_inp = np.clip(weights_inp, min_weight, max_weight)
+        weights_inp = weights_inp / np.mean(weights_inp)
+    elif cfg.model_param.huber_weight_method == 'smooth_var':
+        weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
+                                    clip_percentile=[5,75],
+                                    window_len=5,
+                                    poly_order=2)
+    elif cfg.model_param.huber_weight_method == 'manual':
+        weights_inp = [5,5,1]
+    elif cfg.model_param.huber_weight_method == 'dynamic_huber':
+        weights_inp = [1,1,1]
+    else:
+        raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
 
-perf_results_MLP = MLP_model.getPredictionScores()
-# print(perf_results_MLP.shape)
+    MLP_model.setHuberWeights(weights_inp=weights_inp)
+    MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
-#? Calculate the model eval metrics on the filtered predicted values
-print("Post-filtering Eval Metrics!!")
-r2_elbow, rmse_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-r2_front, rmse_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
+    #? Train model
+    print("Training MLP model for elbow joint...")
+    save_model_path = cfg.filepath.save_model_path + filename_suffix
+    # print(save_model_path)
+    MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
+                        model_filename=save_model_path, 
+                        train_epochs=cfg.model_param.n_epochs, 
+                        batch_size=cfg.model_param.batch_size, 
+                        class_weights=None, 
+                        x_train=X_train, 
+                        y_train=Y_train, 
+                        x_val=X_val,
+                        y_val=Y_val,
+                        loss_fcn=cfg.model_param.loss_fcn, 
+                        optimizer=cfg.model_param.optimizer, 
+                        metrics=cfg.model_param.metrics, 
+                        show_train_results=cfg.model_param.show_train_results, 
+                        callbacks=early_callback)
+    print("MLP training done!!\n")
+
+    #? Predict and get results 
+    print("Predicting joint torques...")
+    MLP_model.predictTarget(data=X_test, 
+                            labels=Y_test, 
+                            classification=False, 
+                            show_results=False, 
+                            show_pred_time=False, 
+                            eval_type=cfg.post_train_param.eval_type)
+
+    perf_results_MLP_scaled = MLP_model.getPredictionScores()
+
+    #? Rescaling output
+    # max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
+    # perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
+    # Y_ref = Y_test * max_torques.flatten()
+
+    perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
+    Y_ref = Y_scaler.inverse_transform(Y_test)
+
+    MLP_model.setPredictionScores(perf_results_MLP)
+
+    print("Pre-filtering Eval Metrics!!")
+    r2_elbow_pre, rmse_elbow_pre, rho_elbow_pre = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0], is_Pearson=True)
+    r2_front_pre, rmse_front_pre, rho_front_pre = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1], is_Pearson=True)
+    r2_side_pre, rmse_side_pre, rho_side_pre = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2], is_Pearson=True)
+    print("\n")
+    #! ************************************************
+    #! Post-prediction Filtering
+    #! ************************************************
+    #? Median filter for removing spikes/outliers
+    MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
+                                    window_length=cfg.post_train_param.filter_size)
+    #? Savitsky Golay filter
+    MLP_model.applyFilter_prediction(method="savgol",
+                                    window_length=cfg.post_train_param.savgol_window_len,
+                                    poly_order=cfg.post_train_param.savgol_poly_order)
+
+    perf_results_MLP = MLP_model.getPredictionScores()
+    # print(perf_results_MLP.shape)
+
+    pred_results[idx, :, 0] = perf_results_MLP[:,0]
+    pred_results[idx, :, 1] = perf_results_MLP[:,1]
+    pred_results[idx, :, 2] = perf_results_MLP[:,2]
+
+    #? Calculate the model eval metrics on the filtered predicted values
+    print("Post-filtering Eval Metrics!!")
+    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0], is_Pearson=True)
+    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1], is_Pearson=True)
+    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2], is_Pearson=True)
+
+    #? Append pre-filtering metrics into the arrays
+    r2_e_pre_arr.append(r2_elbow_pre)
+    rho_e_pre_arr.append(rho_elbow_pre)
+    rmse_e_pre_arr.append(rmse_elbow_pre)
+
+    r2_sf_pre_arr.append(r2_front_pre)
+    rho_sf_pre_arr.append(rho_front_pre)
+    rmse_sf_pre_arr.append(rmse_front_pre)
+
+    r2_ss_pre_arr.append(r2_side_pre)
+    rho_ss_pre_arr.append(rho_side_pre)
+    rmse_ss_pre_arr.append(rmse_side_pre)
+
+    #? Append post-filtering metrics into the arrays
+    r2_e_arr.append(r2_elbow)
+    rho_e_arr.append(rho_elbow)
+    rmse_e_arr.append(rmse_elbow)
+
+    r2_sf_arr.append(r2_front)
+    rho_sf_arr.append(rho_front)
+    rmse_sf_arr.append(rmse_front)
+
+    r2_ss_arr.append(r2_side)
+    rho_ss_arr.append(rho_side)
+    rmse_ss_arr.append(rmse_side)
+
+
+
+print("The results across seed are...\n")
+print(f"Elbow R2: {r2_e_arr}")
+print(f"Front R2: {r2_sf_arr}")
+print(f"Side R2: {r2_ss_arr}\n")
+
+print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
+print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
+print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
+
+print(f"Elbow RMSE stats: Mean: {np.mean(rmse_e_arr)}  Std. : {np.std(rmse_e_arr)}")
+print(f"Front RMSE stats: Mean: {np.mean(rmse_sf_arr)}  Std. : {np.std(rmse_sf_arr)}")
+print(f"Side RMSE stats: Mean: {np.mean(rmse_ss_arr)}  Std. : {np.std(rmse_ss_arr)}\n")
+
+print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
+print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
+print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
+
 
 #? Plotting the filtered prediction results
-plotResults(data_ref=Y_ref[:,0],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,0], 
-            label_out="predicted torque", 
-            title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
+time_axis = np.arange(0, len(Y_ref[:,0]), 1)*0.05
+#? time: first 10 sec
+idx_5s = time_axis <=5
+time_axis_5s = time_axis[idx_5s]
 
-plotResults(data_ref=Y_ref[:,1],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,1], 
-            label_out="predicted torque", 
-            title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
+joint_names = ['Elbow', 'Shoulder_Front', 'Shoulder Side']
 
-plotResults(data_ref=Y_ref[:,2],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,2], 
-            label_out="predicted torque", 
-            title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
+for j in range(len(joint_names)):
+    # ax = axes[j]
+    # Mean and std across seeds
+    mean_pred = pred_results[:, idx_5s, j].mean(axis=0)
+    std_pred = pred_results[:, idx_5s, j].std(axis=0)
+
+    plt.figure(figsize=(8,4))
+    
+    plt.plot(time_axis_5s, Y_ref[idx_5s, j], label='Ref. torque', color='black')
+    plt.plot(time_axis_5s, mean_pred, label='Predicted Torque', color='blue')
+    plt.fill_between(time_axis_5s, mean_pred - std_pred, mean_pred + std_pred, color='blue', alpha=0.3)
+    
+    plt.xlabel('Time (s)')
+    plt.ylabel('Joint Torque (N m)')
+    plt.legend()
+
+    plt.tight_layout()
 
 #? Showing the plots
 plt.show()
@@ -749,25 +832,56 @@ if cfg.post_train_param.is_save_plot:
         createReadme(param_obj=cfg,
                      dir_path=dir_path)
         
-        figs = [("elbow", Y_ref[:, 0], perf_results_MLP[:, 0],
-         f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}"),
-        ("front", Y_ref[:, 1], perf_results_MLP[:, 1],
-         f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}"),
-        ("side", Y_ref[:, 2], perf_results_MLP[:, 2],
-         f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}"),]
+        filename = filename_suffix + "eval_metrics.npz"
+        np.savez_compressed(dir_path / filename,
+                    rmse_elbow_pre=rmse_e_pre_arr,
+                    rmse_front_pre=rmse_sf_pre_arr,
+                    rmse_side_pre=rmse_ss_pre_arr,
+                    r2_elbow_pre=r2_e_pre_arr,
+                    r2_front_pre=r2_sf_pre_arr,
+                    r2_side_pre=r2_ss_pre_arr,
+                    rho_elbow_pre=rho_e_pre_arr,
+                    rho_front_pre=rho_sf_pre_arr,
+                    rho_side_pre=rho_ss_pre_arr,
+                    rmse_elbow_post=rmse_e_arr,
+                    rmse_front_post=rmse_sf_arr,
+                    rmse_side_post=rmse_ss_arr,
+                    r2_elbow_post=r2_e_arr,
+                    r2_front_post=r2_sf_arr,
+                    r2_side_post=r2_ss_arr,
+                    rho_elbow_post=rho_e_arr,
+                    rho_front_post=rho_sf_arr,
+                    rho_side_post=rho_ss_arr)
         
-        for name, ref, out, title in figs:
-            plt.figure()
-            plotResults(data_ref=ref,
-            label_ref="real torque", 
-            data_out=out, 
-            label_out="predicted torque", 
-            title=title, 
-            ylabel="Torque in N-m", 
-            is_grid_on=True)
+        filename = filename_suffix + "pred_results.npz"
+        np.savez_compressed(dir_path / filename,
+                    pred_results=pred_results,
+                    ref_target=Y_ref)
 
-            plt.savefig(dir_path / f"test_{name}.png")
-            plt.close()
-        print(f"✅ Saved all plots in {dir_path}")
+        print(f"✅ Saved all files in {dir_path}")
+        # time_axis = np.arange(0, len(Y_ref[:,0]), 1)*0.05
+        # #? time: first 10 sec
+        # idx_5s = time_axis <=5
+        # time_axis_5s = time_axis[idx_5s]
+
+        # for j in range(len(joint_names)):
+        #     # ax = axes[j]
+        #     # Mean and std across seeds
+        #     mean_pred = pred_results[:, idx_5s, j].mean(axis=0)
+        #     std_pred = pred_results[:, idx_5s, j].std(axis=0)
+
+        #     plt.figure(figsize=(8,8))
+            
+        #     plt.plot(time_axis_5s, Y_ref[idx_5s, j], label='Ref. torque', color='black')
+        #     plt.plot(time_axis_5s, mean_pred, label='Predicted Torque', color='blue')
+        #     plt.fill_between(time_axis_5s, mean_pred - std_pred, mean_pred + std_pred, color='blue', alpha=0.3)
+            
+        #     plt.xlabel('Time (s)')
+        #     plt.ylabel('Joint Torque (N m)')
+        #     plt.legend()
+        
+        #     plt.tight_layout()
+        #     plt.savefig(dir_path / f"band_plot_{joint_names[j]}.png")
+
 else:
     print("❌ Plots not saved.")

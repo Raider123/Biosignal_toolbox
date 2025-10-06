@@ -139,12 +139,12 @@ for wgt_idx, wgt in enumerate(weights):
         # print(EMG_Data.events)
         #? Plotting the raw EMG data
         if cfg.plot_param.is_plot_raw:
-            EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
+            EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
                                 unit="uV", 
                                 title="Raw EMG plot for Channel 5", 
-                                xlabel="Time in s", 
-                                ylabel="Voltage in uV", 
-                                is_grid_on=True)
+                                xlabel="Time (s)", 
+                                ylabel="Voltage (u V)", 
+                                is_grid_on=False)
 
         # #? Loading the target values for the 3 joints
         print("Creating Quali Elbow object...")
@@ -203,7 +203,7 @@ for wgt_idx, wgt in enumerate(weights):
                                     sos=sos_hp)
         #? Plotting bandpass filtered data
         if cfg.plot_param.is_plot_hpf:
-            EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
+            EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
                                 unit="uV", 
                                 title="Band-Pass Filtered plot for Channel 5", 
                                 xlabel="Time in s", 
@@ -231,9 +231,9 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                                 unit="uV", 
                                 title="Variance Filtered EMG plot for Channel 5", 
-                                xlabel="Time in s", 
-                                ylabel="Voltage in uV", 
-                                is_grid_on=True)
+                                xlabel="Time (s)", 
+                                ylabel="Voltage (u V)", 
+                                is_grid_on=False)
 
         #? Input Normalisation
         print("Calculating the channel-wise MVC for EMG...")
@@ -261,12 +261,12 @@ for wgt_idx, wgt in enumerate(weights):
 
         #? Plot normalised and smoothened data
         if cfg.plot_param.is_plot_smoothed:
-            EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
+            EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
                                 unit="V", 
                                 title="Normalised and Smoothed EMG plot for Channel 5", 
-                                xlabel="Time in s", 
-                                ylabel="Voltage in V", 
-                                is_grid_on=True)
+                                xlabel="Time (s)", 
+                                ylabel="Voltage (V)", 
+                                is_grid_on=False)
 
         #? Low pass filter to smoothen the torques
         Quali_Data_Elbow.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 

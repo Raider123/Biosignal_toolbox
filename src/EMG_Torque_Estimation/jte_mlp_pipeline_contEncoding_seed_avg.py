@@ -686,6 +686,22 @@ Y_val = np.concatenate(Y_val_combined, axis=0)
 
 # --- set global seed ---
 seed_arr = [1, 7, 25, 45, 70]
+
+# Shape (seed, samples, joint)
+pred_results = np.zeros((len(seed_arr), Y_test.shape[0], 3))
+
+r2_e_pre_arr = []
+r2_sf_pre_arr = []
+r2_ss_pre_arr = []
+
+rho_e_pre_arr = []
+rho_sf_pre_arr = []
+rho_ss_pre_arr = []
+
+rmse_e_pre_arr = []
+rmse_sf_pre_arr = []
+rmse_ss_pre_arr = []
+
 r2_e_arr = []
 r2_sf_arr = []
 r2_ss_arr = []
@@ -698,10 +714,11 @@ rmse_e_arr = []
 rmse_sf_arr = []
 rmse_ss_arr = []
 
-for seed in seed_arr:
-    np.random.seed(seed)
-    random.seed(seed)
-    tf.random.set_seed(seed)
+for idx in range(len(seed_arr)):
+    np.random.seed(seed_arr[idx])
+    random.seed(seed_arr[idx])
+    tf.random.set_seed(seed_arr[idx])
+    tf.config.experimental.enable_op_determinism()
 
     neurons_inp = X_train.shape[1]
     #? Init model with norm layer
@@ -795,9 +812,9 @@ for seed in seed_arr:
     MLP_model.setPredictionScores(perf_results_MLP)
 
     print("Pre-filtering Eval Metrics!!")
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1])
-    _,_ = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2])
+    r2_elbow_pre, rmse_elbow_pre, rho_elbow_pre = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0], is_Pearson=True)
+    r2_front_pre, rmse_front_pre, rho_front_pre = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1], is_Pearson=True)
+    r2_side_pre, rmse_side_pre, rho_side_pre = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2], is_Pearson=True)
     print("\n")
     #! ************************************************
     #! Post-prediction Filtering
@@ -813,6 +830,10 @@ for seed in seed_arr:
     perf_results_MLP = MLP_model.getPredictionScores()
     # print(perf_results_MLP.shape)
 
+    pred_results[idx, :, 0] = perf_results_MLP[:,0]
+    pred_results[idx, :, 1] = perf_results_MLP[:,1]
+    pred_results[idx, :, 2] = perf_results_MLP[:,2]
+
     #? Calculate the model eval metrics on the filtered predicted values
     print("Post-filtering Eval Metrics!!")
     r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], 
@@ -824,6 +845,20 @@ for seed in seed_arr:
                                                                 perf_results_MLP[:,2],
                                                                 is_Pearson=True)
 
+    #? Append pre-filtering metrics into the arrays
+    r2_e_pre_arr.append(r2_elbow_pre)
+    rho_e_pre_arr.append(rho_elbow_pre)
+    rmse_e_pre_arr.append(rmse_elbow_pre)
+
+    r2_sf_pre_arr.append(r2_front_pre)
+    rho_sf_pre_arr.append(rho_front_pre)
+    rmse_sf_pre_arr.append(rmse_front_pre)
+
+    r2_ss_pre_arr.append(r2_side_pre)
+    rho_ss_pre_arr.append(rho_side_pre)
+    rmse_ss_pre_arr.append(rmse_side_pre)
+
+    #? Append post-filtering metrics into the arrays
     r2_e_arr.append(r2_elbow)
     rho_e_arr.append(rho_elbow)
     rmse_e_arr.append(rmse_elbow)
@@ -854,7 +889,45 @@ print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_ar
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
+#? Check if the save dir exists. If not create one
+#? Create a readme.txt and include all parameters in it
+if cfg.post_train_param.is_save_plot:
+    choice = input("Do you want to save the plots? (Y/N)").strip().lower()
+    if choice in ["y", "yes"]:
+        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
+        createReadme(param_obj=cfg,
+                     dir_path=dir_path)
+        
+        filename = filename_suffix + "eval_metrics.npz"
+        np.savez_compressed(dir_path / filename,
+                    rmse_elbow_pre=rmse_e_pre_arr,
+                    rmse_front_pre=rmse_sf_pre_arr,
+                    rmse_side_pre=rmse_ss_pre_arr,
+                    r2_elbow_pre=r2_e_pre_arr,
+                    r2_front_pre=r2_sf_pre_arr,
+                    r2_side_pre=r2_ss_pre_arr,
+                    rho_elbow_pre=rho_e_pre_arr,
+                    rho_front_pre=rho_sf_pre_arr,
+                    rho_side_pre=rho_ss_pre_arr,
+                    rmse_elbow_post=rmse_e_arr,
+                    rmse_front_post=rmse_sf_arr,
+                    rmse_side_post=rmse_ss_arr,
+                    r2_elbow_post=r2_e_arr,
+                    r2_front_post=r2_sf_arr,
+                    r2_side_post=r2_ss_arr,
+                    rho_elbow_post=rho_e_arr,
+                    rho_front_post=rho_sf_arr,
+                    rho_side_post=rho_ss_arr)
+        
+        filename = filename_suffix + "pred_results.npz"
+        np.savez_compressed(dir_path / filename,
+                    pred_results=pred_results,
+                    ref_target=Y_ref)
 
+        print(f"✅ Saved all files in {dir_path}")
+
+else:
+    print("❌ Plots not saved.")
 
     
 

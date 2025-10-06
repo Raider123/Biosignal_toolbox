@@ -3270,7 +3270,7 @@ class Timeseries():
         return wgt_arr, mov_arr
     
     
-    def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True):
+    def plotEMG(self, data=None, n_samples=None, unit="V", title="EMG Plot", xlabel="Time in s", ylabel="Voltage in uV", is_grid_on=True, is_title=True):
         """
         This is a general plotting function for the EMG plots. This method will be deprecated in the future and replaced by mne methods for visualisation.
 
@@ -3301,12 +3301,14 @@ class Timeseries():
         elif unit.lower() == "uv":
             y_inp = data * 1e6
 
-        plt.plot(x_inp, y_inp)
-        plt.title(title)
+        plt.plot(x_inp, y_inp, color='blue')
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
+        if is_title:
+            plt.title(title)
         if is_grid_on:
             plt.grid()
+        plt.tight_layout()
         
         plt.show()
                 
