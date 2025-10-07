@@ -434,7 +434,7 @@ class OnlineEMGPredictor:
                     kernel_size=self.cfg.post_train_param.filter_size
                 )
 
-        '''
+
         # Savitzky-Golay filter
         if getattr(self.cfg.post_train_param, 'savgol_window_len', None):
             print(f"Applying Savitzky-Golay filter (window: "
@@ -446,7 +446,7 @@ class OnlineEMGPredictor:
                     self.cfg.post_train_param.savgol_window_len,
                     self.cfg.post_train_param.savgol_poly_order
                 )
-        '''
+
         self.predictions = filtered_predictions
         print("Post-prediction filtering completed!\n")
 
