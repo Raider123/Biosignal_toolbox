@@ -25,12 +25,10 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
         #? create a qualisys motion data object
         qualisys_data = MotionData(data_path= cfg.filepath.data_path, 
                                    filename=cfg.filepath.quali_tsv_path+file.name)
+        
         #? calculate the torques from qualisys .tsv
-        qualisys_data.calculateTorque(body_weight_kg=cfg.data_param.subject_weight, 
-                                      obj_weight_g=int(re.search(r"\d+", wgt_idx).group()), 
-                                      subject_biological_sex=cfg.data_param.subject_bio_sex, 
-                                      subject_hand_length_mm=cfg.data_param.subject_hand_len, 
-                                      method="com")
+        qualisys_data.calculateTorque(body_weight_kg=cfg.data_param.subject_weight, obj_weight_g=int(re.search(r"\d+", wgt_idx).group()), subject_biological_sex=cfg.data_param.subject_bio_sex, subject_hand_length_mm=cfg.data_param.subject_hand_len, method="com")
+
         #? save the torques into individual .npy files
         qualisys_data.saveTorques_npy(save_torques=False, 
                                       save_dir=cfg.filepath.quali_torques_save_path, 

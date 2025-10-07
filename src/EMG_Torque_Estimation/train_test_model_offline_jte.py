@@ -30,13 +30,7 @@ cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
-                                                      min_delta=cfg.model_param.min_delta, 
-                                                      patience=cfg.model_param.patience, 
-                                                      verbose=cfg.model_param.verbose, 
-                                                      baseline=cfg.model_param.baseline, 
-                                                      restore_best_weights=cfg.model_param.restore_best_weights, 
-                                                      start_from_epoch=cfg.model_param.start_from_epoch)
+    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights, start_from_epoch=cfg.model_param.start_from_epoch)
 else:
     early_callback = None
 
@@ -61,9 +55,18 @@ Y_train = feat_inp['Y_train']
 Y_test = feat_inp['Y_test']
 Y_val = feat_inp['Y_val']
 
-Y_scaler = load(feature_dir / cfg.filepath.saved_features[1])
+scaler_inp = load(feature_dir / cfg.filepath.saved_features[1])
 
-#! ************************************************
+#? Uncomment if you want to load features from individual condition features
+# scaler_idx = 1
+# Y_scaler_dict = scaler_inp["Y_scaler_dict"]
+# Y_scaler_info = scaler_inp["Y_scaler_info"]
+
+#? Uncomment if you want to load features from entire dataset together
+scaler_idx = 0
+Y_scaler = scaler_inp
+
+##! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
 
@@ -92,24 +95,29 @@ MLP_model = MLModel(model = train_model, type= "keras")
 #? Set the weights and deltas for weighted huber
 if cfg.model_param.huber_weight_method == 'var':
     var_torques = np.var(Y_train, axis=0, ddof=1)
-    weights_inp = 1.0 / (var_torques ** 1)
-    weights_inp = weights_inp / np.sum(weights_inp)
+    weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
+    # weights_inp = weights_inp / np.sum(weights_inp)
     max_weight = np.percentile(weights_inp, 95)
     min_weight = np.percentile(weights_inp, 5)
     weights_inp = np.clip(weights_inp, min_weight, max_weight)
+    weights_inp = weights_inp / np.mean(weights_inp)
+elif cfg.model_param.huber_weight_method == 'smooth_var':
+    weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
+                                   clip_percentile=[5,75],
+                                   window_len=5,
+                                   poly_order=2)
 elif cfg.model_param.huber_weight_method == 'manual':
     weights_inp = [5,5,1]
 elif cfg.model_param.huber_weight_method == 'dynamic_huber':
     weights_inp = [1,1,1]
 else:
-    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var', 'manual', and 'dynamic_huber'!!")
-
+    raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
 
 MLP_model.setHuberWeights(weights_inp=weights_inp)
 MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
 #? Train model
-print("Training MLP model for all joints...")
+print("Training MLP model for elbow joint...")
 save_model_path = cfg.filepath.save_model_path + filename_suffix
 # print(save_model_path)
 MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
@@ -126,20 +134,6 @@ MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model,
                      metrics=cfg.model_param.metrics, 
                      show_train_results=cfg.model_param.show_train_results, 
                      callbacks=early_callback)
-
-# MLP_model.trainModel_dynamicHuber(train_epochs=cfg.model_param.n_epochs, 
-#                      batch_size=cfg.model_param.batch_size, 
-#                      x_train=X_train, 
-#                      y_train=Y_train, 
-#                      x_val=X_val,
-#                      y_val=Y_val,
-#                      loss_fcn=cfg.model_param.loss_fcn, 
-#                      optimizer=cfg.model_param.optimizer, 
-#                      metrics=cfg.model_param.metrics, 
-#                      update_every=15,
-#                      factor=10.0,
-#                      alpha=0.3)
-
 print("MLP training done!!\n")
 
 #? Predict and get results 
@@ -154,12 +148,23 @@ MLP_model.predictTarget(data=X_test,
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
 
 #? Rescaling output
-# max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
-# perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
-# Y_ref = Y_test * max_torques.flatten()
+if scaler_idx:
+    Y_ref = []
+    perf_results_MLP = []
 
-perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
-Y_ref = Y_scaler.inverse_transform(Y_test)
+    for wgt, mov, start_idx, end_idx in Y_scaler_info:
+        Y_ref_scaled = Y_test[start_idx:end_idx]
+        Y_pred_scaled = perf_results_MLP_scaled[start_idx:end_idx]
+
+        scaler = Y_scaler_dict[wgt][mov]
+        Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
+        perf_results_MLP.append(scaler.inverse_transform(Y_pred_scaled))
+
+    Y_ref = np.concatenate(Y_ref, axis=0)
+    perf_results_MLP = np.concatenate(perf_results_MLP, axis=0)
+else:
+    perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
+    Y_ref = Y_scaler.inverse_transform(Y_test)
 
 MLP_model.setPredictionScores(perf_results_MLP)
 
@@ -191,24 +196,24 @@ r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:
 #? Plotting the filtered prediction results
 plotResults(data_ref=Y_ref[:,0],
             label_ref="real torque", 
-            data_out=perf_results_MLP[:,0], 
-            label_out="predicted torque", 
+            data_pred=perf_results_MLP[:,0], 
+            label_pred="predicted torque", 
             title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
 
 plotResults(data_ref=Y_ref[:,1],
             label_ref="real torque", 
-            data_out=perf_results_MLP[:,1], 
-            label_out="predicted torque", 
+            data_pred=perf_results_MLP[:,1], 
+            label_pred="predicted torque", 
             title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
 
 plotResults(data_ref=Y_ref[:,2],
             label_ref="real torque", 
-            data_out=perf_results_MLP[:,2], 
-            label_out="predicted torque", 
+            data_pred=perf_results_MLP[:,2], 
+            label_pred="predicted torque", 
             title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
             ylabel="Torque in N-m", 
             is_grid_on=True)
@@ -236,8 +241,8 @@ if cfg.post_train_param.is_save_plot:
             plt.figure()
             plotResults(data_ref=ref,
             label_ref="real torque", 
-            data_out=out, 
-            label_out="predicted torque", 
+            data_pred=out, 
+            label_pred="predicted torque", 
             title=title, 
             ylabel="Torque in N-m", 
             is_grid_on=True)
@@ -247,4 +252,3 @@ if cfg.post_train_param.is_save_plot:
         print(f"✅ Saved all plots in {dir_path}")
 else:
     print("❌ Plots not saved.")
-        

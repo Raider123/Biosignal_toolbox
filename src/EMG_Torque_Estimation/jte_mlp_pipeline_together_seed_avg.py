@@ -1,30 +1,47 @@
 
-#* This script preprocesses EMG and Qualisys data, extracts relevant temporal, spectral and time-freq features and saves them into a numpy file
-
 #! ************************************************
 #! Imports
 #! ************************************************
 
 import numpy as np
+import tensorflow as tf
 import matplotlib.pyplot as plt
 import itertools
 from copy import deepcopy
 from sklearn.model_selection import train_test_split
-from datetime import datetime
-from joblib import dump
 from sklearn.preprocessing import OneHotEncoder
+from datetime import datetime
+import random
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
-from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
+from biosignal_toolbox.ML_lib import MLModel
+from biosignal_toolbox.models.AANModel import AAN_Model
+from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
 
 import warnings
 warnings.formatwarning = customWarningFormat
 
+#! ************************************************
+#! User Parameters and Data Collection
+#! ************************************************
+
 #? load config file
 config_filename = 'emg_torque_estimation_jte_oneHotEncoding.yaml'
 cfg = loadConfig(filename=config_filename)
+
+#? init early stopping 
+if cfg.model_param.is_early_stop:
+    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
+                                                      min_delta=cfg.model_param.min_delta, 
+                                                      patience=cfg.model_param.patience, 
+                                                      verbose=cfg.model_param.verbose, 
+                                                      baseline=cfg.model_param.baseline, 
+                                                      restore_best_weights=cfg.model_param.restore_best_weights, 
+                                                      start_from_epoch=cfg.model_param.start_from_epoch)
+else:
+    early_callback = None
 
 #? filename suffix
 timestamp = datetime.now().strftime("%y%m%d_%H%M%S")
@@ -279,72 +296,51 @@ if cfg.plot_param.is_plot_act:
                         is_grid_on=True)
 
 #? Windowing the data
-emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, 
-                                    stopmarkernumber=2, 
-                                    window_size=cfg.preprocess_param.window_size_x, 
-                                    window_step=cfg.preprocess_param.window_step, 
-                                    start_index_offset=0, 
-                                    start_channel_pick=0, 
-                                    end_channel_pick=8, 
-                                    return_window_end_indices=True)
+emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
 
-_, _ = EMG_Data_freq.windowContinuousData(startmarkernumber=1, 
-                                    stopmarkernumber=2, 
-                                    window_size=cfg.preprocess_param.window_size_x, 
-                                    window_step=cfg.preprocess_param.window_step, 
-                                    start_index_offset=0, 
-                                    start_channel_pick=0, 
-                                    end_channel_pick=8, 
-                                    return_window_end_indices=True)
+_, _ = EMG_Data_freq.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
 
-quali_window_boundary_idx, _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1, 
-                                            return_window_end_indices=True)
+quali_window_boundary_idx, _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
 
-_, _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, 
-                                            window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1,
-                                            return_window_end_indices=True)
+_, _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
 
-_, _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, 
-                                            window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1,
-                                            return_window_end_indices=True)
+_, _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
+
 #? Ensure the number of windows of each file are the same for inp and target
+ref_emg_window_boundary_idx = emg_window_boundary_idx
+ref_quali_window_boundary_idx = quali_window_boundary_idx
+
+slice_ref = []
 if emg_window_boundary_idx == quali_window_boundary_idx:
     print("Window boundary indices match!!")
 else:
-    ref_window_boundary_idx = []
-    for emg_win, quali_e_win in zip(emg_window_boundary_idx, quali_window_boundary_idx):
-        if emg_win != quali_e_win:
-            print(f"Window mismatch -> EMG: {emg_win}; Quali: {quali_e_win}")
-        ref_window_boundary_idx.append(min(emg_win, quali_e_win))
-    #? Slice and concat windows
-    if ref_window_boundary_idx != emg_window_boundary_idx:
-        EMG_Data.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                       start_slice=emg_window_boundary_idx)
-        EMG_Data_freq.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                       start_slice=emg_window_boundary_idx)
-    if ref_window_boundary_idx != quali_window_boundary_idx:
-        Quali_Data_Elbow.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-        Quali_Data_Front.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-        Quali_Data_Side.sliceAndConcatWindows(end_slice=ref_window_boundary_idx,
-                                               start_slice=quali_window_boundary_idx)
-    print("Windows sliced and equalled!!")
+    for idx, (emg_win, quali_win) in enumerate(zip(emg_window_boundary_idx, quali_window_boundary_idx)):
+        if emg_win != quali_win:
+            delta = emg_win - quali_win  # positive if EMG is larger
+            print(f"Window mismatch -> EMG: {emg_win}; Quali: {quali_win}; Delta: {delta}")
+            for i in range(idx, len(emg_window_boundary_idx)):
+                emg_window_boundary_idx[i] -= delta
+            slice_ref.append((idx, delta))
+
+#? Slice and concat windows
+if len(slice_ref) > 0:
+    for i in range (len(slice_ref)):
+        idx, delta = slice_ref[i]
+        if delta > 0:
+            windows_to_remove = list(range(ref_emg_window_boundary_idx[idx]-1, ref_emg_window_boundary_idx[idx]-1+delta))
+            print(windows_to_remove)
+            EMG_Data.windows = np.delete(EMG_Data.getWindows(), windows_to_remove, axis=-1)
+            EMG_Data_freq.windows = np.delete(EMG_Data_freq.getWindows(), windows_to_remove, axis=-1)
+        elif delta <0:
+            print("Entered quali part")
+            delta = np.abs(delta)
+            windows_to_remove = list(range(ref_quali_window_boundary_idx[idx-1], ref_quali_window_boundary_idx[idx-1+delta]))
+            Quali_Data_Elbow.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+            Quali_Data_Front.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+            Quali_Data_Side.windows = np.delete(Quali_Data_Elbow.getWindows(), idx, axis=-1)
+
+ref_window_boundary_idx = emg_window_boundary_idx
+print("Windows sliced and equalled!!")
     
 assert EMG_Data.windows.shape[3] == Quali_Data_Elbow.windows.shape[3]
 
@@ -565,23 +561,291 @@ Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_t
                                                                   method="MinMaxScaler",
                                                                   feature_range=(-1,1))
 
-#? Save features
-if cfg.preprocess_param.is_save_features:
-    save_path = getAbsolutePath(input_path=cfg.filepath.save_features_path)
-    if cfg.preprocess_param.use_activation_fncn:
-        filename_suffix = filename_suffix + "_act"
-    else:
-        filename_suffix = filename_suffix
-    filename_npz = "features_ohe_" + filename_suffix
-    filename_pkl = "scaler_ohe_" + filename_suffix
+#! ************************************************
+#! Train, Load, or Test Model
+#! ************************************************
 
-    np.savez_compressed(save_path / (filename_npz+".npz"), 
-                        X_train=X_train,
-                        Y_train=Y_train,
-                        X_test=X_test,
-                        Y_test=Y_test,
-                        X_val=X_val,
-                        Y_val=Y_val)
+# --- set global seed ---
+seed_arr = [1, 7, 25, 45, 70]
+
+# Shape (seed, samples, joint)
+pred_results = np.zeros((len(seed_arr), Y_test.shape[0], 3))
+
+r2_e_pre_arr = []
+r2_sf_pre_arr = []
+r2_ss_pre_arr = []
+
+rho_e_pre_arr = []
+rho_sf_pre_arr = []
+rho_ss_pre_arr = []
+
+rmse_e_pre_arr = []
+rmse_sf_pre_arr = []
+rmse_ss_pre_arr = []
+
+r2_e_arr = []
+r2_sf_arr = []
+r2_ss_arr = []
+
+rho_e_arr = []
+rho_sf_arr = []
+rho_ss_arr = []
+
+rmse_e_arr = []
+rmse_sf_arr = []
+rmse_ss_arr = []
+
+for idx in range(len(seed_arr)):
+    np.random.seed(seed_arr[idx])
+    random.seed(seed_arr[idx])
+    tf.random.set_seed(seed_arr[idx])
+    tf.config.experimental.enable_op_determinism()
+    print(f"Seed: {seed_arr[idx]}")
+
+    neurons_inp = X_train.shape[1]
+    #? Init model with norm layer
+    train_model = AAN_Model(neurons_inp=neurons_inp, 
+                            neurons_h1=cfg.model_param.neurons_h1, 
+                            act_h1=cfg.model_param.act_h1, 
+                            neurons_h2=cfg.model_param.neurons_h2, 
+                            act_h2=cfg.model_param.act_h2,
+                            neurons_h3=cfg.model_param.neurons_h3, 
+                            act_h3=cfg.model_param.act_h3,
+                            neurons_h4=cfg.model_param.neurons_h4, 
+                            act_h4=cfg.model_param.act_h4,
+                            neuron_out=cfg.model_param.neurons_out,
+                            act_out=cfg.model_param.act_out)
+
+    MLP_model = MLModel(model = train_model, type= "keras")
+
+    #? Set the weights and deltas for weighted huber
+    if cfg.model_param.huber_weight_method == 'var':
+        var_torques = np.var(Y_train, axis=0, ddof=1)
+        weights_inp = 1.0 / (var_torques ** 0.5 + 1e-6)
+        # weights_inp = weights_inp / np.sum(weights_inp)
+        max_weight = np.percentile(weights_inp, 95)
+        min_weight = np.percentile(weights_inp, 5)
+        weights_inp = np.clip(weights_inp, min_weight, max_weight)
+        weights_inp = weights_inp / np.mean(weights_inp)
+    elif cfg.model_param.huber_weight_method == 'smooth_var':
+        weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
+                                    clip_percentile=[5,75],
+                                    window_len=5,
+                                    poly_order=2)
+    elif cfg.model_param.huber_weight_method == 'manual':
+        weights_inp = [5,5,1]
+    elif cfg.model_param.huber_weight_method == 'dynamic_huber':
+        weights_inp = [1,1,1]
+    else:
+        raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}... Please choose between 'var','smooth_var', 'manual', and 'dynamic_huber'!!")
+
+    MLP_model.setHuberWeights(weights_inp=weights_inp)
+    MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
+
+    #? Train model
+    print("Training MLP model for elbow joint...")
+    save_model_path = cfg.filepath.save_model_path + filename_suffix
+    # print(save_model_path)
+    MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model, 
+                        model_filename=save_model_path, 
+                        train_epochs=cfg.model_param.n_epochs, 
+                        batch_size=cfg.model_param.batch_size, 
+                        class_weights=None, 
+                        x_train=X_train, 
+                        y_train=Y_train, 
+                        x_val=X_val,
+                        y_val=Y_val,
+                        loss_fcn=cfg.model_param.loss_fcn, 
+                        optimizer=cfg.model_param.optimizer, 
+                        metrics=cfg.model_param.metrics, 
+                        show_train_results=cfg.model_param.show_train_results, 
+                        callbacks=early_callback)
+    print("MLP training done!!\n")
+
+    #? Predict and get results 
+    print("Predicting joint torques...")
+    MLP_model.predictTarget(data=X_test, 
+                            labels=Y_test, 
+                            classification=False, 
+                            show_results=False, 
+                            show_pred_time=False, 
+                            eval_type=cfg.post_train_param.eval_type)
+
+    perf_results_MLP_scaled = MLP_model.getPredictionScores()
+
+    #? Rescaling output
+    # max_torques = np.array([max_torque_e[0], max_torque_sf[0], max_torque_ss[0]])
+    # perf_results_MLP = perf_results_MLP_scaled * max_torques.flatten()
+    # Y_ref = Y_test * max_torques.flatten()
+
+    perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
+    Y_ref = Y_scaler.inverse_transform(Y_test)
+
+    MLP_model.setPredictionScores(perf_results_MLP)
+
+    print("Pre-filtering Eval Metrics!!")
+    r2_elbow_pre, rmse_elbow_pre, rho_elbow_pre = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0], is_Pearson=True)
+    r2_front_pre, rmse_front_pre, rho_front_pre = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1], is_Pearson=True)
+    r2_side_pre, rmse_side_pre, rho_side_pre = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2], is_Pearson=True)
+    print("\n")
+    #! ************************************************
+    #! Post-prediction Filtering
+    #! ************************************************
+    #? Median filter for removing spikes/outliers
+    MLP_model.applyFilter_prediction(method=cfg.post_train_param.filter_type,
+                                    window_length=cfg.post_train_param.filter_size)
+    #? Savitsky Golay filter
+    MLP_model.applyFilter_prediction(method="savgol",
+                                    window_length=cfg.post_train_param.savgol_window_len,
+                                    poly_order=cfg.post_train_param.savgol_poly_order)
+
+    perf_results_MLP = MLP_model.getPredictionScores()
+    # print(perf_results_MLP.shape)
+
+    pred_results[idx, :, 0] = perf_results_MLP[:,0]
+    pred_results[idx, :, 1] = perf_results_MLP[:,1]
+    pred_results[idx, :, 2] = perf_results_MLP[:,2]
+
+    #? Calculate the model eval metrics on the filtered predicted values
+    print("Post-filtering Eval Metrics!!")
+    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0], is_Pearson=True)
+    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:,1], perf_results_MLP[:,1], is_Pearson=True)
+    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:,2], is_Pearson=True)
+
+    #? Append pre-filtering metrics into the arrays
+    r2_e_pre_arr.append(r2_elbow_pre)
+    rho_e_pre_arr.append(rho_elbow_pre)
+    rmse_e_pre_arr.append(rmse_elbow_pre)
+
+    r2_sf_pre_arr.append(r2_front_pre)
+    rho_sf_pre_arr.append(rho_front_pre)
+    rmse_sf_pre_arr.append(rmse_front_pre)
+
+    r2_ss_pre_arr.append(r2_side_pre)
+    rho_ss_pre_arr.append(rho_side_pre)
+    rmse_ss_pre_arr.append(rmse_side_pre)
+
+    #? Append post-filtering metrics into the arrays
+    r2_e_arr.append(r2_elbow)
+    rho_e_arr.append(rho_elbow)
+    rmse_e_arr.append(rmse_elbow)
+
+    r2_sf_arr.append(r2_front)
+    rho_sf_arr.append(rho_front)
+    rmse_sf_arr.append(rmse_front)
+
+    r2_ss_arr.append(r2_side)
+    rho_ss_arr.append(rho_side)
+    rmse_ss_arr.append(rmse_side)
+
+
+
+print("The results across seed are...\n")
+print(f"Elbow R2: {r2_e_arr}")
+print(f"Front R2: {r2_sf_arr}")
+print(f"Side R2: {r2_ss_arr}\n")
+
+print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
+print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
+print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
+
+print(f"Elbow RMSE stats: Mean: {np.mean(rmse_e_arr)}  Std. : {np.std(rmse_e_arr)}")
+print(f"Front RMSE stats: Mean: {np.mean(rmse_sf_arr)}  Std. : {np.std(rmse_sf_arr)}")
+print(f"Side RMSE stats: Mean: {np.mean(rmse_ss_arr)}  Std. : {np.std(rmse_ss_arr)}\n")
+
+print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
+print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
+print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
+
+
+#? Plotting the filtered prediction results
+time_axis = np.arange(0, len(Y_ref[:,0]), 1)*0.05
+#? time: first 10 sec
+idx = time_axis <=10
+time_axis_new = time_axis[idx]
+
+joint_names = ['Elbow', 'Shoulder_Front', 'Shoulder Side']
+
+for j in range(len(joint_names)):
+    # ax = axes[j]
+    # Mean and std across seeds
+    mean_pred = pred_results[:, idx, j].mean(axis=0)
+    std_pred = pred_results[:, idx, j].std(axis=0)
+
+    plt.figure(figsize=(8,4))
     
-    dump(Y_scaler, save_path / (filename_pkl+".pkl"))
-    print("Features saved in files!!")
+    plt.plot(time_axis_new, Y_ref[idx, j], label='Ref. torque', color='black')
+    plt.plot(time_axis_new, mean_pred, label='Predicted Torque', color='blue')
+    plt.fill_between(time_axis_new, mean_pred - std_pred, mean_pred + std_pred, color='blue', alpha=0.3)
+    
+    plt.xlabel('Time (s)')
+    plt.ylabel('Joint Torque (N m)')
+    plt.legend()
+
+    plt.tight_layout()
+
+#? Showing the plots
+plt.show()
+
+#? Check if the save dir exists. If not create one
+#? Create a readme.txt and include all parameters in it
+if cfg.post_train_param.is_save_plot:
+    choice = input("Do you want to save the plots? (Y/N)").strip().lower()
+    if choice in ["y", "yes"]:
+        dir_path = createOutputDir(param_obj=cfg, suffix_str="plot")
+        createReadme(param_obj=cfg,
+                     dir_path=dir_path)
+        
+        filename = filename_suffix + "eval_metrics.npz"
+        np.savez_compressed(dir_path / filename,
+                    rmse_elbow_pre=rmse_e_pre_arr,
+                    rmse_front_pre=rmse_sf_pre_arr,
+                    rmse_side_pre=rmse_ss_pre_arr,
+                    r2_elbow_pre=r2_e_pre_arr,
+                    r2_front_pre=r2_sf_pre_arr,
+                    r2_side_pre=r2_ss_pre_arr,
+                    rho_elbow_pre=rho_e_pre_arr,
+                    rho_front_pre=rho_sf_pre_arr,
+                    rho_side_pre=rho_ss_pre_arr,
+                    rmse_elbow_post=rmse_e_arr,
+                    rmse_front_post=rmse_sf_arr,
+                    rmse_side_post=rmse_ss_arr,
+                    r2_elbow_post=r2_e_arr,
+                    r2_front_post=r2_sf_arr,
+                    r2_side_post=r2_ss_arr,
+                    rho_elbow_post=rho_e_arr,
+                    rho_front_post=rho_sf_arr,
+                    rho_side_post=rho_ss_arr)
+        
+        filename = filename_suffix + "pred_results.npz"
+        np.savez_compressed(dir_path / filename,
+                    pred_results=pred_results,
+                    ref_target=Y_ref)
+
+        print(f"✅ Saved all files in {dir_path}")
+        # time_axis = np.arange(0, len(Y_ref[:,0]), 1)*0.05
+        # #? time: first 10 sec
+        # idx = time_axis <=5
+        # time_axis_new = time_axis[idx]
+
+        # for j in range(len(joint_names)):
+        #     # ax = axes[j]
+        #     # Mean and std across seeds
+        #     mean_pred = pred_results[:, idx, j].mean(axis=0)
+        #     std_pred = pred_results[:, idx, j].std(axis=0)
+
+        #     plt.figure(figsize=(8,8))
+            
+        #     plt.plot(time_axis_new, Y_ref[idx, j], label='Ref. torque', color='black')
+        #     plt.plot(time_axis_new, mean_pred, label='Predicted Torque', color='blue')
+        #     plt.fill_between(time_axis_new, mean_pred - std_pred, mean_pred + std_pred, color='blue', alpha=0.3)
+            
+        #     plt.xlabel('Time (s)')
+        #     plt.ylabel('Joint Torque (N m)')
+        #     plt.legend()
+        
+        #     plt.tight_layout()
+        #     plt.savefig(dir_path / f"band_plot_{joint_names[j]}.png")
+
+else:
+    print("❌ Plots not saved.")

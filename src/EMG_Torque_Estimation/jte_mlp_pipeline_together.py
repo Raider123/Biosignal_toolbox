@@ -1,5 +1,5 @@
 
-#* This script is the general training script for joint torque estimation using sEMG signals offline. It loads all the hyper-parameters from a yaml_config file.
+#* This script is the complete pipeline script for offline training and testing for joint torque estimation using sEMG signals. It performs channel-wise mvc on the complete dataset together.
 
 #! ************************************************
 #! Imports
@@ -20,7 +20,7 @@ from biosignal_toolbox.eeg_lib import EEGData
 from biosignal_toolbox.emg_lib import EMGData
 from biosignal_toolbox.ML_lib import MLModel
 from biosignal_toolbox.models.AANModel import AAN_Model
-from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults
+from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, createOutputDir, createReadme, plotResults, setPltParams
 
 import warnings
 warnings.formatwarning = customWarningFormat
@@ -30,18 +30,12 @@ warnings.formatwarning = customWarningFormat
 #! ************************************************
 
 #? load config file
-config_filename = 'emg_torque_estimation_jte_oneHotEncoding.yaml'
+config_filename = 'emg_torque_estimation_jte.yaml'
 cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, 
-                                                      min_delta=cfg.model_param.min_delta, 
-                                                      patience=cfg.model_param.patience, 
-                                                      verbose=cfg.model_param.verbose, 
-                                                      baseline=cfg.model_param.baseline, 
-                                                      restore_best_weights=cfg.model_param.restore_best_weights, 
-                                                      start_from_epoch=cfg.model_param.start_from_epoch)
+    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights, start_from_epoch=cfg.model_param.start_from_epoch)
 else:
     early_callback = None
 
@@ -115,36 +109,36 @@ EMG_Data = EMGData(format="ANTmini", filenames=emg_filenames, data_path=cfg.file
 #? Plotting the raw EMG data
 if cfg.plot_param.is_plot_raw:
     EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
-                        unit="uV", 
-                        title="Raw EMG plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in uV", 
-                        is_grid_on=True)
+                     unit="uV", 
+                     title="Raw EMG plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in uV", 
+                     is_grid_on=True)
 
 # #? Loading the target values for the 3 joints
 print("Creating Quali Elbow object...")
 Quali_Data_Elbow = EEGData(format="NumpyQualisys", 
-                            filenames=quali_e_filenames,
-                            data_path=cfg.filepath.data_path, 
-                            f_samp=cfg.preprocess_param.f_samp, 
-                            channel_names=cfg.preprocess_param.channel_names_quali, 
-                            add_marker_channel=True)
+                           filenames=quali_e_filenames,
+                           data_path=cfg.filepath.data_path, 
+                           f_samp=cfg.preprocess_param.f_samp, 
+                           channel_names=cfg.preprocess_param.channel_names_quali, 
+                           add_marker_channel=True)
 
 print("Creating Quali Shoulder Front object...")
 Quali_Data_Front = EEGData(format="NumpyQualisys", 
-                            filenames=quali_sf_filenames,
-                            data_path=cfg.filepath.data_path, 
-                            f_samp=cfg.preprocess_param.f_samp, 
-                            channel_names=cfg.preprocess_param.channel_names_quali, 
-                            add_marker_channel=True)
+                           filenames=quali_sf_filenames,
+                           data_path=cfg.filepath.data_path, 
+                           f_samp=cfg.preprocess_param.f_samp, 
+                           channel_names=cfg.preprocess_param.channel_names_quali, 
+                           add_marker_channel=True)
 
 print("Creating Quali Shoulder Side object...")
 Quali_Data_Side = EEGData(format="NumpyQualisys", 
-                            filenames=quali_ss_filenames, 
-                            data_path=cfg.filepath.data_path, 
-                            f_samp=cfg.preprocess_param.f_samp, 
-                            channel_names=cfg.preprocess_param.channel_names_quali, 
-                            add_marker_channel=True)
+                          filenames=quali_ss_filenames, 
+                          data_path=cfg.filepath.data_path, 
+                          f_samp=cfg.preprocess_param.f_samp, 
+                          channel_names=cfg.preprocess_param.channel_names_quali, 
+                          add_marker_channel=True)
 
 
 channel_names = EMG_Data.getChannelNames()
@@ -157,8 +151,8 @@ if cfg.plot_param.is_plot_quali:
     plt.figure()
     plt.plot(np.arange(0,Quali_Data_Elbow.data[0,:].shape[0], 1)/Quali_Data_Elbow.f_samp,Quali_Data_Elbow.data[0,:])
     plt.title("Elbow Torque plot for right arm")
-    plt.xlabel("Time in s")
-    plt.ylabel("Torque in N-m")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Torque (N m)")
     plt.grid()
     plt.show()
 
@@ -169,21 +163,21 @@ if cfg.plot_param.is_plot_quali:
 #? High pass filter
 #* design the bandpass filter
 sos_hp = EMG_Data.designFilter(f_high=cfg.preprocess_param.f_cutoff_hpf,
-                                f_low=cfg.preprocess_param.f_cutoff_lpf,
-                                order=cfg.preprocess_param.filter_order,
-                                filter_type="scipy_butter",
-                                return_type="sos")
+                               f_low=cfg.preprocess_param.f_cutoff_lpf,
+                               order=cfg.preprocess_param.filter_order,
+                               filter_type="scipy_butter",
+                               return_type="sos")
 #* apply bandpass filter 
 EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
                             sos=sos_hp)
 #? Plotting bandpass filtered data
 if cfg.plot_param.is_plot_hpf:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
-                        unit="uV", 
-                        title="Band-Pass Filtered plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in uV", 
-                        is_grid_on=True)
+                     unit="uV", 
+                     title="Band-Pass Filtered plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in uV", 
+                     is_grid_on=True)
 
 EMG_Data_freq = deepcopy(EMG_Data)
     
@@ -193,8 +187,8 @@ width           = cfg.preprocess_param.var_filter_width
 ring_buffer     = np.zeros(width)
 index           = 0
 EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer, 
-                                width=width, 
-                                index=index)
+                                  width=width, 
+                                  index=index)
 print("Variance Filter applied!!\n")
 
 #? Plot and print specific variance filtered windows 
@@ -204,11 +198,11 @@ print("Variance Filter applied!!\n")
 
 if cfg.plot_param.is_plot_var_filter:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
-                        unit="uV", 
-                        title="Variance Filtered EMG plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in uV", 
-                        is_grid_on=True)
+                     unit="uV", 
+                     title="Variance Filtered EMG plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in uV", 
+                     is_grid_on=True)
 
 #? Input Normalisation
 print("Calculating the channel-wise MVC for EMG...")
@@ -238,10 +232,7 @@ print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
 #? Low pass filter to smoothen the EMG signal
 #* design the lowpass filter
-sos_lp = EMG_Data.designFilter(f_low=cfg.preprocess_param.f_cutoff_sm_lpf,
-                                order=cfg.preprocess_param.sm_filter_order,
-                                filter_type="scipy_butter",
-                                return_type="sos")
+sos_lp = EMG_Data.designFilter(f_low=cfg.preprocess_param.f_cutoff_sm_lpf, order=cfg.preprocess_param.sm_filter_order, filter_type="scipy_butter", return_type="sos")
 #* apply lpf filter 
 EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
                             sos=sos_lp)
@@ -249,98 +240,57 @@ EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
 #? Plot normalised and smoothened data
 if cfg.plot_param.is_plot_smoothed:
     EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
-                        unit="V", 
-                        title="Normalised and Smoothed EMG plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in V", 
-                        is_grid_on=True)
+                     unit="V", 
+                     title="Normalised and Smoothed EMG plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in V", 
+                     is_grid_on=True)
 
 #? Low pass filter to smoothen the torques
-Quali_Data_Elbow.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
-                                sos=sos_lp)
-Quali_Data_Front.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
-                            sos=sos_lp)
-Quali_Data_Side.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
-                            sos=sos_lp)
+Quali_Data_Elbow.filterData_offline(filter_method=cfg.preprocess_param.filter_method, sos=sos_lp)
+Quali_Data_Front.filterData_offline(filter_method=cfg.preprocess_param.filter_method, sos=sos_lp)
+Quali_Data_Side.filterData_offline(filter_method=cfg.preprocess_param.filter_method, sos=sos_lp)
 
 #? Plot normalised and smoothened data
 if cfg.plot_param.is_plot_smoothed:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
-                        unit="V", 
-                        title="Normalised and Smoothed EMG plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in V", 
-                        is_grid_on=True)
+                     unit="V", 
+                     title="Normalised and Smoothed EMG plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in V", 
+                     is_grid_on=True)
     Quali_Data_Side.plotEMG(data=Quali_Data_Side.data[0,:], 
-                        unit="V", 
-                        title="Normalised and Smoothed Elbow Torques plot", 
-                        xlabel="Time in s", 
-                        ylabel="Torque in N-m", 
-                        is_grid_on=True)
+                            unit="V", 
+                            title="Normalised and Smoothed Elbow Torques plot", 
+                            xlabel="Time in s", 
+                            ylabel="Torque in N-m", 
+                            is_grid_on=True)
 
 #? Calculate Neural Activation Force
 if cfg.preprocess_param.use_activation_fncn:
     print("Replacing sample with its force activation value...")
-    EMG_Data.calculateActivationForceFunction(d=cfg.preprocess_param.act_delay, 
-                                                b1=cfg.preprocess_param.act_beta1, 
-                                                b2=cfg.preprocess_param.act_beta2, 
-                                                g=cfg.preprocess_param.act_gamma, 
-                                                nonlinear_shape_factor=cfg.preprocess_param.act_A)
+    EMG_Data.calculateActivationForceFunction(d=cfg.preprocess_param.act_delay, b1=cfg.preprocess_param.act_beta1, b2=cfg.preprocess_param.act_beta2, g=cfg.preprocess_param.act_gamma, nonlinear_shape_factor=cfg.preprocess_param.act_A)
     print("Replaced each sample with its force activation value!!\n")
 
 #? Plot force activation data
 if cfg.plot_param.is_plot_act:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
-                        unit="V", 
-                        title="Force Activated EMG plot for Channel 5", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in V", 
-                        is_grid_on=True)
+                     unit="V", 
+                     title="Force Activated EMG plot for Channel 5", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in V", 
+                     is_grid_on=True)
 
 #? Windowing the data
-emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, 
-                                    stopmarkernumber=2, 
-                                    window_size=cfg.preprocess_param.window_size_x, 
-                                    window_step=cfg.preprocess_param.window_step, 
-                                    start_index_offset=0, 
-                                    start_channel_pick=0, 
-                                    end_channel_pick=8, 
-                                    return_window_end_indices=True)
+emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
 
-_, _ = EMG_Data_freq.windowContinuousData(startmarkernumber=1, 
-                                    stopmarkernumber=2, 
-                                    window_size=cfg.preprocess_param.window_size_x, 
-                                    window_step=cfg.preprocess_param.window_step, 
-                                    start_index_offset=0, 
-                                    start_channel_pick=0, 
-                                    end_channel_pick=8, 
-                                    return_window_end_indices=True)
+_, _ = EMG_Data_freq.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
 
-quali_window_boundary_idx, _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1, 
-                                            return_window_end_indices=True)
+quali_window_boundary_idx, _ = Quali_Data_Elbow.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
 
-_, _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, 
-                                            window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1,
-                                            return_window_end_indices=True)
+_, _ = Quali_Data_Front.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
 
-_, _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1, 
-                                            stopmarkernumber=2, 
-                                            window_size=cfg.preprocess_param.window_size_y, 
-                                            window_step=cfg.preprocess_param.window_step, 
-                                            start_index_offset=0, 
-                                            start_channel_pick=0, 
-                                            end_channel_pick=1,
-                                            return_window_end_indices=True)
+_, _ = Quali_Data_Side.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_y, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=1, return_window_end_indices=True)
 
 #? Ensure the number of windows of each file are the same for inp and target
 ref_emg_window_boundary_idx = emg_window_boundary_idx
@@ -416,12 +366,12 @@ x_cat = np.column_stack([weights_code, mov_code])
 #? Plot specific filtered windows for debugging
 if cfg.plot_param.is_plot_filt_win:
     EMG_Data.plotEMG(data=EMG_Data.getWindows()[0,4,:,18], #[trl,chn,smpl,wnd]
-                        n_samples= EMG_Data.getWindows().shape[2],
-                        unit="V", 
-                        title="Pre-processed EMG plot for Channel 5 Window 18", 
-                        xlabel="Time in s", 
-                        ylabel="Voltage in V", 
-                        is_grid_on=True)
+                     n_samples= EMG_Data.getWindows().shape[2],
+                     unit="V", 
+                     title="Pre-processed EMG plot for Channel 5 Window 18", 
+                     xlabel="Time in s", 
+                     ylabel="Voltage in V", 
+                     is_grid_on=True)
     
 #! ************************************************
 #! Feature Extraction
@@ -431,8 +381,7 @@ print("Extracting features from windowed data...")
 #? EMG signal timepoints feature extraction
 window_size_ms = cfg.preprocess_param.window_size_x * 1000 / EMG_Data.f_samp
 feature_indices_windows_x = np.array([0, window_size_ms])
-EMG_Data.featureExtractionFromWindows(feature_type="timepoints", 
-                                      feature_indices_windows=feature_indices_windows_x)
+EMG_Data.featureExtractionFromWindows(feature_type="timepoints", feature_indices_windows=feature_indices_windows_x)
 # EMG_Data.printFeatureShape()
 #? time domain feature extraction
 ## EMG Feature Extraction
@@ -442,8 +391,7 @@ EMG_Data.addFeatures(rms_feature)
 wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
 EMG_Data.addFeatures(wfl_feature)
 # print(EMG_Data.getFeatures()[1,:])
-ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), 
-                                                          threshold=0.02)    # Slope Sign Change
+ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), threshold=0.02)    # Slope Sign Change
 EMG_Data.addFeatures(ssc_feature)
 # print(EMG_Data.getFeatures()[1,:])
 
@@ -459,8 +407,7 @@ freqs = np.arange(start=50, stop=226, step=25)
 n_cycles = np.ones(len(freqs)) * 5
 n_cycles[0] = 3
 n_cycles[1] = 4
-mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
-                                                                  n_cycles=n_cycles)    # Morlet transform
+mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, n_cycles=n_cycles)    # Morlet transform
 EMG_Data.addFeatures(mwc_feature)
 # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
@@ -483,15 +430,9 @@ elif cfg.preprocess_param.target_feature_select == 'end':
 else:
     raise ValueError(f"Provided target_feature_select {cfg.preprocess_param.target_feature_select} is not yet implemented... Please choose between 'mean', 'mid', and 'end'")
 
-Quali_Data_Elbow.featureExtractionFromWindows(feature_type="timepoints", 
-                                                feature_indices_windows=feature_indices_windows_y,
-                                                use_mean=use_mean_bool)
-Quali_Data_Front.featureExtractionFromWindows(feature_type="timepoints", 
-                                                feature_indices_windows=feature_indices_windows_y,
-                                                use_mean=use_mean_bool)
-Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints", 
-                                                feature_indices_windows=feature_indices_windows_y,
-                                                use_mean=use_mean_bool)
+Quali_Data_Elbow.featureExtractionFromWindows(feature_type="timepoints", feature_indices_windows=feature_indices_windows_y, use_mean=use_mean_bool)
+Quali_Data_Front.featureExtractionFromWindows(feature_type="timepoints", feature_indices_windows=feature_indices_windows_y, use_mean=use_mean_bool)
+Quali_Data_Side.featureExtractionFromWindows(feature_type="timepoints", feature_indices_windows=feature_indices_windows_y, use_mean=use_mean_bool)
 print("Feature extraction from windowed data completed!!\n")
 
 #? Median filter on target values
@@ -543,19 +484,10 @@ X_val_cat = encoder.transform(X_val_cat)
 
 #? Creating history of features
 history_len = 3
-X_train, Y_train, ref_train_idx = EMG_Data.stackHistoryCat_windows(x_num=X_train, 
-                                                 y_num=Y_train, 
-                                                 x_cat=X_train_cat,
-                                                 history_len=history_len)
+X_train, Y_train, ref_train_idx = EMG_Data.stackHistoryCat_windows(x_num=X_train, y_num=Y_train, x_cat=X_train_cat, history_len=history_len)
 
-X_test, Y_test, ref_test_idx = EMG_Data.stackHistoryCat_windows(x_num=X_test, 
-                                               y_num=Y_test, 
-                                               x_cat=X_test_cat,
-                                               history_len=history_len)
-X_val, Y_val, ref_val_idx = EMG_Data.stackHistoryCat_windows(x_num=X_val, 
-                                             y_num=Y_val, 
-                                             x_cat=X_val_cat,
-                                             history_len=history_len)
+X_test, Y_test, ref_test_idx = EMG_Data.stackHistoryCat_windows(x_num=X_test, y_num=Y_test, x_cat=X_test_cat, history_len=history_len)
+X_val, Y_val, ref_val_idx = EMG_Data.stackHistoryCat_windows(x_num=X_val, y_num=Y_val, x_cat=X_val_cat, history_len=history_len)
 
 print(f"{history_len} feature vectors stacked together!!")
 print(f"Stacked x_train feature shape: {X_train.shape}")
@@ -591,11 +523,7 @@ X_test = np.concatenate([X_test, X_test_cat], axis=1)
 X_val = np.concatenate([X_val, X_val_cat], axis=1)
 
 #? Scale output features -> [-1,1] for tanh
-Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
-                                                                  test_data=Y_test, 
-                                                                  val_data=Y_val, 
-                                                                  method="MinMaxScaler",
-                                                                  feature_range=(-1,1))
+Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, test_data=Y_test, val_data=Y_val, method="MinMaxScaler", feature_range=(-1,1))
 #! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
@@ -632,10 +560,7 @@ if cfg.model_param.huber_weight_method == 'var':
     weights_inp = np.clip(weights_inp, min_weight, max_weight)
     weights_inp = weights_inp / np.mean(weights_inp)
 elif cfg.model_param.huber_weight_method == 'smooth_var':
-    weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train,
-                                   clip_percentile=[5,75],
-                                   window_len=5,
-                                   poly_order=2)
+    weights_inp = MLP_model.getSmoothVarWeights(y_train=Y_train, clip_percentile=[5,75], window_len=5, poly_order=2)
 elif cfg.model_param.huber_weight_method == 'manual':
     weights_inp = [5,5,1]
 elif cfg.model_param.huber_weight_method == 'dynamic_huber':
@@ -714,27 +639,27 @@ r2_side, rmse_side = MLModel.calculateEvalMetrics(Y_ref[:,2], perf_results_MLP[:
 
 #? Plotting the filtered prediction results
 plotResults(data_ref=Y_ref[:,0],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,0], 
-            label_out="predicted torque", 
+            label_ref="Ref. Torque", 
+            data_pred=perf_results_MLP[:,0], 
+            label_pred="Predicted Torque", 
             title=f"Elbow; RMSE: {rmse_elbow}N-m   R2: {r2_elbow}", 
-            ylabel="Torque in N-m", 
+            ylabel="Torque (N m)", 
             is_grid_on=True)
 
 plotResults(data_ref=Y_ref[:,1],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,1], 
-            label_out="predicted torque", 
+            label_ref="Ref. Torque", 
+            data_pred=perf_results_MLP[:,1], 
+            label_pred="Predicted Torque", 
             title=f"Shoulder Front; RMSE: {rmse_front}N-m   R2: {r2_front}", 
-            ylabel="Torque in N-m", 
+            ylabel="Torque (N m)", 
             is_grid_on=True)
 
 plotResults(data_ref=Y_ref[:,2],
-            label_ref="real torque", 
-            data_out=perf_results_MLP[:,2], 
-            label_out="predicted torque", 
+            label_ref="Ref. Torque", 
+            data_pred=perf_results_MLP[:,2], 
+            label_pred="Predicted Torque", 
             title=f"Shoulder Side; RMSE: {rmse_side}N-m   R2: {r2_side}", 
-            ylabel="Torque in N-m", 
+            ylabel="Torque (N m)", 
             is_grid_on=True)
 
 #? Showing the plots
@@ -759,11 +684,11 @@ if cfg.post_train_param.is_save_plot:
         for name, ref, out, title in figs:
             plt.figure()
             plotResults(data_ref=ref,
-            label_ref="real torque", 
-            data_out=out, 
-            label_out="predicted torque", 
+            label_ref="Ref. Torque", 
+            data_pred=out, 
+            label_pred="Predicted Torque", 
             title=title, 
-            ylabel="Torque in N-m", 
+            ylabel="Torque (N m)", 
             is_grid_on=True)
 
             plt.savefig(dir_path / f"test_{name}.png")

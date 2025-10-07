@@ -1,38 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
-# plt.style.use("seaborn-v0_8-white")
-plt.style.use("seaborn-v0_8-ticks")
-
-# Global font and figure settings
-plt.rcParams.update({
-    "font.family": "sans-serif",
-    "font.size": 12,          
-    "axes.labelsize": 9,
-    "axes.titlesize": 9,
-    "axes.labelweight": "bold",
-    "axes.labelsize": 12,
-    "axes.linewidth": 2.5,
-    "legend.fontsize": 12,
-    "xtick.labelsize": 12,
-    "ytick.labelsize": 12,
-    "lines.linewidth": 1.5,
-    "lines.markersize": 3,
-    "figure.figsize": (6.6, 4.0),  # column-width of figure(in inches)
-    "savefig.dpi": 300,
-    "savefig.bbox": "tight"
-})
-
-from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath, plotResults, createOutputDir, createReadme
+from biosignal_toolbox.utils import loadConfig, getAbsolutePath, plotResults, setPltParams
 
 
 config_filename = 'emg_torque_estimation_jte_oneHotEncoding.yaml'
 cfg = loadConfig(filename=config_filename)
 
-
 plots_path = getAbsolutePath(cfg.filepath.fig_save_path)
-plots_path = plots_path / "BU62D/250926_155316_plot1"
-filename = "250926_155002_grasp_complex_0gpred_results.npz"
+plots_path = plots_path / "BU62D/hri_all_weights_contEnc"
+filename = "250928_155659_grasp_complex_0g_1100g_1850gpred_results.npz"
 
 results = np.load(plots_path / filename)
 pred_results = results['pred_results']
@@ -40,26 +16,17 @@ Y_ref = results['ref_target']
 
 joint_names = ['Elbow', 'Shoulder_Front', 'Shoulder Side']
 time_axis = np.arange(0, len(Y_ref[:,0]), 1)*0.05
-#? time: first 10 sec
-idx_5s = time_axis <=5
-time_axis_5s = time_axis[idx_5s]
+#? time: from 18 sec to 28 sec
+idx = (time_axis <=28) & (time_axis >=18)
+time_axis_new = time_axis[idx]
 
+setPltParams(style="ticks")
 for j in range(len(joint_names)):
     # Mean and std across seeds
-    mean_pred = pred_results[:, idx_5s, j].mean(axis=0)
-    std_pred = pred_results[:, idx_5s, j].std(axis=0)
+    mean_pred = pred_results[:, idx, j].mean(axis=0)
+    std_pred = pred_results[:, idx, j].std(axis=0)
 
-    plt.figure()
-    
-    plt.plot(time_axis_5s, Y_ref[idx_5s, j], label='Ref. torque', color='red')
-    plt.plot(time_axis_5s, mean_pred, label='Predicted Torque', color='blue')
-    plt.fill_between(time_axis_5s, mean_pred - std_pred, mean_pred + std_pred, color='blue', alpha=0.3)
-    
-    plt.xlabel('Time (s)')
-    plt.ylabel('Joint Torque (N m)')
-    plt.legend(frameon=True)
-
-    plt.tight_layout()
+    plotResults(time_axis=time_axis_new, data_ref=Y_ref[idx,j], data_pred=mean_pred, label_ref='Ref. Torque', label_pred='Predicted Torque', is_band_plot=True, mean_inp=mean_pred, std_inp=std_pred)
 
 plt.show()
 
