@@ -192,6 +192,9 @@ class EMGPreprocessor:
         )
         print("Data windowed!\n")
 
+        # Output the windows.shape
+        print(self.emg_data.windows.shape)
+
     def extract_features(self):
         """Extract all features from windowed EMG data."""
         print("Extracting features from windowed data...")
@@ -290,6 +293,7 @@ class EMGPreprocessor:
         print(f"Features after PCA: {self.features.shape}")
         print("Feature scaling completed!\n")
         '''
+
     def preprocess(self, data_array):
         """
         Run the complete preprocessing pipeline.

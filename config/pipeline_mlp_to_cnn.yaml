@@ -32,9 +32,9 @@
   preprocess_param:
     channel_names_emg:        ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:      ['right', 'marker']
-    window_size_x:            50  #samples
+    window_size_x:            50  #samples -> means 50/500 = 100ms windows size
     window_size_y:            50  #samples
-    window_step:              25  #samples
+    window_step:              25  #samples -> 25/500 = 50ms window step, i.e. 25ms overlapping
     target_feature_select:    'end'
 
     f_samp:                   500

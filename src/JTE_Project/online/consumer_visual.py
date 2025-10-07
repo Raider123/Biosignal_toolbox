@@ -1,259 +1,226 @@
 """
 EMG Consumer with Real-time Visualization
 ------------------------------------------
-Monitors folder for EMG chunks and displays predictions in real-time.
-Shows live plots for Elbow, Shoulder Front, and Shoulder Side torques.
+Liest EMG-Daten direkt aus einer TXT-Datei,
+verarbeitet sie in überlappenden Fenstern (Sliding Window)
+und zeigt Echtzeit-Vorhersagen für Gelenkmomente.
 """
 
-from process_emg import OnlineEMGPredictor
 import numpy as np
 import time
-import pickle
-from pathlib import Path
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import threading
+from pathlib import Path
+from process_emg import OnlineEMGPredictor
 
 
-class EMGVisualConsumer:
+class EMGFileStreamVisualConsumer:
     """
-    Consumer with real-time visualization of predictions.
+    EMG Consumer, der direkt eine EMG.TXT-Datei verarbeitet
+    und Echtzeit-Vorhersagen mit Live-Visualisierung anzeigt.
     """
 
-    def __init__(self, input_folder, config_filename='pipeline_mlp_to_cnn.yaml'):
+    def __init__(self, emg_file, config_filename='pipeline_mlp_to_cnn.yaml', f_samp=500):
         """
-        Initialize consumer with visualization.
-
         Parameters
         ----------
-        input_folder : str
-            Folder to monitor for chunk files
+        emg_file : str
+            Pfad zur EMG.TXT-Datei
         config_filename : str
-            Configuration file for predictor
+            Konfigurationsdatei für den Prädiktor
+        f_samp : int
+            Abtastrate in Hz
         """
-        self.input_folder = input_folder
-        self.input_path = Path(input_folder)
-        self.input_path.mkdir(exist_ok=True)
+        self.emg_file = Path(emg_file)
+        self.f_samp = f_samp
 
-        # Initialize predictor
         print("=" * 70)
-        print("CONSUMER - Initializing with Real-time Visualization")
+        print("CONSUMER - Initializing (File Stream + Visualization)")
         print("=" * 70 + "\n")
 
+        # Predictor laden
         self.predictor = OnlineEMGPredictor(config_filename=config_filename)
 
-        # Data storage
-        self.chunks_processed = 0
-        self.processed_files = set()
+        # Datenstrukturen für Verlauf
         self.all_predictions = []
-        self.time_points = np.array([])  # Changed to numpy array
 
-        # For visualization
+        # Visualisierungsobjekte
         self.fig = None
         self.axes = None
         self.lines = []
 
-        # Threading control
-        self.running = True
-        self.processing_thread = None
+        self.elapsed_times = []  # speichert die Zeitachse
+        self.current_time = 0.0  # Start bei 0 s
 
+    # ---------------------------------------------------------------------
+    # Daten laden und vorbereiten
+    # ---------------------------------------------------------------------
+    def load_emg_file(self):
+        """Lädt EMG-Daten aus einer TXT-Datei."""
+        print(f"📂 Lade EMG-Datei: {self.emg_file}")
+        emg_data_raw = np.loadtxt(self.emg_file)
+        emg_data = emg_data_raw[:-1, :-2].T  # Kanäle x Samples
+        n_samples = emg_data.shape[1]
+        time_axis = np.arange(0, n_samples / self.f_samp, step=1 / self.f_samp)
+        print(f"   → Kanäle: {emg_data.shape[0]}, Samples: {n_samples}\n")
+        return emg_data, time_axis
+
+    # ---------------------------------------------------------------------
+    # Plot Setup
+    # ---------------------------------------------------------------------
     def setup_plot(self):
-        """Setup the real-time plot with 3 subplots."""
-        print("Setting up visualization...\n")
+        """Erstellt die Live-Visualisierung mit 3 Subplots."""
+        print("🎨 Setup der Visualisierung...\n")
 
-        # Create figure with 3 subplots
         self.fig, self.axes = plt.subplots(3, 1, figsize=(12, 8))
-        self.fig.suptitle('Real-time Joint Torque Predictions', fontsize=14, fontweight='bold')
+        self.fig.suptitle('Joint-Torque-Estimation (Realtime)', fontsize=14, fontweight='bold')
 
-        # Setup each subplot
         joint_names = ['Elbow', 'Shoulder Front', 'Shoulder Side']
         colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
 
         for i, (ax, name, color) in enumerate(zip(self.axes, joint_names, colors)):
             ax.set_ylabel(f'{name} Torque', fontsize=10)
-            ax.set_xlabel('Time (s)', fontsize=10)
+            ax.set_xlabel('Zeit (s)', fontsize=10)
             ax.grid(True, alpha=0.3)
-            ax.set_xlim(0, 10)  # Initial window
-            ax.set_ylim(-5, 5)  # Will auto-adjust
-
-            # Create line object
+            ax.set_xlim(0, 10)
+            ax.set_ylim(-5, 5)
             line, = ax.plot([], [], color=color, linewidth=1.5, label=name)
             self.lines.append(line)
             ax.legend(loc='upper right')
 
         plt.tight_layout()
 
-    def update_plot(self):
-        """Update the plot with current predictions."""
-        if not self.all_predictions:
+    # ---------------------------------------------------------------------
+    # Plot aktualisieren
+    # ---------------------------------------------------------------------
+    def update_plot(self, elapsed_times):
+        """Aktualisiert den Plot basierend auf der verstrichenen Zeit."""
+        # Validierung der Eingabedaten
+        if not self.all_predictions or not elapsed_times:
             return
 
-        # Stack all predictions
-        all_preds = np.vstack(self.all_predictions)
-        n_total = all_preds.shape[0]
+        try:
+            all_preds = np.vstack(self.all_predictions)
+        except ValueError as e:
+            print(f"Fehler beim Stacken der Predictions: {e}")
+            return
 
-        # Create/update time axis
-        if len(self.time_points) == 0:
-            # First time: create initial time points
-            self.time_points = np.arange(n_total) * 0.05  # 50ms per prediction
+        # WICHTIG: Zeitstempel für jede Prediction replizieren
+        predictions_per_timestamp = all_preds.shape[0] // len(elapsed_times)
+
+        if predictions_per_timestamp > 1:
+            # Jeden Zeitstempel entsprechend oft wiederholen
+            time_plot = np.repeat(elapsed_times, predictions_per_timestamp)
         else:
-            # Extend time points if we have new predictions
-            n_existing = len(self.time_points)
-            if n_total > n_existing:
-                last_time = self.time_points[-1]
-                n_new = n_total - n_existing
-                new_times = last_time + np.arange(1, n_new + 1) * 0.05
-                self.time_points = np.concatenate([self.time_points, new_times])
+            time_plot = np.array(elapsed_times)
 
-        time_axis = self.time_points[:n_total]
+        # Längenprüfung nach Replikation
+        if len(time_plot) != all_preds.shape[0]:
+            print(f"Warnung: Längen stimmen nicht überein - Times: {len(time_plot)}, Predictions: {all_preds.shape[0]}")
+            # Fallback: Kürze auf die kürzere Länge
+            min_len = min(len(time_plot), all_preds.shape[0])
+            time_plot = time_plot[:min_len]
+            all_preds = all_preds[:min_len]
 
-        # Update each line
+        # Sicherstellen, dass Daten vorhanden sind
+        if all_preds.shape[0] == 0 or time_plot.shape[0] == 0:
+            return
+
+        print("ELAPSED TIMES:", elapsed_times)
+        print(f"Time plot shape: {time_plot.shape}, Predictions shape: {all_preds.shape}")
+
         for i, line in enumerate(self.lines):
-            line.set_data(time_axis, all_preds[:, i])
-
-            # Auto-adjust y-limits with some margin
+            # Daten für die aktuelle Linie extrahieren
             y_data = all_preds[:, i]
-            if len(y_data) > 0:
+
+            # WICHTIG: set_data OHNE relim() aufrufen
+            line.set_data(time_plot, y_data)
+
+            # Dynamische Y-Achsen-Anpassung
+            if y_data.size > 0:
                 y_min, y_max = y_data.min(), y_data.max()
                 y_range = y_max - y_min
-                y_margin = max(y_range * 0.1, 0.5)  # At least 0.5 margin
+
+                # Verhindert Division durch Null bei konstanten Werten
+                if y_range > 1e-6:
+                    y_margin = y_range * 0.1
+                else:
+                    y_margin = 0.5
+
                 self.axes[i].set_ylim(y_min - y_margin, y_max + y_margin)
 
-            # Auto-adjust x-limits to show last 10 seconds
-            if len(time_axis) > 0:
-                if time_axis[-1] > 10:
-                    self.axes[i].set_xlim(time_axis[-1] - 10, time_axis[-1])
+            # X-Achse: letzte 10 Sekunden anzeigen
+            if len(time_plot) > 0:
+                if time_plot[-1] > 10:
+                    self.axes[i].set_xlim(time_plot[-1] - 10, time_plot[-1])
                 else:
-                    self.axes[i].set_xlim(0, max(10, time_axis[-1] + 1))
+                    self.axes[i].set_xlim(0, max(10, time_plot[-1] + 1))
 
-        # Refresh canvas
         try:
             self.fig.canvas.draw_idle()
             self.fig.canvas.flush_events()
-        except:
-            pass  # Ignore errors if window was closed
+        except Exception as e:
+            print(f"Fehler beim Aktualisieren der Canvas: {e}")
 
-    def process_chunks(self):
-        """Process chunks in background thread."""
+    # ---------------------------------------------------------------------
+    # Sliding-Window Verarbeitung
+    # ---------------------------------------------------------------------
+    def process_file_in_sliding_windows(self, window_size=500, step_size=20):
+        """Verarbeitet EMG-Daten in überlappenden Fenstern und aktualisiert Live-Plot."""
+        self.step_size = step_size
+
+        emg_data, time_axis = self.load_emg_file()
+        n_channels, n_samples = emg_data.shape
+        n_windows = (n_samples - window_size) // step_size + 1
+
         print("=" * 70)
-        print("CONSUMER - Monitoring folder and processing chunks...")
+        print(f"Starte Sliding-Window-Verarbeitung:")
+        print(f"   Fenstergröße = {window_size}, Schrittweite = {step_size}")
+        print(f"   Gesamtfenster: {n_windows}")
         print("=" * 70 + "\n")
 
-        while self.running:
-            # Get all chunk files
-            chunk_files = sorted(self.input_path.glob("chunk_*.pkl"))
-
-            # Process new files
-            for chunk_file in chunk_files:
-                if not self.running:
-                    break
-
-                if chunk_file.name in self.processed_files:
-                    continue
-
-                try:
-                    # Load chunk
-                    with open(chunk_file, 'rb') as f:
-                        emg_tuple = pickle.load(f)
-
-                    emg_data, time_axis_emg, metadata = emg_tuple
-                    self.chunks_processed += 1
-
-                    # Process chunk
-                    print(f"📥 Processing chunk {self.chunks_processed}: {chunk_file.name} "
-                          f"({metadata['chunk_index']+1}/{metadata['total_chunks']})")
-
-                    start_time = time.time()
-                    emg_obj = emg_data, time_axis_emg
-                    predictions = self.predictor.run(emg_obj)
-                    process_time = time.time() - start_time
-
-                    # Store predictions
-                    self.all_predictions.append(predictions)
-
-                    print(f"   ✓ Predicted {predictions.shape[0]} windows in {process_time:.3f}s\n")
-
-                    # Mark as processed
-                    self.processed_files.add(chunk_file.name)
-
-                except Exception as e:
-                    print(f"❌ Error processing {chunk_file.name}: {e}\n")
-                    import traceback
-                    traceback.print_exc()
-
-            # Check if done
-            done_file = self.input_path / "DONE.txt"
-            if done_file.exists():
-                # Wait a bit for remaining files
-                time.sleep(1)
-
-                # Check if all files processed
-                final_chunk_files = sorted(self.input_path.glob("chunk_*.pkl"))
-                if all(f.name in self.processed_files for f in final_chunk_files):
-                    print("\n" + "=" * 70)
-                    print("✓ All chunks processed!")
-                    print("=" * 70 + "\n")
-                    self.running = False
-                    break
-
-            # Wait before checking again
-            time.sleep(0.3)
-
-    def run(self):
-        """Run consumer with visualization."""
-        # Setup plot
         self.setup_plot()
-
-        # Start processing thread
-        self.processing_thread = threading.Thread(target=self.process_chunks, daemon=True)
-        self.processing_thread.start()
-
-        # Enable interactive mode
         plt.ion()
         plt.show()
 
-        print("🎨 Visualization started!")
-        print("💡 Close the plot window to stop\n")
+        for i in range(n_windows):
+            start_idx = i * step_size
+            end_idx = start_idx + window_size
+            emg_chunk = emg_data[:, start_idx:end_idx]
+            time_chunk = time_axis[start_idx:end_idx]
 
-        # Update loop
-        try:
-            while self.running:
-                self.update_plot()
-                plt.pause(0.1)  # Update every 100ms
+            emg_obj = (emg_chunk, time_chunk)
 
-                # Check if window was closed
-                if not plt.fignum_exists(self.fig.number):
-                    print("\n🛑 Plot window closed")
-                    self.running = False
-                    break
+            time_step = step_size / self.f_samp
+            self.current_time += time_step
+            self.elapsed_times.append(self.current_time)
 
-        except KeyboardInterrupt:
-            print("\n\n🛑 Interrupted by user")
-            self.running = False
+            try:
+                preds = self.predictor.run(emg_obj)
+                self.all_predictions.append(preds)
+            except Exception as e:
+                print(f"❌ Fehler bei Fenster {i}: {e}")
+                continue
 
-        finally:
-            # Wait for processing thread
-            if self.processing_thread and self.processing_thread.is_alive():
-                self.processing_thread.join(timeout=2.0)
+            if i % 5 == 0 or i == n_windows - 1:
+                self.update_plot(elapsed_times=self.elapsed_times)
+                plt.pause(0.05)
 
-            # Keep plot open for a moment
-            if plt.fignum_exists(self.fig.number):
-                print("\n💡 Plot will stay open. Close it to exit completely.")
-                plt.ioff()
-                plt.show()
+        print("\n✓ Alle Fenster verarbeitet.")
+        #self.save_results()
 
-            # Save final results
-            self.save_results()
+        plt.ioff()
+        plt.show()
 
-            print("\n✓ Consumer finished\n")
-
+    # ---------------------------------------------------------------------
+    # Ergebnisse speichern
+    # ---------------------------------------------------------------------
     def save_results(self):
-        """Save final predictions to file."""
+        """Speichert alle vorhergesagten Momente in eine CSV-Datei."""
         if not self.all_predictions:
+            print("⚠️ Keine Vorhersagen zum Speichern.")
             return
 
         final_predictions = np.vstack(self.all_predictions)
-
         output_file = "predictions_output.csv"
         np.savetxt(
             output_file,
@@ -263,23 +230,21 @@ class EMGVisualConsumer:
             comments=''
         )
 
-        print(f"\n💾 Predictions saved to: {output_file}")
-        print(f"   Total predictions: {final_predictions.shape[0]}")
-        print(f"   Chunks processed: {self.chunks_processed}")
+        print(f"\n💾 Ergebnisse gespeichert unter: {output_file}")
+        print(f"   Gesamtanzahl Fenster: {final_predictions.shape[0]}")
+        print("=" * 70 + "\n")
 
 
-# ! ************************************************
-# ! Main Execution
-# ! ************************************************
-
+# ---------------------------------------------------------------------
+# MAIN AUSFÜHRUNG
+# ---------------------------------------------------------------------
 if __name__ == "__main__":
+    emg_file = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/data/jte/emg/BU62D/24072025_BU62D_1850g_grasp_3.txt"
 
-    input_folder = "./emg_chunks"
-
-    # Create and run visual consumer
-    consumer = EMGVisualConsumer(
-        input_folder=input_folder,
-        config_filename='pipeline_mlp_to_cnn.yaml'
+    consumer = EMGFileStreamVisualConsumer(
+        emg_file=emg_file,
+        config_filename='pipeline_mlp_to_cnn.yaml',
+        f_samp=500
     )
 
-    consumer.run()
+    consumer.process_file_in_sliding_windows(window_size=500, step_size=20)
