@@ -134,8 +134,8 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                             unit="uV", 
                             title="Raw EMG plot for Channel 5", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in uV", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (uV)", 
                             is_grid_on=True)
 
         # #? Loading the target values for the 3 joints
@@ -174,8 +174,8 @@ for wgt_idx, wgt in enumerate(weights):
             plt.figure()
             plt.plot(np.arange(0,Quali_Data_Elbow.data[0,:].shape[0], 1)/Quali_Data_Elbow.f_samp,Quali_Data_Elbow.data[0,:])
             plt.title("Elbow Torque plot for right arm")
-            plt.xlabel("Time in s")
-            plt.ylabel("Torque in N-m")
+            plt.xlabel("Time (s)")
+            plt.ylabel("Torque (N m)")
             plt.grid()
             plt.show()
 
@@ -197,8 +197,8 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                             unit="uV", 
                             title="Band-Pass Filtered plot for Channel 5", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in uV", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (uV)", 
                             is_grid_on=True)
 
         EMG_Data_freq = deepcopy(EMG_Data)
@@ -220,8 +220,8 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                             unit="uV", 
                             title="Variance Filtered EMG plot for Channel 5", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in uV", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (uV)", 
                             is_grid_on=True)
 
         #? Input Normalisation
@@ -249,8 +249,8 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                             unit="V", 
                             title="Normalised and Smoothed EMG plot for Channel 5", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in V", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (V)", 
                             is_grid_on=True)
 
         #? Low pass filter to smoothen the torques
@@ -284,8 +284,8 @@ for wgt_idx, wgt in enumerate(weights):
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                             unit="V", 
                             title="Force Activated EMG plot for Channel 5", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in V", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (V)", 
                             is_grid_on=True)
 
         #? Windowing the data
@@ -342,8 +342,8 @@ for wgt_idx, wgt in enumerate(weights):
                             n_samples= EMG_Data.getWindows().shape[2],
                             unit="V", 
                             title="Pre-processed EMG plot for Channel 5 Window 18", 
-                            xlabel="Time in s", 
-                            ylabel="Voltage in V", 
+                            xlabel="Time (s)", 
+                            ylabel="Voltage (V)", 
                             is_grid_on=True)
             
         #! ************************************************

@@ -111,8 +111,8 @@ if cfg.plot_param.is_plot_raw:
     EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
                      unit="uV", 
                      title="Raw EMG plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in uV", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (uV)", 
                      is_grid_on=True)
 
 # #? Loading the target values for the 3 joints
@@ -175,8 +175,8 @@ if cfg.plot_param.is_plot_hpf:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                      unit="uV", 
                      title="Band-Pass Filtered plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in uV", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (uV)", 
                      is_grid_on=True)
 
 EMG_Data_freq = deepcopy(EMG_Data)
@@ -200,8 +200,8 @@ if cfg.plot_param.is_plot_var_filter:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                      unit="uV", 
                      title="Variance Filtered EMG plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in uV", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (uV)", 
                      is_grid_on=True)
 
 #? Input Normalisation
@@ -242,8 +242,8 @@ if cfg.plot_param.is_plot_smoothed:
     EMG_Data.plotEMG(data=EMG_Data.data[4,0:5000], 
                      unit="V", 
                      title="Normalised and Smoothed EMG plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in V", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (V)", 
                      is_grid_on=True)
 
 #? Low pass filter to smoothen the torques
@@ -256,14 +256,14 @@ if cfg.plot_param.is_plot_smoothed:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                      unit="V", 
                      title="Normalised and Smoothed EMG plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in V", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (V)", 
                      is_grid_on=True)
     Quali_Data_Side.plotEMG(data=Quali_Data_Side.data[0,:], 
                             unit="V", 
                             title="Normalised and Smoothed Elbow Torques plot", 
-                            xlabel="Time in s", 
-                            ylabel="Torque in N-m", 
+                            xlabel="Time (s)", 
+                            ylabel="Torque (N m)", 
                             is_grid_on=True)
 
 #? Calculate Neural Activation Force
@@ -277,8 +277,8 @@ if cfg.plot_param.is_plot_act:
     EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                      unit="V", 
                      title="Force Activated EMG plot for Channel 5", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in V", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (V)", 
                      is_grid_on=True)
 
 #? Windowing the data
@@ -369,8 +369,8 @@ if cfg.plot_param.is_plot_filt_win:
                      n_samples= EMG_Data.getWindows().shape[2],
                      unit="V", 
                      title="Pre-processed EMG plot for Channel 5 Window 18", 
-                     xlabel="Time in s", 
-                     ylabel="Voltage in V", 
+                     xlabel="Time (s)", 
+                     ylabel="Voltage (V)", 
                      is_grid_on=True)
     
 #! ************************************************
