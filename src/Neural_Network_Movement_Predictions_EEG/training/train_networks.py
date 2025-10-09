@@ -190,7 +190,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     # # b, a = EEG_data_train.designFilter(f_low = 4.0, f_high = None, order = 21, filter_type = "fir_kaiser", return_type = "ba", beta = 5.3)
     # # b1, a1 = EEG_data_train.designFilter(f_low = 4.0, f_high = None, order = 21, filter_type = "fir_kaiser", return_type = "ba", beta = 2.0)
 
-    # # # online/offline Filtering
+    # # # old_online/offline Filtering
     # EEG_data_train.filterRawData(sos = sos, apply_method = "forward_sos_filter")
     # EEG_data_train.filterRawData(b= b, a = a, apply_method = "forward_ba_filter")
     # # EEG_data_train.filterRawData(b= b, a = a, apply_method = "zero_phase_ba", padtype = "even")
@@ -200,7 +200,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
     # EEG_data_val_test.filterRawData(sos = sos, apply_method = "forward_sos_filter")
     # EEG_data_val_test.filterRawData(b= b, a = a, apply_method = "forward_ba_filter")
 
-    # # online/offline Filtering
+    # # old_online/offline Filtering
     # EEG_data_val_test.filterRawData(sos = sos, apply_method = "zero_phase_sos", padtype = "even")
     # EEG_data_val_test.filterRawData(b= b, a = a, apply_method = "zero_phase_ba", padtype = "even")
     # EEG_data_val_test.filterRawData(b= b1, a = a1, apply_method = "zero_phase_ba", padtype = "even")
@@ -218,7 +218,7 @@ for current_condition_idx in range(0, len(train_test_conditions)):
         
     else: # no 
         print(f"using online preprocessing")
-        # do rereferencing here since in real online case no epoching is done ! 
+        # do rereferencing here since in real old_online case no epoching is done !
         # if(current_condition_idx >1): 
         #     EEG_data_train.rereferencingEpoching(marker_number, error_number, channel_list, inverse_keep_channel = inverse_keep_channel, t1 = t1, t2= t2)
         # else: 

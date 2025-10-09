@@ -119,7 +119,7 @@ def dataVisualization(names, dt_read_buffer = 0.05, n_channels = 37, buffer_size
     inlet_viz = StreamInlet(streams_viz[0]) 
     stream_info_viz = inlet_viz.info()
 
-    # create online EEG utils Object  
+    # create old_online EEG utils Object
     EEGutils_live = OnlineEEGUtils(n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
     EEGutils_live.printStreamMetadata(stream_info_viz) # print stream info 
     EEG_live_viz = EEGData(format = "Live", f_samp = stream_info_viz.nominal_srate())

@@ -460,12 +460,12 @@ class EEGData(Timeseries):
 
 class OnlineEEG(OnlineTimeseriesStreaming, EEGData): 
     """
-    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
+    This class provides useful methods for doing old_online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming .
     
     Parameters
     ----------
     OnlineTimeseriesStreaming : class
-        The OnlineTimeseriesStreaming includes useful methods for online data streaming and data handling. 
+        The OnlineTimeseriesStreaming includes useful methods for old_online data streaming and data handling.
     EEGData : class
         The base EEGData class including all processing methods for EEG data. 
     """ 

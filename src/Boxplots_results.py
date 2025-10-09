@@ -12,7 +12,7 @@ import pandas as pd
 result_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/results/"
 
 #title = "Comparison of training trials (Fcn net, continous classification)"
-title = "offline vs. online performance" #"Training trials compare pooling"
+title = "offline vs. old_online performance" #"Training trials compare pooling"
 #xLabels = ["within sub", "cross sub"] 
 #xLabels = ["34 ch. motor", "exclude motor ch.", "all 64 ch."]
 xLabels = ["offline EEGNet", "offline MLP", "zerogustav50ms", "zerophasepaddMeanCorr", "zeroGustDetrend", "gustavZeroOwnPad", "ZeroOwnPadEven", "contiousZeroPhase", "baseline MLP", "MLP add PSD Bands", "MLP eval base", "MLP red feat"] #["standard 80", "standard 40", "standard 20", "pool 80","pool 40","pool 20", "pool 20 ot"]#, "eeg", "emg eeg fusion"]

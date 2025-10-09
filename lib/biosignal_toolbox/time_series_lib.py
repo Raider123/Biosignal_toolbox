@@ -1568,7 +1568,7 @@ class Timeseries():
     
     def onlineLRPWindowPredictionPostprocessing(self, window_wise_predicts, high_tresh, low_tresh, short_samp, long_samp): 
         """
-        Apply an online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class. 
+        Apply an old_online capable postprocessing for the detection of LRP, where a linear function decides for the LRP class over which time a defined probability has to be reached for the detection of the positive class.
 
         Parameters
         ----------
@@ -2797,11 +2797,11 @@ class Timeseries():
         filter_type : str, optional
             type of filter to use, by default "butter"
         mode : str, optional
-            type of experiment (online or offline), by default "offline"
+            type of experiment (old_online or offline), by default "offline"
         sos : list
-            sos output of butterworth 2nd order filter (used in online mode)
+            sos output of butterworth 2nd order filter (used in old_online mode)
         counter : int, optional
-            counter for setting the initial delay of filter (used in online mode)
+            counter for setting the initial delay of filter (used in old_online mode)
 
         Author
         -------
@@ -2811,7 +2811,7 @@ class Timeseries():
         if mode == "offline":
             for ch in range(self.data.shape[0]):
                 self.data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
-        elif mode == "online":
+        elif mode == "old_online":
             if counter == 0:
                 for ch in range(self.n_channels-2):
                     self.zi_hpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
@@ -2833,7 +2833,7 @@ class Timeseries():
         index : int, optional
             index for current needed sample of the ringBuffer, by default 0
         mode : str, optional
-            type of experiment (online or offline), by default "offline"
+            type of experiment (old_online or offline), by default "offline"
 
         Author
         -------
@@ -2846,7 +2846,7 @@ class Timeseries():
                 _ = vt.filter(out_arr[ch], self.data[ch], ring_buffer, self.variables, width, index)
             self.data = out_arr
         
-        elif mode == "online":
+        elif mode == "old_online":
             out_arr = np.zeros((self.data_buffer.shape[1],self.data_buffer.shape[2]))
             for ch in range(self.n_channels-2):
                 _ = vt.filter(out_arr[ch], self.data_buffer[0,ch,(-1*self.n_samples):,0], ring_buffer, self.variables, width, index)
@@ -2861,7 +2861,7 @@ class Timeseries():
         mvc : float
             Maximum EMG value across all the weights and channels for a subject
         mode : str, optional
-            type of experiment (online or offline), by default "offline"
+            type of experiment (old_online or offline), by default "offline"
 
         Author
         -------
@@ -2871,7 +2871,7 @@ class Timeseries():
         try:
             if mode == "offline":
                 self.data = self.data / mvc
-            elif mode == "online":
+            elif mode == "old_online":
                 self.data_buffer[0,:,:,0] = self.data_buffer[0,:,(-1*self.n_samples):,0] / mvc
         except Exception as e:
             print(f"Please provide the MVC for Normalisation: {e}!!")
@@ -2891,11 +2891,11 @@ class Timeseries():
         filter_type : str, optional
             type of filter to use, by default "butter"
         mode : str, optional
-            type of experiment (online or offline), by default "offline"
+            type of experiment (old_online or offline), by default "offline"
         sos : list
-            sos output of butterworth 2nd order filter (used in online mode)
+            sos output of butterworth 2nd order filter (used in old_online mode)
         counter : int, optional
-            counter for setting the initial delay of filter (used in online mode)
+            counter for setting the initial delay of filter (used in old_online mode)
 
         Author
         -------
@@ -2905,7 +2905,7 @@ class Timeseries():
         if mode == "offline":
             for ch in range(self.data.shape[0]):
                 self.data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='lowpass', analog=False, output='sos', fs=fs),self.data[ch])
-        elif mode == "online":
+        elif mode == "old_online":
             if counter == 0:
                 for ch in range(self.n_channels-2):
                     self.zi_lpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
@@ -2924,7 +2924,7 @@ class Timeseries():
         Parameters
         ----------
         mode : str, optional
-            type of experiment (online or offline), by default "offline"
+            type of experiment (old_online or offline), by default "offline"
         
         Author
         ------
@@ -2956,7 +2956,7 @@ class Timeseries():
                         
                         # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
             self.data = activation_data
-        elif mode == "online":
+        elif mode == "old_online":
             activation_data = np.zeros(self.data_buffer[0,:,(-1*self.n_samples):,0].shape)
             #! Loop over the data buffer and solve difference equation
             for channel_idx in range(activation_data.shape[0]):
@@ -3224,7 +3224,7 @@ class OnlineTimeseriesStreaming(Timeseries):
 
     def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
-        This class is used for provide and handle online streamed time series data. 
+        This class is used for provide and handle old_online streamed time series data.
 
         Parameters
         ----------

@@ -28,7 +28,7 @@ import zmq
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
 data_path = proj_path+"/data/"
 
-# online params 
+# old_online params
 buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
 dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
 num_classes = 2
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     inlet = StreamInlet(streams[0]) 
     stream_info = inlet.info()
     
-    # create online EEG utils Object  
+    # create old_online EEG utils Object
     EEG_live =OnlineEEG(stream_type = "data", channel_names=channel_names, dt_process_data=dt_read_buffer,f_samp=f_samp_eeg)
 
     EEG_live.printStreamMetadata(stream_info) # print stream info 
@@ -163,7 +163,7 @@ if __name__ == "__main__":
     counter = 0
     old_send_time = perf_counter()*1000
 
-    # filter design before online setting  
+    # filter design before old_online setting
     sos_MLP = EEG_live.designFilter(f_low = 5.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos") #--> good one
     sos_EEGNet = EEG_live.designFilter(f_low = 40.0, f_high = 0.3, order = 2, filter_type = "scipy_butter", return_type = "sos")
 
@@ -208,10 +208,10 @@ if __name__ == "__main__":
             # ********** make model prediction  ***********
             
             # predict and get results 
-            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = False, eval_type = "online")
+            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = False, eval_type = "old_online")
 
             # # predict and get results 
-            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = False, eval_type = "online")
+            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = False, eval_type = "old_online")
 
             # postprocessing 
             #MLP_score =  MLP_model.prediction_scores[0] 

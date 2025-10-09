@@ -4,7 +4,7 @@ import numpy as np
 proj_path = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox"
 data_path = proj_path+"/data/"
 
-# online params 
+# old_online params
 buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
 dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
 num_classes = 2

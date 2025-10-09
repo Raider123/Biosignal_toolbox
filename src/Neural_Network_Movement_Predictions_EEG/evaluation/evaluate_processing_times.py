@@ -37,7 +37,7 @@ tf.config.set_visible_devices([], 'GPU')
 data_path = proj_path+"/data/" 
 results_path = proj_path+"/results/"
 scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement old_online filter and normalization
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # model names 
@@ -117,7 +117,7 @@ for trial_idx in range(0, 20):
 
     
     # **********************************************************************************
-    # ********************* Here starts the online part  *******************************
+    # ********************* Here starts the old_online part  *******************************
     # **********************************************************************************
 
     t_copy_1 = perf_counter_ns()
@@ -172,10 +172,10 @@ for trial_idx in range(0, 20):
 #     # ********** make model prediction  ***********
 
 #     # predict and get results 
-    MLP_model.predict(data = x_val_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = True, eval_type = "online")
+    MLP_model.predict(data = x_val_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = True, eval_type = "old_online")
 
     # # predict and get results 
-    model_EEGNet.predict(data = x_val_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = True, eval_type = "online")
+    model_EEGNet.predict(data = x_val_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = True, eval_type = "old_online")
 
     # postprocessing 
     prod_score = model_EEGNet.prediction_scores[1] *MLP_model.prediction_scores[0] # final output score 

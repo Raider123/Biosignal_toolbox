@@ -232,7 +232,7 @@ plt.plot(EEG_data.windows[3, 4, :, 0], linewidth = 3)
 plt.plot(EEG_data_offline_filter.windows[3, 4, :, 0], linewidth = 3)
 
 
-print("shape online wind", EEG_data.windows.shape)
+print("shape old_online wind", EEG_data.windows.shape)
 print("shape offline wind", EEG_data_offline_filter.windows.shape)
 
 # plt.plot(EEG_data_filter_var.windows[0, 0, :, 0], linewidth = 3)

@@ -105,7 +105,7 @@ class Task(TaskBase):
         self.sos_lpf = butter(N=2, Wn=self.property["f_cutoff_lpf"], btype='lowpass', analog=False, output='sos', fs=self.property["f_samp"])
         self.sos_lpf_idx = 0
 
-        # Create online EMG object
+        # Create old_online EMG object
         self.EMG_live = OnlineEMG(stream_type = "data", n_channels=self.property["n_channels"], channel_names=self.channel_names, n_samples=self.property["buffer_size"], f_samp=self.property["f_samp"])
 
         self.log("Created EMG_live object!!")
@@ -229,13 +229,13 @@ class Task(TaskBase):
         inp_emg = self.EMG_live.calculateMAVFromFeatures(len(self.channel_names))
 
         # predict elbow torque
-        self.MLP_model_e.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "online")
+        self.MLP_model_e.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "old_online")
         
         # predict front torque
-        self.MLP_model_f.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "online")
+        self.MLP_model_f.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "old_online")
         
         # predict side torque
-        self.MLP_model_s.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "online")
+        self.MLP_model_s.predictTarget(data = inp_emg, classification=False, show_results = False, show_pred_time = False, eval_type = "old_online")
 
         if len(self.torque_out_e) == 3:
             _ = self.torque_out_e.popleft()

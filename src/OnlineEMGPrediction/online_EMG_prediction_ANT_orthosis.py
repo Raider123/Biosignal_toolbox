@@ -29,7 +29,7 @@ path_to_so_file = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/bi
 if __name__ == "__main__":
     
 
-    # online params 
+    # old_online params
     buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
     dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
     print_times = False
@@ -75,7 +75,7 @@ if __name__ == "__main__":
     # stream_outlet = StreamOutlet(info, chunk_size=20)
 
 
-    # create online EEG utils Object  
+    # create old_online EEG utils Object
     EMG_live = OnlineEMG(stream_type = "data", n_channels=n_channels, channel_names=channel_names) # use this normally stream_info.channel_count()
     
     EMG_live.startANTEegoStreaming(path_to_so_file=path_to_so_file)

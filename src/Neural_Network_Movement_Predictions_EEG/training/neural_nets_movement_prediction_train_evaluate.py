@@ -39,7 +39,7 @@ subject_names = ["JV43","RA12"]# "JV43", "AV82", "UP28", "XP01", "ZS27", "JD68",
 interations = [0] # the evaluation numbers which train test permutations are used
 scenario_name = "intentional_unilateral"
 result_file_name = "fcn_network_results_34ch_EEGNet_online_pre_test_reduced_net"
-preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement old_online filter and normalization
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # fine_tune = False

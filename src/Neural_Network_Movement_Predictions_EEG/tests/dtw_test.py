@@ -64,7 +64,7 @@ EEG_data.rereferencingEpoching(marker_number, error_number, channel_list, apply_
 EEG_data_val.rereferencingEpoching(marker_number, error_number, channel_list, apply_filter=False, f_highpass = None, f_lowpass= None, inverse_keep_channel = inverse_keep_channel, event_id_used = marker_number, t1 = t1, t2= t2)
 
 
-# filtering pseudo online on epochs 
+# filtering pseudo old_online on epochs
 # EEG_data.epoch_obj.filter(l_freq = 0.5, h_freq = 4.0, picks=None, method='fir', iir_params=None, phase='zero', filter_length = 1000, fir_design='firwin2')
 # EEG_data.epochs = EEG_data.epoch_obj.get_data()
 # EEG_data_val.epoch_obj.filter(l_freq = 0.5, h_freq = 4.0, picks=None, method='fir', iir_params=None, phase='zero', filter_length = 1000, fir_design='firwin2')

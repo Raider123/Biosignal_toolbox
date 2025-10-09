@@ -361,7 +361,7 @@ class EMGData(Timeseries):
 
 class OnlineEMG(OnlineTimeseriesStreaming, EMGData): 
     """
-    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
+    This class provides useful methods for doing old_online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming .
 
     Parameters
     ----------

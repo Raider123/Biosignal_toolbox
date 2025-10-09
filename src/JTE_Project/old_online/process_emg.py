@@ -1,7 +1,7 @@
 """
 Online EMG to Torque Prediction System
 ---------------------------------------
-This script processes a single EMG.TXT file for online joint torque estimation.
+This script processes a single EMG.TXT file for old_online joint torque estimation.
 The preprocessing is separated into a dedicated class for modularity.
 """
 
@@ -326,13 +326,13 @@ class EMGPreprocessor:
 
 class OnlineEMGPredictor:
     """
-    Main class for online EMG-to-torque prediction.
+    Main class for old_online EMG-to-torque prediction.
     Handles model loading, preprocessing orchestration, and prediction.
     """
 
     def __init__(self, config_filename='pipeline_mlp_to_cnn.yaml'):
         """
-        Initialize the online predictor.
+        Initialize the old_online predictor.
 
         Parameters
         ----------

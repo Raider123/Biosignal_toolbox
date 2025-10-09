@@ -100,7 +100,7 @@ f_lowpass_EEGNet = None
 #  n_moving average 
 # n_moving_ave = 30 
 
-# switch between online and offline preprocessing 
+# switch between old_online and offline preprocessing
 use_offline_processing = False
 use_net = False # use the autoencoder net for preprocessing 
 

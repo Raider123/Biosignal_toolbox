@@ -35,7 +35,7 @@ tf.config.set_visible_devices([], 'GPU')
 data_path = proj_path+"/data/"
 results_path = proj_path+"/results/"
 scenario_name = "intentional_unilateral"
-preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement online filter and normalization  
+preprocessed_data_filename_end = "34ch_raw_no_scale"  #"34ch_raw_no_scale" # TODO: implement old_online filter and normalization
 #eval_name = "fcn_network_results_34ch_MLP_scalings_test"
 
 # model names 

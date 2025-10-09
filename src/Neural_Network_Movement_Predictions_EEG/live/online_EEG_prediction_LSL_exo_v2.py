@@ -40,7 +40,7 @@ tf.config.set_visible_devices([], 'GPU')
 if __name__ == "__main__":
     
     
-    # online params 
+    # old_online params
     buffer_size = 500  # size of ringbuffer in samples, currently set to 2500 (5 sec data times 500 Hz sampling rate)
     dt_read_buffer= 0.05 # time in seconds how often the buffer is read  (updated with new incoming chunks)
     num_classes = 2
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     inlet = StreamInlet(streams[0]) 
     stream_info = inlet.info()
     
-    # create online EEG utils Object  
+    # create old_online EEG utils Object
     # not used anymore 
     #EEGutils = OnlineEEGUtils(n_channels=n_channels, n_samples=buffer_size, dt_process_data = dt_read_buffer) # use this normally stream_info.channel_count()
     EEG_live =OnlineEEG(channel_names=channel_names, n_channels=n_channels, dt_process_data=dt_read_buffer,f_samp_eeg=f_samp_eeg)
@@ -187,10 +187,10 @@ if __name__ == "__main__":
             # ********** make model prediction  ***********
             
             # predict and get results 
-            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = False, eval_type = "online")
+            MLP_model.predict(data = x_live_MLP, labels = None, encoding = "binary", show_results = False, show_pred_time = False, eval_type = "old_online")
 
             # # predict and get results 
-            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = False, eval_type = "online")
+            model_EEGNet.predict(data = x_live_EEGNet, labels = None, encoding = "onehotencoding", show_results = False, show_pred_time = False, eval_type = "old_online")
 
             # postprocessing 
             #MLP_score =  MLP_model.prediction_scores[0] 

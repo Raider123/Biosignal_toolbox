@@ -82,7 +82,7 @@ def main():
     # run continiously 
     running = False
 
-    # uncomment if data should be recorded (not necessary for online prediction, use buffer for that)
+    # uncomment if data should be recorded (not necessary for old_online prediction, use buffer for that)
     data_arr = []
     time_stamp_arr = []
     marker_indices = []

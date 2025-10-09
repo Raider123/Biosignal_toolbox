@@ -13,7 +13,7 @@ f_samp = 1000.0
 path_to_so_file = "/home/dfki.uni-bremen.de/nkueper/Dokumente/DFKI_Job/EXPECT/biosignal_toolbox/lib/biosignal_toolbox/clients"
 
 
-# create online object 
+# create old_online object
 online_emg = OnlineEMG(stream_type=stream_type, channel_names=channel_names, n_channels=len(channel_names), n_samples=buffer_size, dt_process_data=dt_process_data, f_samp=f_samp)
 
 online_emg.startANTEegoStreaming(path_to_so_file = path_to_so_file)
