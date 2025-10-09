@@ -132,7 +132,6 @@ class Task(TaskBase):
         self.std_f = deque([])
         self.std_s = deque([])
 
-
         my_context_sj0 = zmq.Context()
         self.socket_sj0 = my_context_sj0.socket(zmq.PUB)
         self.socket_sj0.bind("tcp://*:7012")
