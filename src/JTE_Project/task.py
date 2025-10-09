@@ -176,6 +176,8 @@ class Task(TaskBase):
         return True
 
     def update_hook(self):
+        # Set new data chunk
+
         # t_start = time.perf_counter()
         # get a new data chunk 
         chunk = self.EMG_live.getChunk(return_chunk=True)

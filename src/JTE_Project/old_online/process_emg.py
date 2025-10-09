@@ -364,7 +364,7 @@ class OnlineEMGPredictor:
         """
         if model_path is None:
             save_model_path = (
-                Path(__file__).parent.parent / "saved_models" / "NEW_MODELS"
+                Path(__file__).parent.parent / "saved_online_models"
             )
             model_path = save_model_path / "tcn_mtl.keras"
 
