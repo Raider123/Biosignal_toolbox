@@ -664,6 +664,17 @@ for wgt_idx, wgt in enumerate(weights):
         meta_list_test.extend(meta_test)
         meta_list_val.extend(meta_val)
 
+# Saving the Y_scaler for recreation (later)
+from joblib import dump
+
+def convert_to_dict(d):
+    if isinstance(d, defaultdict):
+        d = {k: convert_to_dict(v) for k, v in d.items()}
+    return d
+
+# Umwandeln zu dict (da Lambda-funktionen enthalten)
+clean_dict = convert_to_dict(Y_scaler_dict)
+dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
 
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
@@ -810,8 +821,7 @@ for seed in seed_arr:
     )
 
     # --- Train ---
-    #save_model_path = cfg.filepath.save_model_path F:\SMT_MASTERPROJEKT\biosignal_toolbox\src\JTE_Project\saved_models\NEW_MODELS\tcn_mtl.keras
-    save_model_path = 'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/saved_models/NEW_MODELS/tcn_mtl.keras'
+    save_model_path = cfg.filepath.save_model_path
 
     callbacks_list = [early_callback] if early_callback is not None else None
 

@@ -12,17 +12,14 @@
     fig_save_path: 'data/test/'
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
-    save_model_path:          "saved_models/NEW_MODELS"
+    save_model_path:          "saved_online_models/"
     save_features_path:       'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
 
   data_param:
     weights:                  ['0g', '1100g', '1850g']
-    # weights:                  ['1100g', '1850g']
     mov_type:                 ['grasp', 'complex']
-    # weights:                  ['1850g']
-    # mov_type:                 ['complex']
     set_num:                  ['1', '2', '3', '4']
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg

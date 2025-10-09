@@ -399,12 +399,30 @@ class OnlineEMGPredictor:
         preds = self.model.predict(features_cnn)
 
         # Concatenate multi-task outputs: [elbow, front, side]
-        self.predictions = np.concatenate(
-            [preds[0], preds[1], preds[2]], axis=1
-        )
+        self.predictions = np.concatenate([preds[0], preds[1], preds[2]], axis=1)
 
         print(f"Predictions shape: {self.predictions.shape}")
         print("Model prediction completed!\n")
+
+        # Inverse Transform of the predictions (Yscaler)
+        from joblib import load
+
+        data = load('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/scaler_data.joblib')
+        Y_scaler_dict = data['dict']
+        Y_scaler_info = data['info']
+        rescaled_predictions = []
+
+        for wgt, mov, start_idx, end_idx in Y_scaler_info:
+            # Select the corresponding predictions to the Y_scaler
+            predictions_select = self.predictions[start_idx:end_idx]
+
+            # Load the correct Y_scaler
+            scaler = Y_scaler_dict[wgt][mov]
+
+            # Inverse transformation
+            rescaled_predictions.append(scaler.inverse_transform(predictions_select))
+
+        rescaled_predictions = np.concatenate(rescaled_predictions, axis=0)
 
         return self.predictions
 
@@ -467,7 +485,7 @@ class OnlineEMGPredictor:
         """
         # Load model if not already loaded (Hardcoded Model)
         if self.model is None:
-            self.load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/saved_models/NEW_MODELS/tcn_mtl.keras/tcn_mtl.keras')
+            self.load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras')
 
         # Predict
         self.predict(data_arr)

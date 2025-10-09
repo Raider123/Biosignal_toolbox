@@ -239,7 +239,7 @@ class EMGFileStreamVisualConsumer:
 # MAIN AUSFÜHRUNG
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
-    emg_file = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/data/jte/emg/BU62D/24072025_BU62D_0g_complex_1.txt"
+    emg_file = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/data/jte/emg/BU62D/test2000.txt"
 
     consumer = EMGFileStreamVisualConsumer(
         emg_file=emg_file,
