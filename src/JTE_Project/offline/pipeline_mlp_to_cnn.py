@@ -637,13 +637,20 @@ for wgt_idx, wgt in enumerate(weights):
         print(f"Stacked x_train feature shape: {X_train.shape}")
         print(f"Stacked y_train feature shape: {Y_train.shape}")
 
-
+        '''
         #? Scale output features -> [-1,1] for tanh
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
                                                                         test_data=Y_test, 
                                                                         val_data=Y_val, 
                                                                         method="MinMaxScaler",
                                                                         feature_range=(-1,1))
+        '''
+        # ? Scale output features -> [-1,1] for tanh
+        Y_scaler, _, _, _ = EMG_Data.scaleFeatures_windows(train_data=Y_train,
+                                                                          test_data=Y_test,
+                                                                          val_data=Y_val,
+                                                                          method="MinMaxScaler",
+                                                                          feature_range=(-1, 1))
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 

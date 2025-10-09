@@ -289,10 +289,10 @@ class EMGPreprocessor:
         
         # Extract Array from Tuple
         self.features = self.features[0]
-        
+        '''
         print(f"Features after PCA: {self.features.shape}")
         print("Feature scaling completed!\n")
-        '''
+
 
     def preprocess(self, data_array):
         """
@@ -399,7 +399,9 @@ class OnlineEMGPredictor:
         preds = self.model.predict(features_cnn)
 
         # Concatenate multi-task outputs: [elbow, front, side]
-        self.predictions = np.concatenate([preds[0], preds[1], preds[2]], axis=1)
+        self.predictions = np.concatenate(
+            [preds[0], preds[1], preds[2]], axis=1
+        )
 
         print(f"Predictions shape: {self.predictions.shape}")
         print("Model prediction completed!\n")
@@ -411,7 +413,7 @@ class OnlineEMGPredictor:
         Y_scaler_dict = data['dict']
         Y_scaler_info = data['info']
         rescaled_predictions = []
-
+        '''
         for wgt, mov, start_idx, end_idx in Y_scaler_info:
             # Select the corresponding predictions to the Y_scaler
             predictions_select = self.predictions[start_idx:end_idx]
@@ -423,6 +425,7 @@ class OnlineEMGPredictor:
             rescaled_predictions.append(scaler.inverse_transform(predictions_select))
 
         rescaled_predictions = np.concatenate(rescaled_predictions, axis=0)
+        '''
 
         return self.predictions
 
@@ -452,7 +455,7 @@ class OnlineEMGPredictor:
                     kernel_size=self.cfg.post_train_param.filter_size
                 )
 
-
+        
         # Savitzky-Golay filter
         if getattr(self.cfg.post_train_param, 'savgol_window_len', None):
             print(f"Applying Savitzky-Golay filter (window: "

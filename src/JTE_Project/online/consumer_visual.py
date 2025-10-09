@@ -178,6 +178,8 @@ class EMGFileStreamVisualConsumer:
         print(f"   Gesamtfenster: {n_windows}")
         print("=" * 70 + "\n")
 
+        time_list = []
+
         self.setup_plot()
         plt.ion()
         plt.show()
@@ -194,6 +196,8 @@ class EMGFileStreamVisualConsumer:
             self.current_time += time_step
             self.elapsed_times.append(self.current_time)
 
+            start_time = time.time()
+
             try:
                 preds = self.predictor.run(emg_obj)
                 self.all_predictions.append(preds)
@@ -201,9 +205,11 @@ class EMGFileStreamVisualConsumer:
                 print(f"❌ Fehler bei Fenster {i}: {e}")
                 continue
 
-            if i % 5 == 0 or i == n_windows - 1:
-                self.update_plot(elapsed_times=self.elapsed_times)
-                plt.pause(0.05)
+            self.update_plot(elapsed_times=self.elapsed_times)
+            plt.pause(0.001)
+
+            end_time = time.time()
+            print("VERARBEITUNGSZEIT: ", end_time - start_time)
 
         print("\n✓ Alle Fenster verarbeitet.")
         #self.save_results()
@@ -239,7 +245,7 @@ class EMGFileStreamVisualConsumer:
 # MAIN AUSFÜHRUNG
 # ---------------------------------------------------------------------
 if __name__ == "__main__":
-    emg_file = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/data/jte/emg/BU62D/test2000.txt"
+    emg_file = "F:/SMT_MASTERPROJEKT/biosignal_toolbox/data/jte/emg/BU62D/inactive_24072025_BU62D_0g_complex_1.txt"
 
     consumer = EMGFileStreamVisualConsumer(
         emg_file=emg_file,
