@@ -15,6 +15,11 @@ from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
 import random
 from collections import defaultdict
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
+=======
+import os
+import time
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -30,9 +35,65 @@ warnings.formatwarning = customWarningFormat
 #! User Parameters and Data Collection
 #! ************************************************
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
+=======
+def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
+
+    inputs = []
+    branches = []
+
+    # Zeit-Pfad (TCN)
+    inp_time = Input(shape=input_shape_time, name='emg_input')
+    x = inp_time
+
+    for s in range(stacks):
+        d = 2 ** s  # Dilatation: 1,2,4,8,...
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(x)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+        y = layers.SpatialDropout1D(dropout_rate)(y)
+
+        y = layers.Conv1D(filters,
+                          kernel_size,
+                          padding='causal',
+                          dilation_rate=d,
+                          kernel_initializer='he_normal')(y)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+
+        # Residual-Shortcut ggf. an Kanäle anpassen
+        if x.shape[-1] != filters:
+            x = layers.Conv1D(filters, 1, padding='same',
+                              kernel_initializer='he_normal')(x)
+
+        x = layers.add([x, y])
+
+    # Seq-to-one Readout
+    x = layers.GlobalAveragePooling1D()(x)
+    inputs.append(inp_time)
+    branches.append(x)
+
+    combined = branches[0]
+    combined = layers.Dense(64, activation="relu")(combined)
+    combined = layers.Dropout(dropout_rate)(combined)
+
+    out_e = layers.Dense(1, name='torque_elbow')(combined)
+    out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
+    out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
+    return models.Model(inputs, [out_e, out_f, out_s], name="MTL_TCN")
+
+time_preproc = 0
+time_feat = 0
+
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
 #? load config file
 config_filename = 'pipeline_mlp_to_cnn.yaml'
 cfg = loadConfig(filename=config_filename)
+save_dir = cfg.filepath.save_predictions_path
 
 #? init early stopping
 if cfg.model_param.is_early_stop:
@@ -122,6 +183,7 @@ current_idx = 0
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
+        time_preproc_start = time.perf_counter()
 
         #? Loading and epoching for training   
         EMG_Data = EMGData(format="ANTmini", filenames=emg_table[wgt_idx][mov_idx], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
@@ -299,6 +361,10 @@ for wgt_idx, wgt in enumerate(weights):
                                 xlabel="Time in s", 
                                 ylabel="Voltage in V", 
                                 is_grid_on=True)
+            
+        time_preproc_end = time.perf_counter()
+        time_preproc += (time_preproc_end - time_preproc_start)
+        time_feat_start = time.perf_counter()
 
         #? Windowing the data
         emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, 
@@ -453,45 +519,45 @@ for wgt_idx, wgt in enumerate(weights):
 
         #? time domain feature extraction
         ## EMG Feature Extraction
-        rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
-        EMG_Data.addFeatures(rms_feature)
+        """ rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
+        EMG_Data.addFeatures(rms_feature) """
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
-        wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-        EMG_Data.addFeatures(wfl_feature)
+        """ wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
+        EMG_Data.addFeatures(wfl_feature) """
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
-        ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), 
+        """ ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), 
                                                                 threshold=0.02)    # Slope Sign Change
-        EMG_Data.addFeatures(ssc_feature)
+        EMG_Data.addFeatures(ssc_feature) """
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
         #? freq domain feature extraction
-        EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
+        """ EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
                                                 psd_method="multitaper",
                                                 freq_bands=[15, 50, 100, 150, 200, 245])
         fbp_feature = EMG_Data_freq.getFeatures()
-        EMG_Data.addFeatures(fbp_feature)
+        EMG_Data.addFeatures(fbp_feature) """
         # EMG_Data.printFeatureShape()
 
         #? time-freq domain feature extraction
-        freqs = np.arange(start=50, stop=226, step=25)
+        """ freqs = np.arange(start=50, stop=226, step=25)
         n_cycles = np.ones(len(freqs)) * 5
         n_cycles[0] = 3
         n_cycles[1] = 4
         mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
                                                                         n_cycles=n_cycles)    # Morlet transform
-        EMG_Data.addFeatures(mwc_feature)
+        EMG_Data.addFeatures(mwc_feature) """
         # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
         #? Change between consecutive samples (window i and wind i+1)
-        peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
-        EMG_Data.addFeatures(peak_detection)
+        """ peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
+        EMG_Data.addFeatures(peak_detection) """
         print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
-
+       
         #? Output feature extraction
         window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
         if cfg.preprocess_param.target_feature_select == 'mean':
@@ -538,24 +604,28 @@ for wgt_idx, wgt in enumerate(weights):
                                                         shuffle=False)
 
         #? Split categorical data into train, validation, and test sets
-        X_train_cat_temp, X_test_cat= train_test_split(x_cat,
+        """ X_train_cat_temp, X_test_cat= train_test_split(x_cat,
                                                 train_size=cfg.model_param.train_test_split,
                                                 shuffle=False)
 
         X_train_cat, X_val_cat, = train_test_split(X_train_cat_temp,
                                                 train_size= 1 - cfg.model_param.validation_split,
-                                                shuffle=False)
+                                                shuffle=False) """
 
         print("Split data into train, test, and val!!")
 
         #? One Hot encoding
-        encoder = OneHotEncoder(sparse_output=False)
+        """ encoder = OneHotEncoder(sparse_output=False)
         X_train_cat = encoder.fit_transform(X_train_cat)
         X_test_cat = encoder.transform(X_test_cat)
         X_val_cat = encoder.transform(X_val_cat)
-
+ """
         #? Creating history of features
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
         history_len = 3
+=======
+        """ history_len = 3
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
         X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train, 
                                                                                 y_num=Y_train, 
                                                                                 x_cat=X_train_cat,
@@ -578,7 +648,7 @@ for wgt_idx, wgt in enumerate(weights):
 
         print(f"{history_len} feature vectors stacked together!!")
         print(f"Stacked x_train feature shape: {X_train.shape}")
-        print(f"Stacked y_train feature shape: {Y_train.shape}")
+        print(f"Stacked y_train feature shape: {Y_train.shape}") """
 
 
         #? Scale output features -> [-1,1] for tanh
@@ -603,9 +673,12 @@ for wgt_idx, wgt in enumerate(weights):
         X_val_combined.append(X_val)
         Y_val_combined.append(Y_val)
 
-        meta_list_train.extend(meta_train)
+        """ meta_list_train.extend(meta_train)
         meta_list_test.extend(meta_test)
-        meta_list_val.extend(meta_val)
+        meta_list_val.extend(meta_val) """
+
+        time_feat_end = time.perf_counter()
+        time_feat += (time_feat_end - time_feat_start)
 
 
 X_train = np.concatenate(X_train_combined, axis=0)
@@ -637,12 +710,12 @@ _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         method="StandardScaler")
 
 
-wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
+""" wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
 wgt_val, mov_val     = EMG_Data.convertMetaToArray(meta_list_val)
-wgt_test, mov_test   = EMG_Data.convertMetaToArray(meta_list_test)
+wgt_test, mov_test   = EMG_Data.convertMetaToArray(meta_list_test) """
 
 #? One-hot encoding
-encoder_wgt = OneHotEncoder(sparse_output=False)
+""" encoder_wgt = OneHotEncoder(sparse_output=False)
 wgt_train_onehot = encoder_wgt.fit_transform(wgt_train)
 wgt_test_onehot  = encoder_wgt.transform(wgt_test)
 wgt_val_onehot   = encoder_wgt.transform(wgt_val)
@@ -650,12 +723,12 @@ wgt_val_onehot   = encoder_wgt.transform(wgt_val)
 encoder_mov = OneHotEncoder(sparse_output=False)
 mov_train_onehot = encoder_mov.fit_transform(mov_train)
 mov_test_onehot  = encoder_mov.transform(mov_test)
-mov_val_onehot   = encoder_mov.transform(mov_val)
+mov_val_onehot   = encoder_mov.transform(mov_val) """
 
 # #? Add categorical features to the input sets
-X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
+""" X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
 X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
-X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
+X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1) """
 
 #? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
@@ -683,11 +756,18 @@ r2_ss_arr = []
 rho_e_arr = []
 rho_sf_arr = []
 rho_ss_arr = []
+ 
+perf_res_e_arr = []
+perf_res_sf_arr = []
+perf_res_ss_arr = []
+
+time_train = []
 
 for seed in seed_arr:
     np.random.seed(seed)
     random.seed(seed)
     tf.random.set_seed(seed)
+    tf.config.experimental.enable_op_determinism()
 
     neurons_inp = X_train.shape[1]
     #? Init model with norm layer
@@ -729,6 +809,7 @@ for seed in seed_arr:
     MLP_model.setHuberWeights(weights_inp=weights_inp)
     MLP_model.setHuberDeltas(deltas_inp=cfg.model_param.huber_deltas)
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
     #? Train model
     print("Training MLP model for elbow joint...")
     save_model_path = cfg.filepath.save_model_path + filename_suffix
@@ -748,6 +829,12 @@ for seed in seed_arr:
                         show_train_results=cfg.model_param.show_train_results, 
                         callbacks=early_callback)
     print("MLP training done!!\n")
+=======
+    time_train_start = time.perf_counter()
+
+    input_shape_time = (neurons_inp, 1)
+    tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
 
     #? Predict and get results 
     print("Predicting joint torques...")
@@ -764,6 +851,42 @@ for seed in seed_arr:
     # perf_results_MLP = Y_scaler.inverse_transform(perf_results_MLP_scaled)
     # Y_ref = Y_scaler.inverse_transform(Y_test)
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
+=======
+    # --- Train ---
+    save_model_path = cfg.filepath.save_model_path
+
+    callbacks_list = [early_callback] if early_callback is not None else None
+
+    history = tcn_model.fit(
+        X_train_cnn,
+        {'torque_elbow': Y_train[:, 0],
+         'torque_shoulder_front': Y_train[:, 1],
+         'torque_shoulder_side': Y_train[:, 2]},
+        validation_data=(X_val_cnn, {
+            'torque_elbow': Y_val[:, 0],
+            'torque_shoulder_front': Y_val[:, 1],
+            'torque_shoulder_side': Y_val[:, 2]
+        }),
+        epochs=cfg.model_param.n_epochs,
+        batch_size=cfg.model_param.batch_size,
+        callbacks=callbacks_list,
+        verbose=1
+    )
+
+    time_train_end = time.perf_counter()
+    time_train.append(time_train_end - time_train_start)
+
+    # Save model analogous to previous saving behaviour
+    if cfg.model_param.is_save_model:
+        tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
+
+    # --- Predict auf Testdaten ---
+    preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
+    perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
+
+    # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
     Y_ref = []
     perf_results_MLP = []
 
@@ -778,7 +901,20 @@ for seed in seed_arr:
     Y_ref = np.concatenate(Y_ref, axis=0)
     perf_results_MLP = np.concatenate(perf_results_MLP, axis=0)
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
     MLP_model.setPredictionScores(perf_results_MLP)
+=======
+    save_dir = getAbsolutePath(save_dir)
+    fullpath = save_dir / f"ref_data.npy"
+    fullpath.parent.mkdir(parents=True, exist_ok=True)
+    np.save(fullpath, Y_ref)
+
+    # --- Eval Metrics (wie früher)
+    print("Pre-filtering Eval Metrics (TCN)!!")
+    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
+    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
+    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
 
     print("Pre-filtering Eval Metrics!!")
     _,_ = MLModel.calculateEvalMetrics(Y_ref[:,0], perf_results_MLP[:,0])
@@ -799,6 +935,7 @@ for seed in seed_arr:
     perf_results_MLP = MLP_model.getPredictionScores()
     # print(perf_results_MLP.shape)
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
     #? Calculate the model eval metrics on the filtered predicted values
     print("Post-filtering Eval Metrics!!")
     r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:,0], 
@@ -809,15 +946,49 @@ for seed in seed_arr:
     r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:,2], 
                                                                 perf_results_MLP[:,2],
                                                                 is_Pearson=True)
+=======
+    r2_ss_arr.append(r2_side)
+    rho_ss_arr.append(rho_side)
+
+    # ! ************************************************
+    # ! Post-prediction Filtering (manuell, da MLP_model.applyFilter_prediction entfällt)
+    # ! ************************************************
+    # Median filter
+    if cfg.post_train_param.filter_type == 'median':
+        for i in range(3):
+            perf_results_TCN[:, i] = medfilt(perf_results_TCN[:, i], kernel_size=cfg.post_train_param.filter_size)
+
+    # Savitzky-Golay
+    if getattr(cfg.post_train_param, 'savgol_window_len', None) is not None:
+        for i in range(3):
+            perf_results_TCN[:, i] = savgol_filter(perf_results_TCN[:, i],
+                                                   cfg.post_train_param.savgol_window_len,
+                                                   cfg.post_train_param.savgol_poly_order)
+    np.save(f"{save_dir}/pred_results_seed{seed}.npy", perf_results_TCN)
+
+    # Post-filter Eval
+    print("Post-filtering Eval Metrics (TCN)!!")
+    r2_elbow_pf, rmse_elbow_pf, rho_elbow_pf = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0],
+                                                                            is_Pearson=True)
+    r2_front_pf, rmse_front_pf, rho_front_pf = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1],
+                                                                            is_Pearson=True)
+    r2_side_pf, rmse_side_pf, rho_side_pf = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2],
+                                                                         is_Pearson=True)
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
 
     r2_e_arr.append(r2_elbow)
     rho_e_arr.append(rho_elbow)
+    perf_res_e_arr.append(perf_results_TCN[:, 0])
 
     r2_sf_arr.append(r2_front)
     rho_sf_arr.append(rho_front)
+    perf_res_sf_arr.append(perf_results_TCN[:, 1])
 
     r2_ss_arr.append(r2_side)
     rho_ss_arr.append(rho_side)
+    perf_res_ss_arr.append(perf_results_TCN[:, 2])
+
+
 
 
 print("The results across seed are...\n")
@@ -833,8 +1004,19 @@ print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_ar
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
+<<<<<<< HEAD:src/JTE_Project/pipeline_mlp_to_cnn.py
 
 
     
 
     
+=======
+# Timings
+print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
+
+print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
+
+time_train_mean = np.mean(time_train)
+time_train_std = np.std(time_train)
+print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+>>>>>>> 40e2fa2 (Adjusted plots for paper):src/JTE_Project/offline/pipeline_mlp_to_cnn.py
