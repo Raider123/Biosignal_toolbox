@@ -362,7 +362,7 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
         exit(1)
     
 
-def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Sample", ylabel="", is_grid_on=True, is_list=False):
+def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Time (s)", ylabel="", is_grid_on=True, is_list=False, is_multiple=False, plot_len=10, start_time=0):
     """
     This function plots the result of the BPNN model
 
@@ -395,16 +395,34 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
     #TODO: Improve to make it more general
     plt.figure()
 
-    if is_list:
-        arr_data = np.vstack(data_out)
-        data_out = np.mean(arr_data, axis=0)
-        out_std = np.std(arr_data, axis=0)
+    start_time = int(start_time/0.05)
+    stop_time = len(data_ref)-1 if plot_len == -1 else start_time + int(plot_len/0.05)
+    timepoints = slice(start_time,stop_time)
+    print(timepoints)
+    print()
+    x_samples = (np.arange(0, len(data_ref),1)*0.05)[timepoints]
+    plt.plot(x_samples, data_ref[timepoints], ls="-", label=label_ref, color = "red")
 
-    x_samples = np.arange(0, len(data_ref),1)
-    plt.plot(x_samples, data_ref, ls="-.", label=label_ref, color = "red")
-    plt.plot(x_samples, data_out, ls="-", label=label_out, color="blue")
-    if is_list:
-        plt.fill_between(x_samples, data_out - out_std, data_out + out_std, color="blue", alpha=0.3)    
+    if not is_multiple:
+        temp = []
+        temp.append(data_out)
+        data_out = temp
+
+    for i, d in enumerate(data_out):
+        color = "blue" if i == 0 else "orange"
+        if i==2:
+            color = "magenta"
+
+
+        if is_list:
+            arr_data = np.vstack(d)
+            d = np.mean(arr_data, axis=0)[timepoints]
+            out_std = np.std(arr_data, axis=0)[timepoints]
+
+        plt.plot(x_samples, d, ls="-", label=label_out, color=color)
+        if is_list:
+            plt.fill_between(x_samples, d - out_std, d + out_std, color=color, alpha=0.3)    
+    
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
