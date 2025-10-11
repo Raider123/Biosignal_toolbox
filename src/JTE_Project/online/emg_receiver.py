@@ -16,8 +16,7 @@ class LiveEstimation:
    def __init__(self):
        self.property = {}
        self.configure_properties()
-
-       print(self.property['f_samp'])
+       print("Loaded properties!")
 
        # EMG 8 channel names
        self.channel_names = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -37,43 +36,37 @@ class LiveEstimation:
                                  channel_names=self.channel_names, n_samples=self.property["buffer_size"],
                                  f_samp=self.property["f_samp"])
 
-       self.log("Created EMG_live object!!")
+       print("Created EMG_live object!!")
 
        #  TCN Model
        self.load_model(
            'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras')
 
-       self.log("Loaded TCN Model")
-
-       # Raw predicted torque output list
-       self.torque_out_e = deque([])
-       self.torque_out_f = deque([])
-       self.torque_out_s = deque([])
-
-       # Standard Deviation
-       self.std_e = deque([])
-       self.std_f = deque([])
-       self.std_s = deque([])
+       print("Loaded TCN Model")
 
        emg_context = zmq.Context()
-       self.socket = emg_context.socket(zmq.SUB)
-       self.socket.connect("tcp://127.0.0.1:5555")
+       self.emg_socket = emg_context.socket(zmq.SUB)
+       self.emg_socket.connect("tcp://127.0.0.1:5555")
        print("EMG Subscriber is active")
+       self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
        my_context_sj0 = zmq.Context()
        self.socket_sj0 = my_context_sj0.socket(zmq.PUB)
        self.socket_sj0.bind("tcp://*:7012")
        time.sleep(0.05)
+       print("Publisher SJ0 active")
 
        my_context_sj2 = zmq.Context()
        self.socket_sj2 = my_context_sj2.socket(zmq.PUB)
        self.socket_sj2.bind("tcp://*:7011")
        time.sleep(0.05)
+       print("Publisher SJ2 active")
 
        my_context_elbow = zmq.Context()
        self.socket_elbow = my_context_elbow.socket(zmq.PUB)
        self.socket_elbow.bind("tcp://*:7010")
        time.sleep(0.05)
+       print("Publisher Elbow active")
 
        # Sus - nachgucken
        self.sos_bp = self.EMG_live.designFilter(f_low=245.0, f_high=20, order=2, filter_type="scipy_butter",
@@ -81,9 +74,6 @@ class LiveEstimation:
        self.sos_lp = self.EMG_live.designFilter(f_low=5.0, f_high=None, order=2, filter_type="scipy_butter",
                                                 return_type="sos")
 
-       self.save_traj_elbow = []
-       self.save_traj_front = []
-       self.save_traj_side = []
 
        print("Finished configuring EMG receiver")
 
@@ -135,7 +125,6 @@ class LiveEstimation:
         return True
 
    def update_loop(self):
-
        '''
         # t_start = time.perf_counter()
         # get a new data chunk
@@ -267,24 +256,23 @@ class LiveEstimation:
         # self.save_traj_front.append(round((self.torque_out_f[-1] - self.torque_out_f[0])[0,0],2))
         # self.save_traj_side.append(round((self.torque_out_s[-1] - self.torque_out_s[0])[0,0],2))
         '''
-       idx = 0
-       while idx >0:
+
+       while True:
            # Read emg data from the stream
-           data_arr_str = self.socket.recv_string()
+           data_arr_str = self.emg_socket.recv_string()
            data_arr_np = np.array(data_arr_str)
 
            # Manually setting the data (otherwise use start_hook())
            self.EMG_live.setChunk(data_arr_np, chunk_type="numpy")
 
            # Update the internal ring buffer
-           self.EMG_live.updateBuffer(show_data_shape=True, channel_indices=[0, 1, 2, 3, 4, 5, 6, 7])
+           #self.EMG_live.updateBuffer(show_data_shape=True, channel_indices=[0, 1, 2, 3, 4, 5, 6, 7])
 
            # Temp - get data from the buffer
            latest_data = self.EMG_live.getDataBuffer()
            print("Buffer-Shape: ", latest_data.shape)
 
-           self.EMG_live.ensureLoopFrequency(print_loop_time=True)
-
+           #self.EMG_live.ensureLoopFrequency(print_loop_time=True)
 
 if __name__ == "__main__":
 
