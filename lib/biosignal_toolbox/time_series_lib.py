@@ -3420,7 +3420,7 @@ class OnlineTimeseriesStreaming(Timeseries):
     
 
    # same as in the EEG toolbox, remove later on 
-    def updateBuffer(self, channel_indices = None, show_data_shape = False):  #current_local_time, timestamp_offset, 
+    def updateBuffer(self, num_channels = 8):  #current_local_time, timestamp_offset,
         """
         This function provides the most recent data samples and timestamps in a buffer (fist val is oldest, last the newest)
 
@@ -3437,34 +3437,33 @@ class OnlineTimeseriesStreaming(Timeseries):
 
         Author
         ------
-        Author : Niklas Kueper \n
-        Last changed: 13.03.2024 (by Niklas Kueper)
-        """        
+        Author : Raid Dokhan \n
+        Last changed: 12.10.2025 (by Niklas Kueper)
+        """
 
-        #data 
-        #print("type of chunk 1", type(self.data_chunk))
-        if(self.data_chunk): # only to this if new data is received 
-            current_chunk = (np.array(self.data_chunk).T) # chunk is sampels, channels, after transpose then channels, sampels !
+        if self.data_chunk: # only to this if new data is received
+            #print("Current Chunk: ", type(self.data_chunk), self.data_chunk)
 
+            current_chunk = list(map(float, self.data_chunk.split()))
+            current_chunk = np.array(current_chunk)
+            #print("Current Chunk Shape: ", current_chunk.shape)
 
-            if(channel_indices): 
-                current_chunk = current_chunk[channel_indices, :]
+            # reduce to 8 channels, reshape
+            current_chunk = current_chunk[0:num_channels].reshape((num_channels,1))
+            #print("Current Chunk Shape", current_chunk.shape)
 
-            if(show_data_shape):
-                print("data chunk shape:", current_chunk.shape) # should be in channels, sampels
-
-            # #print(current_chunk.shape)
-            # current_chunk = current_chunk[0:n_channels, :] # use first n channels
-
-            self.n_samples = current_chunk.shape[1] # how much new samples 
+            self.n_samples = 1
 
             if (self.n_samples > self.data_buffer.shape[2]): # print error message 
                 print("Buffer overflow")
 
-            #print("self.data_buffer.shape", self.data_buffer.shape)
-
             self.data_buffer = np.roll(self.data_buffer, shift = int(-1*self.n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
             self.data_buffer[0, :, int(-1*self.n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
+
+            # test
+            #test_buffer = self.data_buffer[0,0,:,0]
+            #sum = np.sum(test_buffer)
+            #print(self.data_buffer.shape, "Calcsum: ", sum)
 
             #TODO: write this again but proper 
             # if (check_sample_loss): 

@@ -266,11 +266,12 @@ class LiveEstimation:
            self.EMG_live.setChunk(data_arr_np, chunk_type="numpy")
 
            # Update the internal ring buffer
-           #self.EMG_live.updateBuffer(show_data_shape=True, channel_indices=[0, 1, 2, 3, 4, 5, 6, 7])
+           self.EMG_live.updateBuffer(num_channels = 8)
+           print("Buffer Updated")
 
            # Temp - get data from the buffer
-           latest_data = self.EMG_live.getDataBuffer()
-           print("Buffer-Shape: ", latest_data.shape)
+           #latest_data = self.EMG_live.getDataBuffer()
+           #print("Buffer-Shape: ", latest_data.shape)
 
            #self.EMG_live.ensureLoopFrequency(print_loop_time=True)
 
