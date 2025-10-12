@@ -267,14 +267,67 @@ class LiveEstimation:
 
            # Update the internal ring buffer
            self.EMG_live.updateBuffer(num_channels = 8)
-           print("Buffer Updated")
 
            # Temp - get data from the buffer
            #latest_data = self.EMG_live.getDataBuffer()
            #print("Buffer-Shape: ", latest_data.shape)
 
-           #self.EMG_live.ensureLoopFrequency(print_loop_time=True)
+           self.EMG_live.ensureLoopFrequency(print_loop_time=False)
+
+           # # high pass filter
+           self.EMG_live.highPassFilter(cutoff_freq=self.property["f_cutoff_hpf"], order=2, fs=self.property["f_samp"], filter_type="butter", sos=self.sos_hpf, counter=self.sos_hpf_idx, mode='old_offline')
+           self.sos_hpf_idx = 1
+
+           # # variance filter
+           self.EMG_live.applyVarianceFilter_data(mode = "old_online", ring_buffer=np.zeros(self.property['var_filter_width']), width=self.property['var_filter_width'], index=0)
+
+           # # normalisation
+           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
+
+           # # low pass filter
+           self.EMG_live.lowPassFilter(mode='old_offline', cutoff_freq=self.property["f_cutoff_lpf"], order=2, fs=self.property["f_samp"], filter_type="butter", sos=self.sos_lpf, counter=self.sos_lpf_idx)
+           self.sos_lpf_idx = 1
+
+           # # neural activation force
+           self.EMG_live.calculateActivationForceFunction(mode='old_offline', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
+
+           # convert filtered data into window
+           self.EMG_live.bufferToWindows(num_non_data_channels=0)
+
+           # Window related Filtering
+           self.EMG_live.filterWindows(sos=self.sos_bp, apply_method="zero_phase_sos", padtype="even")
+
+           self.EMG_live.windows = np.abs(self.EMG_live.windows)
+           self.EMG_live.filterWindows(sos=self.sos_lp, apply_method="zero_phase_sos", padtype="even")
+           '''
+           max_val = [2.67320054e-04, 1.74150060e-04, 6.26772180e-05, 6.30003855e-05, 1.17669616e-04, 6.39598476e-05,
+                      1.36005774e-05, 2.12251047e-04]
+           for i in range(self.EMG_live.windows.shape[1]):
+               self.EMG_live.windows[:, i, :, :] = self.EMG_live.windows[:, i, :, :] / max_val[i]
+           
+           self.EMG_live.calculateActivationForceFunctionWindows(d=50, b1=0.75, b2=0.05, g=0.1,
+                                                              nonlinear_shape_factor=-1.5)
+           '''
+
+           # get data buffer size to calculate feature window indices
+           db = self.EMG_live.getDataBuffer()
+           feature_indices_windows = np.arange(db.shape[2] - self.property["feature_size"], db.shape[2], step=1)
+
+           # extract features from window
+           self.EMG_live.featureExtractionFromWindows(feature_type="timepoints",
+                                                      feature_indices_windows=feature_indices_windows)
+
+           inp_emg = self.EMG_live.getFeatures()
+           print(inp_emg.shape)
+
+           # calculate mean absolute value (MAV)
+           #inp_emg = self.EMG_live.calculateMAVFromFeatures(len(self.channel_names))
+
+
+
+
+
 
 if __name__ == "__main__":
 
-    live_estimation_obj = LiveEstimation()
+ live_estimation_obj = LiveEstimation()

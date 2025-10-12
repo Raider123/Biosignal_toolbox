@@ -29,9 +29,9 @@ while True:
         current_line = df.iloc[idx].to_frame().T.to_string(header=False, index=False)
 
         #print(current_line)
-        #socket.send-string(current_line)
+        socket.send_string(current_line)
 
-        socket.send_string('0.002229 0.001478 0.002173 -0.001169 0.002038 0.004714 -0.001207 -0.001882 0.0 62930.0')
+        #socket.send_string('0.002229 0.001478 0.002173 -0.001169 0.002038 0.004714 -0.001207 -0.001882 0.0 62930.0')
 
         if idx == max_rows:
             idx = 0

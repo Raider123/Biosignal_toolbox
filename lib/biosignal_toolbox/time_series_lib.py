@@ -516,8 +516,7 @@ class Timeseries():
 
             self.windows = filtered_windows
 
-        elif(apply_to_structures == "raw"): # channels, sampels 
-            
+        elif(apply_to_structures == "raw"): # channels, sampels
             # signal init 
             emg_filtered = np.zeros(self.data.shape)
                 
