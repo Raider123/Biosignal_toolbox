@@ -2871,7 +2871,10 @@ class Timeseries():
             if mode == "offline":
                 self.data = self.data / mvc
             elif mode == "old_online":
-                self.data_buffer[0,:,:,0] = self.data_buffer[0,:,(-1*self.n_samples):,0] / mvc
+                self.data_buffer[0, :, -self.n_samples:, 0] /= mvc
+
+                #select_data = np.mean(self.data_buffer[0, 0, :, 0])
+                #print("BUFFER: ", select_data)
         except Exception as e:
             print(f"Please provide the MVC for Normalisation: {e}!!")
     
@@ -3221,7 +3224,7 @@ class Timeseries():
 
 class OnlineTimeseriesStreaming(Timeseries): 
 
-    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], buffer_size=500, dt_process_data = 0.05, f_samp = 1000.0):
         """
         This class is used for provide and handle old_online streamed time series data.
 
@@ -3231,7 +3234,7 @@ class OnlineTimeseriesStreaming(Timeseries):
             The type of the stream that should be created or used. Can be "data" for timeseries data or "impedance" for receiving/sending impedance values, by default "data"
         channel_names : list, optional
             A list of channel names of the timeseries data. Might not be used in case a stream is providing the channel names automatically, by default ["1", "2", "3"]
-        n_samples : int, optional
+        buffer_size : int, optional
             The number of timeseries samples that are stored and updated in a buffer for each channel, by default 500
         dt_process_data : float, optional
             The time interval in which new data should be received/the buffer updated. Reflect to the loop frequency of the processing, by default 0.05
@@ -3255,7 +3258,7 @@ class OnlineTimeseriesStreaming(Timeseries):
         self.f_samp = f_samp
         self.stream_type = stream_type
         self.n_channels = len(channel_names)
-        self.buffersize = n_samples
+        self.buffersize = buffer_size
         self.dt_process_data = dt_process_data
         self.channel_names = channel_names
         self.data_buffer = np.zeros((1, self.n_channels, self.buffersize, 1)) # data buffer has shape (trials, n_channels, sampels, windows)
@@ -3441,29 +3444,20 @@ class OnlineTimeseriesStreaming(Timeseries):
         """
 
         if self.data_chunk: # only to this if new data is received
-            #print("Current Chunk: ", type(self.data_chunk), self.data_chunk)
+            # (500, 10)
+            current_chunk = np.array(self.data_chunk, dtype=float)
+            #(500,8) reduce last two channels (9 and 10)
+            current_chunk = current_chunk[:, 0:num_channels]
+            # (8,500) transpose
+            current_chunk = current_chunk.T
+            #print("SHAPE ", current_chunk.shape)
 
-            current_chunk = list(map(float, self.data_chunk.split()))
-            current_chunk = np.array(current_chunk)
-            #print("Current Chunk Shape: ", current_chunk.shape)
-
-            # reduce to 8 channels, reshape
-            current_chunk = current_chunk[0:num_channels].reshape((num_channels,1))
-            #print("Current Chunk Shape", current_chunk.shape)
-
-            self.n_samples = 1
-
-            if (self.n_samples > self.data_buffer.shape[2]): # print error message 
-                print("Buffer overflow")
+            self.n_samples = current_chunk.shape[1]
 
             self.data_buffer = np.roll(self.data_buffer, shift = int(-1*self.n_samples), axis = 2) # shift array by n samples  data_buffer: shape (trials, channel, sampels, windows)
-            self.data_buffer[0, :, int(-1*self.n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct 
+            self.data_buffer[0, :, int(-1*self.n_samples):, 0] = current_chunk # channels, sampels shape , update latest values in buffer  --> is this correct
 
-            # test
-            #test_buffer = self.data_buffer[0,0,:,0]
-            #sum = np.sum(test_buffer)
-            #print(self.data_buffer.shape, "Calcsum: ", sum)
-
+            #print("Current Buffer Val ",np.mean(self.data_buffer[0,0,:,0]))
             #TODO: write this again but proper 
             # if (check_sample_loss): 
             #     # check for sample loss 
@@ -3476,7 +3470,7 @@ class OnlineTimeseriesStreaming(Timeseries):
             warnings.warn("no new data chunk received!")
 
     
-    def bufferToWindows(self, num_non_data_channels = 0):
+    def bufferToWindows(self):
         """
         This method converts the buffered data from the data_buffer into data windows for further processing.  
 
@@ -3491,7 +3485,9 @@ class OnlineTimeseriesStreaming(Timeseries):
         Last changed: 13.03.2024 (by Niklas Kueper)
         """        
 
-        self.windows = self.data_buffer[:, 0:self.n_channels-num_non_data_channels, :, :] # assuming last num_non_data_channels are appended at the end (as done by LiveAmp connector)
+        self.windows = self.data_buffer[:, 0:self.n_channels, :, :]
+
+        print("BufferToWindows   ", self.windows.shape)
 
     def getDataBuffer(self): 
         """

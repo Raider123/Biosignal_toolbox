@@ -39,7 +39,7 @@ class LiveEstimation:
 
        # Create old_online EMG object
        self.EMG_live = OnlineEMG(stream_type="data",
-                                 channel_names=self.channel_names, n_samples=self.property["buffer_size"],
+                                 channel_names=self.channel_names, buffer_size=self.property["buffer_size"],
                                  f_samp=self.property["f_samp"])
 
        print("Created EMG_live!!")
@@ -57,7 +57,7 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       self.setup_plot()
+       #self.setup_plot()
 
        #  TCN Model
        self.load_model(
@@ -71,8 +71,15 @@ class LiveEstimation:
        print("EMG Subscriber is active")
        self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
-       print("Finished configuring EMG receiver")
+       # Parameters for receiving batches (instead of single strings)
+       self.batch_size = 50
+       self.emg_buffer = []
+       self.emg_array = None
 
+       # Emg plot
+       self.emg_fig, self.emg_ax, self.emg_lines = self.setup_emg_plot()
+
+       print("Finished configuring EMG receiver")
        self.update_loop()
 
    def setup_plot(self):
@@ -143,14 +150,13 @@ class LiveEstimation:
        self.property[name] = default_value
 
    def configure_properties(self):
-       self.add_property("buffer_size", 500)
-       self.add_property("feature_size", 20)
+       self.add_property("buffer_size", 100)
        self.add_property("f_samp", 500)
        self.add_property("n_channels", 8)
        self.add_property("f_cutoff_hpf", 15)
        self.add_property("f_cutoff_lpf", 10)
        self.add_property("var_filter_width", 20)
-       self.add_property("mvc", 2.7579163508176626e-06)
+       self.add_property("mvc", 3.941259927517915e-06)
        self.add_property("delay", 25)
        self.add_property("beta1", 0.25)
        self.add_property("beta2", 0.05)
@@ -198,7 +204,7 @@ class LiveEstimation:
            feature_type="timepoints",
            feature_indices_windows=feature_indices_windows_x
        )
-
+       '''
        # Time domain features
        n_channels = len(self.channel_names)
 
@@ -247,6 +253,7 @@ class LiveEstimation:
            prepend=self.EMG_live.getFeatures()[0:1, :]
        )
        self.EMG_live.addFeatures(peak_detection)
+       '''
 
        self.features = self.EMG_live.getFeatures()
        print(f"Total EMG features extracted: {self.features.shape}")
@@ -361,38 +368,73 @@ class LiveEstimation:
 
        return self.predictions
 
+   def read_emg_batch(self):
+       while len(self.emg_buffer) != self.batch_size:
+           try:
+               # Nachricht empfangen (als String)
+               message = self.emg_socket.recv_string()
+
+               # In Zahlen (float) umwandeln
+               values = np.fromstring(message, sep=" ")
+
+               self.emg_buffer.append(values)
+
+               # Wenn 500 Samples gesammelt → NumPy-Array bilden
+               if len(self.emg_buffer) == self.batch_size:
+                   self.emg_array = np.stack(self.emg_buffer)  # shape: (500, n_channels)
+
+           except Exception as e:
+               print(f"⚠️ Error: {e}")
+
+       # Buffer leeren
+       self.emg_buffer = []
+
+   def setup_emg_plot(self, n_channels=8, n_samples=100):
+       plt.ion()
+       fig, ax = plt.subplots(figsize=(10, 5))
+       x = np.arange(n_samples)
+       lines = [ax.plot(x, np.zeros(n_samples))[0] for _ in range(n_channels)]
+       ax.set_xlim(0, n_samples - 1)
+       ax.set_ylim(-1000, 1000)
+       ax.grid(True)
+       return fig, ax, lines
+
+   def update_emg_plot(self, lines, arr):
+       """
+       arr: (1,8,500,1) oder (8,500)
+       """
+       data = arr[0, :, :, 0] if arr.ndim == 4 else arr  # -> (8, 500)
+       for i, ln in enumerate(lines):
+           ln.set_ydata(data[i])
+       plt.pause(0.01)
+
    def update_loop(self):
        while True:
            update_start_time = time.time()
 
            # Read emg data from the stream
-           data_arr_str = self.emg_socket.recv_string()
-           data_arr_np = np.array(data_arr_str)
+           self.read_emg_batch()
 
            # Manually setting the data (otherwise use start_hook())
-           self.EMG_live.setChunk(data_arr_np, chunk_type="numpy")
+           self.EMG_live.setChunk(self.emg_array, chunk_type="numpy")
 
            # Update the internal ring buffer
            self.EMG_live.updateBuffer(num_channels = 8)
-
-           # Temp - get data from the buffer
-           #latest_data = self.EMG_live.getDataBuffer()
-           #print("Buffer-Shape: ", latest_data.shape)
-
-           self.EMG_live.ensureLoopFrequency(print_loop_time=False)
 
            # # high pass filter
            self.EMG_live.highPassFilter(cutoff_freq=self.property["f_cutoff_hpf"], order=2, fs=self.property["f_samp"], filter_type="butter", sos=self.sos_hpf, counter=self.sos_hpf_idx, mode='old_offline')
            self.sos_hpf_idx = 1
 
            # Create identical copy for frequency extraction
-           self.EMG_live_freq = copy.deepcopy(self.EMG_live)
+           #self.EMG_live_freq = copy.deepcopy(self.EMG_live)
 
-           # # variance filter
+           # ToDo Variance Filter hat komische Effekte auf die Daten!
+           '''
+           # # variance filter 
            self.EMG_live.applyVarianceFilter_data(mode = "old_online", ring_buffer=np.zeros(self.property['var_filter_width']), width=self.property['var_filter_width'], index=0)
-
+           '''
            # # normalisation
-           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
+           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online") # ToDo implement channelwise MVC calculation!
 
            # # low pass filter
            self.EMG_live.lowPassFilter(mode='old_offline', cutoff_freq=self.property["f_cutoff_lpf"], order=2, fs=self.property["f_samp"], filter_type="butter", sos=self.sos_lpf, counter=self.sos_lpf_idx)
@@ -402,50 +444,51 @@ class LiveEstimation:
            self.EMG_live.calculateActivationForceFunction(mode='old_offline', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
 
            # convert filtered data into window
-           self.EMG_live.bufferToWindows(num_non_data_channels=0)
-           self.EMG_live_freq.bufferToWindows(num_non_data_channels=0)
+           self.EMG_live.bufferToWindows()
+           #self.EMG_live_freq.bufferToWindows()
 
-           ''' # REPLACED WITH OFFLINE FUNCTIONS
-           # Window related Filtering
-           self.EMG_live.filterWindows(sos=self.sos_bp, apply_method="zero_phase_sos", padtype="even")
+           # ToDo Feature Extraction
+           # ToDo Scaling - Standard and PCA look below
+           # Pre-PCA scaling
+           # Dimensionality reduction with PCA
+           # Post-PCA scaling of input features
+           # ToDo Model Prediction
+           # ToDo PostProcessing
 
-           self.EMG_live.windows = np.abs(self.EMG_live.windows)
-           self.EMG_live.filterWindows(sos=self.sos_lp, apply_method="zero_phase_sos", padtype="even")
+           ## EMG - Window Extraction and Reshaping
+           windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
+           # Umformen zu (n_windows, n_samples, n_channels)
+           windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
+           # Extrahieren von (n_samples,n_channels)
+           windows = windows[0].T
+           #print("WINDOWS ", windows.shape)
 
-           # get data buffer size to calculate feature window indices
-           db = self.EMG_live.getDataBuffer()
-           feature_indices_windows = np.arange(db.shape[2] - self.property["feature_size"], db.shape[2], step=1)
-
-           # extract features from window
-           self.EMG_live.featureExtractionFromWindows(feature_type="timepoints",
-                                                      feature_indices_windows=feature_indices_windows)
-
-           inp_emg = self.EMG_live.getFeatures()
+           # For plotting emg in debug case
+           #emg_dat = self.EMG_live.getDataBuffer()
+           self.update_emg_plot(self.emg_lines, windows)
+           plt.pause(0.01)
 
 
-           # calculate mean absolute value (MAV)
-           inp_emg = self.EMG_live.calculateMAVFromFeatures(len(self.channel_names))
-
-           print(inp_emg.shape)
            '''
-
            # Use the feature extraction/scaling/prediction/visualization from the offline case
-           self.extract_features()
-           self.scale_features() # ToDO PCA
-           self.predict()
+           #self.extract_features()
+           #self.scale_features() # ToDO Load Standardscaler and PCA
+           #self.predict()
            #self.apply_post_filter() # ToDO Adjust Savgol Size
+           #print("PREDICTIONS ----", self.predictions)
 
+           
+           # Plot
            # Save all single predictions
            self.all_predictions.append(self.predictions)
 
-           # Plot
            update_time_step = time.time() - update_start_time
            self.current_time = self.current_time + update_time_step
            self.elapsed_times.append(self.current_time)
 
            self.update_plot(elapsed_times=self.elapsed_times)
            plt.pause(0.001)
-
+           '''
 
 if __name__ == "__main__":
 
