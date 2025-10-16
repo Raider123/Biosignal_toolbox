@@ -818,63 +818,68 @@ for seed in seed_arr:
     else:
         raise ValueError(f"Wrong Huber weight method chosen {cfg.model_param.huber_weight_method}...")
 
-    # --- Build TCN model ---
-    filters = 32
-    stacks = 2
-    dropout_rate = 0.10
-    kernel_size = 3
+    if cfg.model_param.load_models == False:
+        # --- Build TCN model ---
+        filters = 32
+        stacks = 2
+        dropout_rate = 0.10
+        kernel_size = 3
 
-    time_train_start = time.perf_counter()
+        time_train_start = time.perf_counter()
 
-    input_shape_time = (neurons_inp, 1)
-    tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
+        input_shape_time = (neurons_inp, 1)
+        tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
 
-    # choose loss function similar to previous pipeline (if cfg.model_param.loss_fcn contains 'huber' use Huber)
-    if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
-        loss_fn = tf.keras.losses.Huber()
-    else:
-        loss_fn = tf.keras.losses.MeanSquaredError()
+        # choose loss function similar to previous pipeline (if cfg.model_param.loss_fcn contains 'huber' use Huber)
+        if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
+            loss_fn = tf.keras.losses.Huber()
+        else:
+            loss_fn = tf.keras.losses.MeanSquaredError()
 
-    loss_weights = {'torque_elbow': weights_inp[0],
-                    'torque_shoulder_front': weights_inp[1],
-                    'torque_shoulder_side': weights_inp[2]}
+        loss_weights = {'torque_elbow': weights_inp[0],
+                        'torque_shoulder_front': weights_inp[1],
+                        'torque_shoulder_side': weights_inp[2]}
 
-    tcn_model.compile(
-        optimizer=optimizers.Adam(learning_rate=getattr(cfg.model_param, 'learning_rate', 1e-3)),
-        loss={'torque_elbow': loss_fn,
-              'torque_shoulder_front': loss_fn,
-              'torque_shoulder_side': loss_fn},
-        loss_weights=loss_weights,
-        metrics=['mae']
-    )
+        tcn_model.compile(
+            optimizer=optimizers.Adam(learning_rate=getattr(cfg.model_param, 'learning_rate', 1e-3)),
+            loss={'torque_elbow': loss_fn,
+                  'torque_shoulder_front': loss_fn,
+                  'torque_shoulder_side': loss_fn},
+            loss_weights=loss_weights,
+            metrics=['mae']
+        )
 
-    # --- Train ---
-    save_model_path = cfg.filepath.save_model_path
+        # --- Train ---
+        save_model_path = cfg.filepath.save_model_path
 
-    callbacks_list = [early_callback] if early_callback is not None else None
+        callbacks_list = [early_callback] if early_callback is not None else None
 
-    history = tcn_model.fit(
-        X_train_cnn,
-        {'torque_elbow': Y_train[:, 0],
-         'torque_shoulder_front': Y_train[:, 1],
-         'torque_shoulder_side': Y_train[:, 2]},
-        validation_data=(X_val_cnn, {
-            'torque_elbow': Y_val[:, 0],
-            'torque_shoulder_front': Y_val[:, 1],
-            'torque_shoulder_side': Y_val[:, 2]
-        }),
-        epochs=cfg.model_param.n_epochs,
-        batch_size=cfg.model_param.batch_size,
-        callbacks=callbacks_list,
-        verbose=1
-    )
+        history = tcn_model.fit(
+            X_train_cnn,
+            {'torque_elbow': Y_train[:, 0],
+             'torque_shoulder_front': Y_train[:, 1],
+             'torque_shoulder_side': Y_train[:, 2]},
+            validation_data=(X_val_cnn, {
+                'torque_elbow': Y_val[:, 0],
+                'torque_shoulder_front': Y_val[:, 1],
+                'torque_shoulder_side': Y_val[:, 2]
+            }),
+            epochs=cfg.model_param.n_epochs,
+            batch_size=cfg.model_param.batch_size,
+            callbacks=callbacks_list,
+            verbose=1
+        )
 
-    time_train_end = time.perf_counter()
-    time_train.append(time_train_end - time_train_start)
+        time_train_end = time.perf_counter()
+        time_train.append(time_train_end - time_train_start)
 
-    # Save model analogous to previous saving behaviour
-    if cfg.model_param.is_save_model:
-        tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
+        # Save model analogous to previous saving behaviour
+        if cfg.model_param.is_save_model:
+            tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
+        else: # Infer
+            from tensorflow.keras.models import load_model
+            model_mtl = load_model(os.path.join(save_model_path, "tcn_mtl.keras"), compile=False)
+
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)

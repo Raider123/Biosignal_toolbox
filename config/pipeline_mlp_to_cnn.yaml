@@ -91,8 +91,8 @@
     act_h4:                   'relu'
     act_out:                  'tanh' 
 
-    is_save_model:            True
-    load_models:              False
+    is_save_model:            False
+    load_models:              True
     show_train_results:       False
 
   post_train_param:
