@@ -193,7 +193,7 @@ class EMGPreprocessor:
         print("Data windowed!\n")
 
         # Output the windows.shape
-        print(self.emg_data.windows.shape)
+        print("TEST   ", self.emg_data.windows.shape)
 
     def extract_features(self):
         """Extract all features from windowed EMG data."""
@@ -209,7 +209,7 @@ class EMGPreprocessor:
             feature_type="timepoints",
             feature_indices_windows=feature_indices_windows_x
         )
-
+        '''
         # Time domain features
         n_channels = len(self.channel_names)
 
@@ -258,6 +258,7 @@ class EMGPreprocessor:
             prepend=self.emg_data.getFeatures()[0:1, :]
         )
         self.emg_data.addFeatures(peak_detection)
+        '''
 
         self.features = self.emg_data.getFeatures()
         print(f"Total EMG features extracted: {self.features.shape}")
@@ -315,7 +316,7 @@ class EMGPreprocessor:
         self.apply_activation_function()
         self.window_data()
         self.extract_features()
-        self.scale_features()
+        #self.scale_features()
 
         return self.features
 
@@ -441,7 +442,7 @@ class OnlineEMGPredictor:
         if self.predictions is None:
             warnings.warn("No predictions available. Run predict() first!")
             return None
-
+        '''
         print("Applying post-prediction filters...")
         filtered_predictions = self.predictions.copy()
 
@@ -470,8 +471,10 @@ class OnlineEMGPredictor:
 
         self.predictions = filtered_predictions
         print("Post-prediction filtering completed!\n")
+        '''
 
         return self.predictions
+
 
     def run(self, data_arr):
         """
@@ -496,4 +499,9 @@ class OnlineEMGPredictor:
         # Apply post-filtering
         final_predictions = self.apply_post_filter()
 
-        return final_predictions
+        windows = self.preprocessor.emg_data.getWindows()[0]
+        print("SHAPE WIN: ", windows.shape)
+        windows = windows.reshape(8, 50*18)
+        windows = windows[:, :100]
+
+        return final_predictions, windows

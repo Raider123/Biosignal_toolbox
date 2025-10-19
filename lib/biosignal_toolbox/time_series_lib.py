@@ -2844,12 +2844,37 @@ class Timeseries():
             for ch in range(self.data.shape[0]):
                 _ = vt.filter(out_arr[ch], self.data[ch], ring_buffer, self.variables, width, index)
             self.data = out_arr
-        
+
         elif mode == "old_online":
-            out_arr = np.zeros((self.data_buffer.shape[1],self.data_buffer.shape[2]))
-            for ch in range(self.n_channels-2):
-                _ = vt.filter(out_arr[ch], self.data_buffer[0,ch,(-1*self.n_samples):,0], ring_buffer, self.variables, width, index)
-            self.data_buffer[0,:,:,0] = out_arr
+            out = self.data_buffer[0, :, :, 0]  # View: (C, N)
+            C, N = out.shape
+            start = N - self.n_samples  # wir bearbeiten nur [start : N)
+
+            # kumulative Summen (für Var ohne Schleifen)
+            # Padding links mit 0, damit Fenster [i-n_var:i) = cs[i] - cs[i-n_var]
+            cs = np.concatenate([np.zeros((C, 1), dtype=np.float64),
+                                 np.cumsum(out, axis=1, dtype=np.float64)], axis=1)
+            cs2 = np.concatenate([np.zeros((C, 1), dtype=np.float64),
+                                  np.cumsum(out * out, axis=1, dtype=np.float64)], axis=1)
+
+            # Teil 1: im Segment [start : min(n_var, N)) -> 0 (wie im raw-Code)
+            i0 = start
+            i1 = width if width < N else N  # exklusiv
+            if i1 > i0:
+                out[:, i0:i1] = 0
+
+            # Teil 2: im Segment [max(start, n_var) : N) -> echte Varianz
+            j0 = start if start > width else width
+            if j0 < N:
+                # Fenster-Summen für jedes i in [j0 : N):
+                # Sum = cs[:, i] - cs[:, i - n_var]
+                # Sum2 = cs2[:, i] - cs2[:, i - n_var]
+                sum_w = cs[:, j0:N] - cs[:, j0 - width: N - width]
+                sum2_w = cs2[:, j0:N] - cs2[:, j0 - width: N - width]
+                denom = float(width)
+                var_seg = (sum2_w / denom) - (sum_w / denom) ** 2
+                out[:, j0:N] = var_seg.astype(out.dtype)
+
     
     def normalizeContinuousData(self, mvc=0, mode="offline"):
         """

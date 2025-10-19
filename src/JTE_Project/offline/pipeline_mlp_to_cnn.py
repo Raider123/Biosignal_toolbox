@@ -138,7 +138,10 @@ for w_idx, wgt_idx in enumerate(weights):
             quali_sf_file_pattern = f"{cfg.filepath.quali_torque_prefix[1]}_{cfg.data_param.subject_code[0]}_{wgt_idx}_{mov_type}_{set_idx}.npy"
             quali_ss_file_pattern = f"{cfg.filepath.quali_torque_prefix[2]}_{cfg.data_param.subject_code[0]}_{wgt_idx}_{mov_type}_{set_idx}.npy"
 
-            print(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.emg_path + emg_file_pattern))
+            path = cfg.filepath.data_path + cfg.filepath.emg_path + emg_file_pattern
+            abs_path = getAbsolutePath(path)
+            if os.path.exists(abs_path):
+                print(abs_path)
 
             # EMG files
             emg_files = list(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.emg_path).glob(emg_file_pattern))
@@ -876,30 +879,35 @@ for seed in seed_arr:
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
             tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
-        else: # Infer
-            from tensorflow.keras.models import load_model
-            model_mtl = load_model(os.path.join(save_model_path, "tcn_mtl.keras"), compile=False)
+
+    else: # Infer
+        from tensorflow.keras.models import load_model
+        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras', compile=False)
 
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
     perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
 
-    # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
-    Y_ref = []
-    perf_results_TCN = []
+# --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
+Y_ref = []
+perf_results_TCN = []
 
-    for wgt, mov, start_idx, end_idx in Y_scaler_info:
-        Y_ref_scaled = Y_test[start_idx:end_idx]
-        Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
+for wgt, mov, start_idx, end_idx in Y_scaler_info:
+    Y_ref_scaled = Y_test[start_idx:end_idx]
+    Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
 
-        scaler = Y_scaler_dict[wgt][mov]
-        Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
-        perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
+    scaler = Y_scaler_dict[wgt][mov]
+    Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
+    perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
 
-    Y_ref = np.concatenate(Y_ref, axis=0)
-    perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
+Y_ref = np.concatenate(Y_ref, axis=0)
+perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
 
+print(Y_ref.shape)
+print(perf_results_TCN.shape)
+
+'''
     save_dir = getAbsolutePath(save_dir)
     fullpath = save_dir / f"ref_data.npy"
     fullpath.parent.mkdir(parents=True, exist_ok=True)
@@ -981,3 +989,26 @@ print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
 time_train_mean = np.mean(time_train)
 time_train_std = np.std(time_train)
 print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+'''
+
+# Save the ground truth
+# --- Speichern ---
+np.save(cfg.filepath.save_model_path + "torque_24072025_BU62D_0g_complex_1g.npy", Y_ref)
+np.save(cfg.filepath.save_model_path + "offline_predictions_24072025_BU62D_0g_complex_1g.npy", perf_results_TCN)
+
+# Drei Subplots (einer pro Spalte)
+fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+
+x = np.linspace(0, 1, 189)
+
+for i in range(3):
+    axes[i].plot(x, Y_ref[:, i], label='Array 1')
+    axes[i].plot(x, perf_results_TCN[:, i], label='Array 2')
+    axes[i].set_title(f"Spalte {i+1}")
+    axes[i].set_xlabel("x")
+    axes[i].set_ylabel("y")
+    axes[i].grid(True)
+    axes[i].legend()
+
+plt.tight_layout()
+plt.show()

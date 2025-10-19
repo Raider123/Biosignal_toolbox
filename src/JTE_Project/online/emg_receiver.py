@@ -16,6 +16,17 @@ from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolute
 class LiveEstimation:
 
    def __init__(self):
+       emg_context = zmq.Context()
+       self.emg_socket = emg_context.socket(zmq.SUB)
+       self.emg_socket.connect("tcp://127.0.0.1:5555")
+       print("EMG Subscriber is active")
+       self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
+
+       # Parameters for receiving batches (instead of single strings)
+       self.batch_size = 50
+       self.emg_buffer = []
+       self.emg_array = None
+
        self.property = {}
        self.configure_properties()
        print("Loaded properties!") # ToDo Replace properties with the data in the config_file!
@@ -23,6 +34,29 @@ class LiveEstimation:
        config_filename = 'pipeline_mlp_to_cnn.yaml'
        self.cfg = loadConfig(filename=config_filename)
        print('Loaded the config file!')
+
+       #  TCN Model
+       self.load_model(
+           'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras')
+
+       print("Loaded TCN Model")
+
+       # Load Torque Values (ground truth, only in prediction plot)
+       Y_e = np.load("F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/e.npy")
+       Y_f = np.load(
+           "F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/front.npy")
+       Y_s = np.load(
+           "F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/side.npy")
+       Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
+
+       y_ref_length = int (Y_ref_raw.shape[0] / self.batch_size)
+       self.Y_ref = self.downsample_mean_bins(Y_ref_raw, y_ref_length)
+
+       #print("Shape Yref ", Y_ref.shape)
+       #print("Shape Yref downsampled ", Y_ref_ds.shape)
+       #plt.plot(Y_ref_ds[:,0])
+       #plt.show()
+
 
        # EMG 8 channel names
        self.channel_names = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -51,110 +85,83 @@ class LiveEstimation:
        # Variables for Visualization
        self.all_predictions = []
 
+       # Plotting Predictions
        self.fig = None
        self.axes = None
        self.lines = []
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       #self.setup_plot()
+       self.predict_plot = True
 
-       #  TCN Model
-       self.load_model(
-           'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras')
+       if self.predict_plot:
+           self.setup_plot()
 
-       print("Loaded TCN Model")
-
-       emg_context = zmq.Context()
-       self.emg_socket = emg_context.socket(zmq.SUB)
-       self.emg_socket.connect("tcp://127.0.0.1:5555")
-       print("EMG Subscriber is active")
-       self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
-
-       # Parameters for receiving batches (instead of single strings)
-       self.batch_size = 50
-       self.emg_buffer = []
-       self.emg_array = None
+       # Plotting EMG
+       self.emg_plot = False
 
        # Emg plot
-       self.emg_fig, self.emg_ax, self.emg_lines = self.setup_emg_plot()
+       if self.emg_plot:
+        self.emg_fig, self.emg_ax, self.emg_lines = self.setup_emg_plot()
 
        print("Finished configuring EMG receiver")
        self.update_loop()
 
-   def setup_plot(self):
-       """Erstellt die Live-Visualisierung mit 3 Subplots."""
-       print("🎨 Setup der Visualisierung...\n")
+   def downsample_mean_bins(self, Y_ref, target_len=1000):
+       n = Y_ref.shape[0]
+       edges = np.linspace(0, n, target_len + 1, dtype=int)
+       Y_ds = np.vstack([Y_ref[edges[i]:edges[i + 1]].mean(axis=0) for i in range(target_len)])
+       return Y_ds
 
+   def setup_plot(self):
+       self.elapsed_times = getattr(self, "elapsed_times", [])
+       self.all_predictions = getattr(self, "all_predictions", [])
+       self.Y_ref = getattr(self, "Y_ref", [])
        self.fig, self.axes = plt.subplots(3, 1, figsize=(12, 8))
        self.fig.suptitle('Joint-Torque-Estimation (Realtime)', fontsize=14, fontweight='bold')
-
-       joint_names = ['Elbow', 'Shoulder Front', 'Shoulder Side']
-       colors = ['#1f77b4', '#ff7f0e', '#2ca02c']
-
-       for i, (ax, name, color) in enumerate(zip(self.axes, joint_names, colors)):
-           ax.set_ylabel(f'{name} Torque', fontsize=10)
-           ax.set_xlabel('Zeit (s)', fontsize=10)
+       names = ['Elbow', 'Shoulder Front', 'Shoulder Side']
+       self.lines, self.gt_lines = [], []
+       for ax, n in zip(self.axes, names):
+           ax.set_ylabel(f'{n} Torque')
+           ax.set_xlabel('Zeit (s)')
            ax.grid(True, alpha=0.3)
-           ax.set_xlim(0, 10)
-           ax.set_ylim(-5, 5)
-           line, = ax.plot([], [], color=color, linewidth=1.5, label=name)
-           self.lines.append(line)
+           ax.set_ylim(-1, 20)
+           l_pred, = ax.plot([], [], linewidth=1.8, label=f'{n} (Pred)')
+           l_gt, = ax.plot([], [], linestyle='--', linewidth=1.5, label=f'{n} (GT)')
+           self.lines.append(l_pred)
+           self.gt_lines.append(l_gt)
            ax.legend(loc='upper right')
-
        plt.tight_layout()
 
-   def update_plot(self, elapsed_times):
-       if not self.all_predictions or not elapsed_times:
-           return
-
-       # In (N, C) bringen – jedes Element flach machen und stapeln
-       preds = [np.asarray(p).reshape(-1) for p in self.all_predictions]
-       all_preds = np.vstack(preds)
-       if all_preds.ndim == 1:
-           all_preds = all_preds.reshape(-1, 1)
-
-       times = np.asarray(elapsed_times, dtype=float)
-
-       # Auf gleiche Länge kürzen
-       n = min(len(times), all_preds.shape[0])
-       if n == 0:
-           return
-       times, all_preds = times[:n], all_preds[:n, :]
-
-       # Linien aktualisieren (nur so viele wie Spalten)
-       cols = all_preds.shape[1]
-       for i, line in enumerate(self.lines[:cols]):
-           y = all_preds[:, i]
-           if y.size == 0:
-               line.set_data([], [])
-               continue
-
-           line.set_data(times, y)
-
-           y_min, y_max = y.min(), y.max()
-           margin = (y_max - y_min) * 0.1 if y_max != y_min else 0.5
-           self.axes[i].set_ylim(y_min - margin, y_max + margin)
-
-           t_last = times[-1]
-           self.axes[i].set_xlim(max(0.0, t_last - 10.0), max(10.0, t_last + 1.0))
-
-       # Überzählige Linien leeren
-       for j in range(cols, len(self.lines)):
-           self.lines[j].set_data([], [])
-
-       self.fig.canvas.draw_idle()
-       self.fig.canvas.flush_events()
+   def update_plot(self):
+       t = np.asarray(getattr(self, "elapsed_times", []), float)
+       P = np.asarray([np.asarray(p).reshape(-1)[:3] for p in getattr(self, "all_predictions", [])], float) if len(
+           getattr(self, "all_predictions", [])) else np.zeros((0, 3))
+       R = np.asarray(getattr(self, "Y_ref", []), float)
+       if R.ndim == 1: R = R.reshape(1, -1)
+       if t.size == 0: t = np.array([0.0])
+       if P.size == 0: P = np.zeros((1, 3))
+       if R.size == 0: R = np.zeros((1, 3))
+       k = min(t.shape[0], P.shape[0], R.shape[0])  # Fortschritt
+       x_all, Yp_all, Yr_all = t[:k], P[:k], R[:k]  # bis jetzt
+       s = max(0, k - 10)  # nur letzte 10
+       x, Yp, Yr = x_all[s:], Yp_all[s:], Yr_all[s:]
+       xlims = (float(x[-1]) - 0.5, float(x[-1]) + 0.5) if x.size == 1 else (float(x[0]), float(x[-1]))
+       for i in range(3):
+           self.lines[i].set_data(x, Yp[:, i])
+           self.gt_lines[i].set_data(x, Yr[:, i])
+           self.axes[i].set_xlim(*xlims)
+       plt.pause(0.001)
 
    def add_property(self, name, default_value):
        self.property[name] = default_value
 
    def configure_properties(self):
-       self.add_property("buffer_size", 100)
+       self.add_property("buffer_size", 500)
        self.add_property("f_samp", 500)
        self.add_property("n_channels", 8)
        self.add_property("f_cutoff_hpf", 15)
-       self.add_property("f_cutoff_lpf", 10)
+       self.add_property("f_cutoff_lpf", 200)
        self.add_property("var_filter_width", 20)
        self.add_property("mvc", 3.941259927517915e-06)
        self.add_property("delay", 25)
@@ -389,13 +396,13 @@ class LiveEstimation:
        # Buffer leeren
        self.emg_buffer = []
 
-   def setup_emg_plot(self, n_channels=8, n_samples=100):
+   def setup_emg_plot(self, n_channels=8, n_samples=500):
        plt.ion()
        fig, ax = plt.subplots(figsize=(10, 5))
        x = np.arange(n_samples)
        lines = [ax.plot(x, np.zeros(n_samples))[0] for _ in range(n_channels)]
        ax.set_xlim(0, n_samples - 1)
-       ax.set_ylim(-1000, 1000)
+       ax.set_ylim(-10, 10)
        ax.grid(True)
        return fig, ax, lines
 
@@ -426,15 +433,13 @@ class LiveEstimation:
            self.sos_hpf_idx = 1
 
            # Create identical copy for frequency extraction
-           #self.EMG_live_freq = copy.deepcopy(self.EMG_live)
+           self.EMG_live_freq = copy.deepcopy(self.EMG_live)
 
-           # ToDo Variance Filter hat komische Effekte auf die Daten!
-           '''
            # # variance filter 
            self.EMG_live.applyVarianceFilter_data(mode = "old_online", ring_buffer=np.zeros(self.property['var_filter_width']), width=self.property['var_filter_width'], index=0)
-           '''
-           # # normalisation
-           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online") # ToDo implement channelwise MVC calculation!
+
+           # # normalisation # ToDo implement channelwise MVC calculation!
+           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
 
            # # low pass filter
            self.EMG_live.lowPassFilter(mode='old_offline', cutoff_freq=self.property["f_cutoff_lpf"], order=2, fs=self.property["f_samp"], filter_type="butter", sos=self.sos_lpf, counter=self.sos_lpf_idx)
@@ -445,7 +450,17 @@ class LiveEstimation:
 
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
-           #self.EMG_live_freq.bufferToWindows()
+           self.EMG_live_freq.bufferToWindows()
+
+           if self.emg_plot:
+               ## EMG - Window Extraction and Reshaping
+               windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
+               windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
+               windows = windows[0].T #  (n_samples,n_channels)
+
+               # For plotting emg in debug case
+               self.update_emg_plot(self.emg_lines, windows)
+               plt.pause(0.01)
 
            # ToDo Feature Extraction
            # ToDo Scaling - Standard and PCA look below
@@ -454,41 +469,28 @@ class LiveEstimation:
            # Post-PCA scaling of input features
            # ToDo Model Prediction
            # ToDo PostProcessing
-
-           ## EMG - Window Extraction and Reshaping
-           windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
-           # Umformen zu (n_windows, n_samples, n_channels)
-           windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
-           # Extrahieren von (n_samples,n_channels)
-           windows = windows[0].T
-           #print("WINDOWS ", windows.shape)
-
-           # For plotting emg in debug case
-           #emg_dat = self.EMG_live.getDataBuffer()
-           self.update_emg_plot(self.emg_lines, windows)
-           plt.pause(0.01)
-
-
            '''
            # Use the feature extraction/scaling/prediction/visualization from the offline case
            #self.extract_features()
            #self.scale_features() # ToDO Load Standardscaler and PCA
            #self.predict()
            #self.apply_post_filter() # ToDO Adjust Savgol Size
-           #print("PREDICTIONS ----", self.predictions)
-
-           
-           # Plot
-           # Save all single predictions
-           self.all_predictions.append(self.predictions)
-
-           update_time_step = time.time() - update_start_time
-           self.current_time = self.current_time + update_time_step
-           self.elapsed_times.append(self.current_time)
-
-           self.update_plot(elapsed_times=self.elapsed_times)
-           plt.pause(0.001)
            '''
+
+           self.extract_features()
+           self.predict()
+
+           print(self.predictions.shape, " ", self.Y_ref.shape, " ", len(self.elapsed_times))
+
+           if self.predict_plot:
+               # Save all single predictions
+               self.all_predictions.append(self.predictions)
+
+               update_time_step = time.time() - update_start_time
+               self.current_time = self.current_time + update_time_step
+               self.elapsed_times.append(self.current_time)
+
+               self.update_plot()
 
 if __name__ == "__main__":
 
