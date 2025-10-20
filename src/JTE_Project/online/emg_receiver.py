@@ -37,16 +37,14 @@ class LiveEstimation:
 
        #  TCN Model
        self.load_model(
-           'F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras')
+           getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl.keras'))
 
        print("Loaded TCN Model")
 
        # Load Torque Values (ground truth, only in prediction plot)
-       Y_e = np.load("F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/e.npy")
-       Y_f = np.load(
-           "F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/front.npy")
-       Y_s = np.load(
-           "F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/test/side.npy")
+       Y_e = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/e.npy"))
+       Y_f = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/front.npy"))
+       Y_s = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/side.npy"))
        Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
        y_ref_length = int (Y_ref_raw.shape[0] / self.batch_size)
@@ -144,9 +142,9 @@ class LiveEstimation:
        if R.size == 0: R = np.zeros((1, 3))
        k = min(t.shape[0], P.shape[0], R.shape[0])  # Fortschritt
        x_all, Yp_all, Yr_all = t[:k], P[:k], R[:k]  # bis jetzt
-       s = max(0, k - 10)  # nur letzte 10
+       s = max(0, k - 1000)  # nur letzte 10
        x, Yp, Yr = x_all[s:], Yp_all[s:], Yr_all[s:]
-       xlims = (float(x[-1]) - 0.5, float(x[-1]) + 0.5) if x.size == 1 else (float(x[0]), float(x[-1]))
+       xlims = (x[0], x[0]+10+1) if x[-1] <= x[0]+10 else (float(x[-1]-10), float(x[-1]+1))
        for i in range(3):
            self.lines[i].set_data(x, Yp[:, i])
            self.gt_lines[i].set_data(x, Yr[:, i])
@@ -379,16 +377,16 @@ class LiveEstimation:
        while len(self.emg_buffer) != self.batch_size:
            try:
                # Nachricht empfangen (als String)
-               message = self.emg_socket.recv_string()
+                message = self.emg_socket.recv_string()
 
                # In Zahlen (float) umwandeln
-               values = np.fromstring(message, sep=" ")
+                values = np.fromstring(message, sep=" ")
 
-               self.emg_buffer.append(values)
+                self.emg_buffer.append(values)
 
                # Wenn 500 Samples gesammelt → NumPy-Array bilden
-               if len(self.emg_buffer) == self.batch_size:
-                   self.emg_array = np.stack(self.emg_buffer)  # shape: (500, n_channels)
+                if len(self.emg_buffer) == self.batch_size:
+                     self.emg_array = np.stack(self.emg_buffer)  # shape: (500, n_channels)
 
            except Exception as e:
                print(f"⚠️ Error: {e}")
