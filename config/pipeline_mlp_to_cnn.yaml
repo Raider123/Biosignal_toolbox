@@ -19,9 +19,12 @@
   
 
   data_param:
-    weights:                  ['0g']
-    mov_type:                 [ 'complex']
-    set_num:                  ['1']
+    #weights:                  ['0g']
+    weights:                  ['0g', '1100g', '1850g']
+    #mov_type:                 ['complex']
+    mov_type:                 ['grasp', 'complex']
+    #set_num:                  ['1']
+    set_num:                  ['1','2','3','4']
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'

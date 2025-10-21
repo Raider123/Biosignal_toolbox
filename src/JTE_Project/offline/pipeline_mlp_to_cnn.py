@@ -696,7 +696,7 @@ def convert_to_dict(d):
 
 # Umwandeln zu dict (da Lambda-funktionen enthalten)
 clean_dict = convert_to_dict(Y_scaler_dict)
-dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
+#dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
 
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
@@ -765,7 +765,7 @@ Y_val = np.concatenate(Y_val_combined, axis=0)
 
 
 # --- set global seed ---
-seed_arr = [1, 7, 25, 45, 70]
+seed_arr = [1]
 r2_e_arr = []
 r2_sf_arr = []
 r2_ss_arr = []
@@ -882,7 +882,7 @@ for seed in seed_arr:
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl.keras', compile=False)
+        tcn_model = load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl.keras'), compile=False)
 
 
     # --- Predict auf Testdaten ---
@@ -993,8 +993,8 @@ print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sek
 
 # Save the ground truth
 # --- Speichern ---
-np.save(cfg.filepath.save_model_path + "torque_24072025_BU62D_0g_complex_1g.npy", Y_ref)
-np.save(cfg.filepath.save_model_path + "offline_predictions_24072025_BU62D_0g_complex_1g.npy", perf_results_TCN)
+#np.save(cfg.filepath.save_model_path + "torque_24072025_BU62D_0g_complex_1g.npy", Y_ref)
+#np.save(cfg.filepath.save_model_path + "offline_predictions_24072025_BU62D_0g_complex_1g.npy", perf_results_TCN)
 
 # Drei Subplots (einer pro Spalte)
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
