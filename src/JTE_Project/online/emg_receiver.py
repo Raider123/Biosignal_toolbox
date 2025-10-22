@@ -402,7 +402,7 @@ class LiveEstimation:
 
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_online.npy"), all_emgs)
+       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/emg.npy"), all_emgs)
 
        print("Save EMG Shape: ", all_emgs.shape)
 
@@ -432,7 +432,7 @@ class LiveEstimation:
            self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online")
 
            # # normalisation #
-           #self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
+           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
 
            # # low pass filter
 
