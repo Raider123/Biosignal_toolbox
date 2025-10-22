@@ -935,7 +935,15 @@ class Timeseries():
                 self.data[ch] = sosfilt(sos=sos, x=self.data[ch])
             elif filter_method == "zero_phase":
                 self.data[ch] = sosfiltfilt(sos=sos, x=self.data[ch])
-    
+
+    def filterBuffer(self, sos = None):
+        # Pure "forward" filter_method author:Raid Dokhan
+        for ch in range(self.data_buffer.shape[1]):
+            x_block = self.data_buffer[0, ch, -self.n_samples:, 0]
+            y_block, self.zi_bp_buffer[ch] = sosfilt(sos, x_block, zi=self.zi_bp_buffer[ch])
+            self.data_buffer[0, ch, -self.n_samples:, 0] = y_block
+
+
     def filterWindows(self, b = None, a = [1], sos = None, apply_method = "zero_phase_sos", mne_filter_type = None, f_high = None, f_low = None, order = None, fir_design = None, padtype = "even"): # under change 
         """
         Apply a designed digital filter to the windowed data (window wise for each channel). Please be careful in selection appropriately designed filters, especially because they are applied on small data chunks (windows)!
@@ -2780,7 +2788,7 @@ class Timeseries():
         else: 
             warnings.warn("not implemented for other data stages, terminating ... ")
             return None
-    
+
     def highPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
         """
         This function applies a high-pass filter on the time series data and rectifies it to obtain the absolute value of the signal
@@ -2812,12 +2820,11 @@ class Timeseries():
                 self.data[ch] = sosfilt(butter(N=order, Wn=cutoff_freq, btype='highpass', analog=False, output='sos', fs=fs),self.data[ch])
         elif mode == "old_online":
             if counter == 0:
-                for ch in range(self.n_channels-2):
+                for ch in range(self.n_channels):
                     self.zi_hpf[ch,:] = sosfilt_zi(sos)*self.data_buffer[0,ch,0,0]
-            for ch in range(self.n_channels-2):
+            for ch in range(self.n_channels):
                 self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_hpf[ch,:], axis=0))
                 self.zi_hpf[ch,:] = zi_out
-                
 
     def applyVarianceFilter_data(self, ring_buffer=None, width=20, index=0, mode="offline"):
         """
@@ -2875,7 +2882,7 @@ class Timeseries():
                 var_seg = (sum2_w / denom) - (sum_w / denom) ** 2
                 out[:, j0:N] = var_seg.astype(out.dtype)
 
-    
+
     def normalizeContinuousData(self, mvc=0, mode="offline"):
         """
         This method first finds the maximum voluntary contraction of each un-windowed continuous data channel and then normalizes the channel data by dividing by the maxima 
@@ -2898,8 +2905,6 @@ class Timeseries():
             elif mode == "old_online":
                 self.data_buffer[0, :, -self.n_samples:, 0] /= mvc
 
-                #select_data = np.mean(self.data_buffer[0, 0, :, 0])
-                #print("BUFFER: ", select_data)
         except Exception as e:
             print(f"Please provide the MVC for Normalisation: {e}!!")
     
@@ -2939,6 +2944,29 @@ class Timeseries():
             for ch in range(self.n_channels-2):
                 self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_lpf[ch,:], axis=0))
                 self.zi_lpf[ch,:] = zi_out
+
+    def simple_lowpass_filter(self, window_size=None):
+        if window_size is None:
+            window_size = self.n_samples
+
+        X = self.data_buffer[0,:,:,0]
+        C, N = X.shape
+
+        start = N - self.n_samples
+
+        # Gleitender Mittelwert über die letzten `n_samples`
+        for ch in range(C):
+            x_seg = X[ch, start:N].astype(np.float64, copy=False)
+
+            # Gleitender Mittelwert (FIR)
+            # cumsum kann als Optimierung genutzt werden
+            cumsum = np.cumsum(x_seg, dtype=np.float64)
+            cumsum_padded = np.pad(cumsum, (1, 0), mode='constant', constant_values=0)
+            moving_avg = (cumsum_padded[window_size:] - cumsum_padded[:-window_size]) / window_size
+
+            # Ergebnis in X zurückschreiben
+            X[ch, start:N] = moving_avg.astype(X.dtype, copy=False)
+
 
     def calculateActivationForceFunction(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5, mode="offline"):
         """
@@ -2984,19 +3012,51 @@ class Timeseries():
                         # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
             self.data = activation_data
         elif mode == "old_online":
-            activation_data = np.zeros(self.data_buffer[0,:,(-1*self.n_samples):,0].shape)
-            #! Loop over the data buffer and solve difference equation
+            beta_1 = float(b1)
+            beta_2 = float(b2)
+            gamma = float(g)
+            A = float(nonlinear_shape_factor)
+
+            # Numerik: Grenzfall für kleine |A|
+            use_linear = abs(A) < 1e-8
+            denom = np.expm1(A) if not use_linear else 1.0  # wird nur genutzt, wenn not use_linear
+
+            # numerische Leitplanken fürs Exp-Argument
+            # 709 ist ungefähr die Grenze, ab der double-Precision exp überläuft (np.exp(709) ~ 8.2e307)
+            EXP_SAFE_MIN, EXP_SAFE_MAX = -700.0, 700.0
+
+            # Form: [channels, samples]
+            buf = np.asarray(self.data_buffer[0, :, (-1 * self.n_samples):, 0], dtype=np.float64)
+            activation_data = np.zeros_like(buf, dtype=np.float64)
+
             for channel_idx in range(activation_data.shape[0]):
+                p_t_minus_1 = 0.0
+                p_t_minus_2 = 0.0
+
                 for sample_idx in range(activation_data.shape[1]):
+                    # Delay korrekt anwenden: e(t-d)
                     if sample_idx < d:
-                        activation_data[channel_idx,sample_idx] = self.data_buffer[0,channel_idx, (-1*self.n_samples)+sample_idx,0]/3
+                        e_td = buf[channel_idx, sample_idx] / 3.0  # Warmup
                     else:
-                        activation_data[channel_idx,sample_idx] = (gamma * self.data_buffer[0,channel_idx,(-1*self.n_samples)+sample_idx,0]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
-                        p_t_minus_2 = p_t_minus_1
-                        p_t_minus_1 = activation_data[channel_idx,sample_idx]
-                        
-                        activation_data[channel_idx,sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
-            self.data_buffer[0,:,(-1*self.n_samples):,0] = activation_data
+                        e_td = buf[channel_idx, sample_idx - d]
+
+                    p_t = (gamma * e_td) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
+
+                    # Shift States
+                    p_t_minus_2 = p_t_minus_1
+                    p_t_minus_1 = p_t
+
+                    # Nichtlinearität (stabil)
+                    if use_linear:
+                        a_t = p_t
+                    else:
+                        z = np.clip(A * p_t, EXP_SAFE_MIN, EXP_SAFE_MAX)
+                        a_t = np.expm1(z) / denom
+
+                    activation_data[channel_idx, sample_idx] = a_t
+
+            # Zurückschreiben
+            self.data_buffer[0, :, (-1 * self.n_samples):, 0] = activation_data
     
     def calculateMAVFromFeatures(self, n_channels=8):
         """
@@ -3024,7 +3084,6 @@ class Timeseries():
             feature_mav = np.vstack((feature_mav, temp_arr))
 
         return feature_mav 
-    
 
     def getRMSFeatures_windows(self, n_channels=8):
         features_rms = np.zeros((self.windows.shape[3], self.windows.shape[0] * self.windows.shape[1]))
@@ -3087,6 +3146,12 @@ class Timeseries():
         else:
             scaler.fit(train_data)
             return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
+
+    def scaleEMG_windows(self, scaler_file = None, test_data = None):
+        '''
+        To be used with an already existing Standardscaler-File from the method def scaleFeatures_windows(self,...)
+        '''
+        return scaler_file.transform(test_data)
 
     def reduceDimensions_windows(self, train_data=None, test_data=None, val_data=None, method="PCA", n_components='mle'):
 
@@ -3294,6 +3359,9 @@ class OnlineTimeseriesStreaming(Timeseries):
         self.zi_hpf = np.zeros((8,2))
         self.zi_lpf = np.zeros((8,2))
         self.n_samples = 0
+
+        # New buffer filtering variables (Author:Raid Dokhan)
+        self.zi_bp_buffer = np.zeros((8,2,2))
 
 
     def startANTEegoStreaming(self, path_to_so_file):
@@ -3512,7 +3580,7 @@ class OnlineTimeseriesStreaming(Timeseries):
 
         self.windows = self.data_buffer[:, 0:self.n_channels, :, :]
 
-        print("BufferToWindows   ", self.windows.shape)
+        #print("BufferToWindows   ", self.windows.shape)
 
     def getDataBuffer(self): 
         """

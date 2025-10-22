@@ -19,12 +19,9 @@
   
 
   data_param:
-    #weights:                  ['0g']
-    weights:                  ['0g', '1100g', '1850g']
-    #mov_type:                 ['complex']
-    mov_type:                 ['grasp', 'complex']
-    #set_num:                  ['1']
-    set_num:                  ['1','2','3','4']
+    weights:                  ['1100g'] # , '1100g', '1850g'
+    mov_type:                 ['complex'] # 'grasp',
+    set_num:                  ['1'] # , '2', '3', '4'
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'
@@ -61,7 +58,7 @@
     
   
   model_param:
-    n_epochs:                 100
+    n_epochs:                 40
     batch_size:               256
 
     loss_fcn:                 'weighted_huber'
@@ -94,7 +91,7 @@
     act_h4:                   'relu'
     act_out:                  'tanh' 
 
-    is_save_model:            False
+    is_save_model:            True
     load_models:              True
     show_train_results:       False
 
@@ -107,9 +104,9 @@
     is_save_plot:             False
   
   plot_param:
-    is_plot_raw:              False
+    is_plot_raw:              True
     is_plot_quali:            False
-    is_plot_hpf:              False
+    is_plot_hpf:              True
     is_plot_var_filter:       False
     is_plot_smoothed:         False
     is_plot_act:              False

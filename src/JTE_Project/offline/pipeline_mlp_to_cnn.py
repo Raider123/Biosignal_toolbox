@@ -272,8 +272,8 @@ for wgt_idx, wgt in enumerate(weights):
         width           = cfg.preprocess_param.var_filter_width
         ring_buffer     = np.zeros(width)
         index           = 0
-        EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer, 
-                                        width=width, 
+        EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer,
+                                        width=width,
                                         index=index)
         print("Variance Filter applied!!\n")
 
@@ -311,7 +311,7 @@ for wgt_idx, wgt in enumerate(weights):
                                         filter_type="scipy_butter",
                                         return_type="sos")
         #* apply lpf filter 
-        EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method, 
+        EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                     sos=sos_lp)
 
         #? Plot normalised and smoothened data
@@ -656,17 +656,18 @@ for wgt_idx, wgt in enumerate(weights):
                                                                         val_data=Y_val, 
                                                                         method="MinMaxScaler",
                                                                         feature_range=(-1,1))
-        '''
+        
         # ? Scale output features -> [-1,1] for tanh
         Y_scaler, _, _, _ = EMG_Data.scaleFeatures_windows(train_data=Y_train,
                                                                           test_data=Y_test,
                                                                           val_data=Y_val,
                                                                           method="MinMaxScaler",
                                                                           feature_range=(-1, 1))
+        '''
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 
-        Y_scaler_dict[wgt][mov] = Y_scaler
+        #Y_scaler_dict[wgt][mov] = Y_scaler
         Y_scaler_info.append((wgt, mov, start_idx, end_idx))
         current_idx = end_idx
 
@@ -686,6 +687,7 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
 
+'''
 # Saving the Y_scaler for recreation (later)
 from joblib import dump
 
@@ -696,7 +698,8 @@ def convert_to_dict(d):
 
 # Umwandeln zu dict (da Lambda-funktionen enthalten)
 clean_dict = convert_to_dict(Y_scaler_dict)
-#dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
+dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
+'''
 
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
@@ -708,10 +711,15 @@ X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
 #? Pre-PCA scaling of input features
-_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         test_data=X_test, 
                                                         val_data=X_val, 
                                                         method="StandardScaler")
+
+print(type(emg_scaler))
+import joblib
+joblib.dump(emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/emg_scaler.pkl"))
+print("EMG Scaler gespeichert")
 
 #? Dimensionality Reduction - PCA
 X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
@@ -878,16 +886,17 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_mtl.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_2.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl.keras'), compile=False)
+        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras', compile=False)
 
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
     perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
+
 
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
 Y_ref = []
@@ -897,15 +906,18 @@ for wgt, mov, start_idx, end_idx in Y_scaler_info:
     Y_ref_scaled = Y_test[start_idx:end_idx]
     Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
 
-    scaler = Y_scaler_dict[wgt][mov]
-    Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
-    perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
+    #scaler = Y_scaler_dict[wgt][mov]
+    #Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
+    #perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
+    Y_ref.append(Y_ref_scaled)
+    perf_results_TCN.append(Y_pred_scaled)
 
 Y_ref = np.concatenate(Y_ref, axis=0)
 perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
 
 print(Y_ref.shape)
 print(perf_results_TCN.shape)
+
 
 '''
     save_dir = getAbsolutePath(save_dir)
@@ -991,15 +1003,11 @@ time_train_std = np.std(time_train)
 print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
 '''
 
-# Save the ground truth
-# --- Speichern ---
-#np.save(cfg.filepath.save_model_path + "torque_24072025_BU62D_0g_complex_1g.npy", Y_ref)
-#np.save(cfg.filepath.save_model_path + "offline_predictions_24072025_BU62D_0g_complex_1g.npy", perf_results_TCN)
 
 # Drei Subplots (einer pro Spalte)
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-x = np.linspace(0, 1, 189)
+x = np.linspace(0, 1, Y_test[:, 0].shape[0])
 
 for i in range(3):
     axes[i].plot(x, Y_ref[:, i], label='Array 1')
