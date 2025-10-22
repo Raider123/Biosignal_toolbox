@@ -83,7 +83,7 @@ class LiveEstimation:
        self.all_predictions = []
 
        # Variable for the EMG values (for debugging)
-       self.all_emg_vals = None
+       self.all_emg_vals = []
 
        # Plotting Predictions
        self.fig = None
@@ -401,12 +401,16 @@ class LiveEstimation:
        np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/all_times.npy"), elapsed_time_np)
 
    def save_emg_vals(self):
-       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_online.npy"), self.all_emg_vals)
+       all_emgs = np.concatenate(self.all_emg_vals, axis=1)
+       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_online.npy"), all_emgs)
+
+       print("Save EMG Shape: ", all_emgs.shape)
 
 
    def update_loop(self):
-       # len(self.elapsed_times) * self.batch_size < 500 # Iterate exactly over 500 samples
-       while True:
+       # len(self.elapsed_times) * self.batch_size < 500: # Iterate exactly over 500 samples
+       # len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
+       while len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
            update_start_time = time.time()
 
            # Read emg data from the stream
@@ -428,7 +432,7 @@ class LiveEstimation:
            self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online")
 
            # # normalisation #
-           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
+           #self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
 
            # # low pass filter
 
@@ -451,9 +455,9 @@ class LiveEstimation:
                windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
                windows = windows[0].T #  (n_samples,n_channels)
 
-               # # For saving highpassfilter-values
-               #self.all_emg_vals = windows
-               #self.save_emg_vals()
+               # # For saving emg values
+               self.all_emg_vals.append(windows[:,-self.batch_size:])
+               self.save_emg_vals()
 
                # For plotting emg in debug case
                self.update_emg_plot(self.emg_lines, windows)

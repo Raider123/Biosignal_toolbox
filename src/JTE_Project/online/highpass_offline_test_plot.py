@@ -10,8 +10,6 @@ online_res = online_res_raw[4,:]
 
 print(offline_res.shape, " ", online_res.shape)
 
-
-
 x = np.linspace(0,1, offline_res.shape[0])
 y1 = offline_res
 y2 = online_res
@@ -28,17 +26,26 @@ plt.grid(True)
 plt.tight_layout()
 plt.show()
 
-corr = np.correlate(offline_res - np.mean(offline_res),
-                    online_res - np.mean(online_res),
-                    mode='full')
+################################
+variance_raw_offline = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_offline.npy"))
+variance_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_online.npy"))
 
-# Maximale Übereinstimmung → Verzögerung in Samples
-delay_samples = np.argmax(corr) - (len(offline_res) - 1)
+variance_online = variance_raw_online[4,:]
+variance_offline = variance_raw_offline[4,:variance_raw_online.shape[1]]
 
-# Ein Sample = 20 ms
-delay_ms = delay_samples * 20.0
+print(variance_offline.shape, " ", variance_online.shape)
 
-print(f"Filterverzögerung: {delay_samples} Samples ({delay_ms:.1f} ms)")
+x = np.linspace(0,1, variance_offline.shape[0])
+y3 = variance_offline
+y4 = variance_online
+# Plot erstellen
+plt.figure(figsize=(12, 6))
 
+plt.plot(x, y3, label='Offline Variance', linestyle='-')
+plt.plot(x, y4, label='Online Variance', linestyle='-')
 
-
+# Plot konfigurieren
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
