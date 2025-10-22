@@ -51,22 +51,23 @@ plt.tight_layout()
 plt.show()
 
 ################################
-dummy_mvc = variance_online / 3.941259927517915e-06
-
+mvc_raw_offline = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_offline.npy"))
 mvc_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_online.npy"))
 
 mvc_online = mvc_raw_online[4,:]
+mvc_offline = mvc_raw_offline[4,:mvc_raw_online.shape[1]]
 
-print(mvc_online.shape, " ", dummy_mvc.shape)
+
+print(mvc_offline.shape, " ", mvc_online.shape)
 
 x = np.linspace(0,1, mvc_online.shape[0])
 y5 = mvc_online
-y6 = dummy_mvc
+y6 = mvc_offline
 # Plot erstellen
 plt.figure(figsize=(12, 6))
 
 #plt.plot(x, y5, label='MVC Online', linestyle='-')
-plt.plot(x, y6, label='Dummy MVC', linestyle='-')
+plt.plot(x, y6, label='MVC Offline', linestyle='-')
 
 # Plot konfigurieren
 plt.legend()

@@ -165,8 +165,6 @@ for wgt_idx, wgt in enumerate(weights):
                                           index=index)
         print("Variance Filter applied!!\n")
 
-        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_offline.npy"), EMG_Data.data)
-
         # ? Plot and print specific variance filtered windows
         # var_filtered_window_x = EMG_Data.filtered_data
         # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
@@ -193,6 +191,8 @@ for wgt_idx, wgt in enumerate(weights):
         else:
             warnings.warn("This method is not yet implemented!! Omitting!")
         print("Input Normalization with Max Voluntary Contraction performed!!\n")
+
+        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_offline.npy"), EMG_Data.data)
 
         # ? Low pass filter to smoothen the EMG signal
         # * design the lowpass filter
