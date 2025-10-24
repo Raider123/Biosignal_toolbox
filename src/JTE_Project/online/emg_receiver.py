@@ -68,6 +68,8 @@ class LiveEstimation:
                                  f_samp=self.property["f_samp"])
        print("Created EMG_live!!")
 
+       self.var_buffer = np.zeros((1, len(self.channel_names), self.property["buffer_size"], 1))
+
        # Design bandpass filter
        self.sos_bp = self.EMG_live.designFilter(f_high=self.cfg.preprocess_param.f_cutoff_hpf,
                                                 f_low=self.cfg.preprocess_param.f_cutoff_lpf,
@@ -403,7 +405,6 @@ class LiveEstimation:
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/emg.npy"), all_emgs)
-
        print("Save EMG Shape: ", all_emgs.shape)
 
 
@@ -425,11 +426,18 @@ class LiveEstimation:
            # * apply bandpass filter (previous highpass filter)
            self.EMG_live.filterBuffer(sos=self.sos_bp)
 
-           # Create identical copy for frequency extraction
-           self.EMG_live_freq = copy.deepcopy(self.EMG_live)
+           self.var_buffer = np.roll(self.var_buffer, shift = int(-1*self.batch_size), axis = 2)
+           self.var_buffer[0, :, int(-1*self.batch_size):, 0] = self.EMG_live.getDataBuffer()[0, :, int(-1*self.batch_size):, 0]
 
+           # Create identical copy for frequency extraction 
+           
+           self.EMG_live_freq = copy.deepcopy(self.EMG_live)
+           
            # # variance filter
-           self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online")
+           
+           self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online", var_buffer=self.var_buffer)
+
+
 
            # # normalisation #
            self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
@@ -441,7 +449,7 @@ class LiveEstimation:
 
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
-           self.EMG_live_freq.bufferToWindows()
+           #self.EMG_live_freq.bufferToWindows()
 
            update_time_step = time.time() - update_start_time
            self.current_time = self.current_time + update_time_step

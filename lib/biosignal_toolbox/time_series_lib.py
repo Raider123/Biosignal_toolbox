@@ -944,6 +944,7 @@ class Timeseries():
             self.data_buffer[0, ch, -self.n_samples:, 0] = y_block
 
 
+
     def filterWindows(self, b = None, a = [1], sos = None, apply_method = "zero_phase_sos", mne_filter_type = None, f_high = None, f_low = None, order = None, fir_design = None, padtype = "even"): # under change 
         """
         Apply a designed digital filter to the windowed data (window wise for each channel). Please be careful in selection appropriately designed filters, especially because they are applied on small data chunks (windows)!
@@ -2826,7 +2827,7 @@ class Timeseries():
                 self.data_buffer[0,ch,(-1*self.n_samples):,0], zi_out = sosfilt(sos,self.data_buffer[0,ch,(-1*self.n_samples):,0], zi=np.expand_dims(self.zi_hpf[ch,:], axis=0))
                 self.zi_hpf[ch,:] = zi_out
 
-    def applyVarianceFilter_data(self, ring_buffer=None, width=20, index=0, mode="offline"):
+    def applyVarianceFilter_data(self, ring_buffer=None, width=20, index=0, mode="offline", var_buffer=np.zeros((1,8,100,1))):
         """
         This method applies variance filter on the complete data using the cpp variance_tools API
 
@@ -2854,15 +2855,18 @@ class Timeseries():
 
         elif mode == "old_online":
             out = self.data_buffer[0, :, :, 0]  # View: (C, N)
+            old_buffer = var_buffer[0, :, :, 0]
             C, N = out.shape
+
             start = N - self.n_samples  # wir bearbeiten nur [start : N)
 
             # kumulative Summen (für Var ohne Schleifen)
             # Padding links mit 0, damit Fenster [i-n_var:i) = cs[i] - cs[i-n_var]
-            cs = np.concatenate([np.zeros((C, 1), dtype=np.float64),
-                                 np.cumsum(out, axis=1, dtype=np.float64)], axis=1)
-            cs2 = np.concatenate([np.zeros((C, 1), dtype=np.float64),
-                                  np.cumsum(out * out, axis=1, dtype=np.float64)], axis=1)
+            old_cs = np.concatenate([np.zeros((C, 1), dtype=np.float64),
+                                 np.cumsum(old_buffer, axis=1, dtype=np.float64)], axis=1)
+            old_cs2 = np.concatenate([np.zeros((C, 1), dtype=np.float64),
+                                  np.cumsum(old_buffer * old_buffer, axis=1, dtype=np.float64)], axis=1)
+
 
             # Teil 1: im Segment [start : min(n_var, N)) -> 0 (wie im raw-Code)
             i0 = start
@@ -2876,12 +2880,14 @@ class Timeseries():
                 # Fenster-Summen für jedes i in [j0 : N):
                 # Sum = cs[:, i] - cs[:, i - n_var]
                 # Sum2 = cs2[:, i] - cs2[:, i - n_var]
-                sum_w = cs[:, j0:N] - cs[:, j0 - width: N - width]
-                sum2_w = cs2[:, j0:N] - cs2[:, j0 - width: N - width]
+                sum_w = old_cs[:, j0:N] - old_cs[:, j0 - width: N - width]
+                sum2_w = old_cs2[:, j0:N] - old_cs2[:, j0 - width: N - width]
                 denom = float(width)
                 var_seg = (sum2_w / denom) - (sum_w / denom) ** 2
                 out[:, j0:N] = var_seg.astype(out.dtype)
 
+
+            self.variance_buffer = self.data_buffer[0, :, :, 0]
 
     def normalizeContinuousData(self, mvc=0, mode="offline"):
         """

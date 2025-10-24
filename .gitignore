@@ -18,10 +18,12 @@ results/
 clients/
 .idea/
 *.npy
+*.keras
+*.pkl
 rec/
 lib/biosignal_toolbox.egg-info
 *.ipynb
 variance_tools_api/
 .vscode/
 python_interpreter/
-src/JTE_Project/offline/saved_online_models/tcn_mtl.keras
+
