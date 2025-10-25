@@ -319,49 +319,6 @@ class LiveEstimation:
 
        return self.predictions
 
-   def apply_post_filter(self):
-       """
-       Apply post-prediction filtering (median and/or Savitzky-Golay).
-
-       Returns
-       -------
-       np.ndarray
-           Filtered predictions
-       """
-       if self.predictions is None:
-           warnings.warn("No predictions available. Run predict() first!")
-           return None
-
-       print("Applying post-prediction filters...")
-       filtered_predictions = self.predictions.copy()
-
-       # Median filter
-       if self.cfg.post_train_param.filter_type == 'median':
-           print(f"Applying median filter (kernel size: "
-                 f"{self.cfg.post_train_param.filter_size})...")
-           for i in range(3):
-               filtered_predictions[:, i] = medfilt(
-                   filtered_predictions[:, i],
-                   kernel_size=self.cfg.post_train_param.filter_size
-               )
-
-       # Savitzky-Golay filter
-       if getattr(self.cfg.post_train_param, 'savgol_window_len', None):
-           print(f"Applying Savitzky-Golay filter (window: "
-                 f"{self.cfg.post_train_param.savgol_window_len}, "
-                 f"poly order: {self.cfg.post_train_param.savgol_poly_order})...")
-           for i in range(3):
-               filtered_predictions[:, i] = savgol_filter(
-                   filtered_predictions[:, i],
-                   self.cfg.post_train_param.savgol_window_len,
-                   self.cfg.post_train_param.savgol_poly_order
-               )
-
-       self.predictions = filtered_predictions
-       print("Post-prediction filtering completed!\n")
-
-       return self.predictions
-
    def read_emg_batch(self):
        while len(self.emg_buffer) != self.batch_size:
            try:
@@ -423,7 +380,7 @@ class LiveEstimation:
        # len(self.elapsed_times) * self.batch_size < 500: # Iterate exactly over 500 samples
        # len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
        while len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
-           update_start_time = time.time()
+           update_start_time = time.perf_counter()
 
            # Read emg data from the stream
            self.read_emg_batch()
@@ -484,16 +441,15 @@ class LiveEstimation:
                # ToDo PostProcessing
 
                self.extract_features()
-               #self.scale_features()
                self.predict()
-               # self.apply_post_filter()
 
                # Printing the Timings
-               update_time_step = time.time() - update_start_time
+               update_time_step = time.perf_counter() - update_start_time
                self.current_time = self.current_time + update_time_step
                self.elapsed_times.append(self.current_time)
                print(len(self.elapsed_times))
-               print(update_time_step)
+
+               print(f"{update_time_step * 1000:.1f} ms")
 
                # Save all single predictions (and Plotting)
                self.all_predictions.append(self.predictions)
