@@ -2911,7 +2911,8 @@ class Timeseries():
             if mode == "offline":
                 self.data = self.data / mvc
             elif mode == "old_online":
-                self.data_buffer[0, :, -self.n_samples:, 0] /=mvc
+                mvc_reshaped = mvc.reshape(8, 1)
+                self.data_buffer[0, :, -self.n_samples:, 0] /= mvc_reshaped
         except Exception as e:
             print(f"Please provide the MVC for Normalisation: {e}!!")
 

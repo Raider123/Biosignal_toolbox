@@ -37,16 +37,8 @@ class LiveEstimation:
        print('Loaded the config file!')
 
        # pre-calculated channelwise mvc
-       self.channelwise_mvc = np.array([
-                3.49862020e-06,
-                1.04643431e-07,
-                8.49312410e-08,
-                2.51305300e-07,
-                2.33216414e-07,
-                6.21736510e-07,
-                1.77401825e-07,
-                3.54713149e-07
-            ])
+       self.channelwise_mvc = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"))
+       print("Loaded channelwise mvc file")
 
        #  TCN Model
        self.load_model(
@@ -474,14 +466,6 @@ class LiveEstimation:
                # # For saving emg values
                self.all_emg_vals.append(windows[:,-self.batch_size:])
                self.save_emg_vals()
-
-               list = []
-               for i in range(7):
-                   gather_value = np.max(windows[i,:])
-                   if gather_value > 1:
-                    list.append(gather_value)
-
-               print(list)
 
                # For plotting emg in debug case
                self.update_emg_plot(self.emg_lines, windows)

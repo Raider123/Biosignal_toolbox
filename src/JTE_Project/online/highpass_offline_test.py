@@ -213,6 +213,7 @@ for wgt_idx, wgt in enumerate(weights):
 channel_cum = np.array(channel_cum)
 print(channel_cum.shape)
 # find the mean mvc per channel
-channel_max = np.max(channel_cum,axis=0)
+channel_max = np.mean(channel_cum,axis=0)
 print(channel_max.shape)
 print(channel_max)
+np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"), channel_max)

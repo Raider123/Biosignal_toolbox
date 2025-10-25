@@ -2,6 +2,7 @@ import numpy as np
 from biosignal_toolbox.utils import getAbsolutePath
 import matplotlib.pyplot as plt
 
+'''
 offline_res_raw = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_offline.npy"))
 online_res_raw = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_online.npy"))
 
@@ -50,26 +51,21 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
-
+'''
 ################################
-mvc_raw_offline = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_offline.npy"))
-mvc_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_online.npy"))
+mvc_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/emg.npy"))
 
-mvc_offline = mvc_raw_offline[4,:]
-mvc_online = mvc_raw_online[4,:mvc_raw_offline.shape[1]]
-
+mvc_online = mvc_raw_online[4,:]
+print(mvc_online.shape)
 
 
-print(mvc_offline.shape, " ", mvc_online.shape)
 
-x = np.linspace(0,1, mvc_offline.shape[0])
+x = np.linspace(0,1, mvc_online.shape[0])
 y5 = mvc_online
-y6 = mvc_offline
 # Plot erstellen
 plt.figure(figsize=(12, 6))
 
 plt.plot(x, y5, label='MVC Online', linestyle='-')
-plt.plot(x, y6, label='MVC Offline', linestyle='-')
 
 # Plot konfigurieren
 plt.legend()
