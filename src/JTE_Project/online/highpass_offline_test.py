@@ -43,18 +43,12 @@ mov_types = cfg.data_param.mov_type
 
 # Initialize a 2D list: rows = weights, columns = movements
 emg_table = [[[] for _ in mov_types] for _ in weights]
-quali_e_table = [[[] for _ in mov_types] for _ in weights]
-quali_sf_table = [[[] for _ in mov_types] for _ in weights]
-quali_ss_table = [[[] for _ in mov_types] for _ in weights]
 
 # Fill the tables
 for w_idx, wgt_idx in enumerate(weights):
     for m_idx, mov_type in enumerate(mov_types):
         for set_idx in cfg.data_param.set_num:
             emg_file_pattern = f"{cfg.filepath.emg_file_prefix}_{wgt_idx}_{mov_type}_{set_idx}.txt"
-            quali_e_file_pattern = f"{cfg.filepath.quali_torque_prefix[0]}_{cfg.data_param.subject_code[0]}_{wgt_idx}_{mov_type}_{set_idx}.npy"
-            quali_sf_file_pattern = f"{cfg.filepath.quali_torque_prefix[1]}_{cfg.data_param.subject_code[0]}_{wgt_idx}_{mov_type}_{set_idx}.npy"
-            quali_ss_file_pattern = f"{cfg.filepath.quali_torque_prefix[2]}_{cfg.data_param.subject_code[0]}_{wgt_idx}_{mov_type}_{set_idx}.npy"
 
             path = cfg.filepath.data_path + cfg.filepath.emg_path + emg_file_pattern
             abs_path = getAbsolutePath(path)
@@ -66,40 +60,12 @@ for w_idx, wgt_idx in enumerate(weights):
             if emg_files:
                 emg_table[w_idx][m_idx].append(emg_files[0])
 
-            # Quali E
-            quali_e_files = list(
-                getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_torque_path).glob(quali_e_file_pattern))
-            if quali_e_files:
-                quali_e_table[w_idx][m_idx].append(quali_e_files[0])
-
-            # Quali SF
-            quali_sf_files = list(
-                getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_torque_path).glob(quali_sf_file_pattern))
-            if quali_sf_files:
-                quali_sf_table[w_idx][m_idx].append(quali_sf_files[0])
-
-            # Quali SS
-            quali_ss_files = list(
-                getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_torque_path).glob(quali_ss_file_pattern))
-            if quali_ss_files:
-                quali_ss_table[w_idx][m_idx].append(quali_ss_files[0])
-
 # ! ************************************************
 # ! Load training, testing data
 # ! ************************************************
-X_train_combined = []
-Y_train_combined = []
-
-X_test_combined = []
-Y_test_combined = []
-
-X_val_combined = []
-Y_val_combined = []
-
-Y_scaler_info = []
-Y_scaler_dict = defaultdict(lambda: defaultdict(lambda: None))
-
 current_idx = 0
+
+channel_cum = []
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
@@ -126,7 +92,6 @@ for wgt_idx, wgt in enumerate(weights):
         print("Channel Length: ", len(channel_names))
         print("")
 
-
         # ! ************************************************
         # ! Data Pre-processing
         # ! ************************************************
@@ -142,7 +107,7 @@ for wgt_idx, wgt in enumerate(weights):
         EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                     sos=sos_hp)
 
-        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_offline.npy"), EMG_Data.data)
+        #np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_offline.npy"), EMG_Data.data)
 
         # ? Plotting bandpass filtered data
         if cfg.plot_param.is_plot_hpf:
@@ -180,9 +145,10 @@ for wgt_idx, wgt in enumerate(weights):
 
         # ? Input Normalisation
         print("Calculating the channel-wise MVC for EMG...")
-        channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1, 1)
-        # print(channelwise_mvc)
+        channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1)
+        channel_cum.append(channelwise_mvc)
 
+        '''
         print("Performing Input Normalization with Max Voluntary Contraction ...")
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
             EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc))
@@ -241,3 +207,12 @@ for wgt_idx, wgt in enumerate(weights):
                              xlabel="Time in s",
                              ylabel="Voltage in V",
                              is_grid_on=True)
+                             
+        '''
+
+channel_cum = np.array(channel_cum)
+print(channel_cum.shape)
+# find the mean mvc per channel
+channel_max = np.max(channel_cum,axis=0)
+print(channel_max.shape)
+print(channel_max)

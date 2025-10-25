@@ -180,7 +180,8 @@ class EMGFileStreamVisualConsumer:
 
         time_list = []
 
-        self.setup_plot()
+        self.emg_fig, self.emg_ax, self.emg_lines = self.setup_emg_plot()
+        #self.setup_plot()
         plt.ion()
         plt.show()
 
@@ -199,14 +200,18 @@ class EMGFileStreamVisualConsumer:
             start_time = time.time()
 
             try:
-                preds = self.predictor.run(emg_obj)
+                preds, local_windows = self.predictor.run(emg_obj)
                 self.all_predictions.append(preds)
+
+                self.update_emg_plot(self.emg_lines, local_windows)
+                print(local_windows.shape)
             except Exception as e:
                 print(f"❌ Fehler bei Fenster {i}: {e}")
                 continue
 
-            self.update_plot(elapsed_times=self.elapsed_times)
-            plt.pause(0.001)
+
+            #self.update_plot(elapsed_times=self.elapsed_times)
+            #plt.pause(0.001)
 
             end_time = time.time()
             print("VERARBEITUNGSZEIT: ", end_time - start_time)
@@ -240,6 +245,24 @@ class EMGFileStreamVisualConsumer:
         print(f"   Gesamtanzahl Fenster: {final_predictions.shape[0]}")
         print("=" * 70 + "\n")
 
+    def setup_emg_plot(self, n_channels=8, n_samples=100):
+        plt.ion()
+        fig, ax = plt.subplots(figsize=(10, 5))
+        x = np.arange(n_samples)
+        lines = [ax.plot(x, np.zeros(n_samples))[0] for _ in range(n_channels)]
+        ax.set_xlim(0, n_samples - 1)
+        ax.set_ylim(-1, 1)
+        ax.grid(True)
+        return fig, ax, lines
+
+    def update_emg_plot(self, lines, arr):
+        """
+        arr: (1,8,500,1) oder (8,500)
+        """
+        data = arr[0, :, :, 0] if arr.ndim == 4 else arr  # -> (8, 500)
+        for i, ln in enumerate(lines):
+            ln.set_ydata(data[i])
+        plt.pause(0.01)
 
 # ---------------------------------------------------------------------
 # MAIN AUSFÜHRUNG

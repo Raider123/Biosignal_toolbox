@@ -2905,14 +2905,16 @@ class Timeseries():
         Author : Kartik Chari \n
         Last changed: 17.10.2024 (by Kartik Chari)
         """
+        threshold = mvc
+
         try:
             if mode == "offline":
                 self.data = self.data / mvc
             elif mode == "old_online":
-                self.data_buffer[0, :, -self.n_samples:, 0] /= mvc
-
+                self.data_buffer[0, :, -self.n_samples:, 0] /=mvc
         except Exception as e:
             print(f"Please provide the MVC for Normalisation: {e}!!")
+
     
     def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
         """

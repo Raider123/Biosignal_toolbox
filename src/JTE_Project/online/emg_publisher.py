@@ -4,7 +4,7 @@ import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 
-emg_file = getAbsolutePath("data/jte/emg/BU62D/24072025_BU62D_1100g_complex_1.txt")
+emg_file = getAbsolutePath("data/jte/emg/BU62D/publisher.txt") #24072025_BU62D_complex_1100g_set1
 
 df = pd.read_csv(emg_file, sep=" ", header=None)
 df = df.drop(df.columns[0], axis=1)

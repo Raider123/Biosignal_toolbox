@@ -36,6 +36,18 @@ class LiveEstimation:
        self.cfg = loadConfig(filename=config_filename)
        print('Loaded the config file!')
 
+       # pre-calculated channelwise mvc
+       self.channelwise_mvc = np.array([
+                3.49862020e-06,
+                1.04643431e-07,
+                8.49312410e-08,
+                2.51305300e-07,
+                2.33216414e-07,
+                6.21736510e-07,
+                1.77401825e-07,
+                3.54713149e-07
+            ])
+
        #  TCN Model
        self.load_model(
            getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras'))
@@ -437,10 +449,8 @@ class LiveEstimation:
            
            self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online", var_buffer=self.var_buffer)
 
-
-
            # # normalisation #
-           self.EMG_live.normalizeContinuousData(mvc=self.property["mvc"], mode = "old_online")
+           self.EMG_live.normalizeContinuousData(mvc=self.channelwise_mvc, mode="old_online")
 
            # # low pass filter
 
@@ -455,8 +465,6 @@ class LiveEstimation:
            self.current_time = self.current_time + update_time_step
            self.elapsed_times.append(self.current_time)
 
-           print(len(self.elapsed_times))
-
            if self.emg_plot:
                ## EMG - Window Extraction and Reshaping
                windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
@@ -466,6 +474,14 @@ class LiveEstimation:
                # # For saving emg values
                self.all_emg_vals.append(windows[:,-self.batch_size:])
                self.save_emg_vals()
+
+               list = []
+               for i in range(7):
+                   gather_value = np.max(windows[i,:])
+                   if gather_value > 1:
+                    list.append(gather_value)
+
+               print(list)
 
                # For plotting emg in debug case
                self.update_emg_plot(self.emg_lines, windows)
