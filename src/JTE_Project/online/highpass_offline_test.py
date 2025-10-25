@@ -148,7 +148,7 @@ for wgt_idx, wgt in enumerate(weights):
         channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1)
         channel_cum.append(channelwise_mvc)
 
-        '''
+
         print("Performing Input Normalization with Max Voluntary Contraction ...")
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
             EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc))
@@ -158,7 +158,8 @@ for wgt_idx, wgt in enumerate(weights):
             warnings.warn("This method is not yet implemented!! Omitting!")
         print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
-        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_offline.npy"), EMG_Data.data)
+        #np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/normalization_offline.npy"), EMG_Data.data)
+
 
         # ? Low pass filter to smoothen the EMG signal
         # * design the lowpass filter
@@ -180,15 +181,6 @@ for wgt_idx, wgt in enumerate(weights):
                              is_grid_on=True)
 
 
-        # ? Plot normalised and smoothened data
-        if cfg.plot_param.is_plot_smoothed:
-            EMG_Data.plotEMG(data=EMG_Data.data[4, :],
-                             unit="V",
-                             title="Normalised and Smoothed EMG plot for Channel 5",
-                             xlabel="Time in s",
-                             ylabel="Voltage in V",
-                             is_grid_on=True)
-
         # ? Calculate Neural Activation Force
         if cfg.preprocess_param.use_activation_fncn:
             print("Replacing sample with its force activation value...")
@@ -208,8 +200,10 @@ for wgt_idx, wgt in enumerate(weights):
                              ylabel="Voltage in V",
                              is_grid_on=True)
                              
-        '''
 
+
+''' 
+## Storing channelwise mvc (now the mean is used)
 channel_cum = np.array(channel_cum)
 print(channel_cum.shape)
 # find the mean mvc per channel
@@ -217,3 +211,4 @@ channel_max = np.mean(channel_cum,axis=0)
 print(channel_max.shape)
 print(channel_max)
 np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"), channel_max)
+'''

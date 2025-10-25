@@ -936,13 +936,20 @@ class Timeseries():
             elif filter_method == "zero_phase":
                 self.data[ch] = sosfiltfilt(sos=sos, x=self.data[ch])
 
-    def filterBuffer(self, sos = None):
+    def filterBuffer_bandPass(self, sos = None):
         # Pure "forward" filter_method author:Raid Dokhan
         for ch in range(self.data_buffer.shape[1]):
             x_block = self.data_buffer[0, ch, -self.n_samples:, 0]
             y_block, self.zi_bp_buffer[ch] = sosfilt(sos, x_block, zi=self.zi_bp_buffer[ch])
             self.data_buffer[0, ch, -self.n_samples:, 0] = y_block
 
+
+    def filterBuffer_lowPass(self, sos = None):
+        # Pure "forward" filter_method author:Raid Dokhan
+        for ch in range(self.data_buffer.shape[1]):
+            x_block = self.data_buffer[0, ch, -self.n_samples:, 0]
+            y_block, self.zi_lp_buffer[ch] = sosfilt(sos, x_block, zi=self.zi_lp_buffer[ch])
+            self.data_buffer[0, ch, -self.n_samples:, 0] = y_block
 
 
     def filterWindows(self, b = None, a = [1], sos = None, apply_method = "zero_phase_sos", mne_filter_type = None, f_high = None, f_low = None, order = None, fir_design = None, padtype = "even"): # under change 
@@ -2976,95 +2983,67 @@ class Timeseries():
             # Ergebnis in X zurückschreiben
             X[ch, start:N] = moving_avg.astype(X.dtype, copy=False)
 
-
-    def calculateActivationForceFunction(self,d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5, mode="offline"):
+    def calculateActivationForceFunction(self, d=50, b1=0.5, b2=-0.5, g=0, nonlinear_shape_factor=-1.5, mode="offline"):
         """
         This method first calculates the neural activation function p(t) by solving the second order difference equation:
                     p(t) = gamma*e(t-d) + beta_1*p(t-1) + beta_2*p(t-2)
                     where, gamma + beta_1 + beta_2 <= 1
         Then, as the relation between the neural activation and force is nonlinear, the following equation is used to estimate the activation force function:
                     a(t) = e^(Ap(t)) - 1 / e^A - 1
-        
+
         Parameters
         ----------
         mode : str, optional
-            type of experiment (old_online or offline), by default "offline"
-        
+            type of experiment (online or offline), by default "offline"
+
         Author
         ------
         Author: Kartik Chari \n
         Last changed: 17.10.2024 (by Kartik Chari)
         """
-        #! Calculate coefficients of the difference equation
-        beta_1  = b1
-        beta_2  = b2
-        gamma   = g
-        A       = nonlinear_shape_factor
+        # ! Calculate coefficients of the difference equation
+        beta_1 = b1
+        beta_2 = b2
+        gamma = g
+        A = nonlinear_shape_factor
 
-        #! Initialise p(t-1) and p(t-2)
+        # ! Initialise p(t-1) and p(t-2)
         p_t_minus_1 = 1.0
         p_t_minus_2 = 1.0
 
-        #! Initialise a temp calc variable
+        # ! Initialise a temp calc variable
         if mode == "offline":
             activation_data = np.zeros(self.data.shape)
-            #! Loop over the windows and solve difference equation
+            # ! Loop over the windows and solve difference equation
             for channel_idx in range(0, activation_data.shape[0]):
                 for sample_idx in range(0, activation_data.shape[1]):
-                    if sample_idx < int(d/2):
-                        activation_data[channel_idx, sample_idx] = self.data[channel_idx, sample_idx]/3
+                    if sample_idx < int(d / 2):
+                        activation_data[channel_idx, sample_idx] = self.data[channel_idx, sample_idx] / 3
                     else:
-                        activation_data[channel_idx, sample_idx] = (gamma * self.data[channel_idx, sample_idx-d]) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
+                        activation_data[channel_idx, sample_idx] = (gamma * self.data[channel_idx, sample_idx - d]) + (
+                                    beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
                         p_t_minus_2 = p_t_minus_1
                         p_t_minus_1 = activation_data[channel_idx, sample_idx]
-                        
+
                         # activation_data[channel_idx, sample_idx] = (math.exp(A*activation_data[channel_idx, sample_idx])-1) / (math.exp(A)-1)
             self.data = activation_data
-        elif mode == "old_online":
-            beta_1 = float(b1)
-            beta_2 = float(b2)
-            gamma = float(g)
-            A = float(nonlinear_shape_factor)
-
-            # Numerik: Grenzfall für kleine |A|
-            use_linear = abs(A) < 1e-8
-            denom = np.expm1(A) if not use_linear else 1.0  # wird nur genutzt, wenn not use_linear
-
-            # numerische Leitplanken fürs Exp-Argument
-            # 709 ist ungefähr die Grenze, ab der double-Precision exp überläuft (np.exp(709) ~ 8.2e307)
-            EXP_SAFE_MIN, EXP_SAFE_MAX = -700.0, 700.0
-
-            # Form: [channels, samples]
-            buf = np.asarray(self.data_buffer[0, :, (-1 * self.n_samples):, 0], dtype=np.float64)
-            activation_data = np.zeros_like(buf, dtype=np.float64)
-
+        elif mode == "online":
+            activation_data = np.zeros(self.data_buffer[0, :, (-1 * self.n_samples):, 0].shape)
+            # ! Loop over the data buffer and solve difference equation
             for channel_idx in range(activation_data.shape[0]):
-                p_t_minus_1 = 0.0
-                p_t_minus_2 = 0.0
-
                 for sample_idx in range(activation_data.shape[1]):
-                    # Delay korrekt anwenden: e(t-d)
                     if sample_idx < d:
-                        e_td = buf[channel_idx, sample_idx] / 3.0  # Warmup
+                        activation_data[channel_idx, sample_idx] = self.data_buffer[0, channel_idx, (
+                                    -1 * self.n_samples) + sample_idx, 0] / 3
                     else:
-                        e_td = buf[channel_idx, sample_idx - d]
+                        activation_data[channel_idx, sample_idx] = (gamma * self.data_buffer[
+                            0, channel_idx, (-1 * self.n_samples) + sample_idx, 0]) + (beta_1 * p_t_minus_1) + (
+                                                                               beta_2 * p_t_minus_2)
+                        p_t_minus_2 = p_t_minus_1
+                        p_t_minus_1 = activation_data[channel_idx, sample_idx]
 
-                    p_t = (gamma * e_td) + (beta_1 * p_t_minus_1) + (beta_2 * p_t_minus_2)
-
-                    # Shift States
-                    p_t_minus_2 = p_t_minus_1
-                    p_t_minus_1 = p_t
-
-                    # Nichtlinearität (stabil)
-                    if use_linear:
-                        a_t = p_t
-                    else:
-                        z = np.clip(A * p_t, EXP_SAFE_MIN, EXP_SAFE_MAX)
-                        a_t = np.expm1(z) / denom
-
-                    activation_data[channel_idx, sample_idx] = a_t
-
-            # Zurückschreiben
+                        activation_data[channel_idx, sample_idx] = (math.exp(
+                            A * activation_data[channel_idx, sample_idx]) - 1) / (math.exp(A) - 1)
             self.data_buffer[0, :, (-1 * self.n_samples):, 0] = activation_data
     
     def calculateMAVFromFeatures(self, n_channels=8):
@@ -3371,6 +3350,7 @@ class OnlineTimeseriesStreaming(Timeseries):
 
         # New buffer filtering variables (Author:Raid Dokhan)
         self.zi_bp_buffer = np.zeros((8,2,2))
+        self.zi_lp_buffer = np.zeros((8,2,2))
 
 
     def startANTEegoStreaming(self, path_to_so_file):

@@ -81,6 +81,13 @@ class LiveEstimation:
                                                 filter_type="scipy_butter",
                                                 return_type="sos")
 
+
+       # Design lowpass filter
+       self.sos_lp = self.EMG_live.designFilter(f_low=self.cfg.preprocess_param.f_cutoff_sm_lpf,
+                                      order=self.cfg.preprocess_param.sm_filter_order,
+                                      filter_type="scipy_butter",
+                                      return_type="sos")
+
        self.EMG_live_freq = None
        self.features = None
        self.predictions = None
@@ -98,13 +105,13 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       self.predict_plot = False
+       self.predict_plot = True
 
        if self.predict_plot:
            self.setup_plot()
 
        # Plotting EMG
-       self.emg_plot = True
+       self.emg_plot = False
 
        # Emg plot
        if self.emg_plot:
@@ -408,7 +415,7 @@ class LiveEstimation:
 
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/emg.npy"), all_emgs)
+       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/lowpass_online.npy"), all_emgs)
        print("Save EMG Shape: ", all_emgs.shape)
 
 
@@ -428,26 +435,26 @@ class LiveEstimation:
            self.EMG_live.updateBuffer(num_channels = 8)
 
            # * apply bandpass filter (previous highpass filter)
-           self.EMG_live.filterBuffer(sos=self.sos_bp)
+           self.EMG_live.filterBuffer_bandPass(sos=self.sos_bp)
 
+           # # Store previous values for the variance filter
            self.var_buffer = np.roll(self.var_buffer, shift = int(-1*self.batch_size), axis = 2)
            self.var_buffer[0, :, int(-1*self.batch_size):, 0] = self.EMG_live.getDataBuffer()[0, :, int(-1*self.batch_size):, 0]
 
-           # Create identical copy for frequency extraction 
-           
+           # Create identical copy for frequency extraction
            self.EMG_live_freq = copy.deepcopy(self.EMG_live)
            
            # # variance filter
-           
            self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online", var_buffer=self.var_buffer)
 
            # # normalisation #
            self.EMG_live.normalizeContinuousData(mvc=self.channelwise_mvc, mode="old_online")
 
            # # low pass filter
+           self.EMG_live.filterBuffer_lowPass(sos=self.sos_lp)
 
            # # neural activation force #
-           #self.EMG_live.calculateActivationForceFunction(mode='old_online', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
+           self.EMG_live.calculateActivationForceFunction(mode='online', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
 
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
@@ -481,7 +488,7 @@ class LiveEstimation:
                # ToDo PostProcessing
 
                self.extract_features()
-               self.scale_features()
+               #self.scale_features()
                self.predict()
                # self.apply_post_filter()
 
@@ -495,8 +502,8 @@ if __name__ == "__main__":
 
  live_estimation_obj = LiveEstimation()
 
- #live_estimation_obj.save_all_predictions()
+ live_estimation_obj.save_all_predictions()
 
- #live_estimation_obj.save_torques()
+ live_estimation_obj.save_torques()
 
- #live_estimation_obj.save_elapsed_times()
+ live_estimation_obj.save_elapsed_times()
