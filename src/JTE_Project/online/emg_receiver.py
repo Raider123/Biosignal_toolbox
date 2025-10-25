@@ -105,9 +105,9 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       self.predict_plot = True
+       self.show_prediction_plot = True
 
-       if self.predict_plot:
+       if self.show_prediction_plot:
            self.setup_plot()
 
        # Plotting EMG
@@ -495,7 +495,7 @@ class LiveEstimation:
                # Save all single predictions
                self.all_predictions.append(self.predictions)
 
-               if self.predict_plot:
+               if self.show_prediction_plot:
                    self.update_plot()
 
 if __name__ == "__main__":
