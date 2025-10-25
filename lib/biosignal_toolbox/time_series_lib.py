@@ -3042,8 +3042,10 @@ class Timeseries():
                         p_t_minus_2 = p_t_minus_1
                         p_t_minus_1 = activation_data[channel_idx, sample_idx]
 
-                        activation_data[channel_idx, sample_idx] = (math.exp(
-                            A * activation_data[channel_idx, sample_idx]) - 1) / (math.exp(A) - 1)
+                        raw_value = A * activation_data[channel_idx, sample_idx]
+                        raw_value = np.clip(raw_value, -700, 700)
+                        activation_data[channel_idx, sample_idx] = (np.exp(raw_value) - 1) / (np.exp(A) - 1)
+
             self.data_buffer[0, :, (-1 * self.n_samples):, 0] = activation_data
     
     def calculateMAVFromFeatures(self, n_channels=8):

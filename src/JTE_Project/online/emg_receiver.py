@@ -105,7 +105,7 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       self.show_prediction_plot = True
+       self.show_prediction_plot = False
 
        if self.show_prediction_plot:
            self.setup_plot()
@@ -138,7 +138,7 @@ class LiveEstimation:
            ax.set_ylabel(f'{n} Torque')
            ax.set_xlabel('Zeit (s)')
            ax.grid(True, alpha=0.3)
-           ax.set_ylim(-1, 100)
+           ax.set_ylim(-1, 20)
            l_pred, = ax.plot([], [], linewidth=1.8, label=f'{n} (Pred)')
            l_gt, = ax.plot([], [], linestyle='--', linewidth=1.5, label=f'{n} (GT)')
            self.lines.append(l_pred)
@@ -460,10 +460,6 @@ class LiveEstimation:
            self.EMG_live.bufferToWindows()
            #self.EMG_live_freq.bufferToWindows()
 
-           update_time_step = time.time() - update_start_time
-           self.current_time = self.current_time + update_time_step
-           self.elapsed_times.append(self.current_time)
-
            if self.emg_plot:
                ## EMG - Window Extraction and Reshaping
                windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
@@ -492,9 +488,15 @@ class LiveEstimation:
                self.predict()
                # self.apply_post_filter()
 
-               # Save all single predictions
-               self.all_predictions.append(self.predictions)
+               # Printing the Timings
+               update_time_step = time.time() - update_start_time
+               self.current_time = self.current_time + update_time_step
+               self.elapsed_times.append(self.current_time)
+               print(len(self.elapsed_times))
+               print(update_time_step)
 
+               # Save all single predictions (and Plotting)
+               self.all_predictions.append(self.predictions)
                if self.show_prediction_plot:
                    self.update_plot()
 
