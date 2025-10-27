@@ -112,7 +112,7 @@ class LiveEstimation:
            self.setup_plot()
 
        # Plotting EMG
-       self.emg_plot = False
+       self.emg_plot = True
 
        # Emg plot
        if self.emg_plot:
@@ -394,7 +394,7 @@ class LiveEstimation:
 
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/lowpass_online.npy"), all_emgs)
+       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/bandpass_online.npy"), all_emgs)
        print("Save EMG Shape: ", all_emgs.shape)
 
 
@@ -415,7 +415,7 @@ class LiveEstimation:
 
            # * apply bandpass filter (previous highpass filter)
            self.EMG_live.filterBuffer_bandPass(sos=self.sos_bp)
-
+           """ 
            # # Store previous values for the variance filter
            self.var_buffer = np.roll(self.var_buffer, shift = int(-1*self.batch_size), axis = 2)
            self.var_buffer[0, :, int(-1*self.batch_size):, 0] = self.EMG_live.getDataBuffer()[0, :, int(-1*self.batch_size):, 0]
@@ -434,7 +434,7 @@ class LiveEstimation:
 
            # # neural activation force #
            self.EMG_live.calculateActivationForceFunction(mode='online', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
-
+            """
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
            #self.EMG_live_freq.bufferToWindows()
@@ -452,6 +452,10 @@ class LiveEstimation:
                # For plotting emg in debug case
                self.update_emg_plot(self.emg_lines, windows)
                plt.pause(0.01)
+
+               update_time_step = time.perf_counter() - update_start_time
+               self.current_time = self.current_time + update_time_step
+               self.elapsed_times.append(self.current_time)
 
            else:
                # ToDo Feature Extraction
