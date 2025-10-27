@@ -13,6 +13,7 @@ from scipy.signal import butter, savgol_filter, medfilt
 from biosignal_toolbox.emg_lib import OnlineEMG
 from tensorflow.keras.models import load_model
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
+from scipy.ndimage import uniform_filter1d
 
 class LiveEstimation:
 
@@ -105,7 +106,7 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
-       self.show_prediction_plot = False
+       self.show_prediction_plot = True
 
        if self.show_prediction_plot:
            self.setup_plot()
@@ -340,6 +341,27 @@ class LiveEstimation:
        # Buffer leeren
        self.emg_buffer = []
 
+   def apply_savitzky_filter(self, filter_size =5, poly_order = 2):
+       if len(self.all_predictions) >= filter_size - 1:
+           # get the previous predictions
+           all_preds = np.vstack(self.all_predictions[-(filter_size - 1):])
+
+           # attach current prediction value
+           comb_preds = np.vstack((all_preds, self.predictions))
+
+           # perform mean filteringa and appending
+           self.all_predictions.append(np.mean(comb_preds, axis=0))
+
+           filtered = np.array([
+               savgol_filter(comb_preds[:, i], window_length=filter_size, polyorder=poly_order)[-1]
+               for i in range(comb_preds.shape[1])
+           ])
+
+           self.all_predictions.append(filtered)
+       else:
+           # append raw data if self.all_predictions does not match size
+           self.all_predictions.append(self.predictions)
+
    def setup_emg_plot(self, n_channels=8, n_samples=500):
        plt.ion()
        fig, ax = plt.subplots(figsize=(10, 5))
@@ -442,17 +464,17 @@ class LiveEstimation:
 
                self.extract_features()
                self.predict()
+               self.apply_savitzky_filter(filter_size=5, poly_order=2)
+
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
+               print(f"{update_time_step * 1000:.1f} ms")
                self.current_time = self.current_time + update_time_step
                self.elapsed_times.append(self.current_time)
-               print(len(self.elapsed_times))
+               print("Elapsed Times " , len(self.elapsed_times))
 
-               print(f"{update_time_step * 1000:.1f} ms")
 
-               # Save all single predictions (and Plotting)
-               self.all_predictions.append(self.predictions)
                if self.show_prediction_plot:
                    self.update_plot()
 
@@ -460,8 +482,8 @@ if __name__ == "__main__":
 
  live_estimation_obj = LiveEstimation()
 
- live_estimation_obj.save_all_predictions()
+ #live_estimation_obj.save_all_predictions()
 
- live_estimation_obj.save_torques()
+ #live_estimation_obj.save_torques()
 
- live_estimation_obj.save_elapsed_times()
+ #live_estimation_obj.save_elapsed_times()

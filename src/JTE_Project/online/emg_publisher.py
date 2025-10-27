@@ -9,7 +9,7 @@ emg_file = getAbsolutePath("data/jte/emg/BU62D/publisher.txt") #24072025_BU62D_c
 df = pd.read_csv(emg_file, sep=" ", header=None)
 df = df.drop(df.columns[0], axis=1)
 max_rows = df.shape[0] - 1
-idx = 0 # 47120 (max)
+idx = 0
 
 # ZeroMQ Kontext erstellen
 context = zmq.Context()
@@ -20,16 +20,15 @@ socket.bind("tcp://127.0.0.1:5555")
 
 print("Publisher is active")
 
-start_time = time.time()
+start_time = time.perf_counter()
 
 # Nachrichten versenden
 while True:
-    passed_time = time.time() - start_time
+    passed_time = time.perf_counter() - start_time
     if passed_time > 0.002: # Every 20ms output one EMG value (mimic EMG device with 500Hz)
-        start_time = time.time()
+        start_time = time.perf_counter()
 
         current_line = df.iloc[idx].to_frame().T.to_string(header=False, index=False)
-        #print(current_line)
         socket.send_string(current_line)
 
         if idx == max_rows:
