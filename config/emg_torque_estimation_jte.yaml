@@ -27,9 +27,9 @@
   preprocess_param:
     channel_names_emg:        ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
     channel_names_quali:      ['right', 'marker']
-    window_size_x:            100  #samples
-    window_size_y:            100  #samples
-    window_step:              50  #samples
+    window_size_x:            50  #samples
+    window_size_y:            50  #samples
+    window_step:              25  #samples
     target_feature_select:    'end'
 
     f_samp:                   500
