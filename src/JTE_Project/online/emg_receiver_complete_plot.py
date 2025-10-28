@@ -14,8 +14,8 @@ y2 = all_torques
 # Plot erstellen
 plt.figure(figsize=(12, 6))
 
-plt.plot(x, y1[:, 2], label=f'y1', linestyle='-')
-plt.plot(x, y2[:, 2], label=f'y2', linestyle='--')
+plt.plot(x, y1[:, 0], label=f'y1', linestyle='-')
+plt.plot(x, y2[:, 1], label=f'y2', linestyle='--')
 
 #plt.ylim(-1, 200)
 # Plot konfigurieren

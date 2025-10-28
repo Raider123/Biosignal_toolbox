@@ -148,7 +148,7 @@ for wgt_idx, wgt in enumerate(weights):
         channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1)
         channel_cum.append(channelwise_mvc)
 
-
+        '''
         print("Performing Input Normalization with Max Voluntary Contraction ...")
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
             EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc))
@@ -200,9 +200,11 @@ for wgt_idx, wgt in enumerate(weights):
                              ylabel="Voltage in V",
                              is_grid_on=True)
                              
+        '''
+                             
 
 
-''' 
+
 ## Storing channelwise mvc (now the mean is used)
 channel_cum = np.array(channel_cum)
 print(channel_cum.shape)
@@ -211,4 +213,3 @@ channel_max = np.mean(channel_cum,axis=0)
 print(channel_max.shape)
 print(channel_max)
 np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"), channel_max)
-'''

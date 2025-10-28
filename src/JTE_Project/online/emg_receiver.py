@@ -50,9 +50,9 @@ class LiveEstimation:
        print("Loaded EMG Scaler File")
 
        # Load Torque Values (ground truth, only in prediction plot)
-       Y_e = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/e.npy"))
-       Y_f = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/front.npy"))
-       Y_s = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/side.npy"))
+       Y_e = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/e.npy"))
+       Y_f = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/front.npy"))
+       Y_s = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/side.npy"))
        Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
        y_ref_length = int (Y_ref_raw.shape[0] / self.batch_size)
@@ -112,7 +112,7 @@ class LiveEstimation:
            self.setup_plot()
 
        # Plotting EMG
-       self.emg_plot = True
+       self.emg_plot = False
 
        # Emg plot
        if self.emg_plot:
@@ -140,7 +140,7 @@ class LiveEstimation:
            ax.set_xlabel('Zeit (s)')
            ax.grid(True, alpha=0.3)
            ax.set_ylim(-1, 20)
-           l_pred, = ax.plot([], [], linewidth=1.8, label=f'{n} (Pred)')
+           l_pred, = ax.plot([], [], linewidth=1.5, label=f'{n} (Pred)') # linewidth=1.8
            l_gt, = ax.plot([], [], linestyle='--', linewidth=1.5, label=f'{n} (GT)')
            self.lines.append(l_pred)
            self.gt_lines.append(l_gt)
@@ -349,9 +349,6 @@ class LiveEstimation:
            # attach current prediction value
            comb_preds = np.vstack((all_preds, self.predictions))
 
-           # perform mean filteringa and appending
-           self.all_predictions.append(np.mean(comb_preds, axis=0))
-
            filtered = np.array([
                savgol_filter(comb_preds[:, i], window_length=filter_size, polyorder=poly_order)[-1]
                for i in range(comb_preds.shape[1])
@@ -415,7 +412,7 @@ class LiveEstimation:
 
            # * apply bandpass filter (previous highpass filter)
            self.EMG_live.filterBuffer_bandPass(sos=self.sos_bp)
-           """ 
+
            # # Store previous values for the variance filter
            self.var_buffer = np.roll(self.var_buffer, shift = int(-1*self.batch_size), axis = 2)
            self.var_buffer[0, :, int(-1*self.batch_size):, 0] = self.EMG_live.getDataBuffer()[0, :, int(-1*self.batch_size):, 0]
@@ -434,7 +431,7 @@ class LiveEstimation:
 
            # # neural activation force #
            self.EMG_live.calculateActivationForceFunction(mode='online', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
-            """
+
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
            #self.EMG_live_freq.bufferToWindows()
@@ -453,10 +450,6 @@ class LiveEstimation:
                self.update_emg_plot(self.emg_lines, windows)
                plt.pause(0.01)
 
-               update_time_step = time.perf_counter() - update_start_time
-               self.current_time = self.current_time + update_time_step
-               self.elapsed_times.append(self.current_time)
-
            else:
                # ToDo Feature Extraction
                # ToDo Scaling - Standard and PCA look below
@@ -468,7 +461,7 @@ class LiveEstimation:
 
                self.extract_features()
                self.predict()
-               self.apply_savitzky_filter(filter_size=5, poly_order=2)
+               self.apply_savitzky_filter(filter_size=8, poly_order=2)
 
 
                # Printing the Timings

@@ -2,7 +2,7 @@ import numpy as np
 from biosignal_toolbox.utils import getAbsolutePath
 import matplotlib.pyplot as plt
 
-'''
+
 offline_res_raw = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_offline.npy"))
 online_res_raw = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_online.npy"))
 
@@ -28,6 +28,7 @@ plt.tight_layout()
 plt.show()
 
 ################################
+'''
 variance_raw_offline = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_offline.npy"))
 variance_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/variance_online.npy"))
 
@@ -53,12 +54,11 @@ plt.tight_layout()
 plt.show()
 '''
 ################################
+'''
 mvc_raw_online = np.load(getAbsolutePath("src/JTE_Project/offline/filter_tests/emg.npy"))
 
 mvc_online = mvc_raw_online[4,:]
 print(mvc_online.shape)
-
-
 
 x = np.linspace(0,1, mvc_online.shape[0])
 y5 = mvc_online
@@ -72,3 +72,4 @@ plt.legend()
 plt.grid(True)
 plt.tight_layout()
 plt.show()
+'''

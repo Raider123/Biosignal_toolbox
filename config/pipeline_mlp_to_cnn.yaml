@@ -19,9 +19,9 @@
   
 
   data_param:
-    weights:                  ['1100g'] # , '1100g', '1850g'
-    mov_type:                 ['complex'] # 'grasp',
-    set_num:                  ['1'] # , '2', '3', '4'
+    weights:                  ['0g','1100g','18500g'] # , '1100g', '1850g'
+    mov_type:                 ['grasp','complex'] # 'grasp',
+    set_num:                  ['1', '2', '3', '4'] # , '2', '3', '4'
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'
@@ -108,6 +108,6 @@
     is_plot_quali:            False
     is_plot_hpf:              False
     is_plot_var_filter:       False
-    is_plot_smoothed:         True
+    is_plot_smoothed:         False
     is_plot_act:              False
     is_plot_filt_win:         False        
