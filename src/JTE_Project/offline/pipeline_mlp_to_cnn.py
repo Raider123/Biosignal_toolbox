@@ -522,43 +522,43 @@ for wgt_idx, wgt in enumerate(weights):
 
         #? time domain feature extraction
         ## EMG Feature Extraction
-        """ rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
-        EMG_Data.addFeatures(rms_feature) """
+        rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
+        EMG_Data.addFeatures(rms_feature)
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
-        """ wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-        EMG_Data.addFeatures(wfl_feature) """
+        wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
+        EMG_Data.addFeatures(wfl_feature)
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
-        """ ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), 
+        ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
                                                                 threshold=0.02)    # Slope Sign Change
-        EMG_Data.addFeatures(ssc_feature) """
+        EMG_Data.addFeatures(ssc_feature)
         # print(EMG_Data.getFeatures()[1,:])
         # EMG_Data.printFeatureShape()
 
         #? freq domain feature extraction
-        """ EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
+        EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
                                                 psd_method="multitaper",
                                                 freq_bands=[15, 50, 100, 150, 200, 245])
         fbp_feature = EMG_Data_freq.getFeatures()
-        EMG_Data.addFeatures(fbp_feature) """
+        EMG_Data.addFeatures(fbp_feature)
         # EMG_Data.printFeatureShape()
 
         #? time-freq domain feature extraction
-        """ freqs = np.arange(start=50, stop=226, step=25)
+        freqs = np.arange(start=50, stop=226, step=25)
         n_cycles = np.ones(len(freqs)) * 5
         n_cycles[0] = 3
         n_cycles[1] = 4
         mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
                                                                         n_cycles=n_cycles)    # Morlet transform
-        EMG_Data.addFeatures(mwc_feature) """
+        EMG_Data.addFeatures(mwc_feature)
         # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
         #? Change between consecutive samples (window i and wind i+1)
-        """ peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
-        EMG_Data.addFeatures(peak_detection) """
+        peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
+        EMG_Data.addFeatures(peak_detection)
         print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
        
         #? Output feature extraction
@@ -711,28 +711,34 @@ X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
 #? Pre-PCA scaling of input features
-emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
+pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         test_data=X_test, 
                                                         val_data=X_val, 
                                                         method="StandardScaler")
 
-print(type(emg_scaler))
 import joblib
-joblib.dump(emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/emg_scaler.pkl"))
+joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/emg_scaler.pkl"))
 print("EMG Scaler gespeichert")
 
 #? Dimensionality Reduction - PCA
-X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
+pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                 test_data = X_test,
                                 val_data = X_val,
                                 method="PCA",
-                                n_components=0.99)
+                                n_components=0.99,
+                                mode="offline")
+
+
+joblib.dump(pca_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
+
 
 #? Scale the input features -> StandardScaler
-_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+post_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         test_data=X_test, 
                                                         val_data=X_val, 
                                                         method="StandardScaler")
+
+joblib.dump(post_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
 
 
 """ wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
@@ -886,11 +892,11 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_2.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_3.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras', compile=False)
+        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_3.keras', compile=False)
 
 
     # --- Predict auf Testdaten ---

@@ -3141,9 +3141,11 @@ class Timeseries():
         '''
         To be used with an already existing Standardscaler-File from the method def scaleFeatures_windows(self,...)
         '''
-        return scaler_file.transform(test_data)
+        scaled_data = scaler_file.transform(test_data)
+        print("Standardscaler Shape ", scaled_data.shape)
+        return scaled_data
 
-    def reduceDimensions_windows(self, train_data=None, test_data=None, val_data=None, method="PCA", n_components='mle'):
+    def reduceDimensions_windows(self, train_data=None, test_data=None, val_data=None, method="PCA", n_components='mle',pca_scaler_file = None, mode="offline"):
 
         if method == "PCA":
             if train_data is None and test_data is None and val_data is None:
@@ -3152,13 +3154,21 @@ class Timeseries():
                 self.feature_vec = pca_decomposition.fit_transform(self.feature_vec)
                 print(f"Reduced feature vector shape: {self.feature_vec.shape}")
             else:
-                pca_decomposition = PCA(n_components=n_components)
-                train_data_pca = pca_decomposition.fit_transform(train_data)
-                test_data_pca = pca_decomposition.transform(test_data)
-                val_data_pca = pca_decomposition.transform(val_data)
-                print(f"Reduced train_data feature shape: {train_data_pca.shape}")
+                if mode == "online":
+                    test_data_pca = pca_scaler_file.transform(test_data)
+                    print(f"Reduced train_data feature shape: {test_data_pca.shape}")
+                    return test_data_pca
 
-                return train_data_pca, test_data_pca, val_data_pca
+                elif mode == "offline":
+                    pca_decomposition = PCA(n_components=n_components)
+                    train_data_pca = pca_decomposition.fit_transform(train_data)
+                    test_data_pca = pca_decomposition.transform(test_data)
+                    val_data_pca = pca_decomposition.transform(val_data)
+                    print(f"Reduced train_data feature shape: {train_data_pca.shape}")
+                    print(f"Reduced test_data feature shape: {test_data_pca.shape}")
+                    print(f"Reduced val_data feature shape: {val_data_pca.shape}")
+
+                    return pca_decomposition, train_data_pca, test_data_pca, val_data_pca
         else:
             warnings.warn("This method is not yet implemented! Returning without dimension reduction!!")
     

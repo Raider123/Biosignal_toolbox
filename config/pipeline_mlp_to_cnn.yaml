@@ -19,7 +19,7 @@
   
 
   data_param:
-    weights:                  ['0g','1100g','18500g'] # , '1100g', '1850g'
+    weights:                  ['0g','1100g','1850g'] # , '1100g', '1850g'
     mov_type:                 ['grasp','complex'] # 'grasp',
     set_num:                  ['1', '2', '3', '4'] # , '2', '3', '4'
     subject_code:             ['BU62D']

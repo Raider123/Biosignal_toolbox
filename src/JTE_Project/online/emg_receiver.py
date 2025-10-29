@@ -10,6 +10,7 @@ import joblib
 import matplotlib.pyplot as plt
 from pathlib import Path
 from scipy.signal import butter, savgol_filter, medfilt
+from sklearn.metrics import r2_score
 from biosignal_toolbox.emg_lib import OnlineEMG
 from tensorflow.keras.models import load_model
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
@@ -41,13 +42,24 @@ class LiveEstimation:
        self.channelwise_mvc = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"))
        print("Loaded channelwise mvc file")
 
-       #  TCN Model
-       self.load_model(
-           getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras'))
+       self.advanced_feature_extraction = False
 
-       # Scaler File
-       self.emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/emg_scaler.pkl"))
-       print("Loaded EMG Scaler File")
+       #  TCN Model
+       if self.advanced_feature_extraction:
+           print("Using complete feature extraction!")
+           self.load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_3.keras'))
+       else:
+           print("Using Raw Timepoints for feature extraction")
+           self.load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras'))
+
+       # Scaler Files
+       self.pre_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
+       print("Loaded Pre-EMG Scaler File")
+       self.pca_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
+       print("Loaded PCA Scaler File")
+       self.post_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
+       print("Loaded Post-EMG Scaler File")
+
 
        # Load Torque Values (ground truth, only in prediction plot)
        Y_e = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/e.npy"))
@@ -152,6 +164,7 @@ class LiveEstimation:
        P = np.asarray([np.asarray(p).reshape(-1)[:3] for p in getattr(self, "all_predictions", [])], float) if len(
            getattr(self, "all_predictions", [])) else np.zeros((0, 3))
        R = np.asarray(getattr(self, "Y_ref", []), float)
+
        if R.ndim == 1: R = R.reshape(1, -1)
        if t.size == 0: t = np.array([0.0])
        if P.size == 0: P = np.zeros((1, 3))
@@ -166,6 +179,9 @@ class LiveEstimation:
            self.gt_lines[i].set_data(x, Yr[:, i])
            self.axes[i].set_xlim(*xlims)
        plt.pause(0.001)
+
+       # return last values for rmse calculation
+       return Yp[-1:], Yr[-1:]
 
    def add_property(self, name, default_value):
        self.property[name] = default_value
@@ -225,63 +241,69 @@ class LiveEstimation:
            feature_type="timepoints",
            feature_indices_windows=feature_indices_windows_x
        )
-       '''
-       # Time domain features
-       n_channels = len(self.channel_names)
+       if self.advanced_feature_extraction:
+           # Time domain features
+           n_channels = len(self.channel_names)
 
-       # RMS (Root Mean Square)
-       rms_feature = self.EMG_live.getRMSFeatures_windows(n_channels=n_channels)
-       self.EMG_live.addFeatures(rms_feature)
+           # RMS (Root Mean Square)
+           rms_feature = self.EMG_live.getRMSFeatures_windows(n_channels=n_channels)
+           self.EMG_live.addFeatures(rms_feature)
 
-       # Waveform Length
-       wfl_feature = self.EMG_live.getWaveformLengthFeatures_windows(
-           n_channels=n_channels
-       )
-       self.EMG_live.addFeatures(wfl_feature)
+           # Waveform Length
+           wfl_feature = self.EMG_live.getWaveformLengthFeatures_windows(
+               n_channels=n_channels
+           )
+           self.EMG_live.addFeatures(wfl_feature)
 
-       # Slope Sign Change
-       ssc_feature = self.EMG_live.getSlopeSignChangeFeatures_windows(
-           n_channels=n_channels,
-           threshold=0.02
-       )
-       self.EMG_live.addFeatures(ssc_feature)
+           # Slope Sign Change
+           ssc_feature = self.EMG_live.getSlopeSignChangeFeatures_windows(
+               n_channels=n_channels,
+               threshold=0.02
+           )
+           self.EMG_live.addFeatures(ssc_feature)
 
-       # Frequency domain features
-       self.EMG_live_freq.featureExtractionFromWindows(
-           feature_type="freqBandPower",
-           psd_method="multitaper",
-           freq_bands=[15, 50, 100, 150, 200, 245]
-       )
-       fbp_feature = self.EMG_live_freq.getFeatures()
-       self.EMG_live.addFeatures(fbp_feature)
+           # Frequency domain features
+           self.EMG_live_freq.featureExtractionFromWindows(
+               feature_type="freqBandPower",
+               psd_method="multitaper",
+               freq_bands=[15, 50, 100, 150, 200, 245]
+           )
+           fbp_feature = self.EMG_live_freq.getFeatures()
+           self.EMG_live.addFeatures(fbp_feature)
 
-       # Time-frequency domain features (Morlet Wavelet)
-       freqs = np.arange(start=50, stop=226, step=25)
-       n_cycles = np.ones(len(freqs)) * 5
-       n_cycles[0] = 3
-       n_cycles[1] = 4
+           # Time-frequency domain features (Morlet Wavelet)
+           freqs = np.arange(start=50, stop=226, step=25)
+           n_cycles = np.ones(len(freqs)) * 5
+           n_cycles[0] = 3
+           n_cycles[1] = 4
 
-       mwc_feature = self.EMG_live_freq.getMorletWaveletCoeffFeatures_windows(
-           freqs=freqs,
-           n_cycles=n_cycles
-       )
-       self.EMG_live.addFeatures(mwc_feature)
+           mwc_feature = self.EMG_live_freq.getMorletWaveletCoeffFeatures_windows(
+               freqs=freqs,
+               n_cycles=n_cycles
+           )
+           self.EMG_live.addFeatures(mwc_feature)
 
-       # Differential features (change between consecutive windows)
-       peak_detection = np.diff(
-           self.EMG_live.getFeatures(),
-           axis=0,
-           prepend=self.EMG_live.getFeatures()[0:1, :]
-       )
-       self.EMG_live.addFeatures(peak_detection)
-       '''
+           # Differential features (change between consecutive windows)
+           peak_detection = np.diff(
+               self.EMG_live.getFeatures(),
+               axis=0,
+               prepend=self.EMG_live.getFeatures()[0:1, :]
+           )
+           self.EMG_live.addFeatures(peak_detection)
 
        self.features = self.EMG_live.getFeatures()
        #print(f"Total EMG features extracted: {self.features.shape}")
        #print("Feature extraction completed!\n")
 
    def scale_features(self):
-       self.features = self.EMG_live.scaleEMG_windows(self.emg_scaler_file, self.features)
+       # Pre-PCA scaler
+       self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.pre_emg_scaler_file, test_data=self.features)
+
+       # PCA
+       self.features = self.EMG_live.reduceDimensions_windows(pca_scaler_file=self.pca_scaler_file, test_data=self.features, mode="online")
+
+       # Post-PCA scaler
+       self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.post_emg_scaler_file, test_data=self.features)
 
 
    def predict(self):
@@ -434,7 +456,7 @@ class LiveEstimation:
 
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
-           #self.EMG_live_freq.bufferToWindows()
+           self.EMG_live_freq.bufferToWindows()
 
            if self.emg_plot:
                ## EMG - Window Extraction and Reshaping
@@ -451,29 +473,23 @@ class LiveEstimation:
                plt.pause(0.01)
 
            else:
-               # ToDo Feature Extraction
-               # ToDo Scaling - Standard and PCA look below
-               # Pre-PCA scaling
-               # Dimensionality reduction with PCA
-               # Post-PCA scaling of input features
-               # ToDo Model Prediction
-               # ToDo PostProcessing
-
+               # Regular prediction pipeline
                self.extract_features()
+               #self.scale_features()
                self.predict()
-               self.apply_savitzky_filter(filter_size=8, poly_order=2)
-
+               self.apply_savitzky_filter(filter_size=7000, poly_order=2)
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
-               print(f"{update_time_step * 1000:.1f} ms")
+               #print(f"{update_time_step * 1000:.1f} ms")
                self.current_time = self.current_time + update_time_step
                self.elapsed_times.append(self.current_time)
                print("Elapsed Times " , len(self.elapsed_times))
 
-
                if self.show_prediction_plot:
-                   self.update_plot()
+                   last_Ypred, lastYref = self.update_plot()
+                   # print RMSE
+                   #print("RMSE ", np.sqrt(np.mean((last_Ypred - lastYref) ** 2)))
 
 if __name__ == "__main__":
 
