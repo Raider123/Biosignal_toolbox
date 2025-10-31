@@ -118,6 +118,7 @@ class LiveEstimation:
        self.current_time = 0
        self.elapsed_times = []  # speichert die Zeitachse
 
+       # Note that if enabled, the prediction is slower than in a real time scenario
        self.show_prediction_plot = True
 
        if self.show_prediction_plot:
@@ -328,9 +329,15 @@ class LiveEstimation:
 
        #print(f"Input shape for model: {features_cnn.shape}")
 
+       pred_time = time.perf_counter()
+
        # Predict
-       #print("Running model prediction...")
-       preds = self.model.predict(features_cnn)
+       x = tf.convert_to_tensor(features_cnn)
+       preds = self.model(x, training=False) # using a direct model call vs self.model.predict() cuts time expense in half
+
+       print(f"{(time.perf_counter() - pred_time) * 1000:.1f} ms")
+
+       print()
 
        # Concatenate multi-task outputs: [elbow, front, side]
        self.predictions = np.concatenate(
@@ -421,10 +428,11 @@ class LiveEstimation:
        # len(self.elapsed_times) * self.batch_size < 500: # Iterate exactly over 500 samples
        # len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
        while len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
-           update_start_time = time.perf_counter()
-
            # Read emg data from the stream
            self.read_emg_batch()
+
+           # Start the time measurement (self.read_emg_batch waits for 50 new samples, approx 65ms duration)
+           update_start_time = time.perf_counter()
 
            # Manually setting the data (otherwise use start_hook())
            self.EMG_live.setChunk(self.emg_array, chunk_type="numpy")
@@ -475,16 +483,17 @@ class LiveEstimation:
            else:
                # Regular prediction pipeline
                self.extract_features()
-               #self.scale_features()
+               #self.scale_features() # has to be tested thoroughly
                self.predict()
-               self.apply_savitzky_filter(filter_size=7000, poly_order=2)
+               self.apply_savitzky_filter(filter_size=7000, poly_order=2) # using a filter size greater than 500 deactivates the filter
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
                #print(f"{update_time_step * 1000:.1f} ms")
+
                self.current_time = self.current_time + update_time_step
                self.elapsed_times.append(self.current_time)
-               print("Elapsed Times " , len(self.elapsed_times))
+               #print("Elapsed Times " , len(self.elapsed_times))
 
                if self.show_prediction_plot:
                    last_Ypred, lastYref = self.update_plot()
