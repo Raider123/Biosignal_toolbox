@@ -191,7 +191,7 @@ class LiveEstimation:
        self.property[name] = default_value
 
    def configure_properties(self):
-       self.add_property("buffer_size", 250)
+       self.add_property("buffer_size", 250) # 250 was good
        self.add_property("f_samp", 500)
        self.add_property("n_channels", 8)
        self.add_property("f_cutoff_hpf", 15)
@@ -320,7 +320,7 @@ class LiveEstimation:
        n_features = features.shape[1]
        features_cnn = features.reshape((-1, n_features, 1))
 
-       print(f"Input shape for model: {features_cnn.shape}")
+       #print(f"Input shape for model: {features_cnn.shape}")
        # Predict
        x = tf.convert_to_tensor(features_cnn)
        preds = self.model(x, training=False) # using a direct model call vs self.model.predict() cuts time expense in half
@@ -368,6 +368,8 @@ class LiveEstimation:
                savgol_filter(comb_preds[:, i], window_length=filter_size, polyorder=poly_order)[-1]
                for i in range(comb_preds.shape[1])
            ])
+
+           filtered = np.maximum(filtered, 0)
 
            self.all_predictions.append(filtered)
        else:
@@ -478,7 +480,7 @@ class LiveEstimation:
                self.extract_features()
                #self.scale_features()
                self.predict()
-               self.apply_savitzky_filter(filter_size=7000, poly_order=2) # using a filter size greater than 500 deactivates the filter
+               self.apply_savitzky_filter(filter_size=9, poly_order=2) # using a filter size greater than 500 deactivates the filter
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
@@ -497,8 +499,8 @@ if __name__ == "__main__":
 
  live_estimation_obj = LiveEstimation()
 
- #live_estimation_obj.save_all_predictions()
+ live_estimation_obj.save_all_predictions()
 
- #live_estimation_obj.save_torques()
+ live_estimation_obj.save_torques()
 
- #live_estimation_obj.save_elapsed_times()
+ live_estimation_obj.save_elapsed_times()
