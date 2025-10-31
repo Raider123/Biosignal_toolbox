@@ -3142,7 +3142,6 @@ class Timeseries():
         To be used with an already existing Standardscaler-File from the method def scaleFeatures_windows(self,...)
         '''
         scaled_data = scaler_file.transform(test_data)
-        print("Standardscaler Shape ", scaled_data.shape)
         return scaled_data
 
     def reduceDimensions_windows(self, train_data=None, test_data=None, val_data=None, method="PCA", n_components='mle',pca_scaler_file = None, mode="offline"):

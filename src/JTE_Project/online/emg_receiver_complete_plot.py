@@ -8,14 +8,16 @@ all_torques = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_mode
 
 print(all_preds.shape, " ", all_times.shape, ' ', all_torques.shape)
 
-x = np.linspace(0,10,919)
-y1 = all_preds
-y2 = all_torques
+section = 600
+
+x = np.linspace(0,1,section)
+y1 = all_preds[:section,:]
+y2 = all_torques[:section,:]
 # Plot erstellen
 plt.figure(figsize=(12, 6))
 
-plt.plot(x, y1[:, 0], label=f'y1', linestyle='-')
-plt.plot(x, y2[:, 1], label=f'y2', linestyle='--')
+plt.plot(x, y1[:, 2], label=f'y1', linestyle='-')
+plt.plot(x, y2[:, 2], label=f'y2', linestyle='--')
 
 #plt.ylim(-1, 200)
 # Plot konfigurieren

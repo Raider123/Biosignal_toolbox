@@ -370,7 +370,7 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_start = time.perf_counter()
 
         #? Windowing the data
-        emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, 
+        emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1,
                                             stopmarkernumber=2, 
                                             window_size=cfg.preprocess_param.window_size_x, 
                                             window_step=cfg.preprocess_param.window_step, 
@@ -427,6 +427,8 @@ for wgt_idx, wgt in enumerate(weights):
             Quali_Data_Front.windows = Quali_Data_Front.windows[..., :min_windows]
             Quali_Data_Side.windows = Quali_Data_Side.windows[..., :min_windows]
             print(f"Windows trimmed to {min_windows} windows!!")
+
+        print("EMG_Data Window Shape ", EMG_Data.getWindows().shape)
 
         # # print(emg_window_boundary_idx)
         # # print(quali_window_boundary_idx)
@@ -518,8 +520,9 @@ for wgt_idx, wgt in enumerate(weights):
         feature_indices_windows_x = np.array([0, window_size_ms])
         EMG_Data.featureExtractionFromWindows(feature_type="timepoints", 
                                             feature_indices_windows=feature_indices_windows_x)
-        # EMG_Data.printFeatureShape()
+        EMG_Data.printFeatureShape()
 
+        '''
         #? time domain feature extraction
         ## EMG Feature Extraction
         rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
@@ -560,6 +563,7 @@ for wgt_idx, wgt in enumerate(weights):
         peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
         EMG_Data.addFeatures(peak_detection)
         print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+        '''
        
         #? Output feature extraction
         window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
@@ -717,7 +721,7 @@ pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_da
                                                         method="StandardScaler")
 
 import joblib
-joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/emg_scaler.pkl"))
+joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
 print("EMG Scaler gespeichert")
 
 #? Dimensionality Reduction - PCA
@@ -892,12 +896,13 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_3.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_2.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_3.keras', compile=False)
+        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras', compile=False)
 
+    print("X_test_cnn shape ", X_test_cnn.shape)
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)

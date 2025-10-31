@@ -16,6 +16,9 @@ from tensorflow.keras.models import load_model
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 from scipy.ndimage import uniform_filter1d
 
+# XLA-JIT einschalten (beschleunigt den Inferenz-Graph)
+tf.config.optimizer.set_jit(True)
+
 class LiveEstimation:
 
    def __init__(self):
@@ -188,18 +191,13 @@ class LiveEstimation:
        self.property[name] = default_value
 
    def configure_properties(self):
-       self.add_property("buffer_size", 500)
+       self.add_property("buffer_size", 250)
        self.add_property("f_samp", 500)
        self.add_property("n_channels", 8)
        self.add_property("f_cutoff_hpf", 15)
        self.add_property("f_cutoff_lpf", 5)
        self.add_property("var_filter_width", 20)
-       self.add_property("mvc", 3.941259927517915e-06)
-       self.add_property("delay", 25)
-       self.add_property("beta1", 0.25)
-       self.add_property("beta2", 0.05)
-       self.add_property("gamma", 0.7)
-       self.add_property("A", -1.5)
+
 
    def load_model(self, model_path=None):
        """
@@ -210,11 +208,6 @@ class LiveEstimation:
        model_path : str or Path, optional
            Path to the saved model. If None, uses default path from config.
        """
-       if model_path is None:
-           save_model_path = (
-                   Path(__file__).parent.parent / "saved_online_models"
-           )
-           model_path = save_model_path / "tcn_mtl.keras"
 
        print(f"Loading model from: {model_path}")
        self.model = load_model(model_path, compile=False)
@@ -301,10 +294,10 @@ class LiveEstimation:
        self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.pre_emg_scaler_file, test_data=self.features)
 
        # PCA
-       self.features = self.EMG_live.reduceDimensions_windows(pca_scaler_file=self.pca_scaler_file, test_data=self.features, mode="online")
+       #self.features = self.EMG_live.reduceDimensions_windows(pca_scaler_file=self.pca_scaler_file, test_data=self.features, mode="online")
 
        # Post-PCA scaler
-       self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.post_emg_scaler_file, test_data=self.features)
+       #self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.post_emg_scaler_file, test_data=self.features)
 
 
    def predict(self):
@@ -327,17 +320,10 @@ class LiveEstimation:
        n_features = features.shape[1]
        features_cnn = features.reshape((-1, n_features, 1))
 
-       #print(f"Input shape for model: {features_cnn.shape}")
-
-       pred_time = time.perf_counter()
-
+       print(f"Input shape for model: {features_cnn.shape}")
        # Predict
        x = tf.convert_to_tensor(features_cnn)
        preds = self.model(x, training=False) # using a direct model call vs self.model.predict() cuts time expense in half
-
-       print(f"{(time.perf_counter() - pred_time) * 1000:.1f} ms")
-
-       print()
 
        # Concatenate multi-task outputs: [elbow, front, side]
        self.predictions = np.concatenate(
@@ -460,7 +446,14 @@ class LiveEstimation:
            self.EMG_live.filterBuffer_lowPass(sos=self.sos_lp)
 
            # # neural activation force #
-           self.EMG_live.calculateActivationForceFunction(mode='online', d=self.property["delay"], b1=self.property["beta1"], b2=self.property["beta2"], g=self.property["gamma"], nonlinear_shape_factor=self.property["A"])
+           self.EMG_live.calculateActivationForceFunction(
+               mode='online',
+               d=self.cfg.preprocess_param.act_delay,
+               b1=self.cfg.preprocess_param.act_beta1,
+               b2=self.cfg.preprocess_param.act_beta2,
+               g=self.cfg.preprocess_param.act_gamma,
+               nonlinear_shape_factor=self.cfg.preprocess_param.act_A
+           )
 
            # convert filtered data into window
            self.EMG_live.bufferToWindows()
@@ -483,17 +476,17 @@ class LiveEstimation:
            else:
                # Regular prediction pipeline
                self.extract_features()
-               #self.scale_features() # has to be tested thoroughly
+               #self.scale_features()
                self.predict()
                self.apply_savitzky_filter(filter_size=7000, poly_order=2) # using a filter size greater than 500 deactivates the filter
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
-               #print(f"{update_time_step * 1000:.1f} ms")
+               print(f"{update_time_step * 1000:.1f} ms")
 
                self.current_time = self.current_time + update_time_step
                self.elapsed_times.append(self.current_time)
-               #print("Elapsed Times " , len(self.elapsed_times))
+               print("Elapsed Times " , len(self.elapsed_times))
 
                if self.show_prediction_plot:
                    last_Ypred, lastYref = self.update_plot()
