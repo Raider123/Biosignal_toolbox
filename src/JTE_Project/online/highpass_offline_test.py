@@ -86,6 +86,7 @@ for wgt_idx, wgt in enumerate(weights):
                              is_grid_on=True)
 
 
+        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/raw_offline.npy"), EMG_Data.data)
 
         channel_names = EMG_Data.getChannelNames()
         print("Channel Names: ", channel_names)
@@ -107,7 +108,7 @@ for wgt_idx, wgt in enumerate(weights):
         EMG_Data.filterData_offline(filter_method=cfg.preprocess_param.filter_method,
                                     sos=sos_hp)
 
-        #np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/highpass_offline.npy"), EMG_Data.data)
+        np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/bandpass_offline.npy"), EMG_Data.data)
 
         # ? Plotting bandpass filtered data
         if cfg.plot_param.is_plot_hpf:
