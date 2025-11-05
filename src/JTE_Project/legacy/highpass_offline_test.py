@@ -24,7 +24,7 @@ warnings.formatwarning = customWarningFormat
 
 
 # ? load config file
-config_filename = 'pipeline_mlp_to_cnn.yaml'
+config_filename = 'pipeline_jte.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
 

@@ -12,7 +12,6 @@
     fig_save_path: 'data/test/'
     quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
 
-    save_model_path:          "saved_online_models/"
     save_predictions_path:    "saved_online_models/"
     save_features_path:       'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
@@ -43,7 +42,7 @@
     f_cutoff_sm_lpf:          5   #cutoff freq for smoothing
     sm_filter_order:          4   #filter order smoothing lpf
 
-    filter_method:            'zero_phase'
+    filter_method:            'forward' # because causal filters are required in the online case too, otherwise (zero_phase, cf. timeseries)
     var_filter_width:         20
     normalisation_method:     'channel_wise_mvc'
 
@@ -58,8 +57,8 @@
     
   
   model_param:
-    n_epochs:                 40
-    batch_size:               256
+    n_epochs:                 50
+    batch_size:               1024
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'

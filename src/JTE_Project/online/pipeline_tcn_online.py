@@ -37,12 +37,12 @@ class LiveEstimation:
        self.configure_properties()
        print("Loaded properties!") # ToDo Replace properties with the data in the config_file!
 
-       config_filename = 'pipeline_mlp_to_cnn.yaml'
+       config_filename = 'pipeline_jte.yaml'
        self.cfg = loadConfig(filename=config_filename)
        print('Loaded the config file!')
 
        # pre-calculated channelwise mvc
-       self.channelwise_mvc = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/channelwise_mvc.npy"))
+       self.channelwise_mvc = np.load(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"))
        print("Loaded channelwise mvc file")
 
        self.advanced_feature_extraction = False
@@ -50,11 +50,12 @@ class LiveEstimation:
        #  TCN Model
        if self.advanced_feature_extraction:
            print("Using complete feature extraction!")
-           self.load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_3.keras'))
+           self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model_features.keras'))
        else:
            print("Using Raw Timepoints for feature extraction")
-           self.load_model(getAbsolutePath('src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras'))
+           self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
 
+       '''
        # Scaler Files
        self.pre_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
        print("Loaded Pre-EMG Scaler File")
@@ -62,12 +63,12 @@ class LiveEstimation:
        print("Loaded PCA Scaler File")
        self.post_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
        print("Loaded Post-EMG Scaler File")
-
+       '''
 
        # Load Torque Values (ground truth, only in prediction plot)
-       Y_e = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/e.npy"))
-       Y_f = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/front.npy"))
-       Y_s = np.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/reference_torques/side.npy"))
+       Y_e = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy"))
+       Y_f = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front.npy"))
+       Y_s = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side.npy"))
        Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
        y_ref_length = int (Y_ref_raw.shape[0] / self.batch_size)
@@ -330,7 +331,7 @@ class LiveEstimation:
            [preds[0], preds[1], preds[2]], axis=1
        )
 
-       #print(f"Predictions shape: {self.predictions.shape}")
+       print(f"Predictions shape: {self.predictions.shape}")
        #print("Model prediction completed!\n")
 
        return self.predictions
@@ -396,19 +397,19 @@ class LiveEstimation:
        plt.pause(0.01)
 
    def save_all_predictions(self, filename="all_predictions.npy"):
-       all_preds = np.concatenate(self.all_predictions, axis=0)
-       np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/all_predictions.npy"), all_preds)
+       all_preds = np.concatenate(self.all_predictions, axis=1)
+       np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy"), all_preds)
 
    def save_torques(self):
-       np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/all_torques.npy"), self.Y_ref)
+       np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy"), self.Y_ref)
 
    def save_elapsed_times(self):
        elapsed_time_np = np.array(self.elapsed_times)
-       np.save(getAbsolutePath("src/JTE_Project/offline/saved_online_models/test/all_times.npy"), elapsed_time_np)
+       np.save(getAbsolutePath("src/JTE_Project/online/online_results/test/all_times.npy"), elapsed_time_np)
 
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-       np.save(getAbsolutePath("src/JTE_Project/offline/filter_tests/bandpass_online.npy"), all_emgs)
+       np.save(getAbsolutePath("src/JTE_Project/online/online_results/bandpass_online.npy"), all_emgs)
        print("Save EMG Shape: ", all_emgs.shape)
 
 

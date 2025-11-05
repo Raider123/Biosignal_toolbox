@@ -91,7 +91,7 @@ time_preproc = 0
 time_feat = 0
 
 #? load config file
-config_filename = 'pipeline_mlp_to_cnn.yaml'
+config_filename = 'pipeline_jte.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
 
@@ -184,6 +184,8 @@ meta_list_val = []
 
 current_idx = 0
 
+channel_cum_mvc = []
+
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
         time_preproc_start = time.perf_counter()
@@ -246,7 +248,7 @@ for wgt_idx, wgt in enumerate(weights):
         #! Data Pre-processing
         #! ************************************************
 
-        #? High pass filter
+        #? Band pass filter
         #* design the bandpass filter
         sos_hp = EMG_Data.designFilter(f_high=cfg.preprocess_param.f_cutoff_hpf,
                                         f_low=cfg.preprocess_param.f_cutoff_lpf,
@@ -277,11 +279,6 @@ for wgt_idx, wgt in enumerate(weights):
                                         index=index)
         print("Variance Filter applied!!\n")
 
-        #? Plot and print specific variance filtered windows 
-        # var_filtered_window_x = EMG_Data.filtered_data
-        # print(f"Shape of Variance filtered windows: {var_filtered_window_x.shape}")
-        # print(f"Variance filtered windows: {var_filtered_window_x[4,:]}")
-
         if cfg.plot_param.is_plot_var_filter:
             EMG_Data.plotEMG(data=EMG_Data.data[4,:], 
                                 unit="uV", 
@@ -293,7 +290,9 @@ for wgt_idx, wgt in enumerate(weights):
         #? Input Normalisation
         print("Calculating the channel-wise MVC for EMG...")
         channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1,1)
-        # print(channelwise_mvc)
+        # For storing the numpy file (online case)
+        c_mvc_cum = np.max(np.abs(EMG_Data.data), axis=1)
+        channel_cum_mvc.append(c_mvc_cum)
 
         print("Performing Input Normalization with Max Voluntary Contraction ...")
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
@@ -429,53 +428,6 @@ for wgt_idx, wgt in enumerate(weights):
             print(f"Windows trimmed to {min_windows} windows!!")
 
         print("EMG_Data Window Shape ", EMG_Data.getWindows().shape)
-
-        # # print(emg_window_boundary_idx)
-        # # print(quali_window_boundary_idx)
-
-        # ref_emg_window_boundary_idx = emg_window_boundary_idx
-        # ref_quali_window_boundary_idx = quali_window_boundary_idx
-
-        # slice_ref = []
-        # if emg_window_boundary_idx == quali_window_boundary_idx:
-        #     print("Window boundary indices match!!")
-        # else:
-        #     for idx, (emg_win, quali_win) in enumerate(zip(emg_window_boundary_idx, quali_window_boundary_idx)):
-        #         if emg_win != quali_win:
-        #             delta = emg_win - quali_win  # positive if EMG is larger
-        #             print(f"Window mismatch -> EMG: {emg_win}; Quali: {quali_win}; Delta: {delta}")
-        #             for i in range(idx, len(emg_window_boundary_idx)):
-        #                 emg_window_boundary_idx[i] -= delta
-        #             slice_ref.append((idx, delta))
-
-        # #? Slice and concat windows
-        # if len(slice_ref) > 0:
-        #     for i in range (len(slice_ref)):
-        #         idx, delta = slice_ref[i]
-        #         if delta > 0:
-        #             windows_to_remove = list(range(ref_emg_window_boundary_idx[idx]-1, ref_emg_window_boundary_idx[idx]-1+delta))
-        #             print(windows_to_remove)
-        #             EMG_Data.windows = np.delete(EMG_Data.windows, windows_to_remove, axis=-1)
-        #             EMG_Data_freq.windows = np.delete(EMG_Data_freq.windows, windows_to_remove, axis=-1)
-        #         elif delta <0:
-        #             print("Entered quali part")
-        #             delta = np.abs(delta)
-        #             windows_to_remove = list(range(ref_quali_window_boundary_idx[idx-1], ref_quali_window_boundary_idx[idx-1+delta]))
-        #             Quali_Data_Elbow.windows = np.delete(Quali_Data_Elbow.windows, idx, axis=-1)
-        #             Quali_Data_Front.windows = np.delete(Quali_Data_Elbow.windows, idx, axis=-1)
-        #             Quali_Data_Side.windows = np.delete(Quali_Data_Elbow.windows, idx, axis=-1)
-
-        # ref_window_boundary_idx = emg_window_boundary_idx
-
-        # print("Windows sliced and equalled!!")
-        # print(EMG_Data.windows.shape)
-        # print(Quali_Data_Elbow.windows.shape)
-        # assert EMG_Data.windows.shape[3] == Quali_Data_Elbow.windows.shape[3]
-
-        # #? Get number of windows for each file
-        # ref_window_sizes = [ref_window_boundary_idx[0]]
-        # for i in range(1, len(ref_window_boundary_idx)):
-        #     ref_window_sizes.append(ref_window_boundary_idx[i] - ref_window_boundary_idx[i-1])
 
         #? One Hot Encoding for 3 weights and 2 movements
         weights_code = []
@@ -691,19 +643,11 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
 
-'''
-# Saving the Y_scaler for recreation (later)
-from joblib import dump
+## Storing channelwise mvc (now the mean is used)
+channel_cum = np.array(channel_cum_mvc)
+channel_max = np.mean(channel_cum,axis=0)
+np.save(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"), channel_max)
 
-def convert_to_dict(d):
-    if isinstance(d, defaultdict):
-        d = {k: convert_to_dict(v) for k, v in d.items()}
-    return d
-
-# Umwandeln zu dict (da Lambda-funktionen enthalten)
-clean_dict = convert_to_dict(Y_scaler_dict)
-dump({'dict': clean_dict, 'info': Y_scaler_info}, cfg.filepath.save_model_path + 'scaler_data.joblib')
-'''
 
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
@@ -714,6 +658,8 @@ Y_test = np.concatenate(Y_test_combined, axis=0)
 X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
+
+'''
 #? Pre-PCA scaling of input features
 pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                         test_data=X_test, 
@@ -743,13 +689,14 @@ post_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_d
                                                         method="StandardScaler")
 
 joblib.dump(post_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
+'''
 
 
+#? One-hot encoding
 """ wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
 wgt_val, mov_val     = EMG_Data.convertMetaToArray(meta_list_val)
 wgt_test, mov_test   = EMG_Data.convertMetaToArray(meta_list_test) """
 
-#? One-hot encoding
 """ encoder_wgt = OneHotEncoder(sparse_output=False)
 wgt_train_onehot = encoder_wgt.fit_transform(wgt_train)
 wgt_test_onehot  = encoder_wgt.transform(wgt_test)
@@ -772,15 +719,6 @@ Y_train[:] = Y_train[perm]
 #! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
-X_train = np.concatenate(X_train_combined, axis=0)
-Y_train = np.concatenate(Y_train_combined, axis=0)
-
-X_test = np.concatenate(X_test_combined, axis=0)
-Y_test = np.concatenate(Y_test_combined, axis=0)
-
-X_val = np.concatenate(X_val_combined, axis=0)
-Y_val = np.concatenate(Y_val_combined, axis=0)
-
 
 # --- set global seed ---
 seed_arr = [1]
@@ -871,7 +809,7 @@ for seed in seed_arr:
         )
 
         # --- Train ---
-        save_model_path = cfg.filepath.save_model_path
+        save_model_path = getAbsolutePath("src/JTE_Project/online/resources/trained_models")
 
         callbacks_list = [early_callback] if early_callback is not None else None
 
@@ -896,13 +834,12 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_mtl_2.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_model.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model('F:/SMT_MASTERPROJEKT/biosignal_toolbox/src/JTE_Project/offline/saved_online_models/tcn_mtl_2.keras', compile=False)
+        tcn_model = load_model(getAbsolutePath("src/JTE_Project/online/resources/trained_models/tcn_model.keras"), compile=False)
 
-    print("X_test_cnn shape ", X_test_cnn.shape)
 
     # --- Predict auf Testdaten ---
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
