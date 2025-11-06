@@ -331,7 +331,7 @@ class LiveEstimation:
            [preds[0], preds[1], preds[2]], axis=1
        )
 
-       print(f"Predictions shape: {self.predictions.shape}")
+       #print(f"Predictions shape: {self.predictions.shape}")
        #print("Model prediction completed!\n")
 
        return self.predictions
@@ -357,25 +357,38 @@ class LiveEstimation:
        # Buffer leeren
        self.emg_buffer = []
 
-   def apply_savitzky_filter(self, filter_size =5, poly_order = 2):
-       if len(self.all_predictions) >= filter_size - 1:
+   def apply_median_savitzky(self, sav_filter_size = 5, poly_order = 2, mean_filter_size = 1):
+       if len(self.all_predictions) >= sav_filter_size - 1:
            # get the previous predictions
-           all_preds = np.vstack(self.all_predictions[-(filter_size - 1):])
+           all_preds = np.vstack(self.all_predictions[-(sav_filter_size - 1):])
 
-           # attach current prediction value
-           comb_preds = np.vstack((all_preds, self.predictions))
+           # median_temp (3,10) -> Result (3,) -> sav_temp -> Result -> (3,) -> Append to predictions
 
-           filtered = np.array([
-               savgol_filter(comb_preds[:, i], window_length=filter_size, polyorder=poly_order)[-1]
-               for i in range(comb_preds.shape[1])
+           # apply the mean filter
+           mean_temp = np.vstack((all_preds, self.predictions))
+
+           if mean_temp.shape[0] >= mean_filter_size:
+               window = mean_temp[-mean_filter_size:, :]
+               mean_sample = np.mean(window, axis=0)
+           else:
+               mean_sample = mean_temp[-1, :]
+
+
+           # apply the savitzky filter
+           sav_temp = np.vstack((all_preds, mean_sample))
+
+           preds_sav = np.array([
+               savgol_filter(sav_temp[:, i], window_length=sav_filter_size, polyorder=poly_order)[-1]
+               for i in range(sav_temp.shape[1])
            ])
 
-           filtered = np.maximum(filtered, 0)
+           filtered = np.maximum(preds_sav, 0)
 
            self.all_predictions.append(filtered)
        else:
            # append raw data if self.all_predictions does not match size
            self.all_predictions.append(self.predictions)
+
 
    def setup_emg_plot(self, n_channels=8, n_samples=500):
        plt.ion()
@@ -397,7 +410,8 @@ class LiveEstimation:
        plt.pause(0.01)
 
    def save_all_predictions(self, filename="all_predictions.npy"):
-       all_preds = np.concatenate(self.all_predictions, axis=1)
+       list_of_2d_arrays = [np.atleast_2d(arr) for arr in self.all_predictions]
+       all_preds = np.concatenate(list_of_2d_arrays, axis=0)
        np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy"), all_preds)
 
    def save_torques(self):
@@ -405,7 +419,7 @@ class LiveEstimation:
 
    def save_elapsed_times(self):
        elapsed_time_np = np.array(self.elapsed_times)
-       np.save(getAbsolutePath("src/JTE_Project/online/online_results/test/all_times.npy"), elapsed_time_np)
+       np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_times.npy"), elapsed_time_np)
 
    def save_emg_vals(self):
        all_emgs = np.concatenate(self.all_emg_vals, axis=1)
@@ -481,7 +495,7 @@ class LiveEstimation:
                self.extract_features()
                #self.scale_features()
                self.predict()
-               self.apply_savitzky_filter(filter_size=9, poly_order=2) # using a filter size greater than 500 deactivates the filter
+               self.apply_median_savitzky(sav_filter_size=9, poly_order=4, mean_filter_size = 2)
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
@@ -492,9 +506,7 @@ class LiveEstimation:
                print("Elapsed Times " , len(self.elapsed_times))
 
                if self.show_prediction_plot:
-                   last_Ypred, lastYref = self.update_plot()
-                   # print RMSE
-                   #print("RMSE ", np.sqrt(np.mean((last_Ypred - lastYref) ** 2)))
+                   _,_ = self.update_plot()
 
 if __name__ == "__main__":
 
