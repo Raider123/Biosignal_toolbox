@@ -13,6 +13,8 @@ from copy import deepcopy
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
+from sklearn.metrics import r2_score
+from scipy.stats import pearsonr
 import random
 from collections import defaultdict
 import os
@@ -951,20 +953,35 @@ time_train_std = np.std(time_train)
 print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
 '''
 
+def calculate_metrics(y_true, y_pred):
+    """Berechnet RMSE, R² und Pearson-Korrelationskoeffizient."""
+    rmse = np.sqrt(np.mean((y_true - y_pred)**2))
+    r2 = r2_score(y_true, y_pred)
+    pearson_corr, _ = pearsonr(y_true, y_pred)
+    return rmse, r2, pearson_corr
 
-# Drei Subplots (einer pro Spalte)
-fig, axes = plt.subplots(1, 3, figsize=(15, 4))
+def plotResults(y_true, label_true, y_pred, label_pred, title,
+                ylabel="Torque", is_grid_on=True):
+    rmse, r2, pearson_corr = calculate_metrics(y_true, y_pred)
 
-x = np.linspace(0, 1, Y_test[:, 0].shape[0])
+    plt.figure(figsize=(10, 4))
+    plt.plot(y_true, label=label_true, color="orange")
+    plt.plot(y_pred, label=label_pred, color="blue", linestyle="-")
+    plt.title(f"{title}\nRMSE={rmse:.3f}, R²={r2:.3f}, Pearson={pearson_corr:.3f}")
+    plt.xlabel("Samples")
+    plt.ylabel(ylabel)
+    if is_grid_on:
+        plt.grid(True, linestyle="--", alpha=0.6)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
 
-for i in range(3):
-    axes[i].plot(x, Y_ref[:, i], label='Array 1')
-    axes[i].plot(x, perf_results_TCN[:, i], label='Array 2')
-    axes[i].set_title(f"Spalte {i+1}")
-    axes[i].set_xlabel("x")
-    axes[i].set_ylabel("y")
-    axes[i].grid(True)
-    axes[i].legend()
+# Anwendung auf deine Daten:
+plotResults(Y_ref[:, 0], "Real", perf_results_TCN[:, 0], "Prediction",
+            title="Elbow", ylabel="Torque in N-m")
 
-plt.tight_layout()
-plt.show()
+plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
+            title="Shoulder Front", ylabel="Torque in N-m")
+
+plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
+            title="Shoulder Side", ylabel="Torque in N-m")

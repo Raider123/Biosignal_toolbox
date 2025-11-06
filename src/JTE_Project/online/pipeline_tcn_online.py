@@ -29,7 +29,7 @@ class LiveEstimation:
        self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
        # Parameters for receiving batches (instead of single strings)
-       self.buffer_size = 100 # 250 was good
+       self.buffer_size = 250 # 250 was good
        self.batch_size = 50
        self.emg_buffer = []
        self.emg_array = None
