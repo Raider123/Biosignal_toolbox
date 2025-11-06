@@ -29,13 +29,10 @@ class LiveEstimation:
        self.emg_socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
        # Parameters for receiving batches (instead of single strings)
+       self.buffer_size = 100 # 250 was good
        self.batch_size = 50
        self.emg_buffer = []
        self.emg_array = None
-
-       self.property = {}
-       self.configure_properties()
-       print("Loaded properties!") # ToDo Replace properties with the data in the config_file!
 
        config_filename = 'pipeline_jte.yaml'
        self.cfg = loadConfig(filename=config_filename)
@@ -54,13 +51,11 @@ class LiveEstimation:
        else:
            print("Using Raw Timepoints for feature extraction")
            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
-           # tcn_model_test uses the pre_emg_scaler_file
 
-
+       '''
        # Scaler Files
        self.pre_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/trained_models/pre_emg_scaler.pkl"))
        print("Loaded Pre-EMG Scaler File")
-       '''
        self.pca_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
        print("Loaded PCA Scaler File")
        self.post_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
@@ -87,11 +82,11 @@ class LiveEstimation:
 
        # Create old_online EMG object
        self.EMG_live = OnlineEMG(stream_type="data",
-                                 channel_names=self.channel_names, buffer_size=self.property["buffer_size"],
-                                 f_samp=self.property["f_samp"])
+                                 channel_names=self.channel_names, buffer_size=self.buffer_size,
+                                 f_samp=self.cfg.preprocess_param.f_samp)
        print("Created EMG_live!!")
 
-       self.var_buffer = np.zeros((1, len(self.channel_names), self.property["buffer_size"], 1))
+       self.var_buffer = np.zeros((1, len(self.channel_names), self.buffer_size, 1))
 
        # Design bandpass filter
        self.sos_bp = self.EMG_live.designFilter(f_high=self.cfg.preprocess_param.f_cutoff_hpf,
@@ -190,17 +185,6 @@ class LiveEstimation:
        # return last values for rmse calculation
        return Yp[-1:], Yr[-1:]
 
-   def add_property(self, name, default_value):
-       self.property[name] = default_value
-
-   def configure_properties(self):
-       self.add_property("buffer_size", 250) # 250 was good
-       self.add_property("f_samp", 500)
-       self.add_property("n_channels", 8)
-       self.add_property("f_cutoff_hpf", 15)
-       self.add_property("f_cutoff_lpf", 5)
-       self.add_property("var_filter_width", 20)
-
 
    def load_model(self, model_path=None):
        """
@@ -220,7 +204,7 @@ class LiveEstimation:
 
    def start_device_stream(self):
         # Start EMG live stream (unused in Pseudoonline)
-        self.EMG_live.startANTEegoStreaming(path_to_so_file=self.property["path_to_so_file"])
+        self.EMG_live.startANTEegoStreaming(path_to_so_file="path_to_so_file")
 
         return True
 
@@ -230,7 +214,7 @@ class LiveEstimation:
 
        # Timepoints feature extraction
        window_size_ms = (
-               self.cfg.preprocess_param.window_size_x * 1000 / self.property["f_samp"]
+               self.cfg.preprocess_param.window_size_x * 1000 / self.cfg.preprocess_param.f_samp
        )
        feature_indices_windows_x = np.array([0, window_size_ms])
 
@@ -497,7 +481,7 @@ class LiveEstimation:
                self.extract_features()
                #self.scale_features()
                self.predict()
-               self.apply_median_savitzky(sav_filter_size=15, poly_order=4, mean_filter_size = 1)
+               self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size = 1)
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
