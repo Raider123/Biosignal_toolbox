@@ -54,11 +54,13 @@ class LiveEstimation:
        else:
            print("Using Raw Timepoints for feature extraction")
            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+           # tcn_model_test uses the pre_emg_scaler_file
 
-       '''
+
        # Scaler Files
-       self.pre_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
+       self.pre_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/trained_models/pre_emg_scaler.pkl"))
        print("Loaded Pre-EMG Scaler File")
+       '''
        self.pca_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
        print("Loaded PCA Scaler File")
        self.post_emg_scaler_file = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
@@ -495,7 +497,7 @@ class LiveEstimation:
                self.extract_features()
                #self.scale_features()
                self.predict()
-               self.apply_median_savitzky(sav_filter_size=9, poly_order=4, mean_filter_size = 2)
+               self.apply_median_savitzky(sav_filter_size=15, poly_order=4, mean_filter_size = 1)
 
                # Printing the Timings
                update_time_step = time.perf_counter() - update_start_time
