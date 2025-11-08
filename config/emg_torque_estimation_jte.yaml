@@ -14,8 +14,13 @@
     save_model_path:          'data/jte/ml_models/BU62D/'
     save_features_path:       'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
+    save_model_path:          'data/jte/ml_models/BU62D/'
+    save_features_path:       'data/jte/features/BU62D/'
+    saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
   data_param:
+    weights:                  ['0g', '1100g', '1850g']
+    mov_type:                 ['grasp', 'complex']
     weights:                  ['0g', '1100g', '1850g']
     mov_type:                 ['grasp', 'complex']
     set_num:                  ['1', '2', '3', '4']
@@ -31,6 +36,7 @@
     window_size_y:            50  #samples
     window_step:              25  #samples
     target_feature_select:    'end'
+    target_feature_select:    'end'
 
     f_samp:                   500
     f_cutoff_hpf:             15  #cutoff freq for bandpass 
@@ -45,6 +51,7 @@
     normalisation_method:     'channel_wise_mvc'
 
     use_activation_fncn:      True
+    use_activation_fncn:      True
     act_delay:                25
     act_beta1:                0.25
     act_beta2:                0.05
@@ -52,12 +59,18 @@
     act_A:                    -1.5
 
     is_save_features:         False
+
+    is_save_features:         False
     
   
   model_param:
     n_epochs:                 300
     batch_size:               32
+    batch_size:               32
 
+    loss_fcn:                 'weighted_huber'
+    huber_weight_method:      'smooth_var'
+    huber_deltas:             [0.25, 0.35, 0.2]
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'
     huber_deltas:             [0.25, 0.35, 0.2]
@@ -66,10 +79,12 @@
 
     train_test_split:         0.9
     validation_split:         0.15
+    validation_split:         0.15
 
     is_early_stop:            True
     monitor:                  'val_loss'
     min_delta:                0.01
+    patience:                 30
     patience:                 30
     verbose:                  0
     baseline:                 null
@@ -81,9 +96,16 @@
     neurons_h3:               32
     neurons_h4:               16
     neurons_out:              3
+    neurons_h1:               256
+    neurons_h2:               128
+    neurons_h3:               32
+    neurons_h4:               16
+    neurons_out:              3
 
     act_h1:                   'relu'
     act_h2:                   'relu'
+    act_h3:                   'relu'
+    act_h4:                   'relu'
     act_h3:                   'relu'
     act_h4:                   'relu'
     act_out:                  'tanh' 
@@ -91,11 +113,13 @@
     is_save_model:            False
     load_models:              False
     show_train_results:       False
-    save_model_path:      'data/m_rock/demo/zdemo_ml_models'
-    load_models:          False
 
   post_train_param:
     eval_type:                'offline' 
+    filter_type:              'median'
+    filter_size:              5
+    savgol_window_len:        21
+    savgol_poly_order:        2    
     filter_type:              'median'
     filter_size:              5
     savgol_window_len:        21
