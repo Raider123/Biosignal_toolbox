@@ -360,9 +360,29 @@ def createReadme(param_obj: Union[SimpleNamespace, dict] = None, dir_path: Path 
     except KeyError:
         print("ERROR!! Please ensure you pass correct args to createReadme!!")
         exit(1)
-    
 
-def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted", title="", xlabel="Time (s)", ylabel="", is_grid_on=True, is_list=False, is_multiple=False, plot_len=10, start_time=0):
+def setPltParams(style="ticks"):
+    plt.style.use("seaborn-v0_8-" + style)
+
+    plt.rcParams.update({
+    "font.family": "sans-serif",
+    "font.size": 12,          
+    "axes.labelsize": 9,
+    "axes.titlesize": 9,
+    "axes.labelweight": "bold",
+    "axes.labelsize": 12,
+    "axes.linewidth": 2.5,
+    "legend.fontsize": 12,
+    "xtick.labelsize": 12,
+    "ytick.labelsize": 12,
+    "lines.linewidth": 2.0,
+    "lines.markersize": 3,
+    "figure.figsize": (6.6, 4.0),  # column-width of figure(in inches)
+    "savefig.dpi": 300,
+    "savefig.bbox": "tight"
+})    
+
+def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predicted", title="", xlabel="Time (s)", ylabel="", is_grid_on=True, is_list=False, is_multiple=False, plot_len=10, start_time=0):
     """
     This function plots the result of the BPNN model
 
@@ -405,10 +425,10 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
 
     if not is_multiple:
         temp = []
-        temp.append(data_out)
-        data_out = temp
+        temp.append(data_pred)
+        data_pred = temp
 
-    for i, d in enumerate(data_out):
+    for i, d in enumerate(data_pred):
         color = "blue" if i == 0 else "orange"
         if i==2:
             color = "magenta"
@@ -419,7 +439,7 @@ def plotResults(data_ref=[], label_ref="real", data_out=[], label_out="predicted
             d = np.mean(arr_data, axis=0)[timepoints]
             out_std = np.std(arr_data, axis=0)[timepoints]
 
-        plt.plot(x_samples, d, ls="-", label=label_out, color=color)
+        plt.plot(x_samples, d, ls="-", label=label_pred, color=color)
         if is_list:
             plt.fill_between(x_samples, d - out_std, d + out_std, color=color, alpha=0.3)    
     
