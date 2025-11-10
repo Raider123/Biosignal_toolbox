@@ -646,7 +646,7 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
 
-## Storing channelwise mvc (now the mean is used)
+## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
 #np.save(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"), channel_max)
@@ -972,7 +972,7 @@ if cfg.model_param.load_models == False:
     time_train_std = np.std(time_train)
 
     time_prediction_mean = np.mean(time_prediction)
-    time_prediction_std = np.mean(time_prediction)
+    time_prediction_std = np.std(time_prediction)
 
     print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
 
