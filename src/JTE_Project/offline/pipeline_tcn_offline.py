@@ -93,7 +93,7 @@ time_preproc = 0
 time_feat = 0
 
 #? load config file
-config_filename = 'pipeline_jte_ww06d.yaml'
+config_filename = 'pipeline_jte_bu62d.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
 print("Using the following CONFIG FILE: ", config_filename)
@@ -665,7 +665,7 @@ Y_val = np.concatenate(Y_val_combined, axis=0)
 # Calculate Scaling Time
 time_scaling_start = time.perf_counter()
 
-if cfg.settings.advanced_pipeline:
+if cfg.settings.scaling:
     #? Pre-PCA scaling of input features
     pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                             test_data=X_test,
@@ -762,9 +762,6 @@ for seed in seed_arr:
     X_train_cnn = X_train.reshape((-1, neurons_inp, 1))
     X_val_cnn = X_val.reshape((-1, neurons_inp, 1))
     X_test_cnn = X_test.reshape((-1, neurons_inp, 1))
-
-    # RISKY TRUNCATING (test shape)
-    X_test_cnn = X_test_cnn[:, :101, :]
 
     # --- Preserve existing huber/weight logic from your script: compute weights_inp ---
     if cfg.model_param.huber_weight_method == 'var':

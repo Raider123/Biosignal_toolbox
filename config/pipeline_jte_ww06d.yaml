@@ -3,6 +3,7 @@
   settings:
     advanced_pipeline: True
     feature_extraction: True
+    scaling: False
 
   filepath:
     data_path: 'data/jte/'
@@ -62,7 +63,7 @@
   
   model_param:
     n_epochs:                 100
-    batch_size:               1024
+    batch_size:               256
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'
@@ -95,7 +96,7 @@
     act_out:                  'tanh' 
 
     is_save_model:            True
-    load_models:              True
+    load_models:              False
     show_train_results:       True
 
   post_train_param:
