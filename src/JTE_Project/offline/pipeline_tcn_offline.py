@@ -476,48 +476,48 @@ for wgt_idx, wgt in enumerate(weights):
                                             feature_indices_windows=feature_indices_windows_x)
         EMG_Data.printFeatureShape()
 
-        '''
-        #? time domain feature extraction
-        ## EMG Feature Extraction
-        rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
-        EMG_Data.addFeatures(rms_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
+        if cfg.mode.feature_extraction:
+            #? time domain feature extraction
+            ## EMG Feature Extraction
+            rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
+            EMG_Data.addFeatures(rms_feature)
+            # print(EMG_Data.getFeatures()[1,:])
+            # EMG_Data.printFeatureShape()
 
-        wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-        EMG_Data.addFeatures(wfl_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
+            wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
+            EMG_Data.addFeatures(wfl_feature)
+            # print(EMG_Data.getFeatures()[1,:])
+            # EMG_Data.printFeatureShape()
 
-        ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
-                                                                threshold=0.02)    # Slope Sign Change
-        EMG_Data.addFeatures(ssc_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
+            ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
+                                                                    threshold=0.02)    # Slope Sign Change
+            EMG_Data.addFeatures(ssc_feature)
+            # print(EMG_Data.getFeatures()[1,:])
+            # EMG_Data.printFeatureShape()
 
-        #? freq domain feature extraction
-        EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
-                                                psd_method="multitaper",
-                                                freq_bands=[15, 50, 100, 150, 200, 245])
-        fbp_feature = EMG_Data_freq.getFeatures()
-        EMG_Data.addFeatures(fbp_feature)
-        # EMG_Data.printFeatureShape()
+            #? freq domain feature extraction
+            EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
+                                                    psd_method="multitaper",
+                                                    freq_bands=[15, 50, 100, 150, 200, 245])
+            fbp_feature = EMG_Data_freq.getFeatures()
+            EMG_Data.addFeatures(fbp_feature)
+            # EMG_Data.printFeatureShape()
 
-        #? time-freq domain feature extraction
-        freqs = np.arange(start=50, stop=226, step=25)
-        n_cycles = np.ones(len(freqs)) * 5
-        n_cycles[0] = 3
-        n_cycles[1] = 4
-        mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs, 
-                                                                        n_cycles=n_cycles)    # Morlet transform
-        EMG_Data.addFeatures(mwc_feature)
-        # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+            #? time-freq domain feature extraction
+            freqs = np.arange(start=50, stop=226, step=25)
+            n_cycles = np.ones(len(freqs)) * 5
+            n_cycles[0] = 3
+            n_cycles[1] = 4
+            mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs,
+                                                                            n_cycles=n_cycles)    # Morlet transform
+            EMG_Data.addFeatures(mwc_feature)
+            # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
 
-        #? Change between consecutive samples (window i and wind i+1)
-        peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
-        EMG_Data.addFeatures(peak_detection)
-        print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
-        '''
+            #? Change between consecutive samples (window i and wind i+1)
+            peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
+            EMG_Data.addFeatures(peak_detection)
+            print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+
        
         #? Output feature extraction
         window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
@@ -564,49 +564,49 @@ for wgt_idx, wgt in enumerate(weights):
                                                         train_size= 1 - cfg.model_param.validation_split,
                                                         shuffle=False)
 
-        #? Split categorical data into train, validation, and test sets
-        """ X_train_cat_temp, X_test_cat= train_test_split(x_cat,
-                                                train_size=cfg.model_param.train_test_split,
-                                                shuffle=False)
+        if cfg.mode.advanced_pipeline:
+            # ? Split categorical data into train, validation, and test sets
+            X_train_cat_temp, X_test_cat = train_test_split(x_cat,
+                                                            train_size=cfg.model_param.train_test_split,
+                                                            shuffle=False)
 
-        X_train_cat, X_val_cat, = train_test_split(X_train_cat_temp,
-                                                train_size= 1 - cfg.model_param.validation_split,
-                                                shuffle=False) """
+            X_train_cat, X_val_cat, = train_test_split(X_train_cat_temp,
+                                                       train_size=1 - cfg.model_param.validation_split,
+                                                       shuffle=False)
 
-        print("Split data into train, test, and val!!")
+            print("Split data into train, test, and val!!")
 
-        #? One Hot encoding
-        """ encoder = OneHotEncoder(sparse_output=False)
-        X_train_cat = encoder.fit_transform(X_train_cat)
-        X_test_cat = encoder.transform(X_test_cat)
-        X_val_cat = encoder.transform(X_val_cat)
- """
-        #? Creating history of features
-        """ history_len = 3
-        X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train, 
-                                                                                y_num=Y_train, 
-                                                                                x_cat=X_train_cat,
+            # ? One Hot encoding
+            encoder = OneHotEncoder(sparse_output=False)
+            X_train_cat = encoder.fit_transform(X_train_cat)
+            X_test_cat = encoder.transform(X_test_cat)
+            X_val_cat = encoder.transform(X_val_cat)
+
+            # ? Creating history of features
+            history_len = 3
+            X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train,
+                                                                                    y_num=Y_train,
+                                                                                    x_cat=X_train_cat,
+                                                                                    history_len=history_len,
+                                                                                    wgt=wgt,
+                                                                                    mov=mov)
+
+            X_test, Y_test, meta_test = EMG_Data.stackHistoryCatMeta_windows(x_num=X_test,
+                                                                                y_num=Y_test,
+                                                                                x_cat=X_test_cat,
                                                                                 history_len=history_len,
                                                                                 wgt=wgt,
                                                                                 mov=mov)
-
-        X_test, Y_test, meta_test = EMG_Data.stackHistoryCatMeta_windows(x_num=X_test, 
-                                                                            y_num=Y_test, 
-                                                                            x_cat=X_test_cat,
+            X_val, Y_val, meta_val = EMG_Data.stackHistoryCatMeta_windows(x_num=X_val,
+                                                                            y_num=Y_val,
+                                                                            x_cat=X_val_cat,
                                                                             history_len=history_len,
                                                                             wgt=wgt,
                                                                             mov=mov)
-        X_val, Y_val, meta_val = EMG_Data.stackHistoryCatMeta_windows(x_num=X_val, 
-                                                                        y_num=Y_val, 
-                                                                        x_cat=X_val_cat,
-                                                                        history_len=history_len,
-                                                                        wgt=wgt,
-                                                                        mov=mov)
 
-        print(f"{history_len} feature vectors stacked together!!")
-        print(f"Stacked x_train feature shape: {X_train.shape}")
-        print(f"Stacked y_train feature shape: {Y_train.shape}") """
-
+            print(f"{history_len} feature vectors stacked together!!")
+            print(f"Stacked x_train feature shape: {X_train.shape}")
+            print(f"Stacked y_train feature shape: {Y_train.shape}")
 
         #? Scale output features -> [-1,1] for tanh
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
@@ -638,9 +638,10 @@ for wgt_idx, wgt in enumerate(weights):
         X_val_combined.append(X_val)
         Y_val_combined.append(Y_val)
 
-        """ meta_list_train.extend(meta_train)
-        meta_list_test.extend(meta_test)
-        meta_list_val.extend(meta_val) """
+        if cfg.mode.advanced_pipeline:
+            meta_list_train.extend(meta_train)
+            meta_list_test.extend(meta_test)
+            meta_list_val.extend(meta_val)
 
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
@@ -660,59 +661,63 @@ Y_test = np.concatenate(Y_test_combined, axis=0)
 X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
+# Calculate Scaling Time
+time_scaling_start = time.perf_counter()
 
-'''
-#? Pre-PCA scaling of input features
-pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
-                                                        test_data=X_test, 
-                                                        val_data=X_val, 
-                                                        method="StandardScaler")
+if cfg.settings.advanced_pipeline:
+    #? Pre-PCA scaling of input features
+    pre_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
+                                                            test_data=X_test,
+                                                            val_data=X_val,
+                                                            method="StandardScaler")
 
-import joblib
-joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
-print("EMG Scaler gespeichert")
+    import joblib
+    #joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
 
-#? Dimensionality Reduction - PCA
-pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
-                                test_data = X_test,
-                                val_data = X_val,
-                                method="PCA",
-                                n_components=0.99,
-                                mode="offline")
-
-
-joblib.dump(pca_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
+    #? Dimensionality Reduction - PCA
+    pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
+                                    test_data = X_test,
+                                    val_data = X_val,
+                                    method="PCA",
+                                    n_components=0.99,
+                                    mode="offline")
 
 
-#? Scale the input features -> StandardScaler
-post_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
-                                                        test_data=X_test, 
-                                                        val_data=X_val, 
-                                                        method="StandardScaler")
-
-joblib.dump(post_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
-'''
+    #joblib.dump(pca_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pca_scaler.pkl"))
 
 
-#? One-hot encoding
-""" wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
-wgt_val, mov_val     = EMG_Data.convertMetaToArray(meta_list_val)
-wgt_test, mov_test   = EMG_Data.convertMetaToArray(meta_list_test) """
+    #? Scale the input features -> StandardScaler
+    post_emg_scaler, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
+                                                            test_data=X_test,
+                                                            val_data=X_val,
+                                                            method="StandardScaler")
 
-""" encoder_wgt = OneHotEncoder(sparse_output=False)
-wgt_train_onehot = encoder_wgt.fit_transform(wgt_train)
-wgt_test_onehot  = encoder_wgt.transform(wgt_test)
-wgt_val_onehot   = encoder_wgt.transform(wgt_val)
+    #joblib.dump(post_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/post_emg_scaler.pkl"))
 
-encoder_mov = OneHotEncoder(sparse_output=False)
-mov_train_onehot = encoder_mov.fit_transform(mov_train)
-mov_test_onehot  = encoder_mov.transform(mov_test)
-mov_val_onehot   = encoder_mov.transform(mov_val) """
 
-# #? Add categorical features to the input sets
-""" X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
-X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
-X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1) """
+time_scaling_end = time.perf_counter()
+time_scaling = time_scaling_end - time_scaling_start
+
+if cfg.mode.advanced_pipeline:
+    #? One-hot encoding
+    wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
+    wgt_val, mov_val     = EMG_Data.convertMetaToArray(meta_list_val)
+    wgt_test, mov_test   = EMG_Data.convertMetaToArray(meta_list_test)
+
+    encoder_wgt = OneHotEncoder(sparse_output=False)
+    wgt_train_onehot = encoder_wgt.fit_transform(wgt_train)
+    wgt_test_onehot  = encoder_wgt.transform(wgt_test)
+    wgt_val_onehot   = encoder_wgt.transform(wgt_val)
+
+    encoder_mov = OneHotEncoder(sparse_output=False)
+    mov_train_onehot = encoder_mov.fit_transform(mov_train)
+    mov_test_onehot  = encoder_mov.transform(mov_test)
+    mov_val_onehot   = encoder_mov.transform(mov_val)
+
+    # #? Add categorical features to the input sets
+    X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
+    X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
+    X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
 
 #? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
@@ -737,6 +742,7 @@ perf_res_sf_arr = []
 perf_res_ss_arr = []
 
 time_train = []
+time_prediction = []
 
 for seed in seed_arr:
     np.random.seed(seed)
@@ -846,9 +852,19 @@ for seed in seed_arr:
         tcn_model = load_model(os.path.join(save_model_path, "tcn_model_BU62D.keras"), compile=False)
 
 
+    # --- Ausgabe der Testdaten Shape ---
+    print("TEST DATA Shape: ", X_test_cnn.shape)
+
     # --- Predict auf Testdaten ---
+    time_prediction_start = time.perf_counter()
+
     preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
     perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
+
+    time_prediction_end = time.perf_counter()
+    time_prediction.append(time_prediction_end - time_prediction_start)
+
+
 
 
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
@@ -948,11 +964,19 @@ print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_a
 if cfg.model_param.load_models == False:
     print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
 
+    print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
+
     print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
 
     time_train_mean = np.mean(time_train)
     time_train_std = np.std(time_train)
+
+    time_prediction_mean = np.mean(time_prediction)
+    time_prediction_std = np.mean(time_prediction)
+
     print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+
+    print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
 
 
 '''

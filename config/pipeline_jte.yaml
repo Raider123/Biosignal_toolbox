@@ -1,5 +1,9 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
+  settings:
+    advanced_pipeline: False
+    feature_extraction: False
+
   filepath:
     data_path: 'data/jte/'
 
@@ -57,7 +61,7 @@
     
   
   model_param:
-    n_epochs:                 60
+    n_epochs:                 100
     batch_size:               1024
 
     loss_fcn:                 'weighted_huber'
