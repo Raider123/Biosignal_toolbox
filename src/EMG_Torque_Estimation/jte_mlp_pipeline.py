@@ -226,7 +226,8 @@ for wgt_idx, wgt in enumerate(weights):
 
         #? Input Normalisation
         print("Calculating the channel-wise MVC for EMG...")
-        channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1,1)
+        # channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1,1)
+        channelwise_mvc = np.max(np.abs(EMG_Data.data[:,:int(cfg.model_param.train_test_split * EMG_Data.data.shape[1])]), axis=1).reshape(-1,1)
         # print(channelwise_mvc)
 
         print("Performing Input Normalization with Max Voluntary Contraction ...")
@@ -483,23 +484,23 @@ X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
 #? Pre-PCA scaling of input features
-_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
-                                                           test_data=X_test, 
-                                                           val_data=X_val, 
-                                                           method="StandardScaler")
+# _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+#                                                            test_data=X_test, 
+#                                                            val_data=X_val, 
+#                                                            method="StandardScaler")
 
 #? Dimensionality Reduction - PCA
-X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
-                                                           test_data = X_test,
-                                                           val_data = X_val,
-                                                           method="PCA",
-                                                           n_components=0.99)
+# X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
+#                                                            test_data = X_test,
+#                                                            val_data = X_val,
+#                                                            method="PCA",
+#                                                            n_components=0.99)
 
 #? Scale the input features -> StandardScaler
-_, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
-                                                           test_data=X_test, 
-                                                           val_data=X_val, 
-                                                           method="StandardScaler")
+# _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
+#                                                            test_data=X_test, 
+#                                                            val_data=X_val, 
+#                                                            method="StandardScaler")
 
 
 wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
@@ -517,7 +518,7 @@ mov_train_onehot = encoder_mov.fit_transform(mov_train)
 mov_test_onehot  = encoder_mov.transform(mov_test)
 mov_val_onehot   = encoder_mov.transform(mov_val)
 
-# #? Add categorical features to the input sets
+#? Add categorical features to the input sets
 X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
 X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
 X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
@@ -531,14 +532,14 @@ Y_train[:] = Y_train[perm]
 #! Train, Load, or Test Model
 #! ************************************************
 
-X_train = np.concatenate(X_train_combined, axis=0)
-Y_train = np.concatenate(Y_train_combined, axis=0)
+# X_train = np.concatenate(X_train_combined, axis=0)
+# Y_train = np.concatenate(Y_train_combined, axis=0)
 
-X_test = np.concatenate(X_test_combined, axis=0)
-Y_test = np.concatenate(Y_test_combined, axis=0)
+# X_test = np.concatenate(X_test_combined, axis=0)
+# Y_test = np.concatenate(Y_test_combined, axis=0)
 
-X_val = np.concatenate(X_val_combined, axis=0)
-Y_val = np.concatenate(Y_val_combined, axis=0)
+# X_val = np.concatenate(X_val_combined, axis=0)
+# Y_val = np.concatenate(Y_val_combined, axis=0)
 
 # --- set global seed ---
 seed = 7
