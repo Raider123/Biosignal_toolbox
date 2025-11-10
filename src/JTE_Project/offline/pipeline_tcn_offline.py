@@ -93,7 +93,7 @@ time_preproc = 0
 time_feat = 0
 
 #? load config file
-config_filename = 'pipeline_jte.yaml'
+config_filename = 'pipeline_jte_bu62d.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
 
@@ -961,22 +961,21 @@ print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
 # Timings
+print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
+
+print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
+
+print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
+
 if cfg.model_param.load_models == False:
-    print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
-
-    print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
-
-    print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
-
     time_train_mean = np.mean(time_train)
     time_train_std = np.std(time_train)
-
-    time_prediction_mean = np.mean(time_prediction)
-    time_prediction_std = np.std(time_prediction)
-
     print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
 
-    print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
+time_prediction_mean = np.mean(time_prediction)
+time_prediction_std = np.std(time_prediction)
+
+print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
 
 
 '''

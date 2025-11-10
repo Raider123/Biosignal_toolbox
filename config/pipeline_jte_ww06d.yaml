@@ -7,17 +7,17 @@
   filepath:
     data_path: 'data/jte/'
 
-    emg_path: 'emg/BU62D/'
-    emg_file_prefix: '24072025_BU62D'
+    emg_path: 'emg/WW06D/' # 'emg/BU62D/'
+    emg_file_prefix: '24072025_WW06D' # '24072025_BU62D'
 
-    quali_torque_path: 'quali/BU62D/torques_kartik/'
+    quali_torque_path: 'quali/WW06D/torques/' # 'quali/BU62D/torques_kartik/'
     quali_torque_prefix: [ 'quali_torque_elbow_24_07_2025', 'quali_torque_shoulder_front_24_07_2025', 'quali_torque_shoulder_side_24_07_2025' ]
 
     fig_save_path: 'data/test/'
-    quali_torques_save_path: 'data/jte/quali_data/BU62D/torques'
+    quali_torques_save_path: 'data/jte/quali_data/WW06D/torques' # 'data/jte/quali_data/BU62D/torques'
 
     save_predictions_path:    "saved_online_models/"
-    save_features_path:       'data/jte/features/BU62D/'
+    save_features_path:       'data/jte/features/WW06D/' # 'data/jte/features/BU62D/'
     saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
 
@@ -25,7 +25,7 @@
     weights:                  ['0g','1100g','1850g']
     mov_type:                 ['grasp','complex']
     set_num:                  ['1', '2', '3', '4']
-    subject_code:             ['BU62D']
+    subject_code:             ['WW06D'] # ['BU62D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'
     subject_hand_len:         113  #wrist to 3rd knuckle len mm

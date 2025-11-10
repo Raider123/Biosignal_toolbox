@@ -34,7 +34,7 @@ class LiveEstimation:
        self.emg_buffer = []
        self.emg_array = None
 
-       config_filename = 'pipeline_jte.yaml'
+       config_filename = 'pipeline_jte_ww06d.yaml'
        self.cfg = loadConfig(filename=config_filename)
        print('Loaded the config file!')
 
