@@ -607,7 +607,7 @@ for wgt_idx, wgt in enumerate(weights):
         print(f"Stacked x_train feature shape: {X_train.shape}")
         print(f"Stacked y_train feature shape: {Y_train.shape}") """
 
-        '''
+
         #? Scale output features -> [-1,1] for tanh
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
                                                                         test_data=Y_test, 
@@ -621,11 +621,11 @@ for wgt_idx, wgt in enumerate(weights):
                                                                           val_data=Y_val,
                                                                           method="MinMaxScaler",
                                                                           feature_range=(-1, 1))
-        '''
+
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 
-        #Y_scaler_dict[wgt][mov] = Y_scaler
+        Y_scaler_dict[wgt][mov] = Y_scaler
         Y_scaler_info.append((wgt, mov, start_idx, end_idx))
         current_idx = end_idx
 
@@ -648,7 +648,7 @@ for wgt_idx, wgt in enumerate(weights):
 ## Storing channelwise mvc (now the mean is used)
 channel_cum = np.array(channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
-np.save(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"), channel_max)
+#np.save(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"), channel_max)
 
 
 X_train = np.concatenate(X_train_combined, axis=0)
@@ -811,7 +811,7 @@ for seed in seed_arr:
         )
 
         # --- Train ---
-        save_model_path = getAbsolutePath("src/JTE_Project/online/resources/trained_models")
+        save_model_path = getAbsolutePath("src/JTE_Project/offline/saved_offline_models")
 
         callbacks_list = [early_callback] if early_callback is not None else None
 
@@ -836,11 +836,14 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_model.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_model_BU62D.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
-        tcn_model = load_model(getAbsolutePath("src/JTE_Project/online/resources/trained_models/tcn_model.keras"), compile=False)
+
+        save_model_path = getAbsolutePath("src/JTE_Project/offline/saved_offline_models")
+
+        tcn_model = load_model(os.path.join(save_model_path, "tcn_model_BU62D.keras"), compile=False)
 
 
     # --- Predict auf Testdaten ---
@@ -856,11 +859,12 @@ for wgt, mov, start_idx, end_idx in Y_scaler_info:
     Y_ref_scaled = Y_test[start_idx:end_idx]
     Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
 
-    #scaler = Y_scaler_dict[wgt][mov]
-    #Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
-    #perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
-    Y_ref.append(Y_ref_scaled)
-    perf_results_TCN.append(Y_pred_scaled)
+    scaler = Y_scaler_dict[wgt][mov]
+    Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
+    perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
+    # if y_scaler is not used, use below!
+    #Y_ref.append(Y_ref_scaled)
+    #perf_results_TCN.append(Y_pred_scaled)
 
 Y_ref = np.concatenate(Y_ref, axis=0)
 perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
@@ -869,65 +873,62 @@ print(Y_ref.shape)
 print(perf_results_TCN.shape)
 
 
-'''
-    save_dir = getAbsolutePath(save_dir)
-    fullpath = save_dir / f"ref_data.npy"
-    fullpath.parent.mkdir(parents=True, exist_ok=True)
-    np.save(fullpath, Y_ref)
+save_dir = getAbsolutePath(save_dir)
+fullpath = save_dir / f"ref_data.npy"
+fullpath.parent.mkdir(parents=True, exist_ok=True)
+np.save(fullpath, Y_ref)
 
-    # --- Eval Metrics (wie früher)
-    print("Pre-filtering Eval Metrics (TCN)!!")
-    r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
-    r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
-    r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
+# --- Eval Metrics (wie früher)
+print("Pre-filtering Eval Metrics (TCN)!!")
+r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
+r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
+r2_side, rmse_side, rho_side = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
 
-    r2_e_arr.append(r2_elbow)
-    rho_e_arr.append(rho_elbow)
+r2_e_arr.append(r2_elbow)
+rho_e_arr.append(rho_elbow)
 
-    r2_sf_arr.append(r2_front)
-    rho_sf_arr.append(rho_front)
+r2_sf_arr.append(r2_front)
+rho_sf_arr.append(rho_front)
 
-    r2_ss_arr.append(r2_side)
-    rho_ss_arr.append(rho_side)
+r2_ss_arr.append(r2_side)
+rho_ss_arr.append(rho_side)
 
-    # ! ************************************************
-    # ! Post-prediction Filtering (manuell, da MLP_model.applyFilter_prediction entfällt)
-    # ! ************************************************
-    # Median filter
-    if cfg.post_train_param.filter_type == 'median':
-        for i in range(3):
-            perf_results_TCN[:, i] = medfilt(perf_results_TCN[:, i], kernel_size=cfg.post_train_param.filter_size)
+# ! ************************************************
+# ! Post-prediction Filtering (manuell, da MLP_model.applyFilter_prediction entfällt)
+# ! ************************************************
+# Median filter
+if cfg.post_train_param.filter_type == 'median':
+    for i in range(3):
+        perf_results_TCN[:, i] = medfilt(perf_results_TCN[:, i], kernel_size=cfg.post_train_param.filter_size)
 
-    # Savitzky-Golay
-    if getattr(cfg.post_train_param, 'savgol_window_len', None) is not None:
-        for i in range(3):
-            perf_results_TCN[:, i] = savgol_filter(perf_results_TCN[:, i],
-                                                   cfg.post_train_param.savgol_window_len,
-                                                   cfg.post_train_param.savgol_poly_order)
-    np.save(f"{save_dir}/pred_results_seed{seed}.npy", perf_results_TCN)
+# Savitzky-Golay
+if getattr(cfg.post_train_param, 'savgol_window_len', None) is not None:
+    for i in range(3):
+        perf_results_TCN[:, i] = savgol_filter(perf_results_TCN[:, i],
+                                               cfg.post_train_param.savgol_window_len,
+                                               cfg.post_train_param.savgol_poly_order)
+np.save(f"{save_dir}/pred_results_seed{seed}.npy", perf_results_TCN)
 
-    # Post-filter Eval
-    print("Post-filtering Eval Metrics (TCN)!!")
-    r2_elbow_pf, rmse_elbow_pf, rho_elbow_pf = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0],
-                                                                            is_Pearson=True)
-    r2_front_pf, rmse_front_pf, rho_front_pf = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1],
-                                                                            is_Pearson=True)
-    r2_side_pf, rmse_side_pf, rho_side_pf = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2],
-                                                                         is_Pearson=True)
+# Post-filter Eval
+print("Post-filtering Eval Metrics (TCN)!!")
+r2_elbow_pf, rmse_elbow_pf, rho_elbow_pf = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0],
+                                                                        is_Pearson=True)
+r2_front_pf, rmse_front_pf, rho_front_pf = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1],
+                                                                        is_Pearson=True)
+r2_side_pf, rmse_side_pf, rho_side_pf = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2],
+                                                                     is_Pearson=True)
 
-    r2_e_arr.append(r2_elbow)
-    rho_e_arr.append(rho_elbow)
-    perf_res_e_arr.append(perf_results_TCN[:, 0])
+r2_e_arr.append(r2_elbow)
+rho_e_arr.append(rho_elbow)
+perf_res_e_arr.append(perf_results_TCN[:, 0])
 
-    r2_sf_arr.append(r2_front)
-    rho_sf_arr.append(rho_front)
-    perf_res_sf_arr.append(perf_results_TCN[:, 1])
+r2_sf_arr.append(r2_front)
+rho_sf_arr.append(rho_front)
+perf_res_sf_arr.append(perf_results_TCN[:, 1])
 
-    r2_ss_arr.append(r2_side)
-    rho_ss_arr.append(rho_side)
-    perf_res_ss_arr.append(perf_results_TCN[:, 2])
-
-
+r2_ss_arr.append(r2_side)
+rho_ss_arr.append(rho_side)
+perf_res_ss_arr.append(perf_results_TCN[:, 2])
 
 
 print("The results across seed are...\n")
@@ -944,15 +945,17 @@ print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
 # Timings
-print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
+if cfg.model_param.load_models == False:
+    print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
 
-print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
+    print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
 
-time_train_mean = np.mean(time_train)
-time_train_std = np.std(time_train)
-print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+    time_train_mean = np.mean(time_train)
+    time_train_std = np.std(time_train)
+    print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+
+
 '''
-
 def calculate_metrics(y_true, y_pred):
     """Berechnet RMSE, R² und Pearson-Korrelationskoeffizient."""
     rmse = np.sqrt(np.mean((y_true - y_pred)**2))
@@ -985,3 +988,4 @@ plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
 
 plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
+'''

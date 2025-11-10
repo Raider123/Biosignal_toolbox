@@ -50,7 +50,7 @@ class LiveEstimation:
            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model_features.keras'))
        else:
            print("Using Raw Timepoints for feature extraction")
-           self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+           self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/tcn_model_zerophase.keras'))
 
        '''
        # Scaler Files
