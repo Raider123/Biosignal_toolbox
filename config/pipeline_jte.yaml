@@ -22,9 +22,9 @@
   
 
   data_param:
-    weights:                  ['0g','1100g','1850g'] # , '1100g', '1850g'
-    mov_type:                 ['grasp','complex'] # 'grasp',
-    set_num:                  ['1', '2', '3', '4'] # , '2', '3', '4'
+    weights:                  ['0g','1100g','1850g']
+    mov_type:                 ['grasp','complex']
+    set_num:                  ['1', '2', '3', '4']
     subject_code:             ['BU62D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'
@@ -95,7 +95,7 @@
     act_out:                  'tanh' 
 
     is_save_model:            True
-    load_models:              True
+    load_models:              False
     show_train_results:       True
 
   post_train_param:

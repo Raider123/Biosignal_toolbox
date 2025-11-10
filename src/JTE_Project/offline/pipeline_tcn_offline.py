@@ -476,7 +476,7 @@ for wgt_idx, wgt in enumerate(weights):
                                             feature_indices_windows=feature_indices_windows_x)
         EMG_Data.printFeatureShape()
 
-        if cfg.mode.feature_extraction:
+        if cfg.settings.feature_extraction:
             #? time domain feature extraction
             ## EMG Feature Extraction
             rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
@@ -564,7 +564,7 @@ for wgt_idx, wgt in enumerate(weights):
                                                         train_size= 1 - cfg.model_param.validation_split,
                                                         shuffle=False)
 
-        if cfg.mode.advanced_pipeline:
+        if cfg.settings.advanced_pipeline:
             # ? Split categorical data into train, validation, and test sets
             X_train_cat_temp, X_test_cat = train_test_split(x_cat,
                                                             train_size=cfg.model_param.train_test_split,
@@ -638,7 +638,7 @@ for wgt_idx, wgt in enumerate(weights):
         X_val_combined.append(X_val)
         Y_val_combined.append(Y_val)
 
-        if cfg.mode.advanced_pipeline:
+        if cfg.settings.advanced_pipeline:
             meta_list_train.extend(meta_train)
             meta_list_test.extend(meta_test)
             meta_list_val.extend(meta_val)
@@ -698,7 +698,7 @@ if cfg.settings.advanced_pipeline:
 time_scaling_end = time.perf_counter()
 time_scaling = time_scaling_end - time_scaling_start
 
-if cfg.mode.advanced_pipeline:
+if cfg.settings.advanced_pipeline:
     #? One-hot encoding
     wgt_train, mov_train = EMG_Data.convertMetaToArray(meta_list_train)
     wgt_val, mov_val     = EMG_Data.convertMetaToArray(meta_list_val)
