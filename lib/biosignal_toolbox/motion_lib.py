@@ -688,14 +688,14 @@ class MotionData(Timeseries):
         """
         REF_DICT = {
             'male': {
-                'upperarm': 57.72,     #% of forearm dist. from elbow
+                'upperarm': 57.72,     #% of upperarm dist. from shoulder
                 'forearm':  45.74,     #% of forearm dist. from elbow
-                'hand':     79.00      #% of forearm dist. from elbow
+                'hand':     79.00      #% of hand dist. from wrist
             },
             'female': {
-                'upperarm': 57.54,     #% of forearm dist. from elbow
+                'upperarm': 57.54,     #% of upperarm dist. from shoulder
                 'forearm':  45.59,     #% of forearm dist. from elbow
-                'hand':     74.74      #% of forearm dist. from elbow
+                'hand':     74.74      #% of hand dist. from wrist
             }
         }
 

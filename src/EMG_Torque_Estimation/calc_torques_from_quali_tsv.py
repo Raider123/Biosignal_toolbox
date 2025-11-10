@@ -1,6 +1,12 @@
 
 #* This file calculates and saves elbow and shoulder torques from Qualisys motion data.
 
+<<<<<<< HEAD
+import itertools
+import re
+=======
+import numpy as np
+import matplotlib.pyplot as plt
 import itertools
 import re
 
@@ -20,7 +26,7 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
     file_pattern = f"{cfg.filepath.quali_tsv_prefix}_{wgt_idx}_{mov_idx}_{set_idx}.tsv"
     matched_files = list(getAbsolutePath(cfg.filepath.data_path + cfg.filepath.quali_tsv_path).glob(file_pattern))
     if not matched_files:
-        warnings.warn(f"No files match the pattern {file_pattern} :(")
+        warnings.warn("No files match the pattern :(")
     for file in matched_files:
         #? create a qualisys motion data object
         qualisys_data = MotionData(data_path= cfg.filepath.data_path, 
@@ -32,6 +38,5 @@ for mov_idx, wgt_idx, set_idx in itertools.product(cfg.data_param.mov_type,
                                       subject_hand_length_mm=cfg.data_param.subject_hand_len, 
                                       method="com")
         #? save the torques into individual .npy files
-        qualisys_data.saveTorques_npy(save_torques=False, 
-                                      save_dir=cfg.filepath.quali_torques_save_path, 
-                                      joints_to_save=['all'])
+        qualisys_data.saveTorques_npy(save_torques=True, save_dir=cfg.filepath.quali_torques_save_path, joints_to_save=['all'])
+

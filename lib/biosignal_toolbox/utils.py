@@ -11,7 +11,9 @@ from yaml import safe_load
 from datetime import datetime
 from types import SimpleNamespace
 from typing import Type, Union, List
-
+from sys import exit, path
+path.append(str(Path(__file__).resolve().parents[2]))
+from config_root import project_root
 import warnings
 import inspect
 #! ************************************************
@@ -392,9 +394,9 @@ def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predict
         array of reference data
     label_ref : str, optional
         label for ref legend, by default "real"
-    data_out : array
+    data_pred : array
         array of predicted data
-    label_out : str, optional
+    label_pred : str, optional
         label for predicted data legend, by default "predicted"
     title : str, optional
         title for the plot, by default ""
@@ -446,8 +448,9 @@ def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predict
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
-    plt.legend()
+    plt.legend(frameon=True)
     if is_grid_on:
         plt.grid()
+    plt.tight_layout()
 
 

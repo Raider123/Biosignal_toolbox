@@ -2,7 +2,7 @@ import os
 import re
 
 # Ordner, in dem die TXT-Dateien liegen (anpassen falls nötig)
-folder ='F:/SMT_MASTERPROJEKT/biosignal_toolbox/biosignal_toolbox-dev/data/JTE/emg/WW06D/'
+folder ='F:/SMT_MASTERPROJEKT/biosignal_toolbox/biosignal_toolbox-dev/data/jte/emg/WW06D/'
 
 # Regex: 8 Ziffern (Datum), dann beliebige Ziffern, dann "_BU"
 pattern = re.compile(r"^(\d{8})_\d+(_WW.*\.txt)$")

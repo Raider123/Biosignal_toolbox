@@ -2,29 +2,28 @@
 ---
   filepath:
     data_path:                'data/jte/'
-    emg_path:                 'emg/BU62D/'
-    emg_file_prefix:          '24072025_BU62D'
-    quali_tsv_path:           'quali/BU62D/tsv/'
-    quali_torque_path:        'quali/BU62D/torques_kartik/'
-    quali_tsv_prefix:         '24_07_2025_BU62D'
+    # emg_path:                 ['emg_data/WW06D/', 'emg_data/BU62D/']
+    # emg_file_prefix:          ['24072025_*_WW06D', '24072025_*_BU62D']
+    # quali_tsv_path:           'quali_data/WW06D/tsv/'
+    # quali_torque_path:        ['quali_data/WW06D/torques/', 'quali_data/BU62D/torques/']
+    emg_path:                 ['emg_data/BU62D/', 'emg_data/WW06D/']
+    emg_file_prefix:          ['24072025_*_BU62D', '24072025_*_WW06D']
+    quali_torque_path:        ['quali_data/BU62D/torques/', 'quali_data/WW06D/torques/']
+    # quali_tsv_prefix:         '24_07_2025_WW06D'
     quali_torque_prefix:      ['quali_torque_elbow_24_07_2025', 'quali_torque_shoulder_front_24_07_2025', 'quali_torque_shoulder_side_24_07_2025']
     
     fig_save_path:            'data/jte/plots/'
-    quali_torques_save_path:  'data/jte/quali_data/BU62D/torques'
-    save_model_path:          'data/jte/ml_models/BU62D/'
-    save_features_path:       'data/jte/features/BU62D/'
-    saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
-    save_model_path:          'data/jte/ml_models/BU62D/'
-    save_features_path:       'data/jte/features/BU62D/'
-    saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
+    quali_torques_save_path:  'data/jte/quali_data/WW06D/torques'
+    save_model_path:          'data/jte/ml_models/WW06D/'
+    # save_features_path:       'data/jte/features/WW06D/'
+    # saved_features:           ['features_ohe_250918_173022_grasp_complex_1100g_1850g_act.npz', 'scaler_ohe_250918_173022_grasp_complex_1100g_1850g_act.pkl']
   
   data_param:
     weights:                  ['0g', '1100g', '1850g']
     mov_type:                 ['grasp', 'complex']
-    weights:                  ['0g', '1100g', '1850g']
-    mov_type:                 ['grasp', 'complex']
     set_num:                  ['1', '2', '3', '4']
-    subject_code:             ['BU62D']
+    # subject_code:             ['WW06D', 'BU62D']
+    subject_code:             ['BU62D', 'WW06D']
     subject_weight:           80    #weight in kg
     subject_bio_sex:          'male'
     subject_hand_len:         113  #wrist to 3rd knuckle len mm
@@ -35,7 +34,6 @@
     window_size_x:            50  #samples
     window_size_y:            50  #samples
     window_step:              25  #samples
-    target_feature_select:    'end'
     target_feature_select:    'end'
 
     f_samp:                   500
@@ -51,7 +49,6 @@
     normalisation_method:     'channel_wise_mvc'
 
     use_activation_fncn:      True
-    use_activation_fncn:      True
     act_delay:                25
     act_beta1:                0.25
     act_beta2:                0.05
@@ -59,32 +56,25 @@
     act_A:                    -1.5
 
     is_save_features:         False
-
-    is_save_features:         False
     
   
   model_param:
     n_epochs:                 300
     batch_size:               32
-    batch_size:               32
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'
-    huber_deltas:             [0.25, 0.35, 0.2]
-    loss_fcn:                 'weighted_huber'
-    huber_weight_method:      'smooth_var'
-    huber_deltas:             [0.25, 0.35, 0.2]
+    # huber_deltas:             [0.25, 0.35, 0.2]
+    huber_deltas:             [0.1, 0.35, 0.2]
     optimizer:                'nadam'
     metrics:                  'mse'
 
     train_test_split:         0.9
     validation_split:         0.15
-    validation_split:         0.15
 
     is_early_stop:            True
     monitor:                  'val_loss'
     min_delta:                0.01
-    patience:                 30
     patience:                 30
     verbose:                  0
     baseline:                 null
@@ -96,16 +86,9 @@
     neurons_h3:               32
     neurons_h4:               16
     neurons_out:              3
-    neurons_h1:               256
-    neurons_h2:               128
-    neurons_h3:               32
-    neurons_h4:               16
-    neurons_out:              3
 
     act_h1:                   'relu'
     act_h2:                   'relu'
-    act_h3:                   'relu'
-    act_h4:                   'relu'
     act_h3:                   'relu'
     act_h4:                   'relu'
     act_out:                  'tanh' 
@@ -116,10 +99,6 @@
 
   post_train_param:
     eval_type:                'offline' 
-    filter_type:              'median'
-    filter_size:              5
-    savgol_window_len:        21
-    savgol_poly_order:        2    
     filter_type:              'median'
     filter_size:              5
     savgol_window_len:        21
