@@ -27,3 +27,33 @@ def AAN_Model(neurons_inp=128, neurons_h1=128, act_h1='relu', neurons_h2=64, act
     model.add(Dense(neuron_out, activation=act_out, bias_initializer='zeros'))
 
     return model 
+
+
+def Autoencoder():
+    input_dim = 400 #3168
+    bottleneck_dim = 100
+    output_dim = input_dim
+    #! ***** Encoder ***** !#
+    input_layer = Input(shape=(input_dim,))
+    encoder_layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-3))(input_layer)
+    encoder_layer = Dropout(0.3)(encoder_layer)
+    encoder_layer = Dense(128, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(input_layer)
+    encoder_layer = Dropout(0.3)(encoder_layer)
+    # encoder_layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(encoder_layer)
+    # encoder_layer = Dropout(0.3)(encoder_layer)
+    encoded_layer = Dense(bottleneck_dim, activation='relu')(encoder_layer)
+
+    #! ***** Decoder ***** !#
+    decoder_layer = Dense(128, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(encoded_layer)
+    decoder_layer = Dropout(0.3)(decoder_layer)
+    encoder_layer = Dense(256, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(input_layer)
+    encoder_layer = Dropout(0.3)(encoder_layer)
+    # decoder_layer = Dense(1024, activation='relu', kernel_regularizer=regularizers.l2(1e-4))(decoder_layer)
+    # decoder_layer = Dropout(0.3)(decoder_layer)
+    decoded_layer = Dense(output_dim, activation='relu')(decoder_layer)
+
+    #! ***** Model Definition ***** !#
+    autoencoder_model = Model(inputs=input_layer, outputs=decoded_layer, name='autoencoder_model')
+    encoder_model = Model(inputs=input_layer, outputs=encoded_layer, name='encoder_model')
+
+    return autoencoder_model, encoder_model

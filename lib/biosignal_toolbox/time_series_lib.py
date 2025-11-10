@@ -3133,6 +3133,9 @@ class Timeseries():
 
         if train_data is None and test_data is None and val_data is None: 
             self.feature_vec = scaler.fit_transform(self.feature_vec)
+        elif train_data is not None and test_data is None and val_data is not None:
+            scaler.fit(train_data)
+            return scaler, scaler.transform(train_data), scaler.transform(val_data)
         else:
             scaler.fit(train_data)
             return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
@@ -3242,7 +3245,7 @@ class Timeseries():
 
         x_hist_list = []
         y_hist_list = []
-        meatdata = []
+        metadata = []
 
         # Loop over sequences
         for start, end in zip(split_indices[:-1], split_indices[1:]):
@@ -3252,7 +3255,7 @@ class Timeseries():
                     x_hist_list.append(x_num[j-history_len:j].flatten())
                     if y_num is not None:
                         y_hist_list.append(y_num[j])
-                    meatdata.append({
+                    metadata.append({
                         'hist_indices': (j-history_len, j),
                         'wgt': wgt,
                         'mov': mov
@@ -3261,7 +3264,7 @@ class Timeseries():
         x_hist = np.array(x_hist_list)
         y_hist = np.array(y_hist_list) if y_num is not None else None
 
-        return x_hist, y_hist, meatdata
+        return x_hist, y_hist, metadata
     
     @staticmethod
     def convertMetaToArray(meta=None):
