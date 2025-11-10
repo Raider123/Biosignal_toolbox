@@ -93,9 +93,10 @@ time_preproc = 0
 time_feat = 0
 
 #? load config file
-config_filename = 'pipeline_jte_bu62d.yaml'
+config_filename = 'pipeline_jte_ww06d.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
+print("Using the following CONFIG FILE: ", config_filename)
 
 #? init early stopping
 if cfg.model_param.is_early_stop:
@@ -761,6 +762,9 @@ for seed in seed_arr:
     X_train_cnn = X_train.reshape((-1, neurons_inp, 1))
     X_val_cnn = X_val.reshape((-1, neurons_inp, 1))
     X_test_cnn = X_test.reshape((-1, neurons_inp, 1))
+
+    # RISKY TRUNCATING (test shape)
+    X_test_cnn = X_test_cnn[:, :101, :]
 
     # --- Preserve existing huber/weight logic from your script: compute weights_inp ---
     if cfg.model_param.huber_weight_method == 'var':
