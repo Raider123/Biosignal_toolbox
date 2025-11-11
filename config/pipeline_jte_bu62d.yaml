@@ -2,7 +2,7 @@
 ---
   settings:
     advanced_pipeline: True
-    feature_extraction: True
+    feature_extraction: False
     scaling: False
 
   filepath:
@@ -47,7 +47,7 @@
     f_cutoff_sm_lpf:          5   #cutoff freq for smoothing
     sm_filter_order:          4   #filter order smoothing lpf
 
-    filter_method:            'zero_phase' # because causal filters are required in the online case too, otherwise (zero_phase, cf. timeseries)
+    filter_method:            'forward' # because causal filters are required in the online case too, otherwise (zero_phase, cf. timeseries)
     var_filter_width:         20
     normalisation_method:     'channel_wise_mvc'
 

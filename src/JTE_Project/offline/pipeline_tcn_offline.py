@@ -583,6 +583,10 @@ for wgt_idx, wgt in enumerate(weights):
             X_test_cat = encoder.transform(X_test_cat)
             X_val_cat = encoder.transform(X_val_cat)
 
+            print("Y TRAIN SHAPE: ", Y_train.shape)
+            print("Y_val ", Y_val.shape)
+            print("Y_test ", Y_test.shape)
+
             # ? Creating history of features
             history_len = 3
             X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train,
@@ -609,19 +613,15 @@ for wgt_idx, wgt in enumerate(weights):
             print(f"Stacked x_train feature shape: {X_train.shape}")
             print(f"Stacked y_train feature shape: {Y_train.shape}")
 
+
         #? Scale output features -> [-1,1] for tanh
+
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
                                                                         test_data=Y_test, 
                                                                         val_data=Y_val, 
                                                                         method="MinMaxScaler",
                                                                         feature_range=(-1,1))
-        
-        # ? Scale output features -> [-1,1] for tanh
-        Y_scaler, _, _, _ = EMG_Data.scaleFeatures_windows(train_data=Y_train,
-                                                                          test_data=Y_test,
-                                                                          val_data=Y_val,
-                                                                          method="MinMaxScaler",
-                                                                          feature_range=(-1, 1))
+
 
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
@@ -716,9 +716,9 @@ if cfg.settings.advanced_pipeline:
     mov_val_onehot   = encoder_mov.transform(mov_val)
 
     # #? Add categorical features to the input sets
-    X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
-    X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
-    X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
+    #X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
+    #X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
+    #X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
 
 #? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
@@ -843,14 +843,14 @@ for seed in seed_arr:
 
         # Save model analogous to previous saving behaviour
         if cfg.model_param.is_save_model:
-            tcn_model.save(os.path.join(save_model_path, "tcn_model_BU62D.keras"))
+            tcn_model.save(os.path.join(save_model_path, "tcn_model.keras"))
 
     else: # Infer
         from tensorflow.keras.models import load_model
 
         save_model_path = getAbsolutePath("src/JTE_Project/offline/saved_offline_models")
 
-        tcn_model = load_model(os.path.join(save_model_path, "tcn_model_BU62D.keras"), compile=False)
+        tcn_model = load_model(os.path.join(save_model_path, "tcn_model.keras"), compile=False)
 
 
     # --- Ausgabe der Testdaten Shape ---
@@ -1013,3 +1013,17 @@ plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
 plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
 '''
+
+import joblib
+try:
+    scaler_save_path = save_model_path / "Y_scaler_dict.pkl"
+
+    # KORRIGIERTE LÖSUNG:
+    # Wandelt das äußere UND alle inneren defaultdicts in normale dicts um
+    scaler_to_save = {wgt: dict(mov_dict) for wgt, mov_dict in Y_scaler_dict.items()}
+
+    joblib.dump(scaler_to_save, scaler_save_path)
+    print(f"Scaler-Wörterbuch erfolgreich gespeichert unter: {scaler_save_path}")
+
+except Exception as e:
+    print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")
