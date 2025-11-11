@@ -14,6 +14,7 @@ from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
 import random
 from collections import defaultdict
+import time
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -29,13 +30,17 @@ warnings.formatwarning = customWarningFormat
 #! User Parameters and Data Collection
 #! ************************************************
 
+time_preproc = 0
+time_feat = 0
+time_pca = 0
+
 #? load config file
 config_filename = 'emg_torque_estimation_jte.yaml'
 cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights, start_from_epoch=cfg.model_param.start_from_epoch)
+    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights)
 else:
     early_callback = None
 
@@ -122,6 +127,7 @@ current_idx = 0
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
 
+        time_preproc_start = time.perf_counter()
         #? Loading and epoching for training   
         EMG_Data = EMGData(format="ANTmini", filenames=emg_table[wgt_idx][mov_idx], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 
@@ -287,6 +293,10 @@ for wgt_idx, wgt in enumerate(weights):
                              xlabel="Time (s)", 
                              ylabel="Voltage (V)", 
                              is_grid_on=True)
+            
+        time_preproc_end = time.perf_counter()
+        time_preproc += (time_preproc_end - time_preproc_start)
+        time_feat_start = time.perf_counter()
 
         #? Windowing the data
         emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
@@ -385,6 +395,9 @@ for wgt_idx, wgt in enumerate(weights):
         X_val_combined.append(X_val)
         Y_val_combined.append(Y_val)
 
+        time_feat_end = time.perf_counter()
+        time_feat += (time_feat_end - time_feat_start)
+
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
 
@@ -395,13 +408,16 @@ X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
 #? Pre-PCA scaling of input features
+
+time_pca_start = time.perf_counter()
+
 _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train, 
                                                            test_data=X_test, 
                                                            val_data=X_val, 
                                                            method="StandardScaler")
 
 #? Dimensionality Reduction - PCA
-X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
+_, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                                            test_data = X_test,
                                                            val_data = X_val,
                                                            method="PCA",
@@ -412,6 +428,9 @@ _, X_train, X_test, X_val = EMG_Data.scaleFeatures_windows(train_data=X_train,
                                                            test_data=X_test, 
                                                            val_data=X_val, 
                                                            method="StandardScaler")
+
+time_pca_end = time.perf_counter()
+time_pca += (time_pca_end - time_pca_start)
 
 #? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
@@ -428,8 +447,14 @@ np.random.seed(seed)
 random.seed(seed)
 tf.random.set_seed(seed)
 
+time_train = []
+time_prediction = []
+
 neurons_inp = X_train.shape[1]
 #? Init model with norm layer
+
+time_train_start = time.perf_counter()
+
 train_model = AAN_Model(neurons_inp=neurons_inp, 
                         neurons_h1=cfg.model_param.neurons_h1, 
                         act_h1=cfg.model_param.act_h1, 
@@ -485,6 +510,11 @@ MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model,
                      callbacks=early_callback)
 print("MLP training done!!\n")
 
+time_train_end = time.perf_counter()
+time_train.append(time_train_end - time_train_start)
+time_prediction_start = time.perf_counter()
+
+
 #? Predict and get results 
 print("Predicting joint torques...")
 MLP_model.predictTarget(data=X_test, 
@@ -495,6 +525,10 @@ MLP_model.predictTarget(data=X_test,
                           eval_type=cfg.post_train_param.eval_type)
 
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
+
+time_prediction_end = time.perf_counter()
+time_prediction.append(time_prediction_end - time_prediction_start)
+
 
 #? Rescaling output
 Y_ref = []
@@ -598,3 +632,22 @@ if cfg.post_train_param.is_save_plot:
         print(f"✅ Saved all plots in {dir_path}")
 else:
     print("❌ Plots not saved.")
+
+print("TEST DATA Shape: ", X_test.shape)
+
+# Timings
+print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
+
+print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
+
+print(f"PCA Scaling Zeit: {time_pca :.4f} Sekunden")
+
+if cfg.model_param.load_models == False:
+    time_train_mean = np.mean(time_train)
+    time_train_std = np.std(time_train)
+    print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+
+time_prediction_mean = np.mean(time_prediction)
+time_prediction_std = np.std(time_prediction)
+
+print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")

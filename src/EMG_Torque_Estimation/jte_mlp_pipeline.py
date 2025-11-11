@@ -633,15 +633,13 @@ MLP_model.predictTarget(data=X_test,
                           labels=Y_test, 
                           classification=False, 
                           show_results=False, 
-                          show_pred_time=False, 
+                          show_pred_time=True, 
                           eval_type=cfg.post_train_param.eval_type)
 
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
 
 time_prediction_end = time.perf_counter()
 time_prediction.append(time_prediction_end - time_prediction_start)
-
-print("TEST DATA Shape: ", X_test.shape)
 
 #? Rescaling output
 Y_ref = []
@@ -745,6 +743,8 @@ if cfg.post_train_param.is_save_plot:
         print(f"✅ Saved all plots in {dir_path}")
 else:
     print("❌ Plots not saved.")
+
+print("TEST DATA Shape: ", X_test.shape)
 
 # Timings
 print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
