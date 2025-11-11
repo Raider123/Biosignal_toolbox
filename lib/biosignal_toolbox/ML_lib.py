@@ -344,7 +344,7 @@ class MLModel:
             The type of the classification or regression task
             Currently only "binaray" classification is implemented, by default "binary"
         show_results : bool, optional
-            If True the results of the predictions are plotted. For eval_type = "old_online" the results are not shown to save computation time, by default False
+            If True the results of the predictions are plotted. For eval_type = "online" the results are not shown to save computation time, by default False
 
         Author
         ------
@@ -412,17 +412,17 @@ class MLModel:
         data : numpy array
             The data on which the prediction should be done. The shape depends on the input shape of the model
         labels : numpy array, optional
-            The true class labels (for a classification task) a 1D-numpy array. Not required for eval_type = "old_online" since no ground truth labels are available, by default None
+            The true class labels (for a classification task) a 1D-numpy array. Not required for eval_type = "online" since no ground truth labels are available, by default None
         encoding : str, optional
             The encoding of the class labels (string), can be "binary" for 0.0 and 1.0 as class labels, "onehotencoding" for onehotencoded labels or "distance_array" for unsupervised methods like the the dtw algorithm.
         n_classes : int, optional
             The number of classes for which the predictions are made, by default 2
         show_results : bool, optional
-            If True the results of the predictions are plotted. For eval_type = "old_online" the results are not shown to save computation time, by default True
+            If True the results of the predictions are plotted. For eval_type = "online" the results are not shown to save computation time, by default True
         show_pred_time : bool, optional
             A flag weather to show how long the time was to perform the prediction on the data provided, by default False
         eval_type : str, optional
-            The type of the evaluation. Can be either "offline" or "old_online". For "offline" results are shown by default and prediction times can be measured. For "old_online" only the prediction scores are calculated and not further evaluated into a performance, by default "offline"
+            The type of the evaluation. Can be either "offline" or "online". For "offline" results are shown by default and prediction times can be measured. For "online" only the prediction scores are calculated and not further evaluated into a performance, by default "offline"
         templates : numpy array, optional
             If using the "dtw" or another matching algorithm (unsupervised), the templates with shape (n_channels, n_sampels) (e.g. for the dtw algorithm), by default None
         threshold : int, optional
@@ -456,7 +456,7 @@ class MLModel:
                     self.prediction_scores = predictions # for regression this is the result 
 
             
-            elif(eval_type == "old_online"):
+            elif(eval_type == "online"):
                 
                 if(classification): 
                     self.prediction_scores =  np.array(self.model(data)).flatten()
@@ -701,4 +701,4 @@ class MLModel:
             return r2_score_out, rmse_out, corr_coeff
         else:
             return r2_score_out, rmse_out
-        
+            

@@ -29,14 +29,13 @@ class EMGData(Timeseries):
         The base timeseries class that includes most of the data processing methods for biosignals (e.g. filters for EMG and EEG etc.)
     """
 
-    def __init__(self, data_arr = None, format="ANTmini",data_path = 'None', filenames = None, f_samp = 500, channel_names = None):
+    def __init__(self, format="ANTmini",data_path = None, filenames = None, f_samp = 500, channel_names = None): 
 
         """
         The constructor of the EMG class. 
             
         Parameters
         ----------
-        data_arr: array, expects data in the format of function loadMiniANTEMGData
         format : str, optional
             The format in which the data is loaded", by default "ANTmini"
         data_path : str, optional
@@ -104,58 +103,31 @@ class EMGData(Timeseries):
                         self.data[-1,-1] = 2
                         print(f"Data: {self.data.shape}")
 
-                # set annotation events (markers)
-                event_channel = self.data[-1, :]
-                marker_indices = np.where(event_channel > 0)[0]
-                marker_numbers = event_channel[marker_indices]
-                events = np.zeros((len(marker_indices), 3))
-                events[:, 0] = marker_indices
-                events[:, 2] = marker_numbers
-                self.events = events.astype(int)
+                        # set annotation events (markers)
+                        event_channel = self.data[-1, :]
+                        marker_indices = np.where(event_channel > 0)[0]
+                        marker_numbers = event_channel[marker_indices]
+                        events = np.zeros((len(marker_indices), 3))
+                        events[:, 0] = marker_indices
+                        events[:, 2] = marker_numbers
+                        self.events = events.astype(int)
 
-            else: 
-                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
+                    else: 
+                        raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
 
-                self.data = raw_data # store data in numpy array 
-                self.createMNERaw()
+                        self.data = raw_data # store data in numpy array 
+                        self.createMNERaw()
+                    
+                    raw_list.append(self.raw_obj)
+                    events_list.append(self.events)
+                
+                #? Check if the channel names match in all raws
 
-        if (data_arr):
-            raw_list = []
-            events_list = []
-
-            if (format == "ANTmini"):
-                raw_data, self.time_axis, = data_arr
-
-                self.data = raw_data  # store data in numpy array
-                self.createMNERaw()
-                # Adding an extra event channel at the end for qualisys markers
-                column_of_no_markers = -1 * np.ones((1, self.data.shape[1]))
-                self.data = np.vstack((self.data, column_of_no_markers))
-                # Making the 10th and last samples of EMG as the boundaries for syncing
-                # This number is selected taking into account 20 ms start delay in qualisys
-                offset_idx = 1 * (20 * f_samp / 1000)
-                self.data[-1, int(offset_idx)] = 1
-                self.data[-1, -1] = 2
-                print(f"Data: {self.data.shape}")
-
-                # set annotation events (markers)
-                event_channel = self.data[-1, :]
-                marker_indices = np.where(event_channel > 0)[0]
-                marker_numbers = event_channel[marker_indices]
-                events = np.zeros((len(marker_indices), 3))
-                events[:, 0] = marker_indices
-                events[:, 2] = marker_numbers
-                self.events = events.astype(int)
-
-                raw_list.append(self.raw_obj)
-                events_list.append(self.events)
-
-                # ? Check if the channel names match in all raws
-
-                for i, raw in enumerate(raw_list, start=1):
+                for i, raw in enumerate(raw_list,start=1):
                     assert raw.ch_names == raw_list[0].ch_names, f"Channel mismatch in raw {i}"
                 self.raw_obj, self.events = mne.concatenate_raws(raws=raw_list, events_list=events_list)
                 self.data = self.raw_obj.get_data()
+
 
         # print("data shape:", self.data.shape)
         super().__init__(f_samp = self.f_samp, channel_names = self.channel_names, raw_obj=self.raw_obj, events=self.events, data = self.data, epochs = self.epochs, windows = self.windows)
@@ -228,7 +200,8 @@ class EMGData(Timeseries):
 
         return emg_data_channel, emg_time_axis, channel_names
 
-    def loadMiniANTEMGData(self, file_str, f_samp):
+
+    def loadMiniANTEMGData(self, file_str, f_samp): 
         """
         TODO: No sampling rate given in the data
         This function loads the EMG data recorded from the ANT EMG system (as .txt file, recorded via SDK)
@@ -351,7 +324,7 @@ class EMGData(Timeseries):
 
 class OnlineEMG(OnlineTimeseriesStreaming, EMGData): 
     """
-    This class provides useful methods for doing old_online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming .
+    This class provides useful methods for doing online EMG processing and classification. It inherits processing methods from the EMGData class and methods for data streaming from OnlineTimeseriesStreaming . 
 
     Parameters
     ----------
@@ -361,7 +334,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         _description_
     """
 
-    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], buffer_size = 500, dt_process_data = 0.05, f_samp = 1000.0):
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
         """
         The constructor of the OnlineEMG class. 
 
@@ -369,14 +342,8 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         ------
         Author : Niklas Kueper \n
         Last changed: 08.03.2024 (by Niklas Kueper)
-        """
-
-        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, buffer_size= buffer_size, dt_process_data = dt_process_data, f_samp = f_samp)
-        EMGData.__init__(self, format = "Live", f_samp = f_samp, channel_names = channel_names)
+        """        
 
         
-
-
-    
-
-  
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        EMGData.__init__(self, format = "Live", f_samp = f_samp, channel_names = channel_names)
