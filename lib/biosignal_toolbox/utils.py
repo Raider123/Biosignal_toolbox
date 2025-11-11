@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from typing import Type, Union, List
 from sys import exit, path
 path.append(str(Path(__file__).resolve().parents[2]))
-from config_root import project_root
+
 import warnings
 import inspect
 #! ************************************************
@@ -384,7 +384,7 @@ def setPltParams(style="ticks"):
     "savefig.bbox": "tight"
 })    
 
-def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predicted", title="", xlabel="Time (s)", ylabel="", is_grid_on=True, is_list=False, is_multiple=False, plot_len=10, start_time=0):
+def plotResults(time_axis=None, overlap_ms=50, data_ref=None, label_ref="real", data_pred=[], label_pred="predicted", title="", xlabel="Time (s)", ylabel="Joint Torque (N m)", is_grid_on=True, is_band_plot=False, mean_inp=None, std_inp=None):
     """
     This function plots the result of the BPNN model
 
@@ -406,45 +406,24 @@ def plotResults(data_ref=[], label_ref="real", data_pred=[], label_pred="predict
         ylabel for the plot, by default ""
     is_grid_on : bool, optional
         boolean to decide grid lines visibility, by default True
-    is_list: bool, optional
-        boolean to decide if the incoming predicted data is in a list, by default False
     
     Author
     ------
     Author : Kartik Chari \n
-    Last changed : 25.09.2025 (by Anas Homsi)
+    Last changed : 13.11.2024 (by Kartik Chari)
     """
     #TODO: Improve to make it more general
     plt.figure()
 
-    start_time = int(start_time/0.05)
-    stop_time = len(data_ref)-1 if plot_len == -1 else start_time + int(plot_len/0.05)
-    timepoints = slice(start_time,stop_time)
-    print(timepoints)
-    print()
-    x_samples = (np.arange(0, len(data_ref),1)*0.05)[timepoints]
-    plt.plot(x_samples, data_ref[timepoints], ls="-", label=label_ref, color = "red")
+    if time_axis is None:
+        time_axis = np.arange(0, len(data_ref), 1)* overlap_ms / 1000
 
-    if not is_multiple:
-        temp = []
-        temp.append(data_pred)
-        data_pred = temp
-
-    for i, d in enumerate(data_pred):
-        color = "blue" if i == 0 else "orange"
-        if i==2:
-            color = "magenta"
-
-
-        if is_list:
-            arr_data = np.vstack(d)
-            d = np.mean(arr_data, axis=0)[timepoints]
-            out_std = np.std(arr_data, axis=0)[timepoints]
-
-        plt.plot(x_samples, d, ls="-", label=label_pred, color=color)
-        if is_list:
-            plt.fill_between(x_samples, d - out_std, d + out_std, color=color, alpha=0.3)    
-    
+    plt.plot(time_axis, data_ref, label=label_ref, color='red')
+    plt.plot(time_axis, data_pred, label=label_pred, color='blue')
+    if is_band_plot:
+        if mean_inp is None or std_inp is None:
+            raise ValueError("Please provide the mean and standard deviation for the band plot!!")
+        plt.fill_between(time_axis, mean_inp - std_inp, mean_inp + std_inp, color='blue', alpha=0.3)
     plt.title(title)
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)

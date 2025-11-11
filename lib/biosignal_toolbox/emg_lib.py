@@ -113,8 +113,8 @@ class EMGData(Timeseries):
                 events[:, 2] = marker_numbers
                 self.events = events.astype(int)
 
-                    else: 
-                        raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
+            else: 
+                raw_data, self.time_axis, self.channel_names = self.loadCometaEMGData(file)
 
                 self.data = raw_data # store data in numpy array 
                 self.createMNERaw()

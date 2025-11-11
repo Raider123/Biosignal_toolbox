@@ -2920,8 +2920,8 @@ class Timeseries():
             elif mode == "old_online":
                 mvc_reshaped = mvc.reshape(8, 1)
                 self.data_buffer[0, :, -self.n_samples:, 0] /= mvc_reshaped
-        except Exception as e Exception as e:
-            print(ff"Please provide the MVC for Normalisation: {e}!!")
+        except Exception as e:
+            print(f"Please provide the MVC for Normalisation: {e}!!")
 
     
     def lowPassFilter(self, cutoff_freq=20, order=2, fs=1000, filter_type="butter", mode="offline", sos=None, counter=0):
