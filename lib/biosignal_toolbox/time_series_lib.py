@@ -3120,27 +3120,25 @@ class Timeseries():
             features_mwc[window_idx, :] = np.mean(tfr_power, axis=-1).flatten()
         return features_mwc
             
-    def scaleFeatures_windows(self, train_data=None, test_data=None, val_data=None, method="StandardScaler", feature_range=None, scaler_file=None):
-        if scaler_file == None:
-            if method.lower() == "standardscaler":
-                scaler = StandardScaler()
-            elif method.lower() == "minmaxscaler":
-                if feature_range is None:
-                    warnings.warn("No feature range provided... Using (-1,1) as default")
-                scaler = MinMaxScaler(feature_range=(-1,1))
-            else:
-                warnings.warn("This method is not yet implemented! Returning without scaling!!")
-
-            if train_data is None and test_data is None and val_data is None:
-                self.feature_vec = scaler.fit_transform(self.feature_vec)
-            elif train_data is not None and test_data is None and val_data is not None:
-                scaler.fit(train_data)
-                return scaler, scaler.transform(train_data), scaler.transform(val_data)
-            else:
-                scaler.fit(train_data)
-                return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
+    def scaleFeatures_windows(self, train_data=None, test_data=None, val_data=None, method="StandardScaler", feature_range=None):
+        if method.lower() == "standardscaler":
+            scaler = StandardScaler()
+        elif method.lower() == "minmaxscaler":
+            if feature_range is None:
+                warnings.warn("No feature range provided... Using (-1,1) as default")
+            scaler = MinMaxScaler(feature_range=(-1,1))
         else:
-            return scaler_file, scaler_file.transform(train_data), scaler_file.transform(test_data), scaler_file.transform(val_data)
+            warnings.warn("This method is not yet implemented! Returning without scaling!!")
+
+        if train_data is None and test_data is None and val_data is None:
+            self.feature_vec = scaler.fit_transform(self.feature_vec)
+        elif train_data is not None and test_data is None and val_data is not None:
+            scaler.fit(train_data)
+            return scaler, scaler.transform(train_data), scaler.transform(val_data)
+        else:
+            scaler.fit(train_data)
+            return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
+
 
     def scaleEMG_windows(self, scaler_file = None, test_data = None):
         '''

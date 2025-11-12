@@ -58,7 +58,7 @@ class LiveEstimation:
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
         print("Loading Y_Scaler succesful.")
         # Select correct Scaler File
-        self.scaler_file = y_scaler['1100g']['complex']
+        self.scaler_file = y_scaler['1100g']['grasp']
 
         # Load Torque Values (ground truth, only in prediction plot)
         Y_e = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy"))
@@ -272,12 +272,7 @@ class LiveEstimation:
         # print("Feature extraction completed!\n")
 
     def apply_scaler(self):
-        _, _, _, self.features = self.EMG_live.scaleFeatures_windows(train_data=self.features,
-                                                                     test_data=self.features,
-                                                                     val_data=self.features,
-                                                                     method="MinMaxScaler",
-                                                                     feature_range=(-1, 1),
-                                                                     scaler_file=self.scaler_file)
+        self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.scaler_file, test_data=self.features)
 
     def inverse_transform_scaler(self):
         self.scaler_file.inverse_transform(self.predictions)
