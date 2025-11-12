@@ -52,7 +52,7 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model_forward_timepoints_yscaler.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
 
         # Loading the Y-scaler
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
@@ -272,7 +272,13 @@ class LiveEstimation:
         # print("Feature extraction completed!\n")
 
     def apply_scaler(self):
-        self.features = self.EMG_live.scaleEMG_windows(scaler_file=self.scaler_file, test_data=self.features)
+        arr = self.features.flatten()
+        elements_to_keep = (arr.shape[0] // 3) * 3
+        arr_trimmed = arr[:elements_to_keep]
+        arr_reshaped = arr_trimmed.reshape(-1, 3)
+        print(arr_reshaped.shape)
+        scaled_feats = self.EMG_live.scaleEMG_windows(scaler_file=self.scaler_file, test_data=arr_reshaped)
+        self.features = scaled_feats.reshape(1, -1)
 
     def inverse_transform_scaler(self):
         self.scaler_file.inverse_transform(self.predictions)
@@ -472,7 +478,7 @@ class LiveEstimation:
                 self.extract_features()
                 self.apply_scaler()
                 self.predict()
-                self.inverse_transform_scaler()
+                #self.inverse_transform_scaler()
                 self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
 
                 # Printing the Timings

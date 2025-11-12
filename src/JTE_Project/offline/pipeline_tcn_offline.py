@@ -92,6 +92,14 @@ def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
 
 time_preproc = 0
 time_feat = 0
+t0l = []
+t1l = []
+t2l = []
+t3l = []
+t4l = []
+t5l = []
+t6l = []
+
 
 #? load config file
 config_filename = 'pipeline_jte_bu62d.yaml'
@@ -370,7 +378,6 @@ for wgt_idx, wgt in enumerate(weights):
             
         time_preproc_end = time.perf_counter()
         time_preproc += (time_preproc_end - time_preproc_start)
-        time_feat_start = time.perf_counter()
 
         #? Windowing the data
         emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1,
@@ -470,33 +477,50 @@ for wgt_idx, wgt in enumerate(weights):
         #! Feature Extraction
         #! ************************************************
         print("Extracting features from windowed data...")
+        time_feat_start = time.perf_counter()
 
+        t0 = time.perf_counter()
         #? EMG signal timepoints feature extraction
         window_size_ms = cfg.preprocess_param.window_size_x * 1000 / EMG_Data.f_samp
         feature_indices_windows_x = np.array([0, window_size_ms])
         EMG_Data.featureExtractionFromWindows(feature_type="timepoints", 
                                             feature_indices_windows=feature_indices_windows_x)
         EMG_Data.printFeatureShape()
+        t0_end = time.perf_counter() - t0
+        t0l.append(t0_end)
+        print(f"Raw Timepoints Time: {t0_end: .4f}")
 
         if cfg.settings.feature_extraction:
+            t1 = time.perf_counter()
             #? time domain feature extraction
             ## EMG Feature Extraction
             rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names)) # RMS value
             EMG_Data.addFeatures(rms_feature)
             # print(EMG_Data.getFeatures()[1,:])
             # EMG_Data.printFeatureShape()
+            t1_end = time.perf_counter() - t1
+            t1l.append(t1_end)
+            print(f"RMS TIME: {t1_end: .4f}")
 
+            t2 = time.perf_counter()
             wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
             EMG_Data.addFeatures(wfl_feature)
             # print(EMG_Data.getFeatures()[1,:])
             # EMG_Data.printFeatureShape()
+            t2_end = time.perf_counter() - t2
+            t2l.append(t2_end)
+            print(f"WFL TIME: {t2_end: .4f}")
 
-            ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
-                                                                    threshold=0.02)    # Slope Sign Change
+            t3 = time.perf_counter()
+            ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),threshold=0.02)# Slope Sign Change
             EMG_Data.addFeatures(ssc_feature)
             # print(EMG_Data.getFeatures()[1,:])
             # EMG_Data.printFeatureShape()
+            t3_end = time.perf_counter() - t3
+            t3l.append(t3_end)
+            print(f"SSC TIME: {t3_end: .4f}")
 
+            t4 = time.perf_counter()
             #? freq domain feature extraction
             EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
                                                     psd_method="multitaper",
@@ -504,7 +528,11 @@ for wgt_idx, wgt in enumerate(weights):
             fbp_feature = EMG_Data_freq.getFeatures()
             EMG_Data.addFeatures(fbp_feature)
             # EMG_Data.printFeatureShape()
+            t4_end = time.perf_counter() - t4
+            t4l.append(t4_end)
+            print(f"FreqBandPower TIME: {t4_end: .4f}")
 
+            t5 = time.perf_counter()
             #? time-freq domain feature extraction
             freqs = np.arange(start=50, stop=226, step=25)
             n_cycles = np.ones(len(freqs)) * 5
@@ -514,11 +542,18 @@ for wgt_idx, wgt in enumerate(weights):
                                                                             n_cycles=n_cycles)    # Morlet transform
             EMG_Data.addFeatures(mwc_feature)
             # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+            t5_end = time.perf_counter() - t5
+            t5l.append(t5_end)
+            print(f"MWC Feature TIME: {t5_end: .4f}")
 
+            t6 = time.perf_counter()
             #? Change between consecutive samples (window i and wind i+1)
             peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1,:])
             EMG_Data.addFeatures(peak_detection)
             print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
+            t6_end = time.perf_counter() - t6
+            t6l.append(t6_end)
+            print(f"Peak Detection TIME: {t6_end: .4f}")
 
        
         #? Output feature extraction
@@ -545,6 +580,9 @@ for wgt_idx, wgt in enumerate(weights):
                                                         feature_indices_windows=feature_indices_windows_y,
                                                         use_mean=use_mean_bool)
         print("Feature extraction from windowed data completed!!\n")
+
+        time_feat_end = time.perf_counter()
+        time_feat += (time_feat_end - time_feat_start)
 
         #? Merge output features
         target_features = np.concatenate([Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
@@ -585,8 +623,6 @@ for wgt_idx, wgt in enumerate(weights):
             X_val_cat = encoder.transform(X_val_cat)
 
             print("Y TRAIN SHAPE: ", Y_train.shape)
-            print("Y_val ", Y_val.shape)
-            print("Y_test ", Y_test.shape)
 
             # ? Creating history of features
             history_len = 3
@@ -616,23 +652,14 @@ for wgt_idx, wgt in enumerate(weights):
 
 
         #? Scale output features -> [-1,1] for tanh
+        print(Y_train.shape, " A ", Y_test.shape, " A ", Y_val.shape)
 
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
                                                                         test_data=Y_test, 
                                                                         val_data=Y_val, 
                                                                         method="MinMaxScaler",
-                                                                        feature_range=(-1,1),
-                                                                          scaler_file=None)
-        '''
-        # Feasibility-Test (Applying Stored Y_Scaler)
-        stored_standard_scaler = Test_Y_Scaler[wgt][mov]
-        _, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train,
-                                                                        test_data=Y_test,
-                                                                        val_data=Y_val,
-                                                                        method="MinMaxScaler",
-                                                                        feature_range=(-1,1),
-                                                                   scaler_file = stored_standard_scaler)
-        '''
+                                                                        feature_range=(-1,1))
+
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 
@@ -653,9 +680,6 @@ for wgt_idx, wgt in enumerate(weights):
             meta_list_train.extend(meta_train)
             meta_list_test.extend(meta_test)
             meta_list_val.extend(meta_val)
-
-        time_feat_end = time.perf_counter()
-        time_feat += (time_feat_end - time_feat_start)
 
 ## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
@@ -976,6 +1000,22 @@ print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
 
 print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
 
+t0_mean = np.mean(t0l)
+t1_mean = np.mean(t1l)
+t2_mean = np.mean(t2l)
+t3_mean = np.mean(t3l)
+t4_mean = np.mean(t4l)
+t5_mean = np.mean(t5l)
+t6_mean = np.mean(t6l)
+
+print(f"T0: {t0_mean:.4f}")
+print(f"T1: {t1_mean:.4f}")
+print(f"T2: {t2_mean:.4f}")
+print(f"T3: {t3_mean:.4f}")
+print(f"T4: {t4_mean:.4f}")
+print(f"T5: {t5_mean:.4f}")
+print(f"T6: {t6_mean:.4f}")
+
 if cfg.model_param.load_models == False:
     time_train_mean = np.mean(time_train)
     time_train_std = np.std(time_train)
@@ -983,8 +1023,8 @@ if cfg.model_param.load_models == False:
 
 time_prediction_mean = np.mean(time_prediction)
 time_prediction_std = np.std(time_prediction)
-
 print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
+
 
 
 '''

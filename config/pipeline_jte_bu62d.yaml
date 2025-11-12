@@ -2,7 +2,7 @@
 ---
   settings:
     advanced_pipeline: True
-    feature_extraction: False
+    feature_extraction: True
     scaling: False
 
   filepath:
