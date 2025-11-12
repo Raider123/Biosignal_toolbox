@@ -15,6 +15,7 @@ from sklearn.preprocessing import OneHotEncoder
 from datetime import datetime
 from sklearn.metrics import r2_score
 from scipy.stats import pearsonr
+import joblib
 import random
 from collections import defaultdict
 import os
@@ -620,9 +621,18 @@ for wgt_idx, wgt in enumerate(weights):
                                                                         test_data=Y_test, 
                                                                         val_data=Y_val, 
                                                                         method="MinMaxScaler",
-                                                                        feature_range=(-1,1))
-
-
+                                                                        feature_range=(-1,1),
+                                                                          scaler_file=None)
+        '''
+        # Feasibility-Test (Applying Stored Y_Scaler)
+        stored_standard_scaler = Test_Y_Scaler[wgt][mov]
+        _, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train,
+                                                                        test_data=Y_test,
+                                                                        val_data=Y_val,
+                                                                        method="MinMaxScaler",
+                                                                        feature_range=(-1,1),
+                                                                   scaler_file = stored_standard_scaler)
+        '''
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 
@@ -866,8 +876,6 @@ for seed in seed_arr:
     time_prediction.append(time_prediction_end - time_prediction_start)
 
 
-
-
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
 Y_ref = []
 perf_results_TCN = []
@@ -1014,16 +1022,14 @@ plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
 '''
 
-import joblib
 try:
-    scaler_save_path = save_model_path / "Y_scaler_dict.pkl"
+    scaler_save_path = save_model_path / "Y_scaler.pkl"
 
-    # KORRIGIERTE LÖSUNG:
     # Wandelt das äußere UND alle inneren defaultdicts in normale dicts um
     scaler_to_save = {wgt: dict(mov_dict) for wgt, mov_dict in Y_scaler_dict.items()}
-
     joblib.dump(scaler_to_save, scaler_save_path)
     print(f"Scaler-Wörterbuch erfolgreich gespeichert unter: {scaler_save_path}")
+
 
 except Exception as e:
     print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")
