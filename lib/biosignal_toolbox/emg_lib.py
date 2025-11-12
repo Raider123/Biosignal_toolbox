@@ -80,7 +80,10 @@ class EMGData(Timeseries):
         self.windows = None
         self.events = None # not provided by loaded data yet 
         # absolute data path
-        self.data_path = getAbsolutePath(input_path=data_path)
+        try:
+            self.data_path = getAbsolutePath(input_path=data_path)
+        except Exception as e:
+            print(f"data_path in EMG_Data not declared! {e}")
         
         if(filenames):
             if(isinstance(filenames, list)): # check if list or string class 
@@ -334,7 +337,7 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         _description_
     """
 
-    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], n_samples= 500, dt_process_data = 0.05, f_samp = 1000.0): 
+    def __init__(self, stream_type = "data", channel_names = ["1", "2", "3"], buffer_size= 500, dt_process_data = 0.05, f_samp = 1000.0):
         """
         The constructor of the OnlineEMG class. 
 
@@ -345,5 +348,5 @@ class OnlineEMG(OnlineTimeseriesStreaming, EMGData):
         """        
 
         
-        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, n_samples= n_samples, dt_process_data = dt_process_data, f_samp = f_samp)
+        OnlineTimeseriesStreaming.__init__(self, stream_type = stream_type, channel_names = channel_names, buffer_size=buffer_size, dt_process_data = dt_process_data, f_samp = f_samp)
         EMGData.__init__(self, format = "Live", f_samp = f_samp, channel_names = channel_names)
