@@ -62,8 +62,8 @@
     
   
   model_param:
-    n_epochs:                 100
-    batch_size:               256
+    n_epochs:                 10
+    batch_size:               32
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'smooth_var'
@@ -95,8 +95,8 @@
     act_h4:                   'relu'
     act_out:                  'tanh' 
 
-    is_save_model:            True
-    load_models:              True
+    is_save_model:            False
+    load_models:              False
     show_train_results:       True
 
   post_train_param:
