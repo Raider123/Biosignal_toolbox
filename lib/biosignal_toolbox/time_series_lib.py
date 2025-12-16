@@ -3135,6 +3135,9 @@ class Timeseries():
         elif train_data is not None and test_data is None and val_data is not None:
             scaler.fit(train_data)
             return scaler, scaler.transform(train_data), scaler.transform(val_data)
+        elif train_data is not None and test_data is not None and val_data is None:
+            scaler.fit(train_data)
+            return scaler, scaler.transform(train_data), scaler.transform(test_data)
         else:
             scaler.fit(train_data)
             return scaler, scaler.transform(train_data), scaler.transform(test_data), scaler.transform(val_data)
