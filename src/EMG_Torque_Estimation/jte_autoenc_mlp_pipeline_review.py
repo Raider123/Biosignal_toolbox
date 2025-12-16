@@ -7,6 +7,8 @@
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.profiler.model_analyzer import profile
+from tensorflow.python.profiler.option_builder import ProfileOptionBuilder
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from sklearn.model_selection import train_test_split
@@ -14,6 +16,7 @@ from datetime import datetime
 import random
 from collections import defaultdict
 from time import perf_counter_ns
+import time
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -28,6 +31,17 @@ warnings.formatwarning = customWarningFormat
 #! ************************************************
 #! User Parameters and Data Collection
 #! ************************************************
+
+time_preproc = 0
+time_feat = 0
+time_pca = 0
+time_autoenc_train = []
+time_autoenc_pred = []
+
+if tf.config.list_physical_devices('GPU'):
+    tf.config.experimental.reset_memory_stats('GPU:0')
+
+
 start_init = perf_counter_ns()
 #? load config file
 config_filename = 'emg_torque_estimation_jte.yaml'
@@ -35,7 +49,7 @@ cfg = loadConfig(filename=config_filename)
 
 #? init early stopping 
 if cfg.model_param.is_early_stop:
-    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights, start_from_epoch=cfg.model_param.start_from_epoch)
+    early_callback = tf.keras.callbacks.EarlyStopping(monitor=cfg.model_param.monitor, min_delta=cfg.model_param.min_delta, patience=cfg.model_param.patience, verbose=cfg.model_param.verbose, baseline=cfg.model_param.baseline, restore_best_weights=cfg.model_param.restore_best_weights)
 else:
     early_callback = None
 
@@ -124,6 +138,9 @@ print(f"Initialisation time: {end_init - start_init} ns")
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
+
+        time_preproc_start = time.perf_counter()
+
         start_obj_init = perf_counter_ns()
         #? Loading and epoching for training   
         EMG_Data = EMGData(format="ANTmini", filenames=emg_table[wgt_idx][mov_idx], data_path=cfg.filepath.data_path, f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
@@ -308,6 +325,10 @@ for wgt_idx, wgt in enumerate(weights):
         #                      ylabel="Voltage (V)", 
         #                      is_grid_on=True)
 
+        time_preproc_end = time.perf_counter()
+        time_preproc += (time_preproc_end - time_preproc_start)
+        time_feat_start = time.perf_counter()
+
         #? Windowing the data
         emg_window_boundary_idx, _ = EMG_Data.windowContinuousData(startmarkernumber=1, stopmarkernumber=2, window_size=cfg.preprocess_param.window_size_x, window_step=cfg.preprocess_param.window_step, start_index_offset=0, start_channel_pick=0, end_channel_pick=8, return_window_end_indices=True)
 
@@ -386,7 +407,12 @@ for wgt_idx, wgt in enumerate(weights):
 
         print("Split data into train, test, and val!!")
 
+        time_feat_end = time.perf_counter()
+        time_feat += (time_feat_end - time_feat_start)
+
         #? Init autoencoder model
+        time_autoenc_train_start = time.perf_counter()
+
         autoencoder_model, encoder_model = Autoencoder()
         MLP_model = MLModel(model = autoencoder_model, type= "keras")
 
@@ -410,9 +436,17 @@ for wgt_idx, wgt in enumerate(weights):
                             callbacks=early_callback)
         print("MLP training done!!\n")
 
+        time_autoenc_train_end = time.perf_counter()
+        time_autoenc_train.append(time_autoenc_train_end - time_autoenc_train_start)
+
+        time_autoenc_pred_start = time.perf_counter()
+
         X_train = encoder_model.predict(X_train)
         X_test = encoder_model.predict(X_test)
         X_val = encoder_model.predict(X_val)
+
+        time_autoenc_pred_end = time.perf_counter()
+        time_autoenc_pred.append(time_autoenc_pred_end - time_autoenc_pred_start)
 
         print(X_train.shape)
         print(X_test.shape)
@@ -461,8 +495,12 @@ np.random.seed(seed)
 random.seed(seed)
 tf.random.set_seed(seed)
 
+time_train = []
+time_prediction = []
+
 neurons_inp = X_train.shape[1]
 #? Init model with norm layer
+time_train_start = time.perf_counter()
 train_model = AAN_Model(neurons_inp=neurons_inp, 
                         neurons_h1=cfg.model_param.neurons_h1, 
                         act_h1=cfg.model_param.act_h1, 
@@ -518,6 +556,10 @@ MLP_model.trainModel(save_trained_model=cfg.model_param.is_save_model,
                      callbacks=early_callback)
 print("MLP training done!!\n")
 
+time_train_end = time.perf_counter()
+time_train.append(time_train_end - time_train_start)
+time_prediction_start = time.perf_counter()
+
 #? Predict and get results 
 print("Predicting joint torques...")
 start_predict = perf_counter_ns()
@@ -530,6 +572,10 @@ MLP_model.predictTarget(data=X_test,
 end_predict = perf_counter_ns()
 print(f"Prediction time: {end_predict - start_predict} ns")
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
+
+time_prediction_end = time.perf_counter()
+time_prediction.append(time_prediction_end - time_prediction_start)
+
 
 #? Rescaling output
 Y_ref = []
@@ -633,3 +679,58 @@ if cfg.post_train_param.is_save_plot:
         print(f"✅ Saved all plots in {dir_path}")
 else:
     print("❌ Plots not saved.")
+
+print("TRAIN DATA Shape: ", X_train.shape)
+print("VAL DATA Shape: ", X_val.shape)
+print("TEST DATA Shape: ", X_test.shape)
+
+# Timings
+
+if tf.config.list_physical_devices('GPU'):
+  # Returns a dict in the form {'current': <current mem usage>,
+  #                             'peak': <peak mem usage>}
+  gpu_mem = tf.config.experimental.get_memory_info('GPU:0')
+
+input_shape = (1,) + X_train.shape[1:]
+
+concrete_func = tf.function(MLP_model.model).get_concrete_function(tf.TensorSpec(input_shape, tf.float32))
+
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+frozen_func = convert_variables_to_constants_v2(concrete_func)
+graph_def = frozen_func.graph.as_graph_def()
+
+opts = ProfileOptionBuilder.float_operation()
+flops = profile(frozen_func.graph, options=opts)
+
+print('=' * 50)
+print(f"Model summary: ")
+MLP_model.model.summary()
+print(f"\nTotal FLOPs: {flops.total_float_ops:,}")
+print('=' * 50)
+print(f"Peak GPU Memory usage:  {gpu_mem['peak']/1e6 :.2f} MB")
+
+print('=' * 50)
+
+print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
+
+print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
+
+time_autoenc_train_mean = np.mean(time_autoenc_train)
+time_autoenc_train_std = np.std(time_autoenc_train)
+
+print(f"Autoencoder Training Zeit: {time_autoenc_train_mean :.4f} ± {time_autoenc_train_std :.4f} Sekunden")
+
+time_autoenc_pred_mean = np.mean(time_autoenc_pred)
+time_autoenc_pred_std = np.std(time_autoenc_pred)
+
+print(f"Autoencoder Prediction Zeit: {time_autoenc_pred_mean :.4f} ± {time_autoenc_pred_std :.4f} Sekunden")
+
+if cfg.model_param.load_models == False:
+    time_train_mean = np.mean(time_train)
+    time_train_std = np.std(time_train)
+    print(f"Model Training Zeit: {time_train_mean :.4f} ± {time_train_std :.4f} Sekunden")
+
+time_prediction_mean = np.mean(time_prediction)
+time_prediction_std = np.std(time_prediction)
+
+print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")

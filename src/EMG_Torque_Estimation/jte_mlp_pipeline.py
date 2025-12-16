@@ -7,6 +7,8 @@
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.profiler.model_analyzer import profile
+from tensorflow.python.profiler.option_builder import ProfileOptionBuilder
 import matplotlib.pyplot as plt
 from copy import deepcopy
 from sklearn.model_selection import train_test_split
@@ -15,6 +17,8 @@ from datetime import datetime
 import random
 from collections import defaultdict
 import time
+
+
 
 #own libs 
 from biosignal_toolbox.eeg_lib import EEGData
@@ -32,6 +36,9 @@ warnings.formatwarning = customWarningFormat
 
 time_preproc = 0
 time_feat = 0
+
+if tf.config.list_physical_devices('GPU'):
+    tf.config.experimental.reset_memory_stats('GPU:0')
 
 #? load config file
 config_filename = 'emg_torque_estimation_jte.yaml'
@@ -633,15 +640,13 @@ MLP_model.predictTarget(data=X_test,
                           labels=Y_test, 
                           classification=False, 
                           show_results=False, 
-                          show_pred_time=False, 
+                          show_pred_time=True, 
                           eval_type=cfg.post_train_param.eval_type)
 
 perf_results_MLP_scaled = MLP_model.getPredictionScores()
 
 time_prediction_end = time.perf_counter()
 time_prediction.append(time_prediction_end - time_prediction_start)
-
-print("TEST DATA Shape: ", X_test.shape)
 
 #? Rescaling output
 Y_ref = []
@@ -746,7 +751,36 @@ if cfg.post_train_param.is_save_plot:
 else:
     print("❌ Plots not saved.")
 
+print("TRAIN DATA Shape: ", X_train.shape)
+print("VAL DATA Shape: ", X_val.shape)
+print("TEST DATA Shape: ", X_test.shape)
+
 # Timings
+
+if tf.config.list_physical_devices('GPU'):
+  # Returns a dict in the form {'current': <current mem usage>,
+  #                             'peak': <peak mem usage>}
+  gpu_mem = tf.config.experimental.get_memory_info('GPU:0')
+
+input_shape = (1,) + X_train.shape[1:]
+
+concrete_func = tf.function(MLP_model.model).get_concrete_function(tf.TensorSpec(input_shape, tf.float32))
+
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+frozen_func = convert_variables_to_constants_v2(concrete_func)
+graph_def = frozen_func.graph.as_graph_def()
+
+opts = ProfileOptionBuilder.float_operation()
+flops = profile(frozen_func.graph, options=opts)
+
+print('=' * 50)
+print(f"Model summary: ")
+MLP_model.model.summary()
+print(f"\nTotal FLOPs: {flops.total_float_ops:,}")
+print('=' * 50)
+print(f"Peak GPU Memory usage:  {gpu_mem['peak']/1e6 :.2f} MB")
+
+print('=' * 50)
 print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
 
 print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")

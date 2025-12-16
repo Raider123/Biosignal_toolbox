@@ -7,6 +7,8 @@
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.python.profiler.model_analyzer import profile
+from tensorflow.python.profiler.option_builder import ProfileOptionBuilder
 import matplotlib.pyplot as plt
 import itertools
 from copy import deepcopy
@@ -40,6 +42,11 @@ from scipy.signal import medfilt, savgol_filter
 #! ************************************************
 #! User Parameters and Data Collection
 #! ************************************************
+
+
+if tf.config.list_physical_devices('GPU'):
+    tf.config.experimental.reset_memory_stats('GPU:0')
+
 
 def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
 
@@ -994,6 +1001,37 @@ print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
 # Timings
+print("TRAIN DATA Shape: ", X_train.shape)
+print("VAL DATA Shape: ", X_val.shape)
+print("TEST DATA Shape: ", X_test.shape)
+
+
+if tf.config.list_physical_devices('GPU'):
+  # Returns a dict in the form {'current': <current mem usage>,
+  #                             'peak': <peak mem usage>}
+  gpu_mem = tf.config.experimental.get_memory_info('GPU:0')
+
+input_shape = (1,) + X_train.shape[1:]
+
+concrete_func = tf.function(tcn_model).get_concrete_function(tf.TensorSpec(input_shape, tf.float32))
+
+from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
+frozen_func = convert_variables_to_constants_v2(concrete_func)
+graph_def = frozen_func.graph.as_graph_def()
+
+opts = ProfileOptionBuilder.float_operation()
+flops = profile(frozen_func.graph, options=opts)
+
+print('=' * 50)
+print(f"Model summary: ")
+tcn_model.summary()
+print(f"\nTotal FLOPs: {flops.total_float_ops:,}")
+print('=' * 50)
+print(f"Peak GPU Memory usage:  {gpu_mem['peak']/1e6 :.2f} MB")
+
+print('=' * 50)
+
+
 print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
 
 print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
