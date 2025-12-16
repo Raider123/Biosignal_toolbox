@@ -2,8 +2,9 @@
 ---
   settings:
     advanced_pipeline: True
-    feature_extraction: True
+    feature_extraction: False
     scaling: False
+    yscaler: True
 
   filepath:
     data_path: 'data/jte/'
@@ -71,7 +72,7 @@
     optimizer:                'nadam'
     metrics:                  'mse'
 
-    train_test_split:         0.9
+    train_test_split:         0.05
     validation_split:         0.15
 
     is_early_stop:            True
@@ -96,7 +97,7 @@
     act_out:                  'tanh' 
 
     is_save_model:            True
-    load_models:              False
+    load_models:              True
     show_train_results:       True
 
   post_train_param:

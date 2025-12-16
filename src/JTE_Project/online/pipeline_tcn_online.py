@@ -52,7 +52,7 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model_timpt.keras'))
 
         # Loading the Y-scaler
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
@@ -433,6 +433,7 @@ class LiveEstimation:
 
             if self.advanced_feature_extraction:
                 # Create identical copy for frequency extraction
+                # Only the Bandpass-Filter is used to reduce distortions introduced by the variance filter and maintain frequency components (for freq)
                 self.EMG_live_freq = copy.deepcopy(self.EMG_live)
 
             # # variance filter
@@ -476,9 +477,9 @@ class LiveEstimation:
             else:
                 # Regular prediction pipeline
                 self.extract_features()
-                self.apply_scaler()
+                #self.apply_scaler() # Applying the y scaler
                 self.predict()
-                #self.inverse_transform_scaler()
+                #self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
                 self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
 
                 # Printing the Timings

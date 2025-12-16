@@ -684,7 +684,7 @@ for wgt_idx, wgt in enumerate(weights):
 ## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
-#np.save(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"), channel_max)
+np.save(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy"), channel_max)
 
 
 X_train = np.concatenate(X_train_combined, axis=0)
@@ -884,7 +884,7 @@ for seed in seed_arr:
 
         save_model_path = getAbsolutePath("src/JTE_Project/offline/saved_offline_models")
 
-        tcn_model = load_model(os.path.join(save_model_path, "tcn_model.keras"), compile=False)
+        tcn_model = load_model(os.path.join(save_model_path, "tcn_model551.keras"), compile=False)
 
 
     # --- Ausgabe der Testdaten Shape ---
