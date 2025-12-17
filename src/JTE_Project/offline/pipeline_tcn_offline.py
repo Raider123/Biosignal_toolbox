@@ -935,9 +935,9 @@ fullpath.parent.mkdir(parents=True, exist_ok=True)
 np.save(fullpath, Y_ref)
 
 # --- Trainings R2 Werte
-r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
-r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
-r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
+r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 0], preds_train_TCN[:, 0], is_Pearson=True)
+r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 1], preds_train_TCN[:, 1], is_Pearson=True)
+r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 2], preds_train_TCN[:, 2], is_Pearson=True)
 
 # --- Eval Metrics (wie früher)
 print("Pre-filtering Eval Metrics (TCN)!!")
