@@ -759,9 +759,9 @@ if cfg.settings.advanced_pipeline:
     mov_val_onehot   = encoder_mov.transform(mov_val)
 
     # #? Add categorical features to the input sets
-    #X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
-    #X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
-    #X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
+    X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
+    X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
+    X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
 
 #? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
@@ -773,18 +773,27 @@ Y_train[:] = Y_train[perm]
 
 # --- set global seed ---
 seed_arr = [1]
+
 r2_e_arr = []
 r2_sf_arr = []
 r2_ss_arr = []
 
+# for prefiltering
 rho_e_arr = []
 rho_sf_arr = []
 rho_ss_arr = []
- 
-perf_res_e_arr = []
-perf_res_sf_arr = []
-perf_res_ss_arr = []
 
+# for postfiltering
+rho_e_arr_pf = []
+r2_e_arr_pf = []
+
+rho_sf_arr_pf = []
+r2_sf_arr_pf = []
+
+r2_ss_arr_pf = []
+rho_ss_arr_pf = []
+
+# for timings
 time_train = []
 time_prediction = []
 
@@ -938,14 +947,22 @@ fullpath = save_dir / f"ref_data.npy"
 fullpath.parent.mkdir(parents=True, exist_ok=True)
 np.save(fullpath, Y_ref)
 
+print("##########################################################################################")
 # --- Trainings R2 Werte
-r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 0], preds_train_TCN[:, 0], is_Pearson=True)
-r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 1], preds_train_TCN[:, 1], is_Pearson=True)
-r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 2], preds_train_TCN[:, 2], is_Pearson=True)
+r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_train[:, 0], preds_train_TCN[:, 0], is_Pearson=True)
+r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_train[:, 1], preds_train_TCN[:, 1], is_Pearson=True)
+r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_train[:, 2], preds_train_TCN[:, 2], is_Pearson=True)
+
+print("Training Eval Metrics (TCN)!!")
+print(f"Elbow R2 Train: {r2_elbow_t}")
+print(f"Front R2 Train: {r2_front_t}")
+print(f"Side R2 Train: {r2_side_T}\n")
 
 
-
-# --- Eval Metrics (wie früher)
+# ! ************************************************
+# ! Pre-filtering Eval Metrics
+# ! ************************************************
+print("##########################################################################################")
 print("Pre-filtering Eval Metrics (TCN)!!")
 r2_elbow, rmse_elbow, rho_elbow = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
 r2_front, rmse_front, rho_front = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
@@ -959,10 +976,24 @@ rho_sf_arr.append(rho_front)
 
 r2_ss_arr.append(r2_side)
 rho_ss_arr.append(rho_side)
+'''
+print("The results across seed are...\n")
+print(f"Elbow R2: {r2_e_arr}")
+print(f"Front R2: {r2_sf_arr}")
+print(f"Side R2: {r2_ss_arr}\n")
+'''
+print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
+print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
+print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
+'''
+print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
+print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
+print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
+'''
+# ! ************************************************
+# ! Post-filtering Eval Metrics
+# ! ************************************************
 
-# ! ************************************************
-# ! Post-prediction Filtering (manuell, da MLP_model.applyFilter_prediction entfällt)
-# ! ************************************************
 # Median filter
 if cfg.post_train_param.filter_type == 'median':
     for i in range(3):
@@ -976,6 +1007,8 @@ if getattr(cfg.post_train_param, 'savgol_window_len', None) is not None:
                                                cfg.post_train_param.savgol_poly_order)
 np.save(f"{save_dir}/pred_results_seed{seed}.npy", perf_results_TCN)
 
+print("##########################################################################################")
+print("ALL RESULTS WITH POST-FILTERING")
 # Post-filter Eval
 print("Post-filtering Eval Metrics (TCN)!!")
 r2_elbow_pf, rmse_elbow_pf, rho_elbow_pf = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0],
@@ -984,32 +1017,29 @@ r2_front_pf, rmse_front_pf, rho_front_pf = MLModel.calculateEvalMetrics(Y_ref[:,
                                                                         is_Pearson=True)
 r2_side_pf, rmse_side_pf, rho_side_pf = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2],
                                                                      is_Pearson=True)
+r2_e_arr_pf.append(r2_elbow_pf)
+rho_e_arr_pf.append(rho_elbow_pf)
 
-r2_e_arr.append(r2_elbow)
-rho_e_arr.append(rho_elbow)
-perf_res_e_arr.append(perf_results_TCN[:, 0])
+r2_sf_arr_pf.append(r2_front_pf)
+rho_sf_arr_pf.append(rho_front_pf)
 
-r2_sf_arr.append(r2_front)
-rho_sf_arr.append(rho_front)
-perf_res_sf_arr.append(perf_results_TCN[:, 1])
-
-r2_ss_arr.append(r2_side)
-rho_ss_arr.append(rho_side)
-perf_res_ss_arr.append(perf_results_TCN[:, 2])
-
-
+r2_ss_arr_pf.append(r2_side_pf)
+rho_ss_arr_pf.append(rho_side_pf)
+'''
 print("The results across seed are...\n")
-#print(f"Elbow R2: {r2_e_arr}")
-#print(f"Front R2: {r2_sf_arr}")
-#print(f"Side R2: {r2_ss_arr}\n")
-
-print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
-print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
-print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
-
+print(f"Elbow R2: {r2_e_arr_pf}")
+print(f"Front R2: {r2_sf_arr_pf}")
+print(f"Side R2: {r2_ss_arr_pf}\n")
+'''
+print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr_pf)}  Std. : {np.std(r2_e_arr_pf)}")
+print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr_pf)}  Std. : {np.std(r2_sf_arr_pf)}")
+print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr_pf)}  Std. : {np.std(r2_ss_arr_pf)}\n")
+'''
 print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
+'''
+
 
 # Ausgabe der Datenshapes
 print("TRAIN DATA Shape: ", X_train.shape)
@@ -1075,8 +1105,6 @@ if cfg.model_param.load_models == False:
 time_prediction_mean = np.mean(time_prediction)
 time_prediction_std = np.std(time_prediction)
 print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
-
-
 
 '''
 Data Visualization
