@@ -661,16 +661,18 @@ for wgt_idx, wgt in enumerate(weights):
         #? Scale output features -> [-1,1] for tanh
         print(Y_train.shape, " A ", Y_test.shape, " A ", Y_val.shape)
 
-        Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train, 
-                                                                        test_data=Y_test, 
-                                                                        val_data=Y_val, 
-                                                                        method="MinMaxScaler",
-                                                                        feature_range=(-1,1))
+        if cfg.settings.yscaler:
+            Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train,
+                                                                            test_data=Y_test,
+                                                                            val_data=Y_val,
+                                                                            method="MinMaxScaler",
+                                                                            feature_range=(-1,1))
 
         start_idx = current_idx
         end_idx = current_idx + Y_test.shape[0]
 
-        Y_scaler_dict[wgt][mov] = Y_scaler
+        if cfg.settings.yscaler:
+            Y_scaler_dict[wgt][mov] = Y_scaler
         Y_scaler_info.append((wgt, mov, start_idx, end_idx))
         current_idx = end_idx
 
@@ -916,11 +918,13 @@ for wgt, mov, start_idx, end_idx in Y_scaler_info:
     Y_pred_scaled = perf_results_TCN_scaled[start_idx:end_idx]
 
     scaler = Y_scaler_dict[wgt][mov]
-    Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
-    perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
-    # if y_scaler is not used, use below!
-    #Y_ref.append(Y_ref_scaled)
-    #perf_results_TCN.append(Y_pred_scaled)
+    if cfg.settings.yscaler:
+        Y_ref.append(scaler.inverse_transform(Y_ref_scaled))
+        perf_results_TCN.append(scaler.inverse_transform(Y_pred_scaled))
+    else:
+        # if y_scaler is not used, use below!
+        Y_ref.append(Y_ref_scaled)
+        perf_results_TCN.append(Y_pred_scaled)
 
 Y_ref = np.concatenate(Y_ref, axis=0)
 perf_results_TCN = np.concatenate(perf_results_TCN, axis=0)
@@ -938,6 +942,8 @@ np.save(fullpath, Y_ref)
 r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 0], preds_train_TCN[:, 0], is_Pearson=True)
 r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 1], preds_train_TCN[:, 1], is_Pearson=True)
 r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 2], preds_train_TCN[:, 2], is_Pearson=True)
+
+
 
 # --- Eval Metrics (wie früher)
 print("Pre-filtering Eval Metrics (TCN)!!")
@@ -993,9 +999,9 @@ perf_res_ss_arr.append(perf_results_TCN[:, 2])
 
 
 print("The results across seed are...\n")
-print(f"Elbow R2: {r2_e_arr}")
-print(f"Front R2: {r2_sf_arr}")
-print(f"Side R2: {r2_ss_arr}\n")
+#print(f"Elbow R2: {r2_e_arr}")
+#print(f"Front R2: {r2_sf_arr}")
+#print(f"Side R2: {r2_ss_arr}\n")
 
 print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
 print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
