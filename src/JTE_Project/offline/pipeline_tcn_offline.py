@@ -767,6 +767,8 @@ if cfg.settings.advanced_pipeline:
 perm = np.random.permutation(X_train.shape[0])
 X_train[:] = X_train[perm]
 Y_train[:] = Y_train[perm]
+
+
 #! ************************************************
 #! Train, Load, or Test Model
 #! ************************************************
@@ -804,16 +806,24 @@ for seed in seed_arr:
     tf.config.experimental.enable_op_determinism()
 
     # ---------------------------
-    # Replace MLP training with TCN training (minimal changes)
+    # Reshaping the input vector for the model training
     # ---------------------------
-
-    neurons_inp = X_train.shape[1]
-
-    # reshape existing 2D feature vectors -> 3D for Conv1D:
-    # time dimension = neurons_inp, channels = 1 (minimal change so rest of pipeline unchanged)
+    ''' Old implementation (uses a 50 x 8 combination, so a mix of time and space as one single timeseries for the model)
+    neurons_inp = X_train.shape[1] # (11044,400) --> (400)
     X_train_cnn = X_train.reshape((-1, neurons_inp, 1))
     X_val_cnn = X_val.reshape((-1, neurons_inp, 1))
     X_test_cnn = X_test.reshape((-1, neurons_inp, 1))
+    
+    '''
+
+    # New Implementation: For TCN: (Batch_Size, Timepoints per Window, 8 channels)
+    neurons_inp = X_train.shape[1] # (11044,400) --> (400)
+    n_channels = 8
+    n_timpoints = int(neurons_inp / n_channels) # (400 / 8) --> (50) like the window size !
+
+    X_train_cnn = X_train.reshape((-1, n_timpoints, n_channels))
+    X_val_cnn = X_val.reshape((-1, n_timpoints, n_channels))
+    X_test_cnn = X_test.reshape((-1, n_timpoints, n_channels))
 
     # --- Preserve existing huber/weight logic from your script: compute weights_inp ---
     if cfg.model_param.huber_weight_method == 'var':
@@ -824,9 +834,6 @@ for seed in seed_arr:
         weights_inp = np.clip(weights_inp, min_weight, max_weight)
         weights_inp = weights_inp / np.mean(weights_inp)
     elif cfg.model_param.huber_weight_method == 'smooth_var':
-        # the original uses MLP_model.getSmoothVarWeights; replicate previous behaviour if needed
-        # fallback: call the helper from MLModel (static method) if available:
-        # Note: original code used MLP_model.getSmoothVarWeights -> here we call MLModel.getSmoothVarWeights
         weights_inp = MLModel.getSmoothVarWeights(y_train=Y_train,
                                                     clip_percentile=[5, 75],
                                                     window_len=5,
@@ -847,10 +854,13 @@ for seed in seed_arr:
 
         time_train_start = time.perf_counter()
 
-        input_shape_time = (neurons_inp, 1)
+        # For use with old implementation (neurons_inp)
+        #input_shape_time = (neurons_inp, 1)
+        # New implementation
+        input_shape_time = (n_timpoints, n_channels)
+
         tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
 
-        # choose loss function similar to previous pipeline (if cfg.model_param.loss_fcn contains 'huber' use Huber)
         if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
             loss_fn = tf.keras.losses.Huber()
         else:
