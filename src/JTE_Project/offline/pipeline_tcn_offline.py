@@ -893,10 +893,6 @@ for seed in seed_arr:
 
         tcn_model = load_model(os.path.join(save_model_path, "tcn_model551.keras"), compile=False)
 
-
-    # --- Ausgabe der Testdaten Shape ---
-    print("TEST DATA Shape: ", X_test_cnn.shape)
-
     # --- Predict auf Testdaten ---
     time_prediction_start = time.perf_counter()
 
@@ -905,6 +901,10 @@ for seed in seed_arr:
 
     time_prediction_end = time.perf_counter()
     time_prediction.append(time_prediction_end - time_prediction_start)
+
+    # -- Test der Trainingsdaten auf das Modell ---
+    preds_training = tcn_model.predict(X_train_cnn)
+    preds_train_TCN = np.concatenate([preds_training[0], preds_training[1], preds_training[2]], axis=1)
 
 
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
@@ -933,6 +933,11 @@ save_dir = getAbsolutePath(save_dir)
 fullpath = save_dir / f"ref_data.npy"
 fullpath.parent.mkdir(parents=True, exist_ok=True)
 np.save(fullpath, Y_ref)
+
+# --- Trainings R2 Werte
+r2_elbow_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 0], perf_results_TCN[:, 0], is_Pearson=True)
+r2_front_t, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 1], perf_results_TCN[:, 1], is_Pearson=True)
+r2_side_T, _, _ = MLModel.calculateEvalMetrics(Y_ref[:, 2], perf_results_TCN[:, 2], is_Pearson=True)
 
 # --- Eval Metrics (wie früher)
 print("Pre-filtering Eval Metrics (TCN)!!")
@@ -1000,12 +1005,13 @@ print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_ar
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
 
-# Timings
+# Ausgabe der Datenshapes
 print("TRAIN DATA Shape: ", X_train.shape)
 print("VAL DATA Shape: ", X_val.shape)
 print("TEST DATA Shape: ", X_test.shape)
 
-
+'''
+# Printing Model Parameters (Size on GPU etc.)
 if tf.config.list_physical_devices('GPU'):
   # Returns a dict in the form {'current': <current mem usage>,
   #                             'peak': <peak mem usage>}
@@ -1030,8 +1036,9 @@ print('=' * 50)
 print(f"Peak GPU Memory usage:  {gpu_mem['peak']/1e6 :.2f} MB")
 
 print('=' * 50)
+'''
 
-
+# Timings
 print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
 
 print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
@@ -1066,6 +1073,7 @@ print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_s
 
 
 '''
+Data Visualization
 def calculate_metrics(y_true, y_pred):
     """Berechnet RMSE, R² und Pearson-Korrelationskoeffizient."""
     rmse = np.sqrt(np.mean((y_true - y_pred)**2))
@@ -1100,6 +1108,8 @@ plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
 '''
 
+'''
+# For saving the Y-Scaler if needed
 try:
     scaler_save_path = save_model_path / "Y_scaler.pkl"
 
@@ -1111,3 +1121,4 @@ try:
 
 except Exception as e:
     print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")
+    '''

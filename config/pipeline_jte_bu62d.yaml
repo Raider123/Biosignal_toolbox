@@ -67,7 +67,7 @@
     batch_size:               1024
 
     loss_fcn:                 'weighted_huber'
-    huber_weight_method:      'var' # manual was very good so far (weighing the elbow and front more than side)
+    huber_weight_method:      'manual' # manual was very good so far (weighing the elbow and front more than side)
     huber_deltas:             [0.25, 0.35, 0.2]
     optimizer:                'nadam'
     metrics:                  'mse'
