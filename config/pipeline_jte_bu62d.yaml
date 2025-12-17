@@ -63,8 +63,8 @@
     
   
   model_param:
-    n_epochs:                 100
-    batch_size:               1024
+    n_epochs:                 300
+    batch_size:               32
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'manual' # manual was very good so far (weighing the elbow and front more than side)
@@ -72,7 +72,8 @@
     optimizer:                'nadam'
     metrics:                  'mse'
 
-    train_test_split:         0.90
+    train_test_split:         0.9 
+    k_fold_splits:            10
     validation_split:         0.15
 
     is_early_stop:            True
