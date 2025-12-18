@@ -38,7 +38,6 @@ from tensorflow.keras import Input, layers, models, optimizers
 # Für Post-Filter (nutze SciPy falls vorhanden)
 from scipy.signal import medfilt, savgol_filter
 
-
 #! ************************************************
 #! User Parameters and Data Collection
 #! ************************************************
@@ -47,55 +46,102 @@ from scipy.signal import medfilt, savgol_filter
 if tf.config.list_physical_devices('GPU'):
     tf.config.experimental.reset_memory_stats('GPU:0')
 
+import tensorflow as tf
+from tensorflow.keras import layers, models, Input
+
 
 def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
+    """
+    Builds a Temporal Convolutional Network (TCN) for multi-task torque estimation.
 
-    inputs = []
-    branches = []
+    This model uses dilated causal convolutions to learn temporal patterns from EMG
+    signals without looking into the future (causal), making it suitable for
+    real-time applications.
 
-    # Zeit-Pfad (TCN)
+    Args:
+        input_shape_time (tuple): Shape of input data (TimeSteps, Channels).
+        filters (int): Number of filters (feature maps) in convolutional layers.
+        stacks (int): Number of residual blocks. Determines the 'memory' (receptive field).
+        dropout_rate (float): Spatial dropout rate for regularization (0.0 - 1.0).
+        kernel_size (int): Length of the temporal convolution kernel.
+
+    Returns:
+        tf.keras.Model: A compiled Keras functional model with 3 output heads.
+    """
+
+    # ---------------------------------------------------------
+    # 1. Input Layer
+    # ---------------------------------------------------------
+    # Expects shape: (Batch, TimeSteps, Channels)
+    # e.g., (None, 50, 8) for 50 samples history and 8 muscles.
     inp_time = Input(shape=input_shape_time, name='emg_input')
     x = inp_time
 
+    # ---------------------------------------------------------
+    # 2. TCN Backbone (Temporal Feature Extraction)
+    # ---------------------------------------------------------
+    # We stack multiple residual blocks. Each block looks further back in time
+    # due to the increasing dilation rate (1, 2, 4, 8...).
     for s in range(stacks):
-        d = 2 ** s  # Dilatation: 1,2,4,8,...
+        dilation_rate = 2 ** s  # Exponential dilation: 1, 2, 4, 8...
+
+        # --- Start of Residual Block ---
+        # Save the input 'x' for the residual connection later
+        residual = x
+
+        # -- First Convolution Layer --
+        # 'causal' padding ensures we only use past data (no future peeking).
         y = layers.Conv1D(filters,
                           kernel_size,
                           padding='causal',
-                          dilation_rate=d,
+                          dilation_rate=dilation_rate,
                           kernel_initializer='he_normal')(x)
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
-        y = layers.SpatialDropout1D(dropout_rate)(y)
+        y = layers.SpatialDropout1D(dropout_rate)(y)  # Drops entire feature maps
 
+        # -- Second Convolution Layer --
         y = layers.Conv1D(filters,
                           kernel_size,
                           padding='causal',
-                          dilation_rate=d,
+                          dilation_rate=dilation_rate,
                           kernel_initializer='he_normal')(y)
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
 
-        # Residual-Shortcut ggf. an Kanäle anpassen
-        if x.shape[-1] != filters:
-            x = layers.Conv1D(filters, 1, padding='same',
-                              kernel_initializer='he_normal')(x)
+        # -- Residual Connection (Skip Connection) --
+        # If the number of filters changed (or at the first block), project 'x'
+        # to match the shape of 'y' using a 1x1 convolution.
+        if residual.shape[-1] != filters:
+            residual = layers.Conv1D(filters, 1, padding='same',
+                                     kernel_initializer='he_normal')(residual)
 
-        x = layers.add([x, y])
+        # Add the original input to the processed output (ResNet principle)
+        x = layers.add([residual, y])
+        # --- End of Residual Block ---
 
-    # Seq-to-one Readout
-    x = layers.GlobalAveragePooling1D()(x)
-    inputs.append(inp_time)
-    branches.append(x)
+    # ---------------------------------------------------------
+    # 3. Readout (Temporal Aggregation)
+    # ---------------------------------------------------------
+    # We strictly take only the LAST time step.
+    # Because of causal padding and dilation, this last step effectively
+    # contains the aggregated information of the entire input window.
+    x = layers.Lambda(lambda t: t[:, -1, :], name='last_step_readout')(x)
 
-    combined = branches[0]
-    combined = layers.Dense(64, activation="relu")(combined)
+    # ---------------------------------------------------------
+    # 4. Dense Layers & Multi-Task Output
+    # ---------------------------------------------------------
+    # High-level feature processing
+    combined = layers.Dense(64, activation="relu")(x)
     combined = layers.Dropout(dropout_rate)(combined)
 
+    # Output Heads: One regression output for each joint torque
     out_e = layers.Dense(1, name='torque_elbow')(combined)
     out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
     out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
-    return models.Model(inputs, [out_e, out_f, out_s], name="MTL_TCN")
+
+    return models.Model(inputs=inp_time, outputs=[out_e, out_f, out_s], name="MTL_TCN")
+
 
 time_preproc = 0
 time_feat = 0
@@ -808,13 +854,6 @@ for seed in seed_arr:
     # ---------------------------
     # Reshaping the input vector for the model training
     # ---------------------------
-    ''' Old implementation (uses a 50 x 8 combination, so a mix of time and space as one single timeseries for the model)
-    neurons_inp = X_train.shape[1] # (11044,400) --> (400)
-    X_train_cnn = X_train.reshape((-1, neurons_inp, 1))
-    X_val_cnn = X_val.reshape((-1, neurons_inp, 1))
-    X_test_cnn = X_test.reshape((-1, neurons_inp, 1))
-    
-    '''
 
     # New Implementation: For TCN: (Batch_Size, Timepoints per Window, 8 channels)
     neurons_inp = X_train.shape[1] # (11044,400) --> (400)
@@ -847,18 +886,14 @@ for seed in seed_arr:
 
     if cfg.model_param.load_models == False:
         # --- Build TCN model ---
-        filters = 32
-        stacks = 2
-        dropout_rate = 0.10
-        kernel_size = 3
-
+        filters = 64 # 32
+        stacks = 4 # 2
+        dropout_rate = 0.2 # 0.1
+        kernel_size = 5 # 3
+        # receptive field calculation!
         time_train_start = time.perf_counter()
 
-        # For use with old implementation (neurons_inp)
-        #input_shape_time = (neurons_inp, 1)
-        # New implementation
         input_shape_time = (n_timpoints, n_channels)
-
         tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
 
         if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
@@ -912,7 +947,7 @@ for seed in seed_arr:
 
         save_model_path = getAbsolutePath("src/JTE_Project/offline/saved_offline_models")
 
-        tcn_model = load_model(os.path.join(save_model_path, "tcn_model551.keras"), compile=False)
+        tcn_model = load_model(os.path.join(save_model_path, "tcn_model.keras"), compile=False)
 
     # --- Predict auf Testdaten ---
     time_prediction_start = time.perf_counter()
