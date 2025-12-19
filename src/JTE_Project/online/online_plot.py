@@ -4,11 +4,13 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from scipy.stats import pearsonr
 
-directory = 'tcn_zerophase_no_standard'
 
-all_preds = np.load(getAbsolutePath(f"src/JTE_Project/online/online_results/all_predictions.npy"))
-all_times = np.load(getAbsolutePath(f"src/JTE_Project/online/online_results/all_times.npy"))
-all_torques = np.load(getAbsolutePath(f"src/JTE_Project/online/online_results/all_torques.npy"))
+all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_predictions.npy")))
+all_times = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_times.npy")))
+all_torques = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_torques.npy")))
+
+# Clip Values that are NAN to 0
+all_preds[np.isnan(all_preds)] = 0
 
 print(all_preds.shape)
 print(all_torques.shape)

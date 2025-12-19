@@ -4,6 +4,7 @@ import zmq
 import time
 import os
 import copy
+import pandas as pd
 import numpy as np
 import tensorflow as tf
 import joblib
@@ -40,7 +41,7 @@ class LiveEstimation:
         print('Loaded the config file!')
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy"))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
         print("Loaded channelwise mvc file")
 
         self.advanced_feature_extraction = False
@@ -52,7 +53,7 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model_timpt.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
 
         # Loading the Y-scaler
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
@@ -61,18 +62,23 @@ class LiveEstimation:
         self.scaler_file = y_scaler['1100g']['grasp']
 
         # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy"))
-        Y_f = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front.npy"))
-        Y_s = np.load(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side.npy"))
+        Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy")))
+        Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front.npy")))
+        Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side.npy")))
         Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
-        y_ref_length = int(Y_ref_raw.shape[0] / self.batch_size)
+        # Trim the Reference Torque to the EMG file size!
+        # Load the emg file (just for length of the file)
+        emg_file = getAbsolutePath("src/JTE_Project/online/resources/publisher/24072025_BU62D_1100g_complex_2.txt")
+        df = pd.read_csv(emg_file, sep=" ", header=None)
+        df = df.drop(df.columns[0], axis=1)
+        emg_max_rows = df.shape[0] - 1
+
+        # e.g. emg sample size: 41.000 and 50 samples every 100ms, means 820 predictions in total
+        y_ref_length = int(emg_max_rows / self.batch_size)
         self.Y_ref = self.downsample_mean_bins(Y_ref_raw, y_ref_length)
 
-        # print("Shape Yref ", Y_ref.shape)
-        # print("Shape Yref downsampled ", Y_ref_ds.shape)
-        # plt.plot(Y_ref_ds[:,0])
-        # plt.show()
+        print("y_ref_length: ", y_ref_length)
 
         # EMG 8 channel names
         self.channel_names = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -116,7 +122,7 @@ class LiveEstimation:
         self.elapsed_times = []  # speichert die Zeitachse
 
         # Note that if enabled, the prediction is slower than in a real time scenario
-        self.show_prediction_plot = True
+        self.show_prediction_plot = False
 
         if self.show_prediction_plot:
             self.setup_plot()
@@ -217,6 +223,7 @@ class LiveEstimation:
             feature_type="timepoints",
             feature_indices_windows=feature_indices_windows_x
         )
+
         if self.advanced_feature_extraction:
             # Time domain features
             n_channels = len(self.channel_names)
@@ -267,9 +274,16 @@ class LiveEstimation:
             )
             self.EMG_live.addFeatures(peak_detection)
 
-        self.features = self.EMG_live.getFeatures()
-        # print(f"Total EMG features extracted: {self.features.shape}")
         # print("Feature extraction completed!\n")
+        self.features = self.EMG_live.getFeatures()
+
+        #print("Self.features pre reshaping!: ", self.features.shape)
+
+        # Reshape for CNN/TCN input: (samples, features, channels)
+        n_features = self.features.shape[1]
+        n_channels = 8
+        n_timepoints = int(n_features / n_channels)
+        self.features = self.features.reshape((-1, n_timepoints, n_channels))
 
     def apply_scaler(self):
         arr = self.features.flatten()
@@ -296,12 +310,8 @@ class LiveEstimation:
        np.ndarray
            Predicted torques for [elbow, shoulder_front, shoulder_side]
        """
-        # create local copy
-        features = self.features
 
-        # Reshape for CNN/TCN input: (samples, features, channels)
-        n_features = features.shape[1]
-        features_cnn = features.reshape((-1, n_features, 1))
+        features_cnn = self.features
 
         # print(f"Input shape for model: {features_cnn.shape}")
         # Predict
@@ -393,26 +403,29 @@ class LiveEstimation:
     def save_all_predictions(self, filename="all_predictions.npy"):
         list_of_2d_arrays = [np.atleast_2d(arr) for arr in self.all_predictions]
         all_preds = np.concatenate(list_of_2d_arrays, axis=0)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy"), all_preds)
+        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy")), all_preds)
 
     def save_torques(self):
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy"), self.Y_ref)
+        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy")), self.Y_ref)
 
     def save_elapsed_times(self):
         elapsed_time_np = np.array(self.elapsed_times)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/all_times.npy"), elapsed_time_np)
+        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_times.npy")), elapsed_time_np)
 
     def save_emg_vals(self):
         all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/bandpass_online.npy"), all_emgs)
+        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/bandpass_online.npy")), all_emgs)
         print("Save EMG Shape: ", all_emgs.shape)
 
     def update_loop(self):
         # len(self.elapsed_times) * self.batch_size < 500: # Iterate exactly over 500 samples
         # len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
         while len(self.elapsed_times) < self.Y_ref.shape[0]:  # One complete runthrough
+            update_read_time = time.perf_counter()
             # Read emg data from the stream
             self.read_emg_batch()
+            end_read_time = time.perf_counter() - update_read_time
+            print(f"EMG BATCH: {end_read_time * 1000:.1f} ms")
 
             # Start the time measurement (self.read_emg_batch waits for 50 new samples, approx 65ms duration)
             update_start_time = time.perf_counter()
@@ -457,6 +470,7 @@ class LiveEstimation:
 
             # convert filtered data into window
             self.EMG_live.bufferToWindows()
+
             if self.advanced_feature_extraction:
                 self.EMG_live_freq.bufferToWindows()
 
@@ -477,14 +491,21 @@ class LiveEstimation:
             else:
                 # Regular prediction pipeline
                 self.extract_features()
+                #print("features: ", self.features.shape)
+
                 #self.apply_scaler() # Applying the y scaler
+
                 self.predict()
+                #self.predictions = self.predictions[-1, :]
+                #print("output shape: ", self.predictions.shape)
+                #print("Predictions: ", self.predictions)
+
                 #self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
                 self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
 
                 # Printing the Timings
                 update_time_step = time.perf_counter() - update_start_time
-                print(f"{update_time_step * 1000:.1f} ms")
+                print(f"Pipeline Time Step: {update_time_step * 1000:.1f} ms")
 
                 self.current_time = self.current_time + update_time_step
                 self.elapsed_times.append(self.current_time)

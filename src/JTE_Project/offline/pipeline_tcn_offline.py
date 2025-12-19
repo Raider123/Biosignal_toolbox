@@ -247,9 +247,16 @@ meta_list_val = []
 current_idx = 0
 
 channel_cum_mvc = []
+#loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
+        #######
+        # if certain emg files are excluded, the script will not crash (allows for singular files)
+        if not emg_table[wgt_idx][mov_idx]:
+            print(f"WARNUNG: Keine EMG-Dateien gefunden für Gewicht: {wgt}, Bewegung: {mov}. Überspringe...")
+            continue
+        #######
         time_preproc_start = time.perf_counter()
 
         #? Loading and epoching for training   
@@ -349,20 +356,26 @@ for wgt_idx, wgt in enumerate(weights):
                                 ylabel="Voltage in uV", 
                                 is_grid_on=True)
 
-        #? Input Normalisation
+
         print("Calculating the channel-wise MVC for EMG...")
         channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1,1)
+
+        #if cfg.model_param.load_models:
+        #    channelwise_mvc = loaded_mvc.reshape(8, 1)
+
         # For storing the numpy file (online case)
         c_mvc_cum = np.max(np.abs(EMG_Data.data), axis=1)
         channel_cum_mvc.append(c_mvc_cum)
 
         print("Performing Input Normalization with Max Voluntary Contraction ...")
+
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
             EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc))
         elif cfg.preprocess_param.normalisation_method == 'channel_wise_mvc':
             EMG_Data.normalizeContinuousData(mvc=channelwise_mvc)
         else:
             warnings.warn("This method is not yet implemented!! Omitting!")
+
         print("Input Normalization with Max Voluntary Contraction performed!!\n")
 
         #? Low pass filter to smoothen the EMG signal
@@ -737,9 +750,10 @@ for wgt_idx, wgt in enumerate(weights):
 ## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
-np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")), channel_max)
-
-
+'''
+if cfg.model_param.load_models == False:
+    np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")), channel_max)
+'''
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
 
