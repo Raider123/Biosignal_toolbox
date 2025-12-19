@@ -46,9 +46,6 @@ from scipy.signal import medfilt, savgol_filter
 if tf.config.list_physical_devices('GPU'):
     tf.config.experimental.reset_memory_stats('GPU:0')
 
-import tensorflow as tf
-from tensorflow.keras import layers, models, Input
-
 
 def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
     """
@@ -637,10 +634,11 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
 
+        #? Get the input features from EMG_Data
+        input_features = EMG_Data.getFeatures()
+
         #? Merge output features
         target_features = np.concatenate([Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
-
-        input_features = EMG_Data.getFeatures()
 
         #? Print input feature and target feature length
         print(f"Input feature shape (pre-merge): {EMG_Data.getFeatures().shape}")
@@ -739,7 +737,7 @@ for wgt_idx, wgt in enumerate(weights):
 ## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
-np.save(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy"), channel_max)
+np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")), channel_max)
 
 
 X_train = np.concatenate(X_train_combined, axis=0)
@@ -1087,9 +1085,9 @@ print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_a
 
 
 # Ausgabe der Datenshapes
-print("TRAIN DATA Shape: ", X_train.shape)
-print("VAL DATA Shape: ", X_val.shape)
-print("TEST DATA Shape: ", X_test.shape)
+print("TRAIN DATA Shape: ", X_train_cnn.shape)
+print("VAL DATA Shape: ", X_val_cnn.shape)
+print("TEST DATA Shape: ", X_test_cnn.shape)
 
 '''
 # Printing Model Parameters (Size on GPU etc.)
@@ -1151,8 +1149,8 @@ time_prediction_mean = np.mean(time_prediction)
 time_prediction_std = np.std(time_prediction)
 print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
 
-'''
-Data Visualization
+
+#Data Visualization
 def calculate_metrics(y_true, y_pred):
     """Berechnet RMSE, R² und Pearson-Korrelationskoeffizient."""
     rmse = np.sqrt(np.mean((y_true - y_pred)**2))
@@ -1185,7 +1183,7 @@ plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
 
 plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
-'''
+
 
 '''
 # For saving the Y-Scaler if needed
