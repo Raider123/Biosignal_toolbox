@@ -41,7 +41,7 @@ class LiveEstimation:
         print('Loaded the config file!')
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_oh.npy")))
         print("Loaded channelwise mvc file")
 
         self.advanced_feature_extraction = False
@@ -53,13 +53,13 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model_oh.keras'))
 
         # Loading the Y-scaler
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
         print("Loading Y_Scaler succesful.")
         # Select correct Scaler File
-        self.scaler_file = y_scaler['1100g']['grasp']
+        self.scaler_file = y_scaler['1100g']['complex']
 
         # Load Torque Values (ground truth, only in prediction plot)
         Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy")))
@@ -74,10 +74,36 @@ class LiveEstimation:
         df = df.drop(df.columns[0], axis=1)
         emg_max_rows = df.shape[0] - 1
 
+        # Hardcoded but later derive OHE (one-hot-coded features from read emg_file!)
+        current_weight = '1100g'
+        current_move = 'complex'
+
+        print(f"Session Config: Weight={current_weight}, Move={current_move}")
+
+        # Weight Vector: [0g, 1100g, 1850g]
+        if current_weight == '0g':
+            vec_w = [1, 0, 0]
+        elif current_weight == '1100g':
+            vec_w = [0, 1, 0]
+        elif current_weight == '1850g':
+            vec_w = [0, 0, 1]
+        else:
+            vec_w = [0, 0, 0]  # Fehlerfall
+
+        # Move Vector: [grasp, complex]
+        if current_move == 'grasp':
+            vec_m = [1, 0]
+        elif current_move == 'complex':
+            vec_m = [0, 1]
+        else:
+            vec_m = [0, 0]
+
+        self.static_ohe_vector = np.concatenate([vec_w, vec_m])
+        print(f"Static OHE Vector: {self.static_ohe_vector}")
+
         # e.g. emg sample size: 41.000 and 50 samples every 100ms, means 820 predictions in total
         y_ref_length = int(emg_max_rows / self.batch_size)
         self.Y_ref = self.downsample_mean_bins(Y_ref_raw, y_ref_length)
-
         print("y_ref_length: ", y_ref_length)
 
         # EMG 8 channel names
@@ -298,34 +324,16 @@ class LiveEstimation:
         self.scaler_file.inverse_transform(self.predictions)
 
     def predict(self):
-        """
-       Process EMG file and predict joint torques.
+        cnn_in = self.features  # (Batch, 50, 8)
+        static_in = static_in = np.tile(self.static_ohe_vector, (cnn_in.shape[0], 1))  # (Batch, 5)
 
-       Parameters
-       ----------
-       data_array : Preloaded EMG Data (cf. EMGData class in emg_lib.py)
-
-       Returns
-       -------
-       np.ndarray
-           Predicted torques for [elbow, shoulder_front, shoulder_side]
-       """
-
-        features_cnn = self.features
-
-        # print(f"Input shape for model: {features_cnn.shape}")
-        # Predict
-        x = tf.convert_to_tensor(features_cnn)
-        preds = self.model(x,
-                           training=False)  # using a direct model call vs self.model.predict() cuts time expense in half
+        # Not implemented: Use a list of tensors (much faster on GPUs)
+        preds = self.model([cnn_in, static_in], training=False)
 
         # Concatenate multi-task outputs: [elbow, front, side]
         self.predictions = np.concatenate(
             [preds[0], preds[1], preds[2]], axis=1
         )
-
-        # print(f"Predictions shape: {self.predictions.shape}")
-        # print("Model prediction completed!\n")
 
         return self.predictions
 
@@ -491,10 +499,6 @@ class LiveEstimation:
             else:
                 # Regular prediction pipeline
                 self.extract_features()
-                #print("features: ", self.features.shape)
-
-                #self.apply_scaler() # Applying the y scaler
-
                 self.predict()
                 #self.predictions = self.predictions[-1, :]
                 #print("output shape: ", self.predictions.shape)

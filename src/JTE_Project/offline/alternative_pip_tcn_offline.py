@@ -904,12 +904,15 @@ if cfg.settings.advanced_pipeline:
     wgt_val, mov_val = EMG_Data.convertMetaToArray(meta_list_val)
     wgt_test, mov_test = EMG_Data.convertMetaToArray(meta_list_test)
 
-    encoder_wgt = OneHotEncoder(sparse_output=False)
+    weights_categories = [['0g', '1100g', '1850g']]
+    moves_categories = [['grasp', 'complex']]
+
+    encoder_wgt = OneHotEncoder(sparse_output=False, categories=weights_categories)
     wgt_train_onehot = encoder_wgt.fit_transform(wgt_train)
     wgt_test_onehot = encoder_wgt.transform(wgt_test)
     wgt_val_onehot = encoder_wgt.transform(wgt_val)
 
-    encoder_mov = OneHotEncoder(sparse_output=False)
+    encoder_mov = OneHotEncoder(sparse_output=False, categories=moves_categories)
     mov_train_onehot = encoder_mov.fit_transform(mov_train)
     mov_test_onehot = encoder_mov.transform(mov_test)
     mov_val_onehot = encoder_mov.transform(mov_val)
