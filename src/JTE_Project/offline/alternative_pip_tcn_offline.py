@@ -389,7 +389,9 @@ if not cfg.model_param.load_models:
     # 2. Determine split index (assuming time-series split as per shuffle=False later)
     # Note: Later we split features, here we split raw samples.
     # Because of windowing, this is an approximation, but strictly prevents leakage.
-    train_split_idx = int(total_samples * cfg.model_param.train_test_split)
+    # For Online we can use all of this samples mvc_split = 1, in offline: cfg.model_param.train_test_split
+    mvc_split = 1
+    train_split_idx = int(total_samples * mvc_split)
 
     # 3. Extract Training Data Portion
     emg_train_raw = all_emg_data[:, :train_split_idx]
@@ -809,13 +811,6 @@ for entry in data_containers:
         meta_list_test.extend(meta_test)
         meta_list_val.extend(meta_val)
 
-# OLD CODE (Replaced by Phase 2 Logic)
-## Storing channelwise mvc (now the mean is used) ONLINE only
-# channel_cum = np.array(channel_cum_mvc)
-# channel_max = np.mean(channel_cum,axis=0)
-# if cfg.model_param.load_models == False:
-#     np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")), channel_max)
-
 X_train = np.concatenate(X_train_combined, axis=0)
 Y_train = np.concatenate(Y_train_combined, axis=0)
 
@@ -838,7 +833,7 @@ if cfg.settings.scaling:
     import joblib
 
     # joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
-
+    
     # ? Dimensionality Reduction - PCA
     pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                                                            test_data=X_test,

@@ -247,7 +247,7 @@ meta_list_val = []
 current_idx = 0
 
 channel_cum_mvc = []
-#loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
+loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
@@ -360,8 +360,8 @@ for wgt_idx, wgt in enumerate(weights):
         print("Calculating the channel-wise MVC for EMG...")
         channelwise_mvc = np.max(np.abs(EMG_Data.data), axis=1).reshape(-1,1)
 
-        #if cfg.model_param.load_models:
-        #    channelwise_mvc = loaded_mvc.reshape(8, 1)
+        if cfg.model_param.load_models:
+            channelwise_mvc = loaded_mvc.reshape(8, 1)
 
         # For storing the numpy file (online case)
         c_mvc_cum = np.max(np.abs(EMG_Data.data), axis=1)
