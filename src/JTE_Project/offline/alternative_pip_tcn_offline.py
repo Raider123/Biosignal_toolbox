@@ -48,7 +48,7 @@ if tf.config.list_physical_devices('GPU'):
     tf.config.experimental.reset_memory_stats('GPU:0')
 
 
-def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
+def build_model_old(input_shape_time, filters, stacks, dropout_rate, kernel_size):
     """
     Builds a Temporal Convolutional Network (TCN) for multi-task torque estimation.
 
@@ -140,6 +140,58 @@ def build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size):
 
     return models.Model(inputs=inp_time, outputs=[out_e, out_f, out_s], name="MTL_TCN")
 
+
+def build_model(input_shape_time, input_shape_static, filters, stacks, dropout_rate, kernel_size):
+    """
+    Builds a TCN with dual inputs:
+    1. Time-series EMG data (processed via TCN)
+    2. Static categorical data (concatenated before Dense layers)
+    """
+
+    # --- Input 1: Time Series (EMG) ---
+    inp_time = Input(shape=input_shape_time, name='emg_input')
+    x = inp_time
+
+    # ... TCN Backbone (wie bisher) ...
+    for s in range(stacks):
+        dilation_rate = 2 ** s
+        residual = x
+        y = layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate,
+                          kernel_initializer='he_normal')(x)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+        y = layers.SpatialDropout1D(dropout_rate)(y)
+
+        y = layers.Conv1D(filters, kernel_size, padding='causal', dilation_rate=dilation_rate,
+                          kernel_initializer='he_normal')(y)
+        y = layers.ReLU()(y)
+        y = layers.LayerNormalization()(y)
+
+        if residual.shape[-1] != filters:
+            residual = layers.Conv1D(filters, 1, padding='same', kernel_initializer='he_normal')(residual)
+
+        x = layers.add([residual, y])
+
+    # Readout (Last Timestep)
+    x = layers.Lambda(lambda t: t[:, -1, :], name='last_step_readout')(x)
+
+    # --- Input 2: Static Features (One-Hot) ---
+    inp_static = Input(shape=input_shape_static, name='static_input')
+
+    # --- Merge ---
+    # Hier werden die extrahierten Zeit-Features mit den statischen Infos kombiniert
+    combined_features = layers.concatenate([x, inp_static])
+
+    # --- Dense Layers ---
+    combined = layers.Dense(64, activation="relu")(combined_features)
+    combined = layers.Dropout(dropout_rate)(combined)
+
+    # Output Heads
+    out_e = layers.Dense(1, name='torque_elbow')(combined)
+    out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
+    out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
+
+    return models.Model(inputs=[inp_time, inp_static], outputs=[out_e, out_f, out_s], name="MTL_TCN_DualInput")
 
 time_preproc = 0
 time_feat = 0
@@ -751,10 +803,8 @@ for entry in data_containers:
         X_test_cat = encoder.transform(X_test_cat)
         X_val_cat = encoder.transform(X_val_cat)
 
-        # print("Y TRAIN SHAPE: ", Y_train.shape)
-
-        # ? Creating history of features
-        history_len = 3
+        # ? Creating history of features (deactivated with 1)
+        history_len = 1
         X_train, Y_train, meta_train = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train,
                                                                             y_num=Y_train,
                                                                             x_cat=X_train_cat,
@@ -774,13 +824,6 @@ for entry in data_containers:
                                                                       history_len=history_len,
                                                                       wgt=wgt,
                                                                       mov=mov)
-
-        # print(f"{history_len} feature vectors stacked together!!")
-        # print(f"Stacked x_train feature shape: {X_train.shape}")
-        # print(f"Stacked y_train feature shape: {Y_train.shape}")
-
-    # ? Scale output features -> [-1,1] for tanh
-    # print(Y_train.shape, " A ", Y_test.shape, " A ", Y_val.shape)
 
     if cfg.settings.yscaler:
         Y_scaler, Y_train, Y_test, Y_val = EMG_Data.scaleFeatures_windows(train_data=Y_train,
@@ -871,15 +914,18 @@ if cfg.settings.advanced_pipeline:
     mov_test_onehot = encoder_mov.transform(mov_test)
     mov_val_onehot = encoder_mov.transform(mov_val)
 
-    # #? Add categorical features to the input sets
-    X_train = np.concatenate([X_train, wgt_train_onehot, mov_train_onehot], axis=1)
-    X_test = np.concatenate([X_test, wgt_test_onehot, mov_test_onehot], axis=1)
-    X_val = np.concatenate([X_val, wgt_val_onehot, mov_val_onehot], axis=1)
+    # #? Add categorical features to a NEW set of inputs (second input of the TCN)
+    X_train_static = np.concatenate([wgt_train_onehot, mov_train_onehot], axis=1)
+    X_test_static = np.concatenate([wgt_test_onehot, mov_test_onehot], axis=1)
+    X_val_static = np.concatenate([wgt_val_onehot, mov_val_onehot], axis=1)
+    print(f"Static Feature Shape: {X_train_static.shape}")
 
 # ? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
 X_train[:] = X_train[perm]
 Y_train[:] = Y_train[perm]
+if cfg.settings.advanced_pipeline:
+    X_train_static[:] = X_train_static[perm]
 
 # ! ************************************************
 # ! Train, Load, or Test Model
@@ -920,8 +966,7 @@ for seed in seed_arr:
     # ---------------------------
     # Reshaping the input vector for the model training
     # ---------------------------
-
-    # New Implementation: For TCN: (Batch_Size, Timepoints per Window, 8 channels)
+    # Implementation for TCN: (Batch_Size, Timepoints per Window, 8 channels)
     neurons_inp = X_train.shape[1]  # (11044,400) --> (400)
     n_channels = 8
     n_timpoints = int(neurons_inp / n_channels)  # (400 / 8) --> (50) like the window size !
@@ -929,6 +974,12 @@ for seed in seed_arr:
     X_train_cnn = X_train.reshape((-1, n_timpoints, n_channels))
     X_val_cnn = X_val.reshape((-1, n_timpoints, n_channels))
     X_test_cnn = X_test.reshape((-1, n_timpoints, n_channels))
+
+    # If one hot encoding deactivated, then create dummy inputs for the second input of the model
+    if not cfg.settings.advanced_pipeline:
+        X_train_static = np.zeros((X_train_cnn.shape[0], 1))
+        X_val_static = np.zeros((X_val_cnn.shape[0], 1))
+        X_test_static = np.zeros((X_test_cnn.shape[0], 1))
 
     # --- Preserve existing huber/weight logic from your script: compute weights_inp ---
     if cfg.model_param.huber_weight_method == 'var':
@@ -960,7 +1011,8 @@ for seed in seed_arr:
         time_train_start = time.perf_counter()
 
         input_shape_time = (n_timpoints, n_channels)
-        tcn_model = build_model(input_shape_time, filters, stacks, dropout_rate, kernel_size)
+        input_shape_static = (X_train_static.shape[1],)
+        tcn_model = build_model(input_shape_time,input_shape_static, filters, stacks, dropout_rate, kernel_size)
 
         if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
             loss_fn = tf.keras.losses.Huber()
@@ -986,11 +1038,11 @@ for seed in seed_arr:
         callbacks_list = [early_callback] if early_callback is not None else None
 
         history = tcn_model.fit(
-            X_train_cnn,
+            [X_train_cnn, X_train_static],
             {'torque_elbow': Y_train[:, 0],
              'torque_shoulder_front': Y_train[:, 1],
              'torque_shoulder_side': Y_train[:, 2]},
-            validation_data=(X_val_cnn, {
+            validation_data=([X_val_cnn, X_val_static], {
                 'torque_elbow': Y_val[:, 0],
                 'torque_shoulder_front': Y_val[:, 1],
                 'torque_shoulder_side': Y_val[:, 2]
@@ -1018,14 +1070,14 @@ for seed in seed_arr:
     # --- Predict auf Testdaten ---
     time_prediction_start = time.perf_counter()
 
-    preds = tcn_model.predict(X_test_cnn)  # preds ist [elbow, front, side], je shape (N_test,1)
+    preds = tcn_model.predict([X_test_cnn, X_test_static])  # preds ist [elbow, front, side], je shape (N_test,1)
     perf_results_TCN_scaled = np.concatenate([preds[0], preds[1], preds[2]], axis=1)  # (N_test, 3)
 
     time_prediction_end = time.perf_counter()
     time_prediction.append(time_prediction_end - time_prediction_start)
 
     # -- Test der Trainingsdaten auf das Modell ---
-    preds_training = tcn_model.predict(X_train_cnn)
+    preds_training = tcn_model.predict([X_train_cnn, X_train_static])
     preds_train_TCN = np.concatenate([preds_training[0], preds_training[1], preds_training[2]], axis=1)
 
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)

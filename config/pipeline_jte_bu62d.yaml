@@ -1,7 +1,7 @@
 # This is the parameter config file for offline training of ANN models to estimate joint torques using sEMG signals.
 ---
   settings:
-    advanced_pipeline: False
+    advanced_pipeline: True # Adds a second input to the model (with weight and movement encoding)
     feature_extraction: False
     scaling: False # Scaling the EMG input features + PCA (for feature extraction)
     yscaler: False # Scaling the output features (individually in this case)
