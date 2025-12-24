@@ -41,7 +41,7 @@ class LiveEstimation:
         print('Loaded the config file!')
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_oh.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
         print("Loaded channelwise mvc file")
 
         self.advanced_feature_extraction = False
@@ -53,13 +53,19 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model_oh.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
 
         # Loading the Y-scaler
         y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
         print("Loading Y_Scaler succesful.")
         # Select correct Scaler File
         self.scaler_file = y_scaler['1100g']['complex']
+        print(self.scaler_file)
+
+        print(f"  Original Data Min (Nm): {self.scaler_file.data_min_}")  # [Elbow, Front, Side]
+        print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
+        print(f"  Scale Factor:           {self.scaler_file.scale_}")
+        print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
 
         # Load Torque Values (ground truth, only in prediction plot)
         Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy")))
@@ -305,6 +311,13 @@ class LiveEstimation:
 
         #print("Self.features pre reshaping!: ", self.features.shape)
 
+        '''
+        windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
+        windows = np.transpose(windows, (2, 1, 0))  # (n_windows, n_samples, n_channels)
+        n_channels = 8
+        self.features = windows.reshape(-1, self.batch_size, n_channels)
+        '''
+
         # Reshape for CNN/TCN input: (samples, features, channels)
         n_features = self.features.shape[1]
         n_channels = 8
@@ -312,16 +325,17 @@ class LiveEstimation:
         self.features = self.features.reshape((-1, n_timepoints, n_channels))
 
     def apply_scaler(self):
+        "HOWEVER wrong, not use for EMG DATA"
         arr = self.features.flatten()
         elements_to_keep = (arr.shape[0] // 3) * 3
         arr_trimmed = arr[:elements_to_keep]
         arr_reshaped = arr_trimmed.reshape(-1, 3)
         print(arr_reshaped.shape)
-        scaled_feats = self.EMG_live.scaleEMG_windows(scaler_file=self.scaler_file, test_data=arr_reshaped)
+        scaled_feats = self.EMG_live.scaleEMG_windows(scaler_file=None, test_data=arr_reshaped)
         self.features = scaled_feats.reshape(1, -1)
 
     def inverse_transform_scaler(self):
-        self.scaler_file.inverse_transform(self.predictions)
+        self.predictions = self.scaler_file.inverse_transform(self.predictions)
 
     def predict(self):
         cnn_in = self.features  # (Batch, 50, 8)
@@ -504,8 +518,8 @@ class LiveEstimation:
                 #print("output shape: ", self.predictions.shape)
                 #print("Predictions: ", self.predictions)
 
-                #self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
-                self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
+                self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
+                self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1) #9000
 
                 # Printing the Timings
                 update_time_step = time.perf_counter() - update_start_time

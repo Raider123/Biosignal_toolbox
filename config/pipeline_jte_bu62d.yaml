@@ -4,7 +4,7 @@
     advanced_pipeline: True # Adds a second input to the model (with weight and movement encoding)
     feature_extraction: False
     scaling: False # Scaling the EMG input features + PCA (for feature extraction)
-    yscaler: False # Scaling the output features (individually in this case)
+    yscaler: True # Scaling the output features (individually in this case)
 
   filepath:
     data_path: 'data/jte/'
@@ -72,7 +72,7 @@
     optimizer:                'nadam'
     metrics:                  'mse'
 
-    train_test_split:         0.2
+    train_test_split:         0.9
     k_fold_splits:            1
     validation_split:         0.15
 
@@ -98,7 +98,7 @@
     act_out:                  'tanh' 
 
     is_save_model:            True
-    load_models:              True
+    load_models:              False
     show_train_results:       True
 
   post_train_param:

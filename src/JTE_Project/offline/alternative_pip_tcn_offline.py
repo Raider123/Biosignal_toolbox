@@ -195,13 +195,6 @@ def build_model(input_shape_time, input_shape_static, filters, stacks, dropout_r
 
 time_preproc = 0
 time_feat = 0
-t0l = []
-t1l = []
-t2l = []
-t3l = []
-t4l = []
-t5l = []
-t6l = []
 
 # ? load config file
 config_filename = 'pipeline_jte_bu62d.yaml'
@@ -299,6 +292,10 @@ meta_list_test = []
 meta_list_val = []
 
 current_idx = 0
+
+X_train_feats_list = []
+X_test_feats_list = []
+X_val_feats_list = []
 
 # Container to store objects before Normalization to avoid Data Leakage
 data_containers = []
@@ -657,82 +654,98 @@ for entry in data_containers:
     print("Extracting features from windowed data...")
     time_feat_start = time.perf_counter()
 
-    t0 = time.perf_counter()
     # ? EMG signal timepoints feature extraction
     window_size_ms = cfg.preprocess_param.window_size_x * 1000 / EMG_Data.f_samp
     feature_indices_windows_x = np.array([0, window_size_ms])
     EMG_Data.featureExtractionFromWindows(feature_type="timepoints",
                                           feature_indices_windows=feature_indices_windows_x)
     EMG_Data.printFeatureShape()
-    t0_end = time.perf_counter() - t0
-    t0l.append(t0_end)
-    # print(f"Raw Timepoints Time: {t0_end: .4f}")
 
     if cfg.settings.feature_extraction:
-        t1 = time.perf_counter()
-        # ? time domain feature extraction
-        ## EMG Feature Extraction
-        rms_feature = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names))  # RMS value
-        EMG_Data.addFeatures(rms_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
-        t1_end = time.perf_counter() - t1
-        t1l.append(t1_end)
-        # print(f"RMS TIME: {t1_end: .4f}")
+        current_file_feats = []
 
-        t2 = time.perf_counter()
-        wfl_feature = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))  # Waveform length
-        EMG_Data.addFeatures(wfl_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
-        t2_end = time.perf_counter() - t2
-        t2l.append(t2_end)
-        # print(f"WFL TIME: {t2_end: .4f}")
+        # ! ***************************************************************
+        # ! 1. Time Domain Features
+        # ! ***************************************************************
 
-        t3 = time.perf_counter()
-        ssc_feature = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names),
-                                                                  threshold=0.02)  # Slope Sign Change
-        EMG_Data.addFeatures(ssc_feature)
-        # print(EMG_Data.getFeatures()[1,:])
-        # EMG_Data.printFeatureShape()
-        t3_end = time.perf_counter() - t3
-        t3l.append(t3_end)
-        # print(f"SSC TIME: {t3_end: .4f}")
+        # T1: RMS (Root Mean Square)
+        rms = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names))
+        current_file_feats.append(rms)
 
-        t4 = time.perf_counter()
-        # ? freq domain feature extraction
+        # T2: WFL (Waveform Length)
+        wfl = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))
+        current_file_feats.append(wfl)
+
+
+        # T3: SSC (Slope Sign Change)
+        ssc = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), threshold=0.02)
+        current_file_feats.append(ssc)
+
+        # ! ***************************************************************
+        # ! 2. Frequency Domain Features (Using EMG_Data_freq Copy)
+        # ! ***************************************************************
+        # We use the 'EMG_Data_freq' copy to avoid messing up the time-series
+        # data in the main 'EMG_Data' object used for the TCN input.
+
+        # F1: Frequency Band Power (PSD via Multitaper)
         EMG_Data_freq.featureExtractionFromWindows(feature_type="freqBandPower",
                                                    psd_method="multitaper",
                                                    freq_bands=[15, 50, 100, 150, 200, 245])
-        fbp_feature = EMG_Data_freq.getFeatures()
-        EMG_Data.addFeatures(fbp_feature)
-        # EMG_Data.printFeatureShape()
-        t4_end = time.perf_counter() - t4
-        t4l.append(t4_end)
-        # print(f"FreqBandPower TIME: {t4_end: .4f}")
 
-        t5 = time.perf_counter()
-        # ? time-freq domain feature extraction
+        # Retrieve the calculated features from the freq object
+        fbp_feature = EMG_Data_freq.getFeatures()
+        current_file_feats.append(fbp_feature)
+
+        '''
+        # F2: Morlet Wavelet Coefficients (Time-Frequency)
         freqs = np.arange(start=50, stop=226, step=25)
         n_cycles = np.ones(len(freqs)) * 5
         n_cycles[0] = 3
         n_cycles[1] = 4
-        mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs,
-                                                                          n_cycles=n_cycles)  # Morlet transform
-        EMG_Data.addFeatures(mwc_feature)
-        # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
-        t5_end = time.perf_counter() - t5
-        t5l.append(t5_end)
-        # print(f"MWC Feature TIME: {t5_end: .4f}")
 
-        t6 = time.perf_counter()
-        # ? Change between consecutive samples (window i and wind i+1)
-        peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1, :])
-        EMG_Data.addFeatures(peak_detection)
-        # print(f"Total EMG features extracted: {EMG_Data.getFeatures().shape}")
-        t6_end = time.perf_counter() - t6
-        t6l.append(t6_end)
-        # print(f"Peak Detection TIME: {t6_end: .4f}")
+        mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs,
+                                                                          n_cycles=n_cycles)
+        current_file_feats.append(mwc_feature)
+        '''
+
+        # ! ***************************************************************
+        # ! 3. Temporal Change Features (Differentiation)
+        # ! ***************************************************************
+
+        # Combine all features collected so far to calculate their derivative
+        features_so_far = np.concatenate(current_file_feats, axis=1)
+
+        # Calculate the change between consecutive windows (velocity of features)
+        feat_diff = np.diff(features_so_far, axis=0, prepend=features_so_far[0:1, :])
+
+        current_file_feats.append(feat_diff)
+
+        # ! ***************************************************************
+        # ! 4. Final Merge & Splitting
+        # ! ***************************************************************
+
+        # Concatenate all features for this specific file
+        X_feat_raw = np.concatenate(current_file_feats, axis=1)
+
+        # Split 1: Train (temp) / Test
+        X_train_feat_temp, X_test_feat_curr = train_test_split(
+            X_feat_raw,
+            train_size=cfg.model_param.train_test_split,
+            shuffle=False
+        )
+
+        # Split 2: Train / Val
+        X_train_feat_curr, X_val_feat_curr = train_test_split(
+            X_train_feat_temp,
+            train_size=1 - cfg.model_param.validation_split,
+            shuffle=False
+        )
+
+        if cfg.settings.advanced_pipeline == False:
+            # Store file specific feature list in global lists (defined before the loop)
+            X_train_feats_list.append(X_train_feat_curr)
+            X_test_feats_list.append(X_test_feat_curr)
+            X_val_feats_list.append(X_val_feat_curr)
 
     # ? Output feature extraction
     window_size_ms = cfg.preprocess_param.window_size_y * 1000 / Quali_Data_Elbow.f_samp
@@ -795,7 +808,23 @@ for entry in data_containers:
                                                    train_size=1 - cfg.model_param.validation_split,
                                                    shuffle=False)
 
-        # print("Split data into train, test, and val!!")
+        if cfg.settings.feature_extraction:
+            # Use StackHistory for the features too because they are concatenated with the one-hot-encoded features
+            history_len = 1
+            X_train_feat_curr, _, _ = EMG_Data.stackHistoryCatMeta_windows(x_num=X_train_feat_curr, y_num=Y_train,
+                                                                           x_cat=X_train_cat, history_len=history_len,
+                                                                           wgt=wgt, mov=mov)
+            X_test_feat_curr, _, _ = EMG_Data.stackHistoryCatMeta_windows(x_num=X_test_feat_curr, y_num=Y_test,
+                                                                          x_cat=X_test_cat, history_len=history_len,
+                                                                          wgt=wgt, mov=mov)
+            X_val_feat_curr, _, _ = EMG_Data.stackHistoryCatMeta_windows(x_num=X_val_feat_curr, y_num=Y_val,
+                                                                         x_cat=X_val_cat, history_len=history_len,
+                                                                         wgt=wgt,
+                                                                         mov=mov)
+
+            X_train_feats_list.append(X_train_feat_curr)
+            X_test_feats_list.append(X_test_feat_curr)
+            X_val_feats_list.append(X_val_feat_curr)
 
         # ? One Hot encoding
         encoder = OneHotEncoder(sparse_output=False)
@@ -863,6 +892,18 @@ Y_test = np.concatenate(Y_test_combined, axis=0)
 X_val = np.concatenate(X_val_combined, axis=0)
 Y_val = np.concatenate(Y_val_combined, axis=0)
 
+if cfg.settings.feature_extraction:
+    # Frequency Features
+    X_train_feats = np.concatenate(X_train_feats_list, axis=0)
+    X_test_feats = np.concatenate(X_test_feats_list, axis=0)
+    X_val_feats = np.concatenate(X_val_feats_list, axis=0)
+    from sklearn.preprocessing import StandardScaler
+    feat_scaler = StandardScaler()
+    X_train_feats_scaled = feat_scaler.fit_transform(X_train_feats)
+    X_test_feats_scaled = feat_scaler.transform(X_test_feats)
+    X_val_feats_scaled = feat_scaler.transform(X_val_feats)
+
+
 # Calculate Scaling Time
 time_scaling_start = time.perf_counter()
 
@@ -917,17 +958,34 @@ if cfg.settings.advanced_pipeline:
     mov_test_onehot = encoder_mov.transform(mov_test)
     mov_val_onehot = encoder_mov.transform(mov_val)
 
-    # #? Add categorical features to a NEW set of inputs (second input of the TCN)
-    X_train_static = np.concatenate([wgt_train_onehot, mov_train_onehot], axis=1)
-    X_test_static = np.concatenate([wgt_test_onehot, mov_test_onehot], axis=1)
-    X_val_static = np.concatenate([wgt_val_onehot, mov_val_onehot], axis=1)
-    print(f"Static Feature Shape: {X_train_static.shape}")
+    X_train_onehot = np.concatenate([wgt_train_onehot, mov_train_onehot], axis=1)
+    X_test_onehot = np.concatenate([wgt_test_onehot, mov_test_onehot], axis=1)
+    X_val_onehot = np.concatenate([wgt_val_onehot, mov_val_onehot], axis=1)
+    print(f"One-Hot-Feature Shape: {X_train_onehot.shape}")
+
+
+# Create Static Feature Set
+if cfg.settings.feature_extraction and cfg.settings.advanced_pipeline:
+    X_train_static = np.concatenate([X_train_feats_scaled, X_train_onehot], axis=1)
+    X_test_static = np.concatenate([X_test_feats_scaled, X_test_onehot], axis=1)
+    X_val_static = np.concatenate([X_val_feats_scaled, X_val_onehot], axis=1)
+    print(f"Final Static Input Shape: {X_train_static.shape}")
+elif cfg.settings.feature_extraction and cfg.settings.advanced_pipeline == False:
+    X_train_static = X_train_feats_scaled
+    X_test_static = X_test_feats_scaled
+    X_val_static = X_val_feats_scaled
+    print(f"Final Static Input Shape: {X_train_static.shape}")
+elif cfg.settings.feature_extraction == False and cfg.settings.advanced_pipeline:
+    X_train_static = X_train_onehot
+    X_test_static = X_test_onehot
+    X_val_static = X_val_onehot
+    print(f"Final Static Input Shape: {X_train_static.shape}")
 
 # ? Shuffle training sets
 perm = np.random.permutation(X_train.shape[0])
 X_train[:] = X_train[perm]
 Y_train[:] = Y_train[perm]
-if cfg.settings.advanced_pipeline:
+if cfg.settings.advanced_pipeline or cfg.settings.feature_extraction:
     X_train_static[:] = X_train_static[perm]
 
 # ! ************************************************
@@ -1243,22 +1301,6 @@ print(f"Scaling Zeit: {time_scaling :.4f} Sekunden")
 
 print(f"Feature Extraction Zeit: {time_feat :.4f} Sekunden")
 
-t0_mean = np.mean(t0l)
-t1_mean = np.mean(t1l)
-t2_mean = np.mean(t2l)
-t3_mean = np.mean(t3l)
-t4_mean = np.mean(t4l)
-t5_mean = np.mean(t5l)
-t6_mean = np.mean(t6l)
-
-print(f"T0: {t0_mean:.4f}")
-print(f"T1: {t1_mean:.4f}")
-print(f"T2: {t2_mean:.4f}")
-print(f"T3: {t3_mean:.4f}")
-print(f"T4: {t4_mean:.4f}")
-print(f"T5: {t5_mean:.4f}")
-print(f"T6: {t6_mean:.4f}")
-
 if cfg.model_param.load_models == False:
     time_train_mean = np.mean(time_train)
     time_train_std = np.std(time_train)
@@ -1303,8 +1345,6 @@ plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
 plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
 
-
-'''
 # For saving the Y-Scaler if needed
 try:
     scaler_save_path = save_model_path / "Y_scaler.pkl"
@@ -1317,4 +1357,3 @@ try:
 
 except Exception as e:
     print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")
-'''
