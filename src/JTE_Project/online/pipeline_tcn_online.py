@@ -39,13 +39,26 @@ class LiveEstimation:
         config_filename = 'pipeline_jte_bu62d.yaml'
         self.cfg = loadConfig(filename=config_filename)
         print('Loaded the config file!')
-
+        #################################################################################################################
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc1.npy")))
         print("Loaded channelwise mvc file")
 
-        self.advanced_feature_extraction = False
 
+        # Trim the Reference Torque to the EMG file size!
+        # Load the emg file (just for length of the file)
+        emg_file = getAbsolutePath("src/JTE_Project/online/resources/publisher/24072025_BU62D_1850g_grasp_1.txt")
+        df = pd.read_csv(emg_file, sep=" ", header=None)
+        df = df.drop(df.columns[0], axis=1)
+        emg_max_rows = df.shape[0] - 1
+        print("Loaded EMG Publisher File for Reference")
+        # Hardcoded but later derive OHE (one-hot-coded features from read emg_file!)
+        current_weight = '1850g'
+        current_move = 'grasp'
+        print(f"Session Config: Weight={current_weight}, Move={current_move}")
+
+
+        self.advanced_feature_extraction = False
         #  TCN Model
         if self.advanced_feature_extraction:
             print("Using complete feature extraction!")
@@ -53,38 +66,28 @@ class LiveEstimation:
         else:
             print("Using Raw Timepoints for feature extraction")
             self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+                'src/JTE_Project/online/resources/trained_models/tcn_model1.keras'))
+
 
         # Loading the Y-scaler
-        y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
+        y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler1.pkl"))
         print("Loading Y_Scaler succesful.")
         # Select correct Scaler File
-        self.scaler_file = y_scaler['1100g']['complex']
+        self.scaler_file = y_scaler[current_weight][current_move]
         print(self.scaler_file)
-
         print(f"  Original Data Min (Nm): {self.scaler_file.data_min_}")  # [Elbow, Front, Side]
         print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
         print(f"  Scale Factor:           {self.scaler_file.scale_}")
         print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
 
+
         # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy")))
-        Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front.npy")))
-        Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side.npy")))
+        Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e1.npy")))
+        Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front1.npy")))
+        Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side1.npy")))
         Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
-        # Trim the Reference Torque to the EMG file size!
-        # Load the emg file (just for length of the file)
-        emg_file = getAbsolutePath("src/JTE_Project/online/resources/publisher/24072025_BU62D_1100g_complex_2.txt")
-        df = pd.read_csv(emg_file, sep=" ", header=None)
-        df = df.drop(df.columns[0], axis=1)
-        emg_max_rows = df.shape[0] - 1
-
-        # Hardcoded but later derive OHE (one-hot-coded features from read emg_file!)
-        current_weight = '1100g'
-        current_move = 'complex'
-
-        print(f"Session Config: Weight={current_weight}, Move={current_move}")
+        ###########################################################################################################
 
         # Weight Vector: [0g, 1100g, 1850g]
         if current_weight == '0g':

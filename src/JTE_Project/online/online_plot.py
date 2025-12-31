@@ -151,7 +151,7 @@ print("Positive Lag: Prediction wird nach rechts geschoben.")
 print("Negative Lag: Prediction wird nach links geschoben (Verzögerung korrigiert).")
 
 # Update der Variablen für die Plots
-all_preds = all_preds_aligned
+#all_preds = all_preds_aligned
 
 #################################################################################
 
