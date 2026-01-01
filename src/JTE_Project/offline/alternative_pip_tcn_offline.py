@@ -1141,6 +1141,12 @@ for seed in seed_arr:
     preds_training = tcn_model.predict([X_train_cnn, X_train_static])
     preds_train_TCN = np.concatenate([preds_training[0], preds_training[1], preds_training[2]], axis=1)
 
+if cfg.model_param.load_models and cfg.settings.yscaler:
+    # -- Load old Y-Scaler File if "Loading Mode"
+    y_scaler_loaded = joblib.load(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/Y_scaler.pkl"))
+    # Overwrite the calculated Y_scaler (because it is always calculated)
+    Y_scaler = y_scaler_loaded
+
 # --- Inverse-scaling (wie ursprünglich mit Y_scaler_dict / Y_scaler_info)
 Y_ref = []
 perf_results_TCN = []
@@ -1345,15 +1351,16 @@ plotResults(Y_ref[:, 1], "Real", perf_results_TCN[:, 1], "Prediction",
 plotResults(Y_ref[:, 2], "Real", perf_results_TCN[:, 2], "Prediction",
             title="Shoulder Side", ylabel="Torque in N-m")
 
-# For saving the Y-Scaler if needed
-try:
-    scaler_save_path = save_model_path / "Y_scaler.pkl"
+if not cfg.model_param.load_models and cfg.settings.yscaler:
+    # For saving the Y-Scaler if needed
+    try:
+        scaler_save_path = save_model_path / "Y_scaler.pkl"
 
-    # Wandelt das äußere UND alle inneren defaultdicts in normale dicts um
-    scaler_to_save = {wgt: dict(mov_dict) for wgt, mov_dict in Y_scaler_dict.items()}
-    joblib.dump(scaler_to_save, scaler_save_path)
-    print(f"Scaler-Wörterbuch erfolgreich gespeichert unter: {scaler_save_path}")
+        # Wandelt das äußere UND alle inneren defaultdicts in normale dicts um
+        scaler_to_save = {wgt: dict(mov_dict) for wgt, mov_dict in Y_scaler_dict.items()}
+        joblib.dump(scaler_to_save, scaler_save_path)
+        print(f"Scaler-Wörterbuch erfolgreich gespeichert unter: {scaler_save_path}")
 
 
-except Exception as e:
-    print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")
+    except Exception as e:
+        print(f"Fehler beim Speichern des Scaler-Wörterbuchs: {e}")

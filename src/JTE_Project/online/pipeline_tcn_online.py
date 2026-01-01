@@ -39,47 +39,36 @@ class LiveEstimation:
         config_filename = 'pipeline_jte_bu62d.yaml'
         self.cfg = loadConfig(filename=config_filename)
         print('Loaded the config file!')
+
+        ################################################################################################################
         #################################################################################################################
-        # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc1.npy")))
-        print("Loaded channelwise mvc file")
+        # Setup:
+        # 1. Input Train EMG.TXT and corresponding 3 Reference Torque Files (.npy)
+        # 2. Copy MVC File, ML-Model file, Yscaler File (Adjust used weight and movement)
 
+        self.advanced_feature_extraction = False
+        self.use_yscaler = False
 
-        # Trim the Reference Torque to the EMG file size!
+        # Note that if enabled, the prediction is slower than in a real time scenario
+        self.show_prediction_plot = False
+
+        # Plotting EMG
+        self.emg_plot = False
+
+        ############################### Publisher File and Reference Torques ############################################
+
+        current_weight = '1850g'
+        current_move = 'complex'
+        set_num = '1'
+
         # Load the emg file (just for length of the file)
-        emg_file = getAbsolutePath("src/JTE_Project/online/resources/publisher/24072025_BU62D_1850g_grasp_1.txt")
+        print(f"Session Config: Weight={current_weight}, Move={current_move}")
+        emg_filepath = f"src/JTE_Project/online/resources/publisher/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
+        emg_file = getAbsolutePath(emg_filepath)
         df = pd.read_csv(emg_file, sep=" ", header=None)
         df = df.drop(df.columns[0], axis=1)
         emg_max_rows = df.shape[0] - 1
-        print("Loaded EMG Publisher File for Reference")
-        # Hardcoded but later derive OHE (one-hot-coded features from read emg_file!)
-        current_weight = '1850g'
-        current_move = 'grasp'
-        print(f"Session Config: Weight={current_weight}, Move={current_move}")
-
-
-        self.advanced_feature_extraction = False
-        #  TCN Model
-        if self.advanced_feature_extraction:
-            print("Using complete feature extraction!")
-            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/NONE'))
-        else:
-            print("Using Raw Timepoints for feature extraction")
-            self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model1.keras'))
-
-
-        # Loading the Y-scaler
-        y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler1.pkl"))
-        print("Loading Y_Scaler succesful.")
-        # Select correct Scaler File
-        self.scaler_file = y_scaler[current_weight][current_move]
-        print(self.scaler_file)
-        print(f"  Original Data Min (Nm): {self.scaler_file.data_min_}")  # [Elbow, Front, Side]
-        print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
-        print(f"  Scale Factor:           {self.scaler_file.scale_}")
-        print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
-
+        print(f"Loaded {emg_filepath}")
 
         # Load Torque Values (ground truth, only in prediction plot)
         Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e1.npy")))
@@ -87,6 +76,34 @@ class LiveEstimation:
         Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side1.npy")))
         Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
+        ############################ COPY FROM OFFLINE TRAINING #############################################
+
+        # pre-calculated channelwise mvc
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
+        print("Loaded channelwise mvc file")
+
+        # Loading the ML Model
+        if self.advanced_feature_extraction:
+            print("Using complete feature extraction!")
+            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/NONE'))
+        else:
+            print("Using Raw Timepoints for feature extraction")
+            self.load_model(getAbsolutePath(
+                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+
+        # Loading the Y-scaler
+        if self.use_yscaler:
+            y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
+            print("Loading Y_Scaler succesful.")
+            # Select correct Scaler File
+            self.scaler_file = y_scaler[current_weight][current_move]
+            print(self.scaler_file)
+            print(f"  Original Data Min (Nm): {self.scaler_file.data_min_}")  # [Elbow, Front, Side]
+            print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
+            print(f"  Scale Factor:           {self.scaler_file.scale_}")
+            print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
+
+        ###########################################################################################################
         ###########################################################################################################
 
         # Weight Vector: [0g, 1100g, 1850g]
@@ -156,14 +173,8 @@ class LiveEstimation:
         self.current_time = 0
         self.elapsed_times = []  # speichert die Zeitachse
 
-        # Note that if enabled, the prediction is slower than in a real time scenario
-        self.show_prediction_plot = False
-
         if self.show_prediction_plot:
             self.setup_plot()
-
-        # Plotting EMG
-        self.emg_plot = False
 
         # Emg plot
         if self.emg_plot:
@@ -327,6 +338,47 @@ class LiveEstimation:
         n_timepoints = int(n_features / n_channels)
         self.features = self.features.reshape((-1, n_timepoints, n_channels))
 
+    def extract_sliding_features(self, n_windows=5):
+        """
+        Manually extracts 'n_windows' overlapping windows from the end of the buffer.
+        This creates a batch of data covering the last 100ms with higher resolution.
+        """
+        raw_data = self.EMG_live.getDataBuffer()[0, :, :, 0]
+
+        n_channels, n_samples = raw_data.shape
+
+        model_window_len = self.batch_size
+
+        stride = int(self.batch_size / n_windows)  # e.g., 50 / 5 = 10 samples step
+
+        batch_windows = []
+
+        current_idx = n_samples
+
+        for i in range(n_windows):
+            # Calculate end index for this slice
+            # i=0 -> offset=40, i=4 -> offset=0
+            offset = (n_windows - 1 - i) * stride
+            end_idx = current_idx - offset
+            start_idx = end_idx - model_window_len
+
+            # Safety check
+            if start_idx < 0:
+                # Pad with zeros or duplicate if buffer isn't full yet
+                window = np.zeros((n_channels, model_window_len))
+                available = raw_data[:, :end_idx]
+                window[:, -available.shape[1]:] = available
+            else:
+                window = raw_data[:, start_idx:end_idx]
+
+            batch_windows.append(window.T)  # Transpose to (Time, Channels)
+
+        # Stack into a batch: (Batch_Size, Timepoints, Channels)
+        # e.g., (5, 50, 8)
+        self.features = np.stack(batch_windows, axis=0)
+
+        return self.features
+
     def apply_scaler(self):
         "HOWEVER wrong, not use for EMG DATA"
         arr = self.features.flatten()
@@ -450,7 +502,7 @@ class LiveEstimation:
             # Read emg data from the stream
             self.read_emg_batch()
             end_read_time = time.perf_counter() - update_read_time
-            print(f"EMG BATCH: {end_read_time * 1000:.1f} ms")
+            #print(f"EMG BATCH: {end_read_time * 1000:.1f} ms")
 
             # Start the time measurement (self.read_emg_batch waits for 50 new samples, approx 65ms duration)
             update_start_time = time.perf_counter()
@@ -515,14 +567,18 @@ class LiveEstimation:
 
             else:
                 # Regular prediction pipeline
-                self.extract_features()
+                #self.extract_features()
+                self.extract_sliding_features(n_windows=2)
                 self.predict()
                 #self.predictions = self.predictions[-1, :]
-                #print("output shape: ", self.predictions.shape)
+                print("output shape: ", self.predictions.shape)
                 #print("Predictions: ", self.predictions)
 
-                self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
-                self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1) #9000
+                if self.use_yscaler:
+                    self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
+
+                #self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
+                self.all_predictions.extend(self.predictions)
 
                 # Printing the Timings
                 update_time_step = time.perf_counter() - update_start_time

@@ -4,7 +4,10 @@ import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 
-emg_file = getAbsolutePath("src/JTE_Project/online/resources/publisher/24072025_BU62D_1850g_grasp_1.txt")
+filepath = "src/JTE_Project/online/resources/publisher/24072025_BU62D_1850g_complex_1.txt"
+print(f"Using following {filepath}")
+
+emg_file = getAbsolutePath(filepath)
 
 df = pd.read_csv(emg_file, sep=" ", header=None)
 df = df.drop(df.columns[0], axis=1)
@@ -25,7 +28,7 @@ start_time = time.perf_counter()
 # Nachrichten versenden
 while True:
     passed_time = time.perf_counter() - start_time
-    if passed_time > 0.002: # Every 20ms output one EMG value (mimic EMG device with 500Hz)
+    if passed_time > 0.001: # Every 20ms output one EMG value (mimic EMG device with 500Hz) - 0.002
         start_time = time.perf_counter()
 
         current_line = df.iloc[idx].to_frame().T.to_string(header=False, index=False)

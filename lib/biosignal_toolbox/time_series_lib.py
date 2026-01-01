@@ -3031,20 +3031,26 @@ class Timeseries():
             activation_data = np.zeros(self.data_buffer[0, :, (-1 * self.n_samples):, 0].shape)
             # ! Loop over the data buffer and solve difference equation
             for channel_idx in range(activation_data.shape[0]):
+                p1 = self.p_t_minus_1[channel_idx]
+                p2 = self.p_t_minus_2[channel_idx]
+
                 for sample_idx in range(activation_data.shape[1]):
                     if sample_idx < d:
                         activation_data[channel_idx, sample_idx] = self.data_buffer[0, channel_idx, (
                                     -1 * self.n_samples) + sample_idx, 0] / 3
                     else:
                         activation_data[channel_idx, sample_idx] = (gamma * self.data_buffer[
-                            0, channel_idx, (-1 * self.n_samples) + sample_idx, 0]) + (beta_1 * p_t_minus_1) + (
-                                                                               beta_2 * p_t_minus_2)
-                        p_t_minus_2 = p_t_minus_1
-                        p_t_minus_1 = activation_data[channel_idx, sample_idx]
+                            0, channel_idx, (-1 * self.n_samples) + sample_idx, 0]) + (beta_1 * p1) + ( beta_2 * p2)
+                        p2 = p1
+                        p1 = activation_data[channel_idx, sample_idx]
 
                         raw_value = A * activation_data[channel_idx, sample_idx]
                         raw_value = np.clip(raw_value, -700, 700)
                         activation_data[channel_idx, sample_idx] = (np.exp(raw_value) - 1) / (np.exp(A) - 1)
+
+                # Save state back to class
+                self.p_t_minus_1[channel_idx] = p1
+                self.p_t_minus_2[channel_idx] = p2
 
             self.data_buffer[0, :, (-1 * self.n_samples):, 0] = activation_data
     
@@ -3370,6 +3376,9 @@ class OnlineTimeseriesStreaming(Timeseries):
         # New buffer filtering variables (Author:Raid Dokhan)
         self.zi_bp_buffer = np.zeros((8,2,2))
         self.zi_lp_buffer = np.zeros((8,2,2))
+
+        self.p_t_minus_1 = np.ones(self.n_channels)
+        self.p_t_minus_2 = np.ones(self.n_channels)
 
 
     def startANTEegoStreaming(self, path_to_so_file):

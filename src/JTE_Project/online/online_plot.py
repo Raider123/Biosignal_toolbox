@@ -7,17 +7,21 @@ from scipy.signal import medfilt, savgol_filter
 from scipy.signal import butter, sosfilt
 from scipy import signal
 
-all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_predictions.npy")))
-all_times = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_times.npy")))
-all_torques = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/all_torques.npy")))
+all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_predictions.npy")))
+all_times = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_times.npy")))
+all_torques = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_torques.npy")))
 
-###################################################
+# Clip Values that are NAN to 0
+all_preds[np.isnan(all_preds)] = 0
+y_ref_length = int(all_preds.shape[0])
 
 # Load Torque Values (ground truth, only in prediction plot)
-Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e.npy")))
-Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front.npy")))
-Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side.npy")))
+Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e1.npy")))
+Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front1.npy")))
+Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side1.npy")))
 Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
+
+################################################### Torque Preprocessing and Prediction Postprocessing etc.
 
 def downsample_mean_bins(Y_ref, target_len=1000):
     n = Y_ref.shape[0]
@@ -25,7 +29,7 @@ def downsample_mean_bins(Y_ref, target_len=1000):
     Y_ds = np.vstack([Y_ref[edges[i]:edges[i + 1]].mean(axis=0) for i in range(target_len)])
     return Y_ds
 
-def process_predictions(data, ds_factor=5, med_kernel=5, sav_win=15, sav_poly=2):
+def process_predictions(data, ds_factor=1, med_kernel=5, sav_win=15, sav_poly=2):
     """
     1. Wendet Median-Filter an (gegen Spikes).
     2. Wendet Savitzky-Golay-Filter an (zum Glätten).
@@ -59,7 +63,7 @@ def process_predictions(data, ds_factor=5, med_kernel=5, sav_win=15, sav_poly=2)
 
     return downsampled_data
 
-def process_torque_lowpass_causal(data, f_cutoff, f_samp, order=4, ds_factor=5):
+def process_torque_lowpass_causal(data, f_cutoff, f_samp, order=4, ds_factor=1):
     """
     Wendet einen kausalen (Forward-Only) Butterworth-Lowpass-Filter an.
     Dies entspricht einer Echtzeit-Filterung (mit Phasenverzug).
@@ -96,70 +100,63 @@ def process_torque_lowpass_causal(data, f_cutoff, f_samp, order=4, ds_factor=5):
     return downsampled_data
 
 Y_ref = process_torque_lowpass_causal(data=Y_ref_raw, f_cutoff=5, f_samp=500, order=4,ds_factor=1)
-y_ref_length = int(all_preds.shape[0])
 Y_ref= downsample_mean_bins(Y_ref, y_ref_length)
-
-#all_preds = process_predictions(all_preds, ds_factor=5, sav_poly=9)
-#all_preds = downsample_mean_bins(all_preds, y_ref_length)
-all_preds = process_predictions(all_preds, ds_factor=1)
 all_torques = Y_ref
 
-#################################################################################
+all_preds = process_predictions(all_preds, ds_factor=1, med_kernel=9, sav_win= 15, sav_poly=3)
 
-def align_signals_auto(predictions, references):
+################################################################ Lag Reduction and Cropping
+
+def crop_edges(arr, n_start, d_end):
     """
-    Berechnet die zeitliche Verschiebung zwischen Vorhersage und Referenz
-    mittels Kreuzkorrelation und richtet die Vorhersage neu aus.
+    Schneidet Zeilen vom Anfang und Ende eines Arrays ab.
+
+    Parameters:
+    - arr: Das Input-Array
+    - n_start: Anzahl der Zeilen, die am Anfang weggeschnitten werden
+    - d_end: Anzahl der Zeilen, die am Ende weggeschnitten werden
+
+    Returns:
+    - Das beschnittene Array
     """
-    aligned_preds = np.zeros_like(predictions)
-    detected_lags = []
+    # Wir berechnen den End-Index explizit basierend auf der Länge.
+    # Das ist sicherer als negatives Slicing (arr[n:-d]), falls d_end mal 0 sein sollte.
+    end_index = arr.shape[0] - d_end
 
-    # Für jedes Gelenk (Spalte) einzeln berechnen
-    for i in range(predictions.shape[1]):
-        pred_sig = np.nan_to_num(predictions[:, i])  # NaNs sicherheitshalber entfernen
-        ref_sig = np.nan_to_num(references[:, i])
+    # Slicing syntax: [start_index : end_index]
+    return arr[n_start:end_index]
 
-        # Kreuzkorrelation berechnen
-        correlation = signal.correlate(ref_sig, pred_sig, mode='full')
-        lags = signal.correlation_lags(ref_sig.size, pred_sig.size, mode='full')
+def shift_samples(arr, n, fill_value=0.0):
+    """
+    Verschiebt den Inhalt des Arrays um n Zeilen.
 
-        # Finde den Lag mit der höchsten Korrelation
-        optimal_lag = lags[np.argmax(correlation)]
-        detected_lags.append(optimal_lag)
+    Parameters:
+    - arr: Input Array (400, 3)
+    - n: Anzahl Samples (positiv = nach unten/später, negativ = nach oben/früher)
+    - fill_value: Womit die Lücke gefüllt wird (0.0 oder np.nan)
+    """
+    result = np.empty_like(arr)
 
-        # Signal verschieben (Shifting)
-        if optimal_lag > 0:
-            # Vorhersage muss nach rechts geschoben werden (war zu früh)
-            aligned_preds[optimal_lag:, i] = pred_sig[:-optimal_lag]
-        elif optimal_lag < 0:
-            # Vorhersage muss nach links geschoben werden (war zu spät / verzögert)
-            aligned_preds[:optimal_lag, i] = pred_sig[-optimal_lag:]
-        else:
-            aligned_preds[:, i] = pred_sig
+    if n > 0:
+        # Verschieben nach unten (Daten am Anfang werden leer)
+        result[:n] = fill_value  # Lücke füllen
+        result[n:] = arr[:-n]  # Daten verschieben
+    elif n < 0:
+        # Verschieben nach oben (Daten am Ende werden leer)
+        result[n:] = fill_value  # Lücke füllen
+        result[:n] = arr[-n:]  # Daten verschieben
+    else:
+        return arr
 
-    return aligned_preds, detected_lags
+    return result
 
-
-# --- ANWENDUNG DER FUNKTION ---
-
-print("--- Aligning Signals ---")
-# Originale Predictions sichern (falls man vergleichen will), hier überschreiben wir sie direkt:
-all_preds_aligned, lags = align_signals_auto(all_preds, all_torques)
-
-print(f"Detected Lags (Samples) per Joint [Elbow, Front, Side]: {lags}")
-print("Positive Lag: Prediction wird nach rechts geschoben.")
-print("Negative Lag: Prediction wird nach links geschoben (Verzögerung korrigiert).")
-
-# Update der Variablen für die Plots
-#all_preds = all_preds_aligned
-
-#################################################################################
-
-# Clip Values that are NAN to 0
-all_preds[np.isnan(all_preds)] = 0
+#all_torques = shift_samples(all_torques, -16, 0) # 15 - 16 best
+all_preds = crop_edges(all_preds, 10, 50)
+all_torques = crop_edges(all_torques, 10, 50)
 
 print(all_preds.shape)
 print(all_torques.shape)
+#################################################################################
 
 y_e_test_combined = all_torques[:,0]
 y_f_test_combined = all_torques[:,1]
