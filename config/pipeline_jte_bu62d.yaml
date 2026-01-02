@@ -72,7 +72,7 @@
     optimizer:                'nadam'
     metrics:                  'mse'
 
-    train_test_split:         0.1
+    train_test_split:         0.9
     k_fold_splits:            1
     validation_split:         0.15
 

@@ -7,19 +7,12 @@ from scipy.signal import medfilt, savgol_filter
 from scipy.signal import butter, sosfilt
 from scipy import signal
 
-all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_predictions.npy")))
-all_times = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_times.npy")))
-all_torques = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/1850g_2preds_cheat/all_torques.npy")))
+all_preds = np.load(str(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy")))
+Y_ref_raw = np.load(str(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy")))
 
 # Clip Values that are NAN to 0
 all_preds[np.isnan(all_preds)] = 0
 y_ref_length = int(all_preds.shape[0])
-
-# Load Torque Values (ground truth, only in prediction plot)
-Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e1.npy")))
-Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front1.npy")))
-Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side1.npy")))
-Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
 ################################################### Torque Preprocessing and Prediction Postprocessing etc.
 
@@ -150,7 +143,7 @@ def shift_samples(arr, n, fill_value=0.0):
 
     return result
 
-#all_torques = shift_samples(all_torques, -16, 0) # 15 - 16 best
+all_torques = shift_samples(all_torques, -12, 0) # -11/-10 bei 1100g complex 2
 all_preds = crop_edges(all_preds, 10, 50)
 all_torques = crop_edges(all_torques, 10, 50)
 

@@ -57,9 +57,9 @@ class LiveEstimation:
 
         ############################### Publisher File and Reference Torques ############################################
 
-        current_weight = '1850g'
+        current_weight = '1100g'
         current_move = 'complex'
-        set_num = '1'
+        set_num = '2'
 
         # Load the emg file (just for length of the file)
         print(f"Session Config: Weight={current_weight}, Move={current_move}")
@@ -71,10 +71,10 @@ class LiveEstimation:
         print(f"Loaded {emg_filepath}")
 
         # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/e1.npy")))
-        Y_f = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/front1.npy")))
-        Y_s = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/reference_torques/side1.npy")))
-        Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
+        Y_e = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_f = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_s = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        self.Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
@@ -128,9 +128,9 @@ class LiveEstimation:
         print(f"Static OHE Vector: {self.static_ohe_vector}")
 
         # e.g. emg sample size: 41.000 and 50 samples every 100ms, means 820 predictions in total
-        y_ref_length = int(emg_max_rows / self.batch_size)
-        self.Y_ref = self.downsample_mean_bins(Y_ref_raw, y_ref_length)
-        print("y_ref_length: ", y_ref_length)
+        self.total_timepoints = int(emg_max_rows / self.batch_size)
+        self.Y_ref = self.downsample_mean_bins(self.Y_ref_raw, self.total_timepoints)
+        print("Total amount of Timepoints:: ", self.total_timepoints)
 
         # EMG 8 channel names
         self.channel_names = ['BP1', 'BP2', 'BP3', 'BP4', 'BP5', 'BP6', 'BP7', 'BP8']
@@ -142,6 +142,8 @@ class LiveEstimation:
         print("Created EMG_live!!")
 
         self.var_buffer = np.zeros((1, len(self.channel_names), self.buffer_size, 1))
+
+        self.lp_mirror = np.zeros_like(self.EMG_live.getDataBuffer())
 
         # Design bandpass filter
         self.sos_bp = self.EMG_live.designFilter(f_high=self.cfg.preprocess_param.f_cutoff_hpf,
@@ -243,9 +245,8 @@ class LiveEstimation:
            Path to the saved model. If None, uses default path from config.
        """
 
-        print(f"Loading model from: {model_path}")
         self.model = load_model(model_path, compile=False)
-        print("Model loaded successfully!\n")
+        print("Model loaded successfully!")
 
         return True
 
@@ -483,7 +484,7 @@ class LiveEstimation:
         np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy")), all_preds)
 
     def save_torques(self):
-        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy")), self.Y_ref)
+        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy")), self.Y_ref_raw)
 
     def save_elapsed_times(self):
         elapsed_time_np = np.array(self.elapsed_times)
@@ -495,9 +496,7 @@ class LiveEstimation:
         print("Save EMG Shape: ", all_emgs.shape)
 
     def update_loop(self):
-        # len(self.elapsed_times) * self.batch_size < 500: # Iterate exactly over 500 samples
-        # len(self.elapsed_times) < self.Y_ref.shape[0]: # One complete runthrough
-        while len(self.elapsed_times) < self.Y_ref.shape[0]:  # One complete runthrough
+        while len(self.elapsed_times) < self.total_timepoints:
             update_read_time = time.perf_counter()
             # Read emg data from the stream
             self.read_emg_batch()
@@ -536,14 +535,23 @@ class LiveEstimation:
             self.EMG_live.filterBuffer_lowPass(sos=self.sos_lp)
 
             # # neural activation force #
-            self.EMG_live.calculateActivationForceFunction(
-                mode='online',
-                d=self.cfg.preprocess_param.act_delay,
-                b1=self.cfg.preprocess_param.act_beta1,
-                b2=self.cfg.preprocess_param.act_beta2,
-                g=self.cfg.preprocess_param.act_gamma,
-                nonlinear_shape_factor=self.cfg.preprocess_param.act_A
-            )
+            if self.cfg.preprocess_param.use_activation_fncn:
+                current_lp_batch = self.EMG_live.getDataBuffer()[:, :, -self.batch_size:, :]
+                self.lp_mirror = np.roll(self.lp_mirror, shift=int(-1 * self.batch_size), axis=2)
+                self.lp_mirror[:, :, -self.batch_size:, :] = current_lp_batch
+                af_history_backup = self.EMG_live.getDataBuffer()[:, :, :-self.batch_size, :].copy()
+                self.EMG_live.data_buffer[...] = self.lp_mirror[...]
+
+                self.EMG_live.calculateActivationForceFunction(
+                    mode='online',
+                    d=self.cfg.preprocess_param.act_delay,
+                    b1=self.cfg.preprocess_param.act_beta1,
+                    b2=self.cfg.preprocess_param.act_beta2,
+                    g=self.cfg.preprocess_param.act_gamma,
+                    nonlinear_shape_factor=self.cfg.preprocess_param.act_A
+                )
+
+                self.EMG_live.data_buffer[:, :, :-self.batch_size, :] = af_history_backup
 
             # convert filtered data into window
             self.EMG_live.bufferToWindows()

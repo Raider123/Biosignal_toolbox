@@ -4,7 +4,7 @@ import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 
-filepath = "src/JTE_Project/online/resources/publisher/24072025_BU62D_1850g_complex_1.txt"
+filepath = "src/JTE_Project/online/resources/publisher/24072025_BU62D_1100g_complex_2.txt"
 print(f"Using following {filepath}")
 
 emg_file = getAbsolutePath(filepath)
@@ -25,8 +25,9 @@ print("Publisher is active")
 
 start_time = time.perf_counter()
 
+running = True
 # Nachrichten versenden
-while True:
+while running:
     passed_time = time.perf_counter() - start_time
     if passed_time > 0.001: # Every 20ms output one EMG value (mimic EMG device with 500Hz) - 0.002
         start_time = time.perf_counter()
@@ -35,7 +36,10 @@ while True:
         socket.send_string(current_line)
 
         if idx == max_rows:
-            idx = 0
+            # With this the script repeats at index 0
+            #idx = 0
+            # With this the script ends
+            running = False
         else:
             idx += 1
 

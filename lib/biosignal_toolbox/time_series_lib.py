@@ -3007,12 +3007,12 @@ class Timeseries():
         gamma = g
         A = nonlinear_shape_factor
 
-        # ! Initialise p(t-1) and p(t-2)
-        p_t_minus_1 = 1.0
-        p_t_minus_2 = 1.0
-
         # ! Initialise a temp calc variable
         if mode == "offline":
+            # ! Initialise p(t-1) and p(t-2)
+            p_t_minus_1 = 1.0
+            p_t_minus_2 = 1.0
+
             activation_data = np.zeros(self.data.shape)
             # ! Loop over the windows and solve difference equation
             for channel_idx in range(0, activation_data.shape[0]):
