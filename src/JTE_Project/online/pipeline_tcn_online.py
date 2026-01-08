@@ -46,7 +46,6 @@ class LiveEstimation:
         # 1. Input Train EMG.TXT and corresponding 3 Reference Torque Files (.npy)
         # 2. Copy MVC File, ML-Model file, Yscaler File (Adjust used weight and movement)
 
-        self.advanced_feature_extraction = False
         self.use_yscaler = False
 
         # Note that if enabled, the prediction is slower than in a real time scenario
@@ -79,17 +78,12 @@ class LiveEstimation:
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_pd.npy")))
         print("Loaded channelwise mvc file")
 
         # Loading the ML Model
-        if self.advanced_feature_extraction:
-            print("Using complete feature extraction!")
-            self.load_model(getAbsolutePath('src/JTE_Project/online/resources/trained_models/NONE'))
-        else:
-            print("Using Raw Timepoints for feature extraction")
-            self.load_model(getAbsolutePath(
-                'src/JTE_Project/online/resources/trained_models/tcn_model.keras'))
+        self.load_model(getAbsolutePath(
+            'src/JTE_Project/online/resources/trained_models/tcn_model_pd.keras'))
 
         # Loading the Y-scaler
         if self.use_yscaler:
@@ -102,6 +96,7 @@ class LiveEstimation:
             print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
             print(f"  Scale Factor:           {self.scaler_file.scale_}")
             print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
+
         ###########################################################################################################
         ###########################################################################################################
 
@@ -159,6 +154,7 @@ class LiveEstimation:
 
         self.EMG_live_freq = None
         self.features = None
+        self.peak_features = None
         self.predictions = None
 
         # Variables for Visualization
@@ -255,7 +251,7 @@ class LiveEstimation:
 
         return True
 
-    def extract_features(self):
+    def extract_features_old(self):
         """Extract all features from windowed EMG data."""
         # print("Extracting features from windowed data...")
 
@@ -269,8 +265,8 @@ class LiveEstimation:
             feature_type="timepoints",
             feature_indices_windows=feature_indices_windows_x
         )
-
-        if self.advanced_feature_extraction:
+        advanced_feature_extraction = False
+        if advanced_feature_extraction:
             # Time domain features
             n_channels = len(self.channel_names)
 
@@ -379,6 +375,69 @@ class LiveEstimation:
 
         return self.features
 
+    def extract_sliding_features_pd(self, n_windows=5):
+        """
+        Extracts raw windows for TCN input AND calculates the difference
+        to previous windows for the Static input (Peak Detection).
+        """
+        raw_data = self.EMG_live.getDataBuffer()[0, :, :, 0]
+        n_channels, n_samples = raw_data.shape
+
+        model_window_len = self.batch_size
+        # Stride bestimmt, wie weit das "vorherige Fenster" weg ist
+        stride = int(self.batch_size / n_windows)
+
+        batch_windows_raw = []  # Für TCN (Input 1)
+        batch_windows_diff = []  # Für Static (Input 2)
+
+        current_idx = n_samples
+
+        for i in range(n_windows):
+            # Indizes für das aktuelle Fenster berechnen
+            offset = (n_windows - 1 - i) * stride
+            end_idx = current_idx - offset
+            start_idx = end_idx - model_window_len
+
+            # --- 1. Raw Window (TCN Input) ---
+            if start_idx < 0:
+                # Padding falls am Anfang
+                window_curr = np.zeros((n_channels, model_window_len))
+                available = raw_data[:, :end_idx]
+                window_curr[:, -available.shape[1]:] = available
+            else:
+                window_curr = raw_data[:, start_idx:end_idx]
+
+            batch_windows_raw.append(window_curr.T)
+            # --- 2. Peak Detection (Static Input) ---
+            # Wir brauchen das "vorherige" Fenster, um die Differenz zu bilden.
+            # Im Offline-Skript ist das np.diff() auf aufeinanderfolgende Fenster.
+            # Wir nehmen hier einfach das Fenster, das um 1 'stride' verschoben ist
+            # (oder 1 Sample, je nach Offline-Einstellung. Stride ist sicherer für "Fenster-Diff").
+
+            prev_end_idx = end_idx - stride  # Oder -1, wenn offline sample-weise diff gemacht wurde
+            prev_start_idx = start_idx - stride
+
+            if prev_start_idx < 0:
+                window_prev = np.zeros((n_channels, model_window_len))
+                # Falls Daten verfügbar, füllen (vereinfacht)
+                if prev_end_idx > 0:
+                    avail_prev = raw_data[:, :prev_end_idx]
+                    window_prev[:, -avail_prev.shape[1]:] = avail_prev
+            else:
+                window_prev = raw_data[:, prev_start_idx:prev_end_idx]
+
+            diff_vec = window_curr.flatten() - window_prev.flatten()
+
+            batch_windows_diff.append(diff_vec)
+
+        # Stack TCN Input: (Batch, Time, Channels)
+        self.features = np.stack(batch_windows_raw, axis=0)
+
+        # Stack Peak-Features: (Batch, Features_Size)
+        self.peak_features = np.stack(batch_windows_diff, axis=0)
+
+        return self.features, self.peak_features
+
     def apply_scaler(self):
         "HOWEVER wrong, not use for EMG DATA"
         arr = self.features.flatten()
@@ -393,13 +452,29 @@ class LiveEstimation:
         self.predictions = self.scaler_file.inverse_transform(self.predictions)
 
     def predict(self):
-        cnn_in = self.features  # (Batch, 50, 8)
-        static_in = static_in = np.tile(self.static_ohe_vector, (cnn_in.shape[0], 1))  # (Batch, 5)
+        # TCN Input (Raw Time Series)
+        # Shape: (Batch, 50, 8)
+        cnn_in = self.features
 
-        # Not implemented: Use a list of tensors (much faster on GPUs)
+        # ---------------------------------------------------------
+        # Static Input
+        # ---------------------------------------------------------
+        # Peak Detection Features (Batch, 400)
+        peak_feats = self.peak_features
+
+        # One-Hot Vector (Batch, 5)
+        batch_size = cnn_in.shape[0]
+        one_hot_batch = np.tile(self.static_ohe_vector, (batch_size, 1))
+
+        static_in = np.concatenate([peak_feats, one_hot_batch], axis=1)
+        #static_in = one_hot_batch
+
+        # ---------------------------------------------------------
+
+        # Predict
         preds = self.model([cnn_in, static_in], training=False)
 
-        # Concatenate multi-task outputs: [elbow, front, side]
+        # Concatenate outputs
         self.predictions = np.concatenate(
             [preds[0], preds[1], preds[2]], axis=1
         )
@@ -519,10 +594,12 @@ class LiveEstimation:
             self.var_buffer[0, :, int(-1 * self.batch_size):, 0] = self.EMG_live.getDataBuffer()[0, :,
                                                                    int(-1 * self.batch_size):, 0]
 
+            '''
             if self.advanced_feature_extraction:
                 # Create identical copy for frequency extraction
                 # Only the Bandpass-Filter is used to reduce distortions introduced by the variance filter and maintain frequency components (for freq)
                 self.EMG_live_freq = copy.deepcopy(self.EMG_live)
+            '''
 
             # # variance filter
             self.EMG_live.applyVarianceFilter_data(width=20, mode="old_online", var_buffer=self.var_buffer)
@@ -554,10 +631,10 @@ class LiveEstimation:
 
             # convert filtered data into window
             self.EMG_live.bufferToWindows()
-
+            '''
             if self.advanced_feature_extraction:
                 self.EMG_live_freq.bufferToWindows()
-
+            '''
             if self.emg_plot:
                 ## EMG - Window Extraction and Reshaping
                 windows = self.EMG_live.getWindows()[0]  # (n_channels, n_samples, n_windows)
@@ -574,8 +651,7 @@ class LiveEstimation:
 
             else:
                 # Regular prediction pipeline
-                #self.extract_features()
-                self.extract_sliding_features(n_windows=2)
+                self.extract_sliding_features_pd(n_windows=2)
                 self.predict()
 
                 if self.use_yscaler:

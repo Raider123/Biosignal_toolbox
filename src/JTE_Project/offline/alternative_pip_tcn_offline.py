@@ -667,7 +667,7 @@ for entry in data_containers:
         # ! ***************************************************************
         # ! 1. Time Domain Features
         # ! ***************************************************************
-
+        '''
         # T1: RMS (Root Mean Square)
         rms = EMG_Data.getRMSFeatures_windows(n_channels=len(channel_names))
         current_file_feats.append(rms)
@@ -675,7 +675,6 @@ for entry in data_containers:
         # T2: WFL (Waveform Length)
         wfl = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))
         current_file_feats.append(wfl)
-
 
         # T3: SSC (Slope Sign Change)
         ssc = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), threshold=0.02)
@@ -696,7 +695,7 @@ for entry in data_containers:
         fbp_feature = EMG_Data_freq.getFeatures()
         current_file_feats.append(fbp_feature)
 
-        '''
+        
         # F2: Morlet Wavelet Coefficients (Time-Frequency)
         freqs = np.arange(start=50, stop=226, step=25)
         n_cycles = np.ones(len(freqs)) * 5
@@ -708,10 +707,14 @@ for entry in data_containers:
         current_file_feats.append(mwc_feature)
         '''
 
-        # ! ***************************************************************
-        # ! 3. Temporal Change Features (Differentiation)
-        # ! ***************************************************************
+        # ? Peak Detection:: Change between consecutive samples (window i and wind i+1)
+        peak_detection = np.diff(EMG_Data.getFeatures(), axis=0, prepend=EMG_Data.getFeatures()[0:1, :])
+        current_file_feats.append(peak_detection)
 
+        # ! ***************************************************************
+        # ! 3. Temporal Change Frequency Features (Differentiation)
+        # ! ***************************************************************
+        '''
         # Combine all features collected so far to calculate their derivative
         features_so_far = np.concatenate(current_file_feats, axis=1)
 
@@ -719,7 +722,7 @@ for entry in data_containers:
         feat_diff = np.diff(features_so_far, axis=0, prepend=features_so_far[0:1, :])
 
         current_file_feats.append(feat_diff)
-
+        '''
         # ! ***************************************************************
         # ! 4. Final Merge & Splitting
         # ! ***************************************************************
@@ -917,7 +920,7 @@ if cfg.settings.scaling:
     import joblib
 
     # joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
-    
+
     # ? Dimensionality Reduction - PCA
     pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                                                            test_data=X_test,
@@ -1056,7 +1059,7 @@ for seed in seed_arr:
                                                   window_len=5,
                                                   poly_order=2)
     elif cfg.model_param.huber_weight_method == 'manual':
-        weights_inp = [1, 5, 1]
+        weights_inp = [5, 5, 1]
     elif cfg.model_param.huber_weight_method == 'dynamic_huber':
         weights_inp = [1, 1, 1]
     else:
@@ -1074,6 +1077,8 @@ for seed in seed_arr:
         input_shape_time = (n_timpoints, n_channels)
         input_shape_static = (X_train_static.shape[1],)
         tcn_model = build_model(input_shape_time,input_shape_static, filters, stacks, dropout_rate, kernel_size)
+        print("MODEL shape time: ", input_shape_time)
+        print("MODEL shape static: ", input_shape_static)
 
         if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
             loss_fn = tf.keras.losses.Huber()
