@@ -143,7 +143,8 @@ def shift_samples(arr, n, fill_value=0.0):
 
     return result
 
-all_torques = shift_samples(all_torques, -12, 0) # -11/-10 bei 1100g complex 2
+#all_torques = shift_samples(all_torques, -20, 0)
+all_torques = shift_samples(all_torques, -3, 0)
 all_preds = crop_edges(all_preds, 10, 50)
 all_torques = crop_edges(all_torques, 10, 50)
 

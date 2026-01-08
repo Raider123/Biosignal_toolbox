@@ -102,7 +102,6 @@ class LiveEstimation:
             print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
             print(f"  Scale Factor:           {self.scaler_file.scale_}")
             print(f"  Min Parameter (Offset): {self.scaler_file.min_}")
-
         ###########################################################################################################
         ###########################################################################################################
 
@@ -578,9 +577,6 @@ class LiveEstimation:
                 #self.extract_features()
                 self.extract_sliding_features(n_windows=2)
                 self.predict()
-                #self.predictions = self.predictions[-1, :]
-                print("output shape: ", self.predictions.shape)
-                #print("Predictions: ", self.predictions)
 
                 if self.use_yscaler:
                     self.inverse_transform_scaler() # Applying the inverse transform of the y scaler

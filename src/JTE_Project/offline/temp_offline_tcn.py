@@ -1,4 +1,5 @@
 # * This script is the general training script for joint torque estimation using sEMG signals offline. It loads all the hyper-parameters from a yaml_config file.
+# * UPDATED VERSION: Includes file-specific MVC normalization logic.
 
 # ! ************************************************
 # ! Imports
@@ -51,44 +52,14 @@ if tf.config.list_physical_devices('GPU'):
 def build_model_old(input_shape_time, filters, stacks, dropout_rate, kernel_size):
     """
     Builds a Temporal Convolutional Network (TCN) for multi-task torque estimation.
-
-    This model uses dilated causal convolutions to learn temporal patterns from EMG
-    signals without looking into the future (causal), making it suitable for
-    real-time applications.
-
-    Args:
-        input_shape_time (tuple): Shape of input data (TimeSteps, Channels).
-        filters (int): Number of filters (feature maps) in convolutional layers.
-        stacks (int): Number of residual blocks. Determines the 'memory' (receptive field).
-        dropout_rate (float): Spatial dropout rate for regularization (0.0 - 1.0).
-        kernel_size (int): Length of the temporal convolution kernel.
-
-    Returns:
-        tf.keras.Model: A compiled Keras functional model with 3 output heads.
     """
-
-    # ---------------------------------------------------------
-    # 1. Input Layer
-    # ---------------------------------------------------------
-    # Expects shape: (Batch, TimeSteps, Channels)
-    # e.g., (None, 50, 8) for 50 samples history and 8 muscles.
     inp_time = Input(shape=input_shape_time, name='emg_input')
     x = inp_time
 
-    # ---------------------------------------------------------
-    # 2. TCN Backbone (Temporal Feature Extraction)
-    # ---------------------------------------------------------
-    # We stack multiple residual blocks. Each block looks further back in time
-    # due to the increasing dilation rate (1, 2, 4, 8...).
     for s in range(stacks):
-        dilation_rate = 2 ** s  # Exponential dilation: 1, 2, 4, 8...
-
-        # --- Start of Residual Block ---
-        # Save the input 'x' for the residual connection later
+        dilation_rate = 2 ** s
         residual = x
 
-        # -- First Convolution Layer --
-        # 'causal' padding ensures we only use past data (no future peeking).
         y = layers.Conv1D(filters,
                           kernel_size,
                           padding='causal',
@@ -96,9 +67,8 @@ def build_model_old(input_shape_time, filters, stacks, dropout_rate, kernel_size
                           kernel_initializer='he_normal')(x)
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
-        y = layers.SpatialDropout1D(dropout_rate)(y)  # Drops entire feature maps
+        y = layers.SpatialDropout1D(dropout_rate)(y)
 
-        # -- Second Convolution Layer --
         y = layers.Conv1D(filters,
                           kernel_size,
                           padding='causal',
@@ -107,33 +77,17 @@ def build_model_old(input_shape_time, filters, stacks, dropout_rate, kernel_size
         y = layers.ReLU()(y)
         y = layers.LayerNormalization()(y)
 
-        # -- Residual Connection (Skip Connection) --
-        # If the number of filters changed (or at the first block), project 'x'
-        # to match the shape of 'y' using a 1x1 convolution.
         if residual.shape[-1] != filters:
             residual = layers.Conv1D(filters, 1, padding='same',
                                      kernel_initializer='he_normal')(residual)
 
-        # Add the original input to the processed output (ResNet principle)
         x = layers.add([residual, y])
-        # --- End of Residual Block ---
 
-    # ---------------------------------------------------------
-    # 3. Readout (Temporal Aggregation)
-    # ---------------------------------------------------------
-    # We strictly take only the LAST time step.
-    # Because of causal padding and dilation, this last step effectively
-    # contains the aggregated information of the entire input window.
     x = layers.Lambda(lambda t: t[:, -1, :], name='last_step_readout')(x)
 
-    # ---------------------------------------------------------
-    # 4. Dense Layers & Multi-Task Output
-    # ---------------------------------------------------------
-    # High-level feature processing
     combined = layers.Dense(64, activation="relu")(x)
     combined = layers.Dropout(dropout_rate)(combined)
 
-    # Output Heads: One regression output for each joint torque
     out_e = layers.Dense(1, name='torque_elbow')(combined)
     out_f = layers.Dense(1, name='torque_shoulder_front')(combined)
     out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
@@ -152,7 +106,7 @@ def build_model(input_shape_time, input_shape_static, filters, stacks, dropout_r
     inp_time = Input(shape=input_shape_time, name='emg_input')
     x = inp_time
 
-    # ... TCN Backbone (wie bisher) ...
+    # ... TCN Backbone ...
     for s in range(stacks):
         dilation_rate = 2 ** s
         residual = x
@@ -179,7 +133,6 @@ def build_model(input_shape_time, input_shape_static, filters, stacks, dropout_r
     inp_static = Input(shape=input_shape_static, name='static_input')
 
     # --- Merge ---
-    # Hier werden die extrahierten Zeit-Features mit den statischen Infos kombiniert
     combined_features = layers.concatenate([x, inp_static])
 
     # --- Dense Layers ---
@@ -192,6 +145,7 @@ def build_model(input_shape_time, input_shape_static, filters, stacks, dropout_r
     out_s = layers.Dense(1, name='torque_shoulder_side')(combined)
 
     return models.Model(inputs=[inp_time, inp_static], outputs=[out_e, out_f, out_s], name="MTL_TCN_DualInput")
+
 
 time_preproc = 0
 time_feat = 0
@@ -316,7 +270,6 @@ for wgt_idx, wgt in enumerate(weights):
         EMG_Data = EMGData(format="ANTmini", filenames=emg_table[wgt_idx][mov_idx], data_path=cfg.filepath.data_path,
                            f_samp=cfg.preprocess_param.f_samp, channel_names=cfg.preprocess_param.channel_names_emg)
 
-        # print(EMG_Data.events)
         # ? Plotting the raw EMG data
         if cfg.plot_param.is_plot_raw:
             EMG_Data.plotEMG(data=EMG_Data.data[4, :],
@@ -327,7 +280,6 @@ for wgt_idx, wgt in enumerate(weights):
                              is_grid_on=True)
 
         # #? Loading the target values for the 3 joints
-        # print("Creating Quali Elbow object...")
         Quali_Data_Elbow = EEGData(format="NumpyQualisys",
                                    filenames=quali_e_table[wgt_idx][mov_idx],
                                    data_path=cfg.filepath.data_path,
@@ -335,7 +287,6 @@ for wgt_idx, wgt in enumerate(weights):
                                    channel_names=cfg.preprocess_param.channel_names_quali,
                                    add_marker_channel=True)
 
-        # print("Creating Quali Shoulder Front object...")
         Quali_Data_Front = EEGData(format="NumpyQualisys",
                                    filenames=quali_sf_table[wgt_idx][mov_idx],
                                    data_path=cfg.filepath.data_path,
@@ -343,7 +294,6 @@ for wgt_idx, wgt in enumerate(weights):
                                    channel_names=cfg.preprocess_param.channel_names_quali,
                                    add_marker_channel=True)
 
-        # print("Creating Quali Shoulder Side object...")
         Quali_Data_Side = EEGData(format="NumpyQualisys",
                                   filenames=quali_ss_table[wgt_idx][mov_idx],
                                   data_path=cfg.filepath.data_path,
@@ -352,11 +302,7 @@ for wgt_idx, wgt in enumerate(weights):
                                   add_marker_channel=True)
 
         channel_names = EMG_Data.getChannelNames()
-        # print("Channel Names: ", channel_names)
-        # print("Channel Length: ", len(channel_names))
-        # print("")
 
-        # print(Quali_Data_Elbow.data.shape)
         if cfg.plot_param.is_plot_quali:
             plt.figure()
             plt.plot(np.arange(0, Quali_Data_Elbow.data[0, :].shape[0], 1) / Quali_Data_Elbow.f_samp,
@@ -372,7 +318,6 @@ for wgt_idx, wgt in enumerate(weights):
         # ! ************************************************
 
         # ? Band pass filter
-        # * design the bandpass filter
         sos_hp = EMG_Data.designFilter(f_high=cfg.preprocess_param.f_cutoff_hpf,
                                        f_low=cfg.preprocess_param.f_cutoff_lpf,
                                        order=cfg.preprocess_param.filter_order,
@@ -393,14 +338,12 @@ for wgt_idx, wgt in enumerate(weights):
         EMG_Data_freq = deepcopy(EMG_Data)
 
         # ? Apply Variance Filter from variance_tools_api
-        # print("Applying Variance filter...")
         width = cfg.preprocess_param.var_filter_width
         ring_buffer = np.zeros(width)
         index = 0
         EMG_Data.applyVarianceFilter_data(ring_buffer=ring_buffer,
                                           width=width,
                                           index=index)
-        # print("Variance Filter applied!!\n")
 
         if cfg.plot_param.is_plot_var_filter:
             EMG_Data.plotEMG(data=EMG_Data.data[4, :],
@@ -423,43 +366,77 @@ for wgt_idx, wgt in enumerate(weights):
         })
 
 # ! ************************************************
-# ! PHASE 2: CALCULATE MVC ON TRAINING DATA ONLY
+# ! PHASE 2: CALCULATE MVC (FILE SPECIFIC OR GLOBAL)
 # ! ************************************************
-print("PHASE 2: Calculating MVC (Training Split Only)...")
+print("PHASE 2: Calculating MVC...")
 
-mvc_save_path = str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy"))
+mvc_save_path_dict = str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/mvc_dict.pkl"))
+mvc_save_path_global = str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy"))
+
+mvc_dict = defaultdict(lambda: defaultdict(lambda: None))
+channelwise_mvc_global = None
 
 if not cfg.model_param.load_models:
-    # 1. Temporarily concatenate all EMG data to simulate the full dataset
-    # EMG_Data.data shape is (Channels, Samples)
-    all_emg_data = np.concatenate([d['EMG_Data'].data for d in data_containers], axis=1)
-    total_samples = all_emg_data.shape[1]
+    # A) Berechne MVC für jedes File individuell (Trainings-Anteil)
+    print("Calculating MVC per file (Train Split only)...")
 
-    # 2. Determine split index (assuming time-series split as per shuffle=False later)
-    # Note: Later we split features, here we split raw samples.
-    # Because of windowing, this is an approximation, but strictly prevents leakage.
-    # For Online we can use all of this samples mvc_split = 1, in offline: cfg.model_param.train_test_split
-    mvc_split = 1
-    train_split_idx = int(total_samples * mvc_split)
+    # Temporäre Liste für globales MVC (falls man beides will)
+    all_train_data_list = []
 
-    # 3. Extract Training Data Portion
-    emg_train_raw = all_emg_data[:, :train_split_idx]
+    for entry in data_containers:
+        wgt = entry['wgt']
+        mov = entry['mov']
 
-    # 4. Calculate MVC on Training Data
-    print(f"Calculating MVC on first {train_split_idx} samples (Train Set) out of {total_samples}...")
-    channelwise_mvc = np.max(np.abs(emg_train_raw), axis=1).reshape(-1, 1)
+        # Rohdaten holen
+        raw_data = entry['EMG_Data'].data
+        total_samples = raw_data.shape[1]
 
-    # Save for later/online use
-    os.makedirs(os.path.dirname(mvc_save_path), exist_ok=True)
-    np.save(mvc_save_path, channelwise_mvc)
+        # Split Index berechnen (WICHTIG: Nur auf Train-Daten schauen, um Leakage zu verhindern)
+        #train_split_idx = int(total_samples * cfg.model_param.train_test_split)
+        train_split_idx = int(total_samples) # for online case
+
+        # Trainings-Teil extrahieren
+        emg_train_local = raw_data[:, :train_split_idx]
+
+        # Lokales MVC berechnen (8, 1)
+        local_mvc = np.max(np.abs(emg_train_local), axis=1).reshape(-1, 1)
+
+        # In Dictionary speichern
+        mvc_dict[wgt][mov] = local_mvc
+
+        # Für globales Backup sammeln
+        all_train_data_list.append(emg_train_local)
+
+    # Globales MVC als Fallback berechnen (alte Methode)
+    all_train_concat = np.concatenate(all_train_data_list, axis=1)
+    channelwise_mvc_global = np.max(np.abs(all_train_concat), axis=1).reshape(-1, 1)
+
+    # Speichern
+    # 1. Dictionary speichern (convert to dict for safe pickling)
+    os.makedirs(os.path.dirname(mvc_save_path_dict), exist_ok=True)
+    mvc_dict_to_save = {k: dict(v) for k, v in mvc_dict.items()}
+    joblib.dump(mvc_dict_to_save, mvc_save_path_dict)
+
+    # 2. Globales Array speichern (Legacy)
+    np.save(mvc_save_path_global, channelwise_mvc_global)
 
 else:
-    print("Loading pre-calculated MVC...")
-    channelwise_mvc = np.load(mvc_save_path)
-    # Ensure shape
-    channelwise_mvc = channelwise_mvc.reshape(8, 1)
+    print("Loading pre-calculated MVCs...")
 
-print(f"MVC Values used: \n{channelwise_mvc.flatten()}")
+    # Versuche Dictionary zu laden
+    if os.path.exists(mvc_save_path_dict):
+        print(f"Loading MVC Dictionary from {mvc_save_path_dict}")
+        loaded_dict = joblib.load(mvc_save_path_dict)
+        # Rekonstruiere defaultdict Struktur
+        for k, v in loaded_dict.items():
+            for k2, v2 in v.items():
+                mvc_dict[k][k2] = v2
+
+    # Versuche Globales Array zu laden (als Fallback oder für 'channel_wise_mvc' legacy mode)
+    if os.path.exists(mvc_save_path_global):
+        channelwise_mvc_global = np.load(mvc_save_path_global).reshape(8, 1)
+
+print("MVC Calculation/Loading done.\n")
 
 # ! ************************************************
 # ! PHASE 3: NORMALIZE & FEATURE EXTRACTION
@@ -478,16 +455,28 @@ for entry in data_containers:
 
     time_preproc_start = time.perf_counter()  # Restart timing for this phase
 
-    # print(f"Performing Input Normalization with Max Voluntary Contraction for {wgt} {mov}...")
-
+    # ! ********* NORMALIZATION LOGIC *********
     if cfg.preprocess_param.normalisation_method == 'overall_mvc':
-        EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc))
+        # Nutzt das Maximum des globalen Vektors
+        EMG_Data.normalizeContinuousData(mvc=np.max(channelwise_mvc_global))
+
     elif cfg.preprocess_param.normalisation_method == 'channel_wise_mvc':
-        EMG_Data.normalizeContinuousData(mvc=channelwise_mvc)
+        # Nutzt den globalen 8x1 Vektor (alter Standard)
+        EMG_Data.normalizeContinuousData(mvc=channelwise_mvc_global)
+
+    elif cfg.preprocess_param.normalisation_method == 'file_specific_mvc':
+        # NEU: Nutzt das MVC spezifisch für dieses File (Gewicht/Bewegung)
+        current_mvc = mvc_dict[wgt][mov]
+
+        if current_mvc is None:
+            raise ValueError(f"No MVC found for {wgt} / {mov} in dictionary!")
+
+        # print(f"Normalizing {wgt}/{mov} with specific MVC...")
+        EMG_Data.normalizeContinuousData(mvc=current_mvc)
+
     else:
         warnings.warn("This method is not yet implemented!! Omitting!")
-
-    # print("Input Normalization performed!!\n")
+    # ! ***************************************
 
     # ? Low pass filter to smoothen the EMG signal
     # * design the lowpass filter
@@ -676,7 +665,6 @@ for entry in data_containers:
         wfl = EMG_Data.getWaveformLengthFeatures_windows(n_channels=len(channel_names))
         current_file_feats.append(wfl)
 
-
         # T3: SSC (Slope Sign Change)
         ssc = EMG_Data.getSlopeSignChangeFeatures_windows(n_channels=len(channel_names), threshold=0.02)
         current_file_feats.append(ssc)
@@ -695,18 +683,6 @@ for entry in data_containers:
         # Retrieve the calculated features from the freq object
         fbp_feature = EMG_Data_freq.getFeatures()
         current_file_feats.append(fbp_feature)
-
-        '''
-        # F2: Morlet Wavelet Coefficients (Time-Frequency)
-        freqs = np.arange(start=50, stop=226, step=25)
-        n_cycles = np.ones(len(freqs)) * 5
-        n_cycles[0] = 3
-        n_cycles[1] = 4
-
-        mwc_feature = EMG_Data_freq.getMorletWaveletCoeffFeatures_windows(freqs=freqs,
-                                                                          n_cycles=n_cycles)
-        current_file_feats.append(mwc_feature)
-        '''
 
         # ! ***************************************************************
         # ! 3. Temporal Change Features (Differentiation)
@@ -782,10 +758,6 @@ for entry in data_containers:
     # ? Merge output features
     target_features = np.concatenate(
         [Quali_Data_Elbow.getFeatures(), Quali_Data_Front.getFeatures(), Quali_Data_Side.getFeatures()], axis=1)
-
-    # ? Print input feature and target feature length
-    # print(f"Input feature shape (pre-merge): {EMG_Data.getFeatures().shape}")
-    # print(f"Target feature shape (pre-merge): {target_features.shape}")
 
     # ? Split data into train, validation, and test sets
     X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(input_features,
@@ -898,11 +870,11 @@ if cfg.settings.feature_extraction:
     X_test_feats = np.concatenate(X_test_feats_list, axis=0)
     X_val_feats = np.concatenate(X_val_feats_list, axis=0)
     from sklearn.preprocessing import StandardScaler
+
     feat_scaler = StandardScaler()
     X_train_feats_scaled = feat_scaler.fit_transform(X_train_feats)
     X_test_feats_scaled = feat_scaler.transform(X_test_feats)
     X_val_feats_scaled = feat_scaler.transform(X_val_feats)
-
 
 # Calculate Scaling Time
 time_scaling_start = time.perf_counter()
@@ -914,10 +886,8 @@ if cfg.settings.scaling:
                                                                             val_data=X_val,
                                                                             method="StandardScaler")
 
-    import joblib
-
     # joblib.dump(pre_emg_scaler, getAbsolutePath("src/JTE_Project/offline/saved_online_models/pre_emg_scaler.pkl"))
-    
+
     # ? Dimensionality Reduction - PCA
     pca_scaler, X_train, X_test, X_val = EMG_Data.reduceDimensions_windows(train_data=X_train,
                                                                            test_data=X_test,
@@ -962,7 +932,6 @@ if cfg.settings.advanced_pipeline:
     X_test_onehot = np.concatenate([wgt_test_onehot, mov_test_onehot], axis=1)
     X_val_onehot = np.concatenate([wgt_val_onehot, mov_val_onehot], axis=1)
     print(f"One-Hot-Feature Shape: {X_train_onehot.shape}")
-
 
 # Create Static Feature Set
 if cfg.settings.feature_extraction and cfg.settings.advanced_pipeline:
@@ -1056,7 +1025,7 @@ for seed in seed_arr:
                                                   window_len=5,
                                                   poly_order=2)
     elif cfg.model_param.huber_weight_method == 'manual':
-        weights_inp = [1, 5, 1]
+        weights_inp = [5, 5, 1]
     elif cfg.model_param.huber_weight_method == 'dynamic_huber':
         weights_inp = [1, 1, 1]
     else:
@@ -1073,7 +1042,7 @@ for seed in seed_arr:
 
         input_shape_time = (n_timpoints, n_channels)
         input_shape_static = (X_train_static.shape[1],)
-        tcn_model = build_model(input_shape_time,input_shape_static, filters, stacks, dropout_rate, kernel_size)
+        tcn_model = build_model(input_shape_time, input_shape_static, filters, stacks, dropout_rate, kernel_size)
 
         if hasattr(cfg.model_param, 'loss_fcn') and 'huber' in cfg.model_param.loss_fcn.lower():
             loss_fn = tf.keras.losses.Huber()
@@ -1203,20 +1172,11 @@ rho_sf_arr.append(rho_front)
 
 r2_ss_arr.append(r2_side)
 rho_ss_arr.append(rho_side)
-'''
-print("The results across seed are...\n")
-print(f"Elbow R2: {r2_e_arr}")
-print(f"Front R2: {r2_sf_arr}")
-print(f"Side R2: {r2_ss_arr}\n")
-'''
+
 print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr)}  Std. : {np.std(r2_e_arr)}")
 print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr)}  Std. : {np.std(r2_sf_arr)}")
 print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr)}  Std. : {np.std(r2_ss_arr)}\n")
-'''
-print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
-print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
-print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
-'''
+
 # ! ************************************************
 # ! Post-filtering Eval Metrics
 # ! ************************************************
@@ -1252,53 +1212,19 @@ rho_sf_arr_pf.append(rho_front_pf)
 
 r2_ss_arr_pf.append(r2_side_pf)
 rho_ss_arr_pf.append(rho_side_pf)
-'''
-print("The results across seed are...\n")
-print(f"Elbow R2: {r2_e_arr_pf}")
-print(f"Front R2: {r2_sf_arr_pf}")
-print(f"Side R2: {r2_ss_arr_pf}\n")
-'''
+
 print(f"Elbow R2 stats: Mean: {np.mean(r2_e_arr_pf)}  Std. : {np.std(r2_e_arr_pf)}")
 print(f"Front R2 stats: Mean: {np.mean(r2_sf_arr_pf)}  Std. : {np.std(r2_sf_arr_pf)}")
 print(f"Side R2 stats: Mean: {np.mean(r2_ss_arr_pf)}  Std. : {np.std(r2_ss_arr_pf)}\n")
-'''
+
 print(f"Elbow Pearson stats: Mean: {np.mean(rho_e_arr)}  Std. : {np.std(rho_e_arr)}")
 print(f"Front Pearson stats: Mean: {np.mean(rho_sf_arr)}  Std. : {np.std(rho_sf_arr)}")
 print(f"Side Pearson stats: Mean: {np.mean(rho_ss_arr)}  Std. : {np.std(rho_ss_arr)}")
-'''
 
 # Ausgabe der Datenshapes
 print("TRAIN DATA Shape: ", X_train_cnn.shape)
 print("VAL DATA Shape: ", X_val_cnn.shape)
 print("TEST DATA Shape: ", X_test_cnn.shape)
-
-'''
-# Printing Model Parameters (Size on GPU etc.)
-if tf.config.list_physical_devices('GPU'):
-  # Returns a dict in the form {'current': <current mem usage>,
-  #                             'peak': <peak mem usage>}
-  gpu_mem = tf.config.experimental.get_memory_info('GPU:0')
-
-input_shape = (1,) + X_train.shape[1:]
-
-concrete_func = tf.function(tcn_model).get_concrete_function(tf.TensorSpec(input_shape, tf.float32))
-
-from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
-frozen_func = convert_variables_to_constants_v2(concrete_func)
-graph_def = frozen_func.graph.as_graph_def()
-
-opts = ProfileOptionBuilder.float_operation()
-flops = profile(frozen_func.graph, options=opts)
-
-print('=' * 50)
-print(f"Model summary: ")
-tcn_model.summary()
-print(f"\nTotal FLOPs: {flops.total_float_ops:,}")
-print('=' * 50)
-print(f"Peak GPU Memory usage:  {gpu_mem['peak']/1e6 :.2f} MB")
-
-print('=' * 50)
-'''
 
 # Timings
 print(f"Preprocessing Zeit: {time_preproc :.4f} Sekunden")
@@ -1317,13 +1243,14 @@ time_prediction_std = np.std(time_prediction)
 print(f"Model Prediction Zeit: {time_prediction_mean :.4f} ± {time_prediction_std :.4f} Sekunden")
 
 
-#Data Visualization
+# Data Visualization
 def calculate_metrics(y_true, y_pred):
     """Berechnet RMSE, R² und Pearson-Korrelationskoeffizient."""
-    rmse = np.sqrt(np.mean((y_true - y_pred)**2))
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
     r2 = r2_score(y_true, y_pred)
     pearson_corr, _ = pearsonr(y_true, y_pred)
     return rmse, r2, pearson_corr
+
 
 def plotResults(y_true, label_true, y_pred, label_pred, title,
                 ylabel="Torque", is_grid_on=True):
@@ -1340,6 +1267,7 @@ def plotResults(y_true, label_true, y_pred, label_pred, title,
     plt.legend()
     plt.tight_layout()
     plt.show()
+
 
 # Anwendung auf deine Daten:
 plotResults(Y_ref[:, 0], "Real", perf_results_TCN[:, 0], "Prediction",

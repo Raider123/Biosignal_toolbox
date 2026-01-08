@@ -749,6 +749,7 @@ for wgt_idx, wgt in enumerate(weights):
 
 ## Storing channelwise mvc (now the mean is used) ONLINE only
 channel_cum = np.array(channel_cum_mvc)
+np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channel_cum_mvc.npy")), channel_cum_mvc)
 channel_max = np.mean(channel_cum,axis=0)
 '''
 if cfg.model_param.load_models == False:
