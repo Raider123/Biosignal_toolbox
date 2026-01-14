@@ -460,6 +460,9 @@ X_train_temp, X_test, Y_train_temp, Y_test = train_test_split(input_features,
                                                     train_size=cfg.model_param.train_test_split,
                                                     shuffle=False)
 
+print(f"Input feature shape (post train split): {X_train_temp.shape}")
+print(f"Target feature shape (post train split): {Y_train_temp.shape}")
+
 X_train, X_val, Y_train, Y_val = train_test_split(X_train_temp,
                                                   Y_train_temp, 
                                                   train_size= 1 - cfg.model_param.validation_split,
@@ -483,7 +486,7 @@ X_test_cat = encoder.transform(X_test_cat)
 X_val_cat = encoder.transform(X_val_cat)
 
 #? Creating history of features
-history_len = 3
+history_len = 1
 X_train, Y_train, ref_train_idx = EMG_Data.stackHistoryCat_windows(x_num=X_train, y_num=Y_train, x_cat=X_train_cat, history_len=history_len)
 
 X_test, Y_test, ref_test_idx = EMG_Data.stackHistoryCat_windows(x_num=X_test, y_num=Y_test, x_cat=X_test_cat, history_len=history_len)
