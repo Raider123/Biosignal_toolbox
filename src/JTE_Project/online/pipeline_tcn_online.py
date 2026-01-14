@@ -56,13 +56,13 @@ class LiveEstimation:
 
         ############################### Publisher File and Reference Torques ############################################
 
-        current_weight = '1100g'
-        current_move = 'complex'
+        current_weight = '0g'
+        current_move = 'grasp'
         set_num = '2'
 
         # Load the emg file (just for length of the file)
         print(f"Session Config: Weight={current_weight}, Move={current_move}")
-        emg_filepath = f"src/JTE_Project/online/resources/publisher/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
+        emg_filepath = f"data/jte/emg/BU62D/backup/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
         emg_file = getAbsolutePath(emg_filepath)
         df = pd.read_csv(emg_file, sep=" ", header=None)
         df = df.drop(df.columns[0], axis=1)
@@ -70,9 +70,9 @@ class LiveEstimation:
         print(f"Loaded {emg_filepath}")
 
         # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_f = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_s = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_e = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_f = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_s = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
         self.Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
         ############################ COPY FROM OFFLINE TRAINING #############################################
@@ -467,7 +467,6 @@ class LiveEstimation:
         one_hot_batch = np.tile(self.static_ohe_vector, (batch_size, 1))
 
         static_in = np.concatenate([peak_feats, one_hot_batch], axis=1)
-        #static_in = one_hot_batch
 
         # ---------------------------------------------------------
 
