@@ -41,9 +41,9 @@ while running:
 
         if idx == max_rows:
             # With this the script repeats at index 0
-            #idx = 0
+            idx = 0
             # With this the script ends
-            running = False
+            #running = False
         else:
             idx += 1
 
