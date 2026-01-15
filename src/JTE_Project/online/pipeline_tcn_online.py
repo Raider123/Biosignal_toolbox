@@ -2,24 +2,20 @@ import warnings
 
 import zmq
 import time
-import os
-import copy
 import pandas as pd
 import numpy as np
 import tensorflow as tf
 import joblib
 import matplotlib.pyplot as plt
-from pathlib import Path
 from scipy.signal import butter, savgol_filter, medfilt
-from sklearn.metrics import r2_score
 from biosignal_toolbox.emg_lib import OnlineEMG
 from tensorflow.keras.models import load_model
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 from scipy.ndimage import uniform_filter1d
 
-# XLA-JIT einschalten (beschleunigt den Inferenz-Graph)
-tf.config.optimizer.set_jit(True)
-
+import os
+# -1 bedeutet: Keine GPU sichtbar. TensorFlow nutzt automatisch die CPU.
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 
 class LiveEstimation:
 
@@ -56,8 +52,8 @@ class LiveEstimation:
 
         ############################### Publisher File and Reference Torques ############################################
 
-        current_weight = '0g'
-        current_move = 'grasp'
+        current_weight = '1100g'
+        current_move = 'complex'
         set_num = '2'
 
         # Load the emg file (just for length of the file)
@@ -230,7 +226,7 @@ class LiveEstimation:
         # return last values for rmse calculation
         return Yp[-1:], Yr[-1:]
 
-    def load_model(self, model_path=None):
+    def load_model_old(self, model_path=None):
         """
        Load the trained TCN model.
 
@@ -242,6 +238,51 @@ class LiveEstimation:
 
         self.model = load_model(model_path, compile=False)
         print("Model loaded successfully!")
+
+        return True
+
+    def load_model(self, model_path=None):
+        """
+        Lädt das Modell und kompiliert es zu einer optimierten Concrete Function (self.inference_func).
+        """
+        # 1. Das normale Keras Modell laden (langsam, Python-Overhead)
+        self.model = load_model(model_path, compile=False)
+        print("Keras Model loaded.")
+
+        # ---------------------------------------------------------
+        # GPU Optimierung: XLA + Concrete Function erstellen
+        # ---------------------------------------------------------
+
+        # WICHTIG: Berechne hier die exakte Größe deines Static-Inputs
+        # Peak Features (400) + One-Hot Vector (5) = 405
+        static_input_dim = 405
+
+        # Definition der Input-Typen für den Compiler (Signaturen)
+        # shape=(None, ...) bedeutet: Batch-Size ist flexibel (1 oder 50 ist egal)
+        sig_cnn = tf.TensorSpec(shape=(None, 50, 8), dtype=tf.float32, name="cnn_input")
+        sig_static = tf.TensorSpec(shape=(None, static_input_dim), dtype=tf.float32, name="static_input")
+
+        # Wir bauen eine Wrapper-Funktion mit XLA (jit_compile=True)
+        @tf.function(jit_compile=True)
+        def fast_predict_wrapper(cnn_tensor, static_tensor):
+            return self.model([cnn_tensor, static_tensor], training=False)
+
+        # Hier entsteht 'self.inference_func'!
+        self.inference_func = fast_predict_wrapper.get_concrete_function(sig_cnn, sig_static)
+
+        # ---------------------------------------------------------
+        # WARMUP
+        # ---------------------------------------------------------
+        print("Starting CPU or GPU Warmup...")
+        try:
+            # Dummy Daten durchjagen
+            dummy_cnn = tf.zeros((1, 50, 8), dtype=tf.float32)
+            dummy_static = tf.zeros((1, static_input_dim), dtype=tf.float32)
+            _ = self.inference_func(dummy_cnn, dummy_static)
+            print("🚀 CPU or GPU Inference Graph successfully built and warmed up!")
+        except Exception as e:
+            print(f"⚠️ Warmup Warning: {e}")
+            print("Überprüfe bitte, ob 'static_input_dim' (hier 405) wirklich zu deinen Daten passt!")
 
         return True
 
@@ -451,7 +492,7 @@ class LiveEstimation:
     def inverse_transform_scaler(self):
         self.predictions = self.scaler_file.inverse_transform(self.predictions)
 
-    def predict(self):
+    def predict_old(self):
         # TCN Input (Raw Time Series)
         # Shape: (Batch, 50, 8)
         cnn_in = self.features
@@ -477,6 +518,42 @@ class LiveEstimation:
         self.predictions = np.concatenate(
             [preds[0], preds[1], preds[2]], axis=1
         )
+
+        return self.predictions
+
+    def predict(self):
+        """
+        Führt die Vorhersage mit der optimierten self.inference_func aus.
+        """
+        # 1. Daten als Float32 vorbereiten (Numpy standard ist oft float64 -> langsam auf GPU)
+        cnn_in_np = self.features.astype(np.float32)  # (Batch, 50, 8)
+        batch_size = cnn_in_np.shape[0]
+
+        # 2. One-Hot Caching (Vermeidet np.tile Overhead)
+        if not hasattr(self, 'cached_ohe') or self.cached_ohe.shape[0] != batch_size:
+            # Erstelle Array nur neu, wenn sich Batch-Size ändert
+            self.cached_ohe = np.tile(self.static_ohe_vector, (batch_size, 1)).astype(np.float32)
+
+        # 3. Static Input zusammenbauen
+        # peak_features müssen auch float32 sein!
+        peak_feats_32 = self.peak_features.astype(np.float32)
+        static_in_np = np.concatenate([peak_feats_32, self.cached_ohe], axis=1)
+
+        # 4. Umwandlung in Tensoren (schiebt Daten auf GPU)
+        cnn_tensor = tf.convert_to_tensor(cnn_in_np)
+        static_tensor = tf.convert_to_tensor(static_in_np)
+
+        # 5. Aufruf der optimierten Funktion (DAS ist der schnelle Teil)
+        # self.inference_func wurde in load_model erstellt
+        preds_tensors = self.inference_func(cnn_tensor, static_tensor)
+
+        # 6. Ergebnisse zurückholen (Numpy)
+        # preds_tensors ist eine Liste [Tensor(Elbow), Tensor(Front), Tensor(Side)]
+        res_e = preds_tensors[0].numpy()
+        res_f = preds_tensors[1].numpy()
+        res_s = preds_tensors[2].numpy()
+
+        self.predictions = np.concatenate([res_e, res_f, res_s], axis=1)
 
         return self.predictions
 
@@ -574,7 +651,6 @@ class LiveEstimation:
             # Read emg data from the stream
             self.read_emg_batch()
             end_read_time = time.perf_counter() - update_read_time
-            #print(f"EMG BATCH: {end_read_time * 1000:.1f} ms")
 
             # Start the time measurement (self.read_emg_batch waits for 50 new samples, approx 65ms duration)
             update_start_time = time.perf_counter()
@@ -651,7 +727,10 @@ class LiveEstimation:
             else:
                 # Regular prediction pipeline
                 self.extract_sliding_features_pd(n_windows=2)
+
+                pred_timer = time.perf_counter()
                 self.predict()
+                pred_end_timer = time.perf_counter() - pred_timer
 
                 if self.use_yscaler:
                     self.inverse_transform_scaler() # Applying the inverse transform of the y scaler
@@ -659,12 +738,14 @@ class LiveEstimation:
                 #self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size=1)
                 self.all_predictions.extend(self.predictions)
 
-                # Printing the Timings
                 update_time_step = time.perf_counter() - update_start_time
-                print(f"Pipeline Time Step: {update_time_step * 1000:.1f} ms")
-
                 self.current_time = self.current_time + update_time_step
                 self.elapsed_times.append(self.current_time)
+
+                # Printing the Timings
+                print(f"EMG BATCH: {end_read_time * 1000:.1f} ms")
+                print(f"Prediction Time Step: {pred_end_timer * 1000:.1f} ms")
+                print(f"Pipeline Time Step: {update_time_step * 1000:.1f} ms")
                 print("Elapsed Times ", len(self.elapsed_times))
 
                 if self.show_prediction_plot:

@@ -3,8 +3,8 @@ import time
 import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
-current_weight = '0g'
-current_move = 'grasp'
+current_weight = '1100g'
+current_move = 'complex'
 set_num = '2'
 
 # Load the emg file (just for length of the file)
