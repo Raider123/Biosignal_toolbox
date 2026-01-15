@@ -20,6 +20,10 @@ from scipy.ndimage import uniform_filter1d
 # XLA-JIT einschalten (beschleunigt den Inferenz-Graph)
 tf.config.optimizer.set_jit(True)
 
+import os
+# -1 bedeutet: Keine GPU sichtbar. TensorFlow nutzt automatisch die CPU.
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+
 class LiveEstimation:
 
     def __init__(self):
@@ -46,7 +50,7 @@ class LiveEstimation:
         # 1. Input Train EMG.TXT and corresponding 3 Reference Torque Files (.npy)
         # 2. Copy MVC File, ML-Model file, Yscaler File (Adjust used weight and movement)
 
-        self.use_yscaler = True
+        self.use_yscaler = False
 
         # Note that if enabled, the prediction is slower than in a real time scenario
         self.show_prediction_plot = False
@@ -55,6 +59,7 @@ class LiveEstimation:
         self.emg_plot = False
 
         ############################### Publisher File and Reference Torques ############################################
+        ############################### Publisher File and Reference Torques ############################################
 
         current_weight = '1100g'
         current_move = 'complex'
@@ -62,30 +67,31 @@ class LiveEstimation:
 
         # Load the emg file (just for length of the file)
         print(f"Session Config: Weight={current_weight}, Move={current_move}")
-        emg_filepath = f"src/JTE_Project/online/resources/publisher/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
+        emg_filepath = f"data/jte/emg/BU62D/backup/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
         emg_file = getAbsolutePath(emg_filepath)
         df = pd.read_csv(emg_file, sep=" ", header=None)
         df = df.drop(df.columns[0], axis=1)
         emg_max_rows = df.shape[0] - 1
         print(f"Loaded {emg_filepath}")
 
-
-       # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_f = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_s = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/reference_torques/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        # Load Torque Values (ground truth, only in prediction plot)
+        Y_e = np.load(str(getAbsolutePath(
+            f"data/jte/quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_f = np.load(str(getAbsolutePath(
+            f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_s = np.load(str(getAbsolutePath(
+            f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
         self.Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
-
 
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_pd.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mlp.npy")))
         print("Loaded channelwise mvc file")
 
         # Loading the ML Model
         self.load_model(getAbsolutePath(
-            'data/jte/ml_models/BU62D/mlp_model_5.keras'))
+            'src/JTE_Project/online/resources/trained_models/mlp_modell.keras'))
         
 
         # Loading the Y-scaler
@@ -234,7 +240,7 @@ class LiveEstimation:
         return Yp[-1:], Yr[-1:]
 
 
-    def load_model(self, model_path=None):
+    def load_model_old(self, model_path=None):
         """
         Load the trained TCN model.
 
@@ -247,6 +253,40 @@ class LiveEstimation:
         print(f"Loading model from: {model_path}")
         self.model = load_model(model_path, compile=False)
         print("Model loaded successfully!\n")
+
+        return True
+
+    def load_model(self, model_path=None):
+        """
+        Load the trained TCN/MLP model and compile a dedicated inference graph.
+        """
+        print(f"Loading model from: {model_path}")
+        self.model = load_model(model_path, compile=False)
+
+        # --- OPTIMIERUNG: Erstellen einer kompilierten Graph-Funktion ---
+        # jit_compile=True nutzt XLA (Accelerated Linear Algebra) für maximale Performance
+        @tf.function(jit_compile=True)
+        def inference_step(inputs):
+            return self.model(inputs, training=False)
+
+        self.inference_func = inference_step
+
+        # --- WARM-UP: Der erste Aufruf ist immer langsam (Tracing) ---
+        try:
+            # Input-Shape ermitteln (Batch-Dimension ignorieren)
+            input_shape = self.model.input_shape
+            if input_shape[0] is None:
+                # Dummy Batch size von 1, Rest aus Model-Info
+                dummy_shape = (1,) + tuple(input_shape[1:])
+            else:
+                dummy_shape = input_shape
+
+            print(f"Running Warm-up with shape {dummy_shape}...")
+            dummy_input = tf.zeros(dummy_shape)
+            self.inference_func(dummy_input)
+            print("Model loaded and warmed up successfully!\n")
+        except Exception as e:
+            print(f"Warning during Warm-up: {e}. First prediction might be slower.")
 
         return True
 
@@ -377,7 +417,7 @@ class LiveEstimation:
     def inverse_transform_scaler(self):
         self.predictions = self.scaler_file.inverse_transform(self.predictions)
 
-    def predict(self):
+    def predict_old(self):
         """
         Process EMG file and predict joint torques.
 
@@ -406,9 +446,30 @@ class LiveEstimation:
         preds = self.model(x, training=False) # using a direct model call vs self.model.predict() cuts time expense in half
         # Concatenate multi-task outputs: [elbow, front, side]
         self.predictions = np.asarray(preds)
-        self.inverse_transform_scaler()
+        #self.inverse_transform_scaler()
         #print(f"Predictions shape: {self.predictions.shape}")
         #print("Model prediction completed!\n")
+
+        return self.predictions
+
+    def predict(self):
+        """
+        Process EMG file and predict joint torques using the compiled graph.
+        """
+        # Feature Referenz holen
+        mlp_in = self.features  # Shape: (Batch, N_Features)
+
+        batch_size = mlp_in.shape[0]
+
+        one_hot_batch = np.tile(self.static_ohe_vector, (batch_size, 1))
+        final_input = np.concatenate([mlp_in, one_hot_batch], axis=1)
+
+        # Umwandlung in Tensor
+        # Wir rufen direkt die kompilierte Funktion auf
+        preds_tensor = self.inference_func(tf.convert_to_tensor(final_input, dtype=tf.float32))
+
+        # Rückumwandlung in Numpy (.numpy() ist hier notwendig, da Tensor zurückkommt)
+        self.predictions = preds_tensor.numpy()
 
         return self.predictions
 
@@ -591,7 +652,12 @@ class LiveEstimation:
                 # Regular prediction pipeline
                 self.extract_features()
                 #self.scale_features()
+
+                pred_timer = time.perf_counter()
                 self.predict()
+                pred_end_timer = time.perf_counter() - pred_timer
+                print(f"Prediction Time Step: {pred_end_timer * 1000:.1f} ms")
+
                 self.apply_median_savitzky(sav_filter_size=9, poly_order=2, mean_filter_size = 1)
 
                 # Printing the Timings
