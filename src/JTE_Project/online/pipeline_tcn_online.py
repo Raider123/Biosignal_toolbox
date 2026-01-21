@@ -510,9 +510,10 @@ class LiveEstimation:
         static_in = np.concatenate([peak_feats, one_hot_batch], axis=1)
 
         # ---------------------------------------------------------
-
+        x = tf.convert_to_tensor(cnn_in)
+        s = tf.convert_to_tensor(static_in)
         # Predict
-        preds = self.model([cnn_in, static_in], training=False)
+        preds = self.model([x, s], training=False)
 
         # Concatenate outputs
         self.predictions = np.concatenate(

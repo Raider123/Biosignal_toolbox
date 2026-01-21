@@ -74,24 +74,22 @@ class LiveEstimation:
         emg_max_rows = df.shape[0] - 1
         print(f"Loaded {emg_filepath}")
 
-        # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath(
-            f"data/jte/quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_f = np.load(str(getAbsolutePath(
-            f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_s = np.load(str(getAbsolutePath(
-            f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+
+       # Load Torque Values (ground truth, only in prediction plot)
+        Y_e = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_f = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_s = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
         self.Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mlp.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_pd.npy")))[1,1]
         print("Loaded channelwise mvc file")
 
         # Loading the ML Model
         self.load_model(getAbsolutePath(
-            'src/JTE_Project/online/resources/trained_models/mlp_modell.keras'))
+            'data/jte/ml_models/BU62D/mlp_model_6.keras'))
         
 
         # Loading the Y-scaler
@@ -682,5 +680,7 @@ if __name__ == "__main__":
     live_estimation_obj.save_all_predictions()
 
     live_estimation_obj.save_torques()
+
+    print("Massive")
 
     live_estimation_obj.save_elapsed_times()

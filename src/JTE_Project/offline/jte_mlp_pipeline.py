@@ -137,7 +137,7 @@ meta_list_val = []
 
 current_idx = 0
 
-channel_cum_mvc = []
+channel_cum_mvc = [[[] for _ in mov_types] for _ in weights]
 
 loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
 
@@ -260,10 +260,10 @@ for wgt_idx, wgt in enumerate(weights):
         channelwise_mvc = np.max(np.abs(EMG_Data.data[:,:int(cfg.model_param.train_test_split * EMG_Data.data.shape[1])]), axis=1).reshape(-1,1)
         # print(channelwise_mvc)
         if cfg.model_param.load_models:
-            channelwise_mvc = loaded_mvc.reshape(8, 1)
+            channelwise_mvc = loaded_mvc[wgt_idx][mov_idx].reshape(8, 1)
 
         c_mvc_cum = np.max(np.abs(EMG_Data.data), axis=1)
-        channel_cum_mvc.append(c_mvc_cum)
+        channel_cum_mvc[wgt_idx][mov_idx].append(c_mvc_cum)
 
         print("Performing Input Normalization with Max Voluntary Contraction ...")
         if cfg.preprocess_param.normalisation_method == 'overall_mvc':
@@ -515,8 +515,11 @@ for wgt_idx, wgt in enumerate(weights):
         time_feat_end = time.perf_counter()
         time_feat += (time_feat_end - time_feat_start)
 
+
+
 channel_cum = np.array(channel_cum_mvc)
-channel_max = np.mean(channel_cum,axis=0)
+channel_max = np.mean(channel_cum,axis=2)
+
 
 if cfg.model_param.is_save_model:
     np.save(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")), channel_max)
