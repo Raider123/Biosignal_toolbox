@@ -197,7 +197,7 @@ time_preproc = 0
 time_feat = 0
 
 # ? load config file
-config_filename = 'pipeline_jte_bu62d.yaml'
+config_filename = 'pipeline_jte_ww06d.yaml'
 cfg = loadConfig(filename=config_filename)
 save_dir = cfg.filepath.save_predictions_path
 print("Using the following CONFIG FILE: ", config_filename)
@@ -304,6 +304,7 @@ print("PHASE 1: Loading Data and Applying Linear Filters (BPF, VarFilter)...")
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):
+        print(f"\nProcessing Weight: {wgt}, Movement: {mov}...")
         #######
         # if certain emg files are excluded, the script will not crash (allows for singular files)
         if not emg_table[wgt_idx][mov_idx]:

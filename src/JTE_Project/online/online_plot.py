@@ -7,8 +7,14 @@ from scipy.signal import medfilt, savgol_filter
 from scipy.signal import butter, sosfilt
 from scipy import signal
 
-all_preds = np.load(str(getAbsolutePath("src/JTE_Project/online/online_results/mlp/all_predictions.npy")))
-Y_ref_raw = np.load(str(getAbsolutePath("src/JTE_Project/online/online_results/mlp/all_torques.npy")))
+model_type = 'tcn'
+subject_id = 'WW06D'
+current_weight = '1100g'
+current_move = 'complex'
+set_num = '1'
+
+all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_predictions_{current_weight}_{current_move}_{set_num}.npy")))
+Y_ref_raw = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_torques_{current_weight}_{current_move}_{set_num}.npy")))
 
 # Clip Values that are NAN to 0
 all_preds[np.isnan(all_preds)] = 0
@@ -92,9 +98,9 @@ def process_torque_lowpass_causal(data, f_cutoff, f_samp, order=4, ds_factor=1):
 
     return downsampled_data
 
-#Y_ref = process_torque_lowpass_causal(data=Y_ref_raw, f_cutoff=5, f_samp=500, order=4,ds_factor=1)
-#Y_ref= downsample_mean_bins(Y_ref, y_ref_length)
-all_torques = Y_ref_raw
+Y_ref = process_torque_lowpass_causal(data=Y_ref_raw, f_cutoff=5, f_samp=500, order=4,ds_factor=1)
+Y_ref= downsample_mean_bins(Y_ref, y_ref_length)
+all_torques = Y_ref
 
 all_preds = process_predictions(all_preds, ds_factor=1, med_kernel=9, sav_win= 15, sav_poly=3)
 
@@ -144,7 +150,10 @@ def shift_samples(arr, n, fill_value=0.0):
     return result
 
 #all_torques = shift_samples(all_torques, -18, 0) # -11/-10 bei 1100g complex 2
-all_torques = shift_samples(all_torques, 0, 0)
+if current_move == 'complex':
+    all_torques = shift_samples(all_torques, -11, 0)
+else:
+    all_torques = shift_samples(all_torques, 10, 0)
 all_preds = crop_edges(all_preds, 10, 50)
 all_torques = crop_edges(all_torques, 10, 50)
 

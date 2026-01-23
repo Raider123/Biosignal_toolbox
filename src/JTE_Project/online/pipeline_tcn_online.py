@@ -52,13 +52,15 @@ class LiveEstimation:
 
         ############################### Publisher File and Reference Torques ############################################
 
-        current_weight = '1100g'
-        current_move = 'complex'
-        set_num = '2'
+        self.model_type = 'tcn'
+        self.subject_id = 'WW06D'
+        self.current_weight = '1100g'
+        self.current_move = 'complex'
+        self.set_num = '1'
 
         # Load the emg file (just for length of the file)
-        print(f"Session Config: Weight={current_weight}, Move={current_move}")
-        emg_filepath = f"data/jte/emg/BU62D/backup/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
+        print(f"Session Config: Weight={self.current_weight}, Move={self.current_move}")
+        emg_filepath = f"data/jte/emg/{self.subject_id}/backup/24072025_{self.subject_id}_{self.current_weight}_{self.current_move}_{self.set_num}.txt"
         emg_file = getAbsolutePath(emg_filepath)
         df = pd.read_csv(emg_file, sep=" ", header=None)
         df = df.drop(df.columns[0], axis=1)
@@ -66,27 +68,27 @@ class LiveEstimation:
         print(f"Loaded {emg_filepath}")
 
         # Load Torque Values (ground truth, only in prediction plot)
-        Y_e = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_elbow_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_f = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_front_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
-        Y_s = np.load(str(getAbsolutePath(f"data/jte/quali/BU62D/torques_kartik/quali_torque_shoulder_side_24_07_2025_BU62D_{current_weight}_{current_move}_{set_num}.npy")))
+        Y_e = np.load(str(getAbsolutePath(f"data/jte/quali/{self.subject_id}/torques_kartik/quali_torque_elbow_24_07_2025_{self.subject_id}_{self.current_weight}_{self.current_move}_{self.set_num}.npy")))
+        Y_f = np.load(str(getAbsolutePath(f"data/jte/quali/{self.subject_id}/torques_kartik/quali_torque_shoulder_front_24_07_2025_{self.subject_id}_{self.current_weight}_{self.current_move}_{self.set_num}.npy")))
+        Y_s = np.load(str(getAbsolutePath(f"data/jte/quali/{self.subject_id}/torques_kartik/quali_torque_shoulder_side_24_07_2025_{self.subject_id}_{self.current_weight}_{self.current_move}_{self.set_num}.npy")))
         self.Y_ref_raw = np.stack((Y_e, Y_f, Y_s), axis=1)
 
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_pd.npy")))
+        self.channelwise_mvc = np.load(str(getAbsolutePath(f"src/JTE_Project/online/resources/mvc/{self.subject_id}/channelwise_mvc_pd.npy")))
         print("Loaded channelwise mvc file")
 
         # Loading the ML Model
         self.load_model(getAbsolutePath(
-            'src/JTE_Project/online/resources/trained_models/tcn_model_pd.keras'))
+            f'src/JTE_Project/online/resources/trained_models/{self.subject_id}/tcn_1c1.keras'))
 
         # Loading the Y-scaler
         if self.use_yscaler:
             y_scaler = joblib.load(getAbsolutePath("src/JTE_Project/online/resources/y_scaler/Y_scaler.pkl"))
             print("Loading Y_Scaler succesful.")
             # Select correct Scaler File
-            self.scaler_file = y_scaler[current_weight][current_move]
+            self.scaler_file = y_scaler[self.current_weight][self.current_move]
             print(self.scaler_file)
             print(f"  Original Data Min (Nm): {self.scaler_file.data_min_}")  # [Elbow, Front, Side]
             print(f"  Original Data Max (Nm): {self.scaler_file.data_max_}")  # [Elbow, Front, Side]
@@ -97,19 +99,19 @@ class LiveEstimation:
         ###########################################################################################################
 
         # Weight Vector: [0g, 1100g, 1850g]
-        if current_weight == '0g':
+        if self.current_weight == '0g':
             vec_w = [1, 0, 0]
-        elif current_weight == '1100g':
+        elif self.current_weight == '1100g':
             vec_w = [0, 1, 0]
-        elif current_weight == '1850g':
+        elif self.current_weight == '1850g':
             vec_w = [0, 0, 1]
         else:
             vec_w = [0, 0, 0]  # Fehlerfall
 
         # Move Vector: [grasp, complex]
-        if current_move == 'grasp':
+        if self.current_move == 'grasp':
             vec_m = [1, 0]
-        elif current_move == 'complex':
+        elif self.current_move == 'complex':
             vec_m = [0, 1]
         else:
             vec_m = [0, 0]
@@ -249,7 +251,7 @@ class LiveEstimation:
         self.model = load_model(model_path, compile=False)
         print("Keras Model loaded.")
 
-        # ---------------------------------------------------------
+          # ---------------------------------------------------------
         # GPU Optimierung: XLA + Concrete Function erstellen
         # ---------------------------------------------------------
 
@@ -632,18 +634,17 @@ class LiveEstimation:
     def save_all_predictions(self, filename="all_predictions.npy"):
         list_of_2d_arrays = [np.atleast_2d(arr) for arr in self.all_predictions]
         all_preds = np.concatenate(list_of_2d_arrays, axis=0)
-        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_predictions.npy")), all_preds)
+        np.save(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_predictions_{self.current_weight}_{self.current_move}_{self.set_num}.npy")), all_preds)
 
     def save_torques(self):
-        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_torques.npy")), self.Y_ref_raw)
+        np.save(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_torques_{self.current_weight}_{self.current_move}_{self.set_num}.npy")), self.Y_ref_raw)
 
     def save_elapsed_times(self):
         elapsed_time_np = np.array(self.elapsed_times)
-        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/all_times.npy")), elapsed_time_np)
-
+        np.save(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_times_{self.current_weight}_{self.current_move}_{self.set_num}.npy")), elapsed_time_np)
     def save_emg_vals(self):
         all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-        np.save(str(getAbsolutePath("src/JTE_Project/online/online_results/bandpass_online.npy")), all_emgs)
+        np.save(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/bandpass_online_{self.current_weight}_{self.current_move}_{self.set_num}.npy")), all_emgs)
         print("Save EMG Shape: ", all_emgs.shape)
 
     def update_loop(self):

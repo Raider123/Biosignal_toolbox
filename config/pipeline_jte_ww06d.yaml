@@ -2,9 +2,9 @@
 ---
   settings:
     advanced_pipeline: True
-    feature_extraction: False
+    feature_extraction: True
     scaling: False
-    yscaler: True
+    yscaler: False
 
   filepath:
     data_path: 'data/jte/'
@@ -12,7 +12,7 @@
     emg_path: 'emg/WW06D/' # 'emg/BU62D/'
     emg_file_prefix: '24072025_WW06D' # '24072025_BU62D'
 
-    quali_torque_path: 'quali/WW06D/torques/' # 'quali/BU62D/torques_kartik/'
+    quali_torque_path: 'quali/WW06D/torques_kartik/' # 'quali/BU62D/torques_kartik/'
     quali_torque_prefix: [ 'quali_torque_elbow_24_07_2025', 'quali_torque_shoulder_front_24_07_2025', 'quali_torque_shoulder_side_24_07_2025' ]
 
     fig_save_path: 'data/test/'
@@ -73,6 +73,7 @@
     metrics:                  'mse'
 
     train_test_split:         0.9
+    k_fold_splits:            1
     validation_split:         0.15
 
     is_early_stop:            True

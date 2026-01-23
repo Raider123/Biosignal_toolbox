@@ -3,13 +3,14 @@ import time
 import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
+subject_id = 'WW06D'
 current_weight = '1100g'
 current_move = 'complex'
-set_num = '2'
+set_num = '1'
 
 # Load the emg file (just for length of the file)
 print(f"Session Config: Weight={current_weight}, Move={current_move}")
-filepath = f"data/jte/emg/BU62D/backup/24072025_BU62D_{current_weight}_{current_move}_{set_num}.txt"
+filepath = f"data/jte/emg/{subject_id}/backup/24072025_{subject_id}_{current_weight}_{current_move}_{set_num}.txt"
 print(f"Using following {filepath}")
 emg_file = getAbsolutePath(filepath)
 
