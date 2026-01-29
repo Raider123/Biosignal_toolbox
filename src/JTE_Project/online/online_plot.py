@@ -7,11 +7,11 @@ from scipy.signal import medfilt, savgol_filter
 from scipy.signal import butter, sosfilt
 from scipy import signal
 
-model_type = 'tcn'
-subject_id = 'WW06D'
+model_type = 'mlp'
+subject_id = 'BU62D'
 current_weight = '1100g'
 current_move = 'complex'
-set_num = '1'
+set_num = '2'
 
 all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_predictions_{current_weight}_{current_move}_{set_num}.npy")))
 Y_ref_raw = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_torques_{current_weight}_{current_move}_{set_num}.npy")))
@@ -151,7 +151,7 @@ def shift_samples(arr, n, fill_value=0.0):
 
 #all_torques = shift_samples(all_torques, -18, 0) # -11/-10 bei 1100g complex 2
 if current_move == 'complex':
-    all_torques = shift_samples(all_torques, -11, 0)
+    all_torques = shift_samples(all_torques, -5, 0)
 else:
     all_torques = shift_samples(all_torques, 10, 0)
 all_preds = crop_edges(all_preds, 10, 50)

@@ -50,7 +50,7 @@ class LiveEstimation:
         # 1. Input Train EMG.TXT and corresponding 3 Reference Torque Files (.npy)
         # 2. Copy MVC File, ML-Model file, Yscaler File (Adjust used weight and movement)
 
-        self.use_yscaler = False
+        self.use_yscaler = True
 
         # Note that if enabled, the prediction is slower than in a real time scenario
         self.show_prediction_plot = False
@@ -59,11 +59,26 @@ class LiveEstimation:
         self.emg_plot = False
 
         ############################### Publisher File and Reference Torques ############################################
-        ############################### Publisher File and Reference Torques ############################################
 
         current_weight = '1100g'
         current_move = 'complex'
         set_num = '2'
+
+        mvc_num1 = 0
+        mvc_num2 = 0
+
+        if current_weight == '0g':
+            mvc_num1 = 0
+        elif current_weight == '1100g':
+            mvc_num1 = 1
+        elif current_weight == '1850g':
+            mvc_num1 = 2
+
+        if current_move == 'grasp':
+            mvc_num2 = 0
+        elif current_move == 'complex':
+            mvc_num2 = 1
+
 
         # Load the emg file (just for length of the file)
         print(f"Session Config: Weight={current_weight}, Move={current_move}")
@@ -84,12 +99,18 @@ class LiveEstimation:
         ############################ COPY FROM OFFLINE TRAINING #############################################
 
         # pre-calculated channelwise mvc
-        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc_pd.npy")))[1,1]
+        self.channelwise_mvc = np.load(str(getAbsolutePath("src/JTE_Project/online/resources/mvc/channelwise_mvc.npy")))[mvc_num1,mvc_num2]
         print("Loaded channelwise mvc file")
 
         # Loading the ML Model
         self.load_model(getAbsolutePath(
-            'data/jte/ml_models/BU62D/mlp_model_6.keras'))
+            'data/jte/ml_models/BU62D/mlp_1c2.keras'))
+
+        self.model_type = 'mlp'
+        self.subject_id = 'BU62D'
+        self.current_weight = current_weight
+        self.current_move = current_move
+        self.set_num = set_num
         
 
         # Loading the Y-scaler
@@ -469,6 +490,10 @@ class LiveEstimation:
         # Rückumwandlung in Numpy (.numpy() ist hier notwendig, da Tensor zurückkommt)
         self.predictions = preds_tensor.numpy()
 
+        self.inverse_transform_scaler()
+        print(f"Predictions shape: {self.predictions.shape}")
+        print("Model prediction completed!\n")
+
         return self.predictions
 
     def read_emg_batch(self):
@@ -552,17 +577,26 @@ class LiveEstimation:
     def save_all_predictions(self, filename="all_predictions.npy"):
         list_of_2d_arrays = [np.atleast_2d(arr) for arr in self.all_predictions]
         all_preds = np.concatenate(list_of_2d_arrays, axis=0)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/mlp/all_predictions.npy"), all_preds)
+        np.save(str(getAbsolutePath(
+            f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_predictions_{self.current_weight}_{self.current_move}_{self.set_num}.npy")),
+                all_preds)
 
     def save_torques(self):
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/mlp/all_torques.npy"), self.Y_ref)
+        np.save(str(getAbsolutePath(
+            f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_torques_{self.current_weight}_{self.current_move}_{self.set_num}.npy")),
+                self.Y_ref_raw)
 
     def save_elapsed_times(self):
         elapsed_time_np = np.array(self.elapsed_times)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/mlp/all_times.npy"), elapsed_time_np)
+        np.save(str(getAbsolutePath(
+            f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/all_times_{self.current_weight}_{self.current_move}_{self.set_num}.npy")),
+                elapsed_time_np)
+
     def save_emg_vals(self):
         all_emgs = np.concatenate(self.all_emg_vals, axis=1)
-        np.save(getAbsolutePath("src/JTE_Project/online/online_results/mlp/bandpass_online.npy"), all_emgs)
+        np.save(str(getAbsolutePath(
+            f"src/JTE_Project/online/online_results/{self.model_type}/{self.subject_id}/bandpass_online_{self.current_weight}_{self.current_move}_{self.set_num}.npy")),
+                all_emgs)
         print("Save EMG Shape: ", all_emgs.shape)
 
 
@@ -671,16 +705,11 @@ class LiveEstimation:
 
 
 if __name__ == "__main__":
-    print("Big")
 
     live_estimation_obj = LiveEstimation()
-
-    print("Huge")
 
     live_estimation_obj.save_all_predictions()
 
     live_estimation_obj.save_torques()
-
-    print("Massive")
 
     live_estimation_obj.save_elapsed_times()
