@@ -4,9 +4,9 @@ import pandas as pd
 from biosignal_toolbox.utils import customWarningFormat, loadConfig, getAbsolutePath
 
 subject_id = 'BU62D'
-current_weight = '1100g'
-current_move = 'complex'
-set_num = '2'
+current_weight = '1850g'
+current_move = 'grasp'
+set_num = '3'
 
 # Load the emg file (just for length of the file)
 print(f"Session Config: Weight={current_weight}, Move={current_move}")

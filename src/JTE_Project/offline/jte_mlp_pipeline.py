@@ -139,7 +139,8 @@ current_idx = 0
 
 channel_cum_mvc = [[[] for _ in mov_types] for _ in weights]
 
-loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
+if cfg.model_param.load_models:
+    loaded_mvc = np.load(str(getAbsolutePath("src/JTE_Project/offline/saved_offline_models/channelwise_mvc.npy")))
 
 for wgt_idx, wgt in enumerate(weights):
     for mov_idx, mov in enumerate(mov_types):

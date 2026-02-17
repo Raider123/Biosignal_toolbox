@@ -9,9 +9,9 @@ from scipy import signal
 
 model_type = 'mlp'
 subject_id = 'BU62D'
-current_weight = '1100g'
-current_move = 'complex'
-set_num = '2'
+current_weight = '1850g'
+current_move = 'grasp'
+set_num = '3'
 
 all_preds = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_predictions_{current_weight}_{current_move}_{set_num}.npy")))
 Y_ref_raw = np.load(str(getAbsolutePath(f"src/JTE_Project/online/online_results/{model_type}/{subject_id}/all_torques_{current_weight}_{current_move}_{set_num}.npy")))
@@ -153,7 +153,7 @@ def shift_samples(arr, n, fill_value=0.0):
 if current_move == 'complex':
     all_torques = shift_samples(all_torques, -5, 0)
 else:
-    all_torques = shift_samples(all_torques, 10, 0)
+    all_torques = shift_samples(all_torques, -4, 0)
 all_preds = crop_edges(all_preds, 10, 50)
 all_torques = crop_edges(all_torques, 10, 50)
 

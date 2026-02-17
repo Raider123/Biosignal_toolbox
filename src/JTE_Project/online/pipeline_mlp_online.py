@@ -60,9 +60,9 @@ class LiveEstimation:
 
         ############################### Publisher File and Reference Torques ############################################
 
-        current_weight = '1100g'
-        current_move = 'complex'
-        set_num = '2'
+        current_weight = '1850g'
+        current_move = 'grasp'
+        set_num = '3'
 
         mvc_num1 = 0
         mvc_num2 = 0
@@ -104,7 +104,7 @@ class LiveEstimation:
 
         # Loading the ML Model
         self.load_model(getAbsolutePath(
-            'data/jte/ml_models/BU62D/mlp_1c2.keras'))
+            'data/jte/ml_models/BU62D/mlp_2c2.keras'))
 
         self.model_type = 'mlp'
         self.subject_id = 'BU62D'

@@ -60,7 +60,7 @@
   
   model_param:
     n_epochs:                 100
-    batch_size:               32
+    batch_size:               64
 
     loss_fcn:                 'weighted_huber'
     huber_weight_method:      'var'
@@ -68,7 +68,7 @@
     optimizer:                'nadam'
     metrics:                  'mse'
 
-    train_test_split:         0.99
+    train_test_split:         0.90
     validation_split:         0.15
 
     is_early_stop:            True
