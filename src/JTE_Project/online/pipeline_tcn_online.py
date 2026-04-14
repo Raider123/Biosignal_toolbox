@@ -648,6 +648,10 @@ class LiveEstimation:
         print("Save EMG Shape: ", all_emgs.shape)
 
     def update_loop(self):
+        feat_times = []
+        pred_times = []
+        update_times = []
+    
         while len(self.elapsed_times) < self.total_timepoints:
             update_read_time = time.perf_counter()
             # Read emg data from the stream
@@ -750,8 +754,19 @@ class LiveEstimation:
                 print(f"Pipeline Time Step: {update_time_step * 1000:.1f} ms")
                 print("Elapsed Times ", len(self.elapsed_times))
 
+                if update_time_step < 0.03:  # Only consider time steps that are less than 100ms (i.e., real-time performance)
+                    update_times.append(update_time_step)
+                    feat_times.append(update_time_step-pred_end_timer)
+                    pred_times.append(pred_end_timer)
+
+
                 if self.show_prediction_plot:
                     _, _ = self.update_plot()
+
+        print(f"Average Feature Extraction Time (ms): {np.mean(np.array(feat_times)) * 1000:.3f} +- {np.std(np.array(feat_times)) * 1000:.3f}")
+        print(f"Average Prediction Time (ms): {np.mean(np.array(pred_times)) * 1000:.3f} +- {np.std(np.array(pred_times)) * 1000:.3f}")
+        print(f"Average Update Loop Time (ms): {np.mean(np.array(update_times)) * 1000:.3f} +- {np.std(np.array(update_times)) * 1000:.3f}")
+        print(f"Total number of predictions: {len(self.all_predictions)}")
 
 
 if __name__ == "__main__":
