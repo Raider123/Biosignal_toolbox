@@ -2,7 +2,9 @@
 
 ## Joint Torque Estimation from Surface EMG Signals
 
-This repository contains the complete codebase for a master's thesis project on **real-time joint torque estimation (JTE)** of the upper limb from surface electromyography (sEMG) signals. The system estimates torques for three degrees of freedom — **elbow flexion/extension**, **shoulder frontal flexion**, and **shoulder lateral abduction** — using deep learning models (MLP and TCN) in both offline and pseudo-online settings.
+This repository contains the complete documentation for the maste project on **real-time joint torque estimation (JTE)** of the upper limb from surface electromyography (sEMG) signals. 
+
+The system estimates torques for three degrees of freedom — **elbow flexion/extension**, **shoulder frontal flexion**, and **shoulder lateral abduction** — using deep learning models (MLP and TCN) in both offline and pseudo-online settings.
 
 ---
 
@@ -20,7 +22,6 @@ This repository contains the complete codebase for a master's thesis project on 
 7. [Dependencies](#dependencies)
 8. [Usage](#usage)
 9. [Configuration](#configuration)
-10. [Key Design Decisions](#key-design-decisions)
 
 ---
 
@@ -113,19 +114,19 @@ Handles the computation of **ground-truth joint torques** from Qualisys motion c
 
 ```
 ┌─────────────────────┐     ┌──────────────────────┐
-│  Qualisys Motion    │     │  EMG Recording        │
+│  Qualisys Motion    │     │  EMG Recording       │
 │  Capture (.tsv)     │     │  (8 ch sEMG, 500 Hz) │
-└────────┬────────────┘     └────────┬──────────────┘
+└────────┬────────────┘     └────────┬─────────────┘
          │                           │
          ▼                           ▼
 ┌─────────────────────┐     ┌──────────────────────────────┐
-│ Qualisys_Torque/    │     │ EMG Preprocessing:            │
-│ - Subject params    │     │ 1. Bandpass filter (20-450Hz) │
-│ - Inverse dynamics  │     │ 2. Variance filter            │
-│ - Torque labels     │     │ 3. MVC normalisation          │
-│   (3 joints × N)    │     │ 4. Low-pass smoothing         │
-└────────┬────────────┘     │ 5. Neural activation force    │
-         │                  │ 6. Windowing + features       │
+│ Qualisys_Torque/    │     │ EMG Preprocessing:           │
+│ - Subject params    │     │ 1. Bandpass filter (20-450Hz)│
+│ - Inverse dynamics  │     │ 2. Variance filter           │
+│ - Torque labels     │     │ 3. MVC normalisation         │
+│   (3 joints × N)    │     │ 4. Low-pass smoothing        │
+└────────┬────────────┘     │ 5. Neural activation force   │
+         │                  │ 6. Windowing + features      │
          │                  └────────┬─────────────────────┘
          │                           │
          ▼                           ▼
@@ -214,7 +215,7 @@ Both offline and online pipelines apply the following signal processing steps in
 | `matplotlib` | Plotting and visualisation |
 | `joblib` | Serialisation of scaler objects |
 | `pyzmq` | ZeroMQ messaging for publisher–subscriber communication |
-| `biosignal_toolbox` | Custom/internal library for EMG/EEG preprocessing, feature extraction, online streaming (`OnlineEMG`, `EMGData`, `EEGData`), motion capture processing (`MotionData`), ML model wrapper (`MLModel`), neural network architectures (`AAN_Model`), and utilities (`loadConfig`, `getAbsolutePath`, `plotResults`) |
+| `biosignal_toolbox` | Library for EMG/EEG preprocessing, feature extraction, online streaming (`OnlineEMG`, `EMGData`, `EEGData`), motion capture processing (`MotionData`), ML model wrapper (`MLModel`), neural network architectures (`AAN_Model`), and utilities (`loadConfig`, `getAbsolutePath`, `plotResults`) |
 
 ---
 
@@ -316,14 +317,3 @@ Both offline and online pipelines are parameterised via YAML configuration files
 - `use_yscaler` — Enable/disable Y-scaler inverse transform
 
 ---
-
-## Key Design Decisions
-
-- **ZeroMQ PUB/SUB** decouples data acquisition from processing, enabling modular testing and future integration with live EMG hardware.
-- **XLA-compiled inference** (`tf.function(jit_compile=True)`) and concrete function tracing with explicit `TensorSpec` signatures eliminate Python overhead during prediction, achieving sub-30 ms loop times on CPU.
-- **Causal filtering only** in the online pipeline ensures no future information leakage, maintaining real-time validity.
-- **One-hot condition encoding** as an auxiliary model input allows a single model to generalise across multiple weight and movement conditions.
-- **Per-condition Y-scaling** (in `jte_mlp_pipeline.py`) handles the varying torque ranges across different load conditions, while global MVC (in `pipeline_mlp_offline.py` and `pipeline_tcn_offline.py`) prevents normalisation data leakage.
-- **Multi-phase data processing** in the TCN pipeline (load → global MVC → normalise) explicitly prevents MVC computation from leaking test-set statistics.
-- **Post-processing filters** (Savitzky-Golay + median filtering) smooth prediction jitter while preserving temporal dynamics, applied causally in the online setting.
-- **Dual-input TCN architecture** separates temporal pattern learning (causal convolutions on raw EMG) from static contextual information (condition encoding and differential features), improving generalisation.
