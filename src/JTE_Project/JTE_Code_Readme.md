@@ -327,4 +327,3 @@ Both offline and online pipelines are parameterised via YAML configuration files
 - **Multi-phase data processing** in the TCN pipeline (load → global MVC → normalise) explicitly prevents MVC computation from leaking test-set statistics.
 - **Post-processing filters** (Savitzky-Golay + median filtering) smooth prediction jitter while preserving temporal dynamics, applied causally in the online setting.
 - **Dual-input TCN architecture** separates temporal pattern learning (causal convolutions on raw EMG) from static contextual information (condition encoding and differential features), improving generalisation.
-```
