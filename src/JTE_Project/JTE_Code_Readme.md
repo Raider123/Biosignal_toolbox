@@ -1,4 +1,3 @@
-```markdown
 # JTE_Project
 
 ## Joint Torque Estimation from Surface EMG Signals
